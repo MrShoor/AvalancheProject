@@ -55,3 +55,9 @@ __history/
 
 # Castalia statistics file
 *.stat
+*.bak
+/lib
+/Demos/Src/Texturing/lib/i386-win32/*.compiled
+*.o
+/Demos/Src/Texturing/lib/i386-win32/*.or
+*.properties

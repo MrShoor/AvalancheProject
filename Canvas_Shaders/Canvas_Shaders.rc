@@ -1,0 +1,2 @@
+DX_CanvasLine RCDATA "!Out\DX_CanvasLine.hlsl"
+OGL_CanvasLine RCDATA "!Out\OGL_CanvasLine.glsl"

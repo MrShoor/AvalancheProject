@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="4">
+    <PathDelim Value="\"/>
+    <Name Value="Avalanche"/>
+    <Type Value="RunAndDesignTime"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <IncludeFiles Value="Common"/>
+        <OtherUnitFiles Value="Common"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      </SearchPaths>
+    </CompilerOptions>
+    <Files Count="17">
+      <Item1>
+        <Filename Value="Common\avbase.pas"/>
+        <UnitName Value="avBase"/>
+      </Item1>
+      <Item2>
+        <Filename Value="Common\avcameracontroller.pas"/>
+        <UnitName Value="avCameraController"/>
+      </Item2>
+      <Item3>
+        <Filename Value="Common\avcanvas.pas"/>
+        <UnitName Value="avCanvas"/>
+      </Item3>
+      <Item4>
+        <Filename Value="Common\avcontext.pas"/>
+        <UnitName Value="avContext"/>
+      </Item4>
+      <Item5>
+        <Filename Value="Common\avcontext_ogl.pas"/>
+        <UnitName Value="avContext_OGL"/>
+      </Item5>
+      <Item6>
+        <Filename Value="Common\avcontnrs.pas"/>
+        <UnitName Value="avContnrs"/>
+      </Item6>
+      <Item7>
+        <Filename Value="Common\avcontrols.pas"/>
+        <UnitName Value="avControls"/>
+      </Item7>
+      <Item8>
+        <Filename Value="Common\avlog.pas"/>
+        <UnitName Value="avLog"/>
+      </Item8>
+      <Item9>
+        <Filename Value="Common\avplatform.pas"/>
+        <UnitName Value="avPlatform"/>
+      </Item9>
+      <Item10>
+        <Filename Value="Common\avres.pas"/>
+        <UnitName Value="avRes"/>
+      </Item10>
+      <Item11>
+        <Filename Value="Common\avtess.pas"/>
+        <UnitName Value="avTess"/>
+      </Item11>
+      <Item12>
+        <Filename Value="Common\avtimer.pas"/>
+        <UnitName Value="avTimer"/>
+      </Item12>
+      <Item13>
+        <Filename Value="Common\avtypes.pas"/>
+        <UnitName Value="avTypes"/>
+      </Item13>
+      <Item14>
+        <Filename Value="Common\dglOpenGL.pas"/>
+        <UnitName Value="dglOpenGL"/>
+      </Item14>
+      <Item15>
+        <Filename Value="Common\LooseTree.inc"/>
+        <Type Value="Include"/>
+      </Item15>
+      <Item16>
+        <Filename Value="Common\mutils.pas"/>
+        <UnitName Value="mutils"/>
+      </Item16>
+      <Item17>
+        <Filename Value="Common\mutils_v.inc"/>
+        <Type Value="Include"/>
+      </Item17>
+    </Files>
+    <RequiredPkgs Count="1">
+      <Item1>
+        <PackageName Value="FCL"/>
+      </Item1>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>

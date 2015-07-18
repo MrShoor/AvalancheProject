@@ -1,0 +1,4 @@
+DX_poly RCDATA "!Out\DX_poly.hlsl"
+OGL_poly RCDATA "!Out\OGL_poly.glsl"
+DX_dots RCDATA "!Out\DX_dots.hlsl"
+OGL_dots RCDATA "!Out\OGL_dots.glsl"

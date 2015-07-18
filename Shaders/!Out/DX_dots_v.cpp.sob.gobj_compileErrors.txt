@@ -1,0 +1,6 @@
+Vertex shader failed to compile with the following errors:
+ERROR: 0:61: error(#143) Undeclared identifier: iiintBitsToFloat
+ERROR: 0:61: error(#202) No matching overloaded function found: iiintBitsToFloat
+ERROR: 0:61: error(#202) No matching overloaded function found: iiintBitsToFloat
+ERROR: error(#273) 3 compilation errors.  No code generated
+
