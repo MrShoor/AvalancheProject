@@ -680,6 +680,88 @@ type
     property PrimType: TPrimitiveType read GetPrimType write SetPrimType;
   end;
 
+  { TTexture }
+
+  TTexture = class(THandle, IctxTexture)
+  private const
+    GLImagePixelFormat: array [TImageFormat] of Cardinal = ( {Unknown      }  GL_NONE,
+                                                             {Gray8        }  GL_ALPHA,
+                                                             {R3G3B2       }  GL_RGB,
+                                                             {R8G8         }  GL_RG,
+                                                             {R5G6B5       }  GL_RGB,
+                                                             {A1R5G5B5     }  GL_BGRA,
+                                                             {A4R4G4B4     }  GL_BGRA,
+                                                             {R8G8B8       }  GL_BGR,
+                                                             {B8G8R8A8     }  GL_BGRA,
+                                                             {R8G8B8A8     }  GL_RGBA,
+                                                             {R16          }  GL_RED,
+                                                             {R16G16       }  GL_RG,
+                                                             {R16G16B16    }  GL_BGR,  //??
+                                                             {A16R16G16B16 }  GL_BGRA, //??
+                                                             {B16G16R16    }  GL_RGB,  //??
+                                                             {A16B16G16R16 }  GL_RGBA, //??
+                                                             {R32          }  GL_RED,
+                                                             {R32G32       }  GL_RG,
+                                                             {R32G32B32    }  GL_RGB,
+                                                             {A32R32G32B32F}  GL_RGBA,
+                                                             {A32B32G32R32F}  GL_RGBA, //??
+                                                             {DXT1         }  GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,
+                                                             {DXT3         }  GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,
+                                                             {DXT5         }  GL_COMPRESSED_RGBA_S3TC_DXT5_EXT
+                                                           );
+    GLImageComponentFormat: array [TImageFormat] of Cardinal = ( {Unknown      }  GL_NONE,
+                                                                 {Gray8        }  GL_UNSIGNED_BYTE,
+                                                                 {R3G3B2       }  GL_UNSIGNED_BYTE_2_3_3_REV,
+                                                                 {R8G8         }  GL_UNSIGNED_BYTE,
+                                                                 {R5G6B5       }  GL_UNSIGNED_SHORT_5_6_5,
+                                                                 {A1R5G5B5     }  GL_UNSIGNED_SHORT_1_5_5_5_REV,
+                                                                 {A4R4G4B4     }  GL_UNSIGNED_SHORT_4_4_4_4,
+                                                                 {R8G8B8       }  GL_UNSIGNED_BYTE,
+                                                                 {B8G8R8A8     }  GL_UNSIGNED_INT_8_8_8_8_REV,
+                                                                 {R8G8B8A8     }  GL_UNSIGNED_BYTE,
+                                                                 {R16          }  GL_UNSIGNED_SHORT,
+                                                                 {R16G16       }  GL_UNSIGNED_SHORT,
+                                                                 {R16G16B16    }  GL_UNSIGNED_SHORT,
+                                                                 {A16R16G16B16 }  GL_UNSIGNED_SHORT,
+                                                                 {B16G16R16    }  GL_UNSIGNED_SHORT,
+                                                                 {A16B16G16R16 }  GL_UNSIGNED_SHORT,
+                                                                 {R32          }  GL_FLOAT,
+                                                                 {R32G32       }  GL_FLOAT,
+                                                                 {R32G32B32    }  GL_FLOAT,
+                                                                 {A32R32G32B32F}  GL_FLOAT,
+                                                                 {A32B32G32R32F}  GL_FLOAT,
+                                                                 {DXT1         }  GL_NONE,
+                                                                 {DXT3         }  GL_NONE,
+                                                                 {DXT5         }  GL_NONE
+                                                               );
+  private
+    FFormat : TTextureFormat;
+    FWidth  : Integer;
+    FHeight : Integer;
+    FTargetFormat : TTextureFormat;
+
+    function GetTargetFormat: TTextureFormat;
+    procedure SetTargetFormat(Value: TTextureFormat);
+
+    procedure AllocMem(AWidth, AHeight: Integer; glFormat, exFormat, compFormat: Cardinal; Data: PByte; GenMipmaps: Boolean); overload;
+  public
+    procedure AllocHandle; override;
+    procedure FreeHandle; override;
+
+    property TargetFormat: TTextureFormat read GetTargetFormat write SetTargetFormat;
+
+    function Width : Integer;
+    function Height: Integer;
+    function Format: TTextureFormat;
+
+    procedure AllocMem(AWidth, AHeight: Integer; WithMips: Boolean); overload;
+    procedure AllocMem(AWidth, AHeight: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte); overload;
+    procedure SetImage(ImageWidth, ImageHeight: Integer; DataFormat: TImageFormat; Data: PByte; GenMipmaps: Boolean); overload;
+    procedure SetImage(X, Y, ImageWidth, ImageHeight: Integer; DataFormat: TImageFormat; Data: PByte; GenMipmaps: Boolean); overload;
+    procedure SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel: Integer; DataFormat: TImageFormat; Data: PByte); overload;
+    procedure SetMipImage(DestRect: TRect; MipLevel: Integer; DataFormat: TImageFormat; Data: PByte); overload;
+  end;
+
   { TProgram }
 
   TProgram = class(THandle, IctxProgram)
@@ -790,6 +872,108 @@ type
     constructor Create(AContext: TContext_OGL); override;
     destructor Destroy; override;
   end;
+
+{ TTexture }
+
+function TTexture.GetTargetFormat: TTextureFormat;
+begin
+  Result := FTargetFormat;
+end;
+
+procedure TTexture.SetTargetFormat(Value: TTextureFormat);
+begin
+  FTargetFormat := Value;
+end;
+
+procedure TTexture.AllocMem(AWidth, AHeight: Integer; glFormat, exFormat, compFormat: Cardinal; Data: PByte; GenMipmaps: Boolean);
+begin
+  glBindTexture(GL_TEXTURE_2D, FHandle);
+  glTexImage2D(GL_TEXTURE_2D, 0, glFormat, AWidth, AHeight, 0, exFormat, compFormat, Data);
+  FWidth := AWidth;
+  FHeight := AHeight;
+  FFormat := FTargetFormat;
+  if GenMipmaps then
+      glGenerateMipmap(GL_TEXTURE_2D);
+end;
+
+procedure TTexture.AllocHandle;
+begin
+  glGenTextures(1, @FHandle);
+end;
+
+procedure TTexture.FreeHandle;
+begin
+  glDeleteTextures(1, @FHandle);
+  FHandle := 0;
+end;
+
+function TTexture.Width: Integer;
+begin
+  Result := FWidth;
+end;
+
+function TTexture.Height: Integer;
+begin
+  Result := FHeight;
+end;
+
+function TTexture.Format: TTextureFormat;
+begin
+  Result := FFormat;
+end;
+
+procedure TTexture.AllocMem(AWidth, AHeight: Integer; WithMips: Boolean);
+var exFormat: Cardinal;
+    compType: Cardinal;
+begin
+  case TargetFormat of
+    TTextureFormat.D32f_S8 : begin exFormat:=GL_DEPTH_STENCIL;   compType:=GL_FLOAT_32_UNSIGNED_INT_24_8_REV; end;
+    TTextureFormat.D24_S8  : begin exFormat:=GL_DEPTH_STENCIL;   compType:=GL_UNSIGNED_INT_24_8;              end;
+    TTextureFormat.D16     : begin exFormat:=GL_DEPTH_COMPONENT; compType:=GL_UNSIGNED_SHORT;                 end;
+    TTextureFormat.D24     : begin exFormat:=GL_DEPTH_COMPONENT; compType:=GL_UNSIGNED_BYTE;                  end;
+    TTextureFormat.D32     : begin exFormat:=GL_DEPTH_COMPONENT; compType:=GL_INT;                            end;
+    TTextureFormat.D32f    : begin exFormat:=GL_DEPTH_COMPONENT; compType:=GL_FLOAT;                          end;
+    TTextureFormat.RGBA16f : begin exFormat:=GL_RGBA;            compType:=GL_HALF_FLOAT;                     end;
+  else
+    exFormat:=GL_RGBA; compType:=GL_UNSIGNED_BYTE;
+  end;
+  AllocMem(AWidth, AHeight, GLTextureFormat[FTargetFormat], exFormat, compType, nil, WithMips);
+end;
+
+procedure TTexture.AllocMem(AWidth, AHeight: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte);
+begin
+  AllocMem(AWidth, AHeight, GLTextureFormat[FTargetFormat], GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data, WithMips);
+end;
+
+procedure TTexture.SetImage(ImageWidth, ImageHeight: Integer; DataFormat: TImageFormat; Data: PByte; GenMipmaps: Boolean);
+begin
+  SetImage(0, 0, ImageWidth, ImageHeight, DataFormat, Data, GenMipmaps);
+end;
+
+procedure TTexture.SetImage(X, Y, ImageWidth, ImageHeight: Integer; DataFormat: TImageFormat; Data: PByte; GenMipmaps: Boolean);
+var W, H: Integer;
+begin
+  W := NextPow2(ImageWidth);
+  H := NextPow2(ImageHeight);
+  if (W <> Width) or (H <> Height) or (Format <> TargetFormat) then
+    AllocMem(W, H, False, DataFormat, nil);
+
+  glBindTexture(GL_TEXTURE_2D, FHandle);
+  glTexSubImage2D(GL_TEXTURE_2D, 0, X, Y, ImageWidth, ImageHeight, GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data);
+  if GenMipmaps then
+    glGenerateMipmap(GL_TEXTURE_2D);
+end;
+
+procedure TTexture.SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel: Integer; DataFormat: TImageFormat; Data: PByte);
+begin
+  glBindTexture(GL_TEXTURE_2D, FHandle);
+  glTexSubImage2D(GL_TEXTURE_2D, MipLevel, X, Y, ImageWidth, ImageHeight, GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data);
+end;
+
+procedure TTexture.SetMipImage(DestRect: TRect; MipLevel: Integer; DataFormat: TImageFormat; Data: PByte);
+begin
+  SetMipImage(DestRect.Left, DestRect.Top, DestRect.Right - DestRect.Left, DestRect.Bottom - DestRect.Top, MipLevel, DataFormat, Data);
+end;
 
 { TOGLStates }
 
@@ -2036,7 +2220,7 @@ end;
 
 function TContext_OGL.CreateTexture: IctxTexture;
 begin
-
+  Result := TTexture.Create();
 end;
 
 function TContext_OGL.CreateFrameBuffer: IctxFrameBuffer;

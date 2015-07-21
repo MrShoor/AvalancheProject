@@ -21,6 +21,6 @@ void main()
     Temp[0].x = dot(Input1.xyz, Input1.xyz);
     Temp[0].x = inversesqrt(Temp[0].x);
     Temp[0].x = Temp[0].x * Input1.z;
-    Output0 = max((-Temp[0].xxxx), vec4(intBitsToFloat(0x3E99999A), intBitsToFloat(0x3E99999A), intBitsToFloat(0x3E99999A), intBitsToFloat(0x3E99999A)));
+    Output0 = max((-Temp[0].xxxx), vec4(intBitsToFloat(0x0), intBitsToFloat(0x0), intBitsToFloat(0x0), intBitsToFloat(0x0)));
     return;
 }

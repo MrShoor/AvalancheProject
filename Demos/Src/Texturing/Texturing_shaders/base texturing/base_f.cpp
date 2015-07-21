@@ -12,6 +12,6 @@ struct PS_Output {
 PS_Output PS(PS_Input In) {
     PS_Output Out;
     float3 n = normalize(In.Normal);    
-    Out.Color = max(0.3, -n.z);
+    Out.Color = max(0.0, -n.z);
     return Out;
 }

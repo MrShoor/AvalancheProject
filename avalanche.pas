@@ -9,7 +9,7 @@ interface
 uses
   avBase, avCameraController, avCanvas, avContext, avContext_OGL, avContnrs, 
   avControls, avLog, avPlatform, avRes, avTess, avTimer, avTypes, dglOpenGL, 
-  mutils, LazarusPackageIntf;
+  mutils, avTexLoader, LazarusPackageIntf;
 
 implementation
 

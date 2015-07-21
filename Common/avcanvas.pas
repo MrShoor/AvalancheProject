@@ -6,7 +6,7 @@ unit avCanvas;
 interface
 
 uses
-  Classes, SysUtils, avBase, avRes, mutils, avTypes, avContnrs, avTess, avClasses;
+  Classes, SysUtils, avBase, avRes, mutils, avTypes, avContnrs, avTess;
 
 type
   TPolyEdgeType = (etLine, erArc, etBezier2, etBezier3);

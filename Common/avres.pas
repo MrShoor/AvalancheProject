@@ -301,6 +301,13 @@ type
     property Indices: IIndicesData read FInd write SetIndices;
   end;
 
+  TavTexture = class(TavRes)
+  private
+
+  protected
+  public
+  end;
+
   { TavProgram }
 
   TavProgram = class(TavRes)

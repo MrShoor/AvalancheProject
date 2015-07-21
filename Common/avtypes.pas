@@ -72,6 +72,7 @@ type
 type
   ECreateContextFailed = Class(Exception);
 
+  TByteArr = array of Byte;
   TIntArr = array of Integer;
   TWordArr = array of Word;
 
@@ -181,6 +182,63 @@ type
     function MipCount(const Index: Integer): Integer;
     function Data(const Index, MipLevel: Integer): TTextureMipInfo;
   end;
+
+const
+    ImagePixelSize : array [TImageFormat] of Integer = (
+        { Unknown } 0,
+        { Gray8 } 1,
+        { R3G3B2 } 1,
+        { R8G8 } 2,
+        { R5G6B5 } 2,
+        { A1R5G5B5 } 2,
+        { A4R4G4B4 } 2,
+        { R8G8B8 } 3,
+        { B8G8R8A8 } 4,
+        { R8G8B8A8 } 4,
+        { R16 } 2,
+        { R16G16 } 4,
+        { R16G16B16 } 6,
+        { A16R16G16B16 } 8,
+        { B16G16R16 } 6,
+        { A16B16G16R16 } 8,
+        { R32 } 4,
+        { R32G32 } 8,
+        { R32G32B32 } 12,
+        { A32R32G32B32F } 16,
+        { A32B32G32R32F } 16,
+        { DXT1 } 8,
+        { DXT3 } 16,
+        { DXT5 } 16);
+    TexturePixelSize : array [TTextureFormat] of Integer = (
+        { RGBA } 4,
+        { RGBA16 } 8,
+        { RGBA16f } 8,
+        { RGBA32 } 16,
+        { RGBA32f } 16,
+        { RGB } 3,
+        { RGB16 } 6,
+        { RGB16f } 6,
+        { RGB32 } 12,
+        { RGB32f } 12,
+        { RG } 2,
+        { RG16 } 4,
+        { RG16f } 4,
+        { RG32 } 8,
+        { RG32f } 8,
+        { R } 1,
+        { R16 } 2,
+        { R16f } 2,
+        { R32 } 4,
+        { R32f } 4,
+        { DXT1 } 8,
+        { DXT3 } 16,
+        { DXT5 } 16,
+        { D24_S8 } 4,
+        { D32f_S8 } 8,
+        { D16 } 2,
+        { D24 } 4,
+        { D32 } 4,
+        { D32f } 4);
 
 function Create_DataLayout(const AFields: TFieldInfoArr; AStrideSize: Integer = 0): IDataLayout;
 function CalcPrimCount(const ItemsCount: Integer; const PrimType: TPrimitiveType): Integer;

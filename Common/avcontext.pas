@@ -59,6 +59,24 @@ type
 
   IctxTexture = interface
   ['{FEEC2DC3-16AC-48D6-9AE1-6E358ECD4C48}']
+    //*******
+    function GetTargetFormat: TTextureFormat;
+    procedure SetTargetFormat(Value: TTextureFormat);
+    //*******
+    property TargetFormat: TTextureFormat read GetTargetFormat write SetTargetFormat;
+
+    function Width : Integer;
+    function Height: Integer;
+    function Format: TTextureFormat;
+
+    procedure AllocMem(AWidth, AHeight: Integer; WithMips: Boolean); overload;
+    procedure AllocMem(AWidth, AHeight: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte); overload;
+
+    procedure SetImage(ImageWidth, ImageHeight: Integer; DataFormat: TImageFormat; Data: PByte; GenMipmaps: Boolean); overload;
+    procedure SetImage(X, Y, ImageWidth, ImageHeight: Integer; DataFormat: TImageFormat; Data: PByte; GenMipmaps: Boolean); overload;
+
+    procedure SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel: Integer; DataFormat: TImageFormat; Data: PByte); overload;
+    procedure SetMipImage(DestRect: TRect; MipLevel: Integer; DataFormat: TImageFormat; Data: PByte); overload;
   end;
 
   TDataClass = (dcScalar, dcVector, dcMatrix, dcSampler);
