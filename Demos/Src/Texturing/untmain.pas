@@ -7,7 +7,7 @@ interface
 
 uses
   LCLType, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
-  avRes, avTypes, avTess, avContnrs, mutils, avCameraController;
+  avRes, avTypes, avTess, avContnrs, mutils, avCameraController, avTexLoader;
 
 type
 
@@ -16,6 +16,7 @@ type
   TCubeVertex = packed record
     vsCoord: TVec3;
     vsNormal: TVec3;
+    vsTexCrd: TVec2;
     class function Layout: IDataLayout; static;
   end;
   ICubeVertices = specialize IArray<TCubeVertex>;
@@ -33,6 +34,7 @@ type
     FProgram: TavProgram;
     FCubeVertices: TavVB;
     FCubeIndices: TavIB;
+    FTexture: TavTexture;
   public
     procedure EraseBackground(DC: HDC); override;
     procedure RenderScene;
@@ -51,10 +53,11 @@ implementation
 class function TCubeVertex.Layout: IDataLayout;
 begin
   Result := LB.Add('vsCoord', ctFloat, 3).
-               Add('vsNormal', ctFloat, 3).Finish();
+               Add('vsNormal', ctFloat, 3).
+               Add('vsTexCrd', ctFloat, 2).Finish();
 end;
 
-procedure GenCube(XHalfSize, YHalfSize, ZHalfSize: Single; out OutVert: IVerticesData; out OutInd: IIndicesData);
+procedure GenCube(XHalfSize, YHalfSize, ZHalfSize: Single; USize, VSize: Single; out OutVert: IVerticesData; out OutInd: IIndicesData);
 var Vert : ICubeVertices;
     V : TCubeVertex;
     Ind: IIndices;
@@ -63,40 +66,41 @@ begin
   Vert := TCubeVertices.Create;
 
   V.vsNormal := Vec(0,0,-1.0);
-  V.vsCoord := Vec(-XHalfSize,-YHalfSize,-ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec(-XHalfSize, YHalfSize,-ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec( XHalfSize,-YHalfSize,-ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec( XHalfSize, YHalfSize,-ZHalfSize); Vert.Add(V);
+
+  V.vsCoord := Vec(-XHalfSize,-YHalfSize,-ZHalfSize); V.vsTexCrd := Vec(0.0, 0.0); Vert.Add(V);
+  V.vsCoord := Vec(-XHalfSize, YHalfSize,-ZHalfSize); V.vsTexCrd := Vec(0.0, VSize); Vert.Add(V);
+  V.vsCoord := Vec( XHalfSize,-YHalfSize,-ZHalfSize); V.vsTexCrd := Vec(USize, 0.0); Vert.Add(V);
+  V.vsCoord := Vec( XHalfSize, YHalfSize,-ZHalfSize); V.vsTexCrd := Vec(USize, VSize); Vert.Add(V);
 
   V.vsNormal := Vec(0,0,1.0);
-  V.vsCoord := Vec(-XHalfSize, YHalfSize, ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec(-XHalfSize,-YHalfSize, ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec( XHalfSize, YHalfSize, ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec( XHalfSize,-YHalfSize, ZHalfSize); Vert.Add(V);
+  V.vsCoord := Vec(-XHalfSize, YHalfSize, ZHalfSize); V.vsTexCrd := Vec(0.0, 0.0); Vert.Add(V);
+  V.vsCoord := Vec(-XHalfSize,-YHalfSize, ZHalfSize); V.vsTexCrd := Vec(0.0, VSize); Vert.Add(V);
+  V.vsCoord := Vec( XHalfSize, YHalfSize, ZHalfSize); V.vsTexCrd := Vec(USize, 0.0); Vert.Add(V);
+  V.vsCoord := Vec( XHalfSize,-YHalfSize, ZHalfSize); V.vsTexCrd := Vec(USize, VSize); Vert.Add(V);
 
   V.vsNormal := Vec(0,-1.0,0);
-  V.vsCoord := Vec(-XHalfSize,-YHalfSize,-ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec( XHalfSize,-YHalfSize,-ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec(-XHalfSize,-YHalfSize, ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec( XHalfSize,-YHalfSize, ZHalfSize); Vert.Add(V);
+  V.vsCoord := Vec(-XHalfSize,-YHalfSize,-ZHalfSize); V.vsTexCrd := Vec(0.0, 0.0); Vert.Add(V);
+  V.vsCoord := Vec( XHalfSize,-YHalfSize,-ZHalfSize); V.vsTexCrd := Vec(0.0, VSize); Vert.Add(V);
+  V.vsCoord := Vec(-XHalfSize,-YHalfSize, ZHalfSize); V.vsTexCrd := Vec(USize, 0.0); Vert.Add(V);
+  V.vsCoord := Vec( XHalfSize,-YHalfSize, ZHalfSize); V.vsTexCrd := Vec(USize, VSize); Vert.Add(V);
 
   V.vsNormal := Vec(0,1.0,0);
-  V.vsCoord := Vec( XHalfSize, YHalfSize,-ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec(-XHalfSize, YHalfSize,-ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec( XHalfSize, YHalfSize, ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec(-XHalfSize, YHalfSize, ZHalfSize); Vert.Add(V);
+  V.vsCoord := Vec( XHalfSize, YHalfSize,-ZHalfSize); V.vsTexCrd := Vec(0.0, 0.0); Vert.Add(V);
+  V.vsCoord := Vec(-XHalfSize, YHalfSize,-ZHalfSize); V.vsTexCrd := Vec(0.0, VSize); Vert.Add(V);
+  V.vsCoord := Vec( XHalfSize, YHalfSize, ZHalfSize); V.vsTexCrd := Vec(USize, 0.0); Vert.Add(V);
+  V.vsCoord := Vec(-XHalfSize, YHalfSize, ZHalfSize); V.vsTexCrd := Vec(USize, VSize); Vert.Add(V);
 
   V.vsNormal := Vec(-1.0,0,0);
-  V.vsCoord := Vec(-XHalfSize,-YHalfSize,-ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec(-XHalfSize,-YHalfSize, ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec(-XHalfSize, YHalfSize,-ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec(-XHalfSize, YHalfSize, ZHalfSize); Vert.Add(V);
+  V.vsCoord := Vec(-XHalfSize,-YHalfSize,-ZHalfSize); V.vsTexCrd := Vec(0.0, 0.0); Vert.Add(V);
+  V.vsCoord := Vec(-XHalfSize,-YHalfSize, ZHalfSize); V.vsTexCrd := Vec(0.0, VSize); Vert.Add(V);
+  V.vsCoord := Vec(-XHalfSize, YHalfSize,-ZHalfSize); V.vsTexCrd := Vec(USize, 0.0); Vert.Add(V);
+  V.vsCoord := Vec(-XHalfSize, YHalfSize, ZHalfSize); V.vsTexCrd := Vec(USize, VSize); Vert.Add(V);
 
   V.vsNormal := Vec(1.0,0,0);
-  V.vsCoord := Vec( XHalfSize,-YHalfSize, ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec( XHalfSize,-YHalfSize,-ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec( XHalfSize, YHalfSize, ZHalfSize); Vert.Add(V);
-  V.vsCoord := Vec( XHalfSize, YHalfSize,-ZHalfSize); Vert.Add(V);
+  V.vsCoord := Vec( XHalfSize,-YHalfSize, ZHalfSize); V.vsTexCrd := Vec(0.0, 0.0); Vert.Add(V);
+  V.vsCoord := Vec( XHalfSize,-YHalfSize,-ZHalfSize); V.vsTexCrd := Vec(0.0, VSize); Vert.Add(V);
+  V.vsCoord := Vec( XHalfSize, YHalfSize, ZHalfSize); V.vsTexCrd := Vec(USize, 0.0); Vert.Add(V);
+  V.vsCoord := Vec( XHalfSize, YHalfSize,-ZHalfSize); V.vsTexCrd := Vec(USize, VSize); Vert.Add(V);
 
   Ind := Create_IIndices;
   Ind.PrimitiveType := ptTriangles;
@@ -123,6 +127,7 @@ var vert: IVerticesData;
     ind : IIndicesData;
 
     cc: TavCameraController;
+    USize, VSize: Single;
 begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
@@ -131,7 +136,13 @@ begin
   FProgram := TavProgram.Create(FMain);
   FProgram.LoadFromJSON('OGL_base', True);
 
-  GenCube(H, H, H, vert, ind);
+  FTexture := TavTexture.Create(FMain);
+  FTexture.TargetFormat := TTextureFormat.RGBA;
+  FTexture.TexData := LoadTexture('..\Media\tig.jpg', SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.B8G8R8A8);
+
+  USize := FTexture.TexData.Data(0,0).Width/NextPow2(FTexture.TexData.Data(0,0).Width);
+  VSize := FTexture.TexData.Data(0,0).Height/NextPow2(FTexture.TexData.Data(0,0).Height);
+  GenCube(H, H, H, USize, VSize, vert, ind);
 
   FCubeVertices := TavVB.Create(FMain);
   FCubeVertices.Vertices := vert;
@@ -170,6 +181,7 @@ begin
 //    FMain.States.DepthTest := True;
     FProgram.Select;
     FProgram.SetAttributes(FCubeVertices, FCubeIndices, nil);
+    FProgram.SetUniform('Diffuse', FTexture, Sampler_NoFilter);
     FProgram.Draw();
     FMain.Present;
   finally

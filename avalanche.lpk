@@ -8,12 +8,12 @@
       <Version Value="11"/>
       <PathDelim Value="\"/>
       <SearchPaths>
-        <IncludeFiles Value="Common"/>
+        <IncludeFiles Value="Common;Canvas_Shaders"/>
         <OtherUnitFiles Value="Common"/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Files Count="18">
+    <Files Count="19">
       <Item1>
         <Filename Value="Common\avbase.pas"/>
         <UnitName Value="avBase"/>
@@ -86,6 +86,10 @@
         <Filename Value="Common\avtexloader.pas"/>
         <UnitName Value="avTexLoader"/>
       </Item18>
+      <Item19>
+        <Filename Value="Canvas_Shaders\Canvas_Shaders.RES"/>
+        <Type Value="Binary"/>
+      </Item19>
     </Files>
     <RequiredPkgs Count="2">
       <Item1>

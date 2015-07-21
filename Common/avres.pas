@@ -301,11 +301,37 @@ type
     property Indices: IIndicesData read FInd write SetIndices;
   end;
 
+  { TavTexture }
+
   TavTexture = class(TavRes)
   private
-
+    FAutoGenerateMips: Boolean;
+    FDropLocalAfterBuild: Boolean;
+    FImageIndex: Integer;
+    FTargetFormat: TTextureFormat;
+    FTexData: ITextureData;
+    FImageSize: TVec2;
+    procedure SetAutoGenerateMips(AValue: Boolean);
+    procedure SetImageIndex(AValue: Integer);
+    procedure SetTexData(AValue: ITextureData);
   protected
+    FTexH: IctxTexture;
+    procedure BeforeFree3D; override;
+    function DoBuild: Boolean; override;
   public
+    property ImageIndex: Integer read FImageIndex write SetImageIndex;
+    property DropLocalAfterBuild: Boolean read FDropLocalAfterBuild write FDropLocalAfterBuild;
+    property TexData: ITextureData read FTexData write SetTexData;
+
+    function Width: Integer;
+    function Height: Integer;
+    function Size: TVec2;
+    function ImageSize: TVec2;
+
+    property TargetFormat: TTextureFormat read FTargetFormat write FTargetFormat;
+    property AutoGenerateMips: Boolean read FAutoGenerateMips write SetAutoGenerateMips;
+
+    procedure AfterConstruction; override;
   end;
 
   { TavProgram }
@@ -354,7 +380,7 @@ type
     procedure SetUniform (const Field: TUniformField; const values: TSingleArr); overload;
     procedure SetUniform (const Field: TUniformField; const v: TVec4arr);        overload;
     procedure SetUniform (const Field: TUniformField; const m: TMat4);           overload;
-//    procedure SetUniform (const Field: TUniformField; const tex: TengTexture; const sampler: TSamplerInfo);   overload;
+    procedure SetUniform (const Field: TUniformField; const tex: TavTexture; const sampler: TSamplerInfo); overload;
 
     procedure SetUniform (const AName: string; const value: integer);     overload;
     procedure SetUniform (const AName: string; const value: single);      overload;
@@ -364,7 +390,7 @@ type
     procedure SetUniform (const AName: string; const values: TSingleArr); overload;
     procedure SetUniform (const AName: string; const v: TVec4arr);        overload;
     procedure SetUniform (const AName: string; const m: TMat4);           overload;
-//    procedure SetUniform (const name: string; const tex: TengTexture; const sampler: TSamplerInfo);   overload;
+    procedure SetUniform (const AName: string; const tex: TavTexture; const sampler: TSamplerInfo); overload;
 
     procedure LoadFromJSON(const AProgram: string; FromResource: boolean = false); overload;
 
@@ -386,6 +412,109 @@ uses
   Math,
   avLog,
   avContext_OGL;
+
+{ TavTexture }
+
+procedure TavTexture.SetTexData(AValue: ITextureData);
+begin
+  if FTexData = AValue then Exit;
+  FTexData := AValue;
+  Invalidate;
+end;
+
+procedure TavTexture.SetImageIndex(AValue: Integer);
+begin
+  if FImageIndex = AValue then Exit;
+  FImageIndex := AValue;
+  Invalidate;
+end;
+
+procedure TavTexture.SetAutoGenerateMips(AValue: Boolean);
+begin
+  if FAutoGenerateMips = AValue then Exit;
+  FAutoGenerateMips := AValue;
+  Invalidate;
+end;
+
+procedure TavTexture.BeforeFree3D;
+begin
+  inherited BeforeFree3D;
+  if Assigned(FTexH) then Invalidate;
+  FTexH := nil;
+end;
+
+function TavTexture.DoBuild: Boolean;
+var MipCount: Integer;
+    MipInfo : TTextureMipInfo;
+    i: Integer;
+begin
+  if Assigned(FTexData) and (FTexData.ItemCount > FImageIndex) then
+  begin
+    MipCount := FTexData.MipCount(FImageIndex);
+    if MipCount > 0 then
+    begin
+      if FTexH = nil then FTexH := Main.Context.CreateTexture;
+      FTexH.TargetFormat := FTargetFormat;
+      MipInfo := FTexData.Data(FImageIndex, 0);
+      FImageSize.x := MipInfo.Width;
+      FImageSize.y := MipInfo.Height;
+      if MipCount = 1 then
+        FTexH.SetImage(MipInfo.Width, MipInfo.Height, FTexData.Format, MipInfo.Data, FAutoGenerateMips)
+      else
+      begin
+        FTexH.AllocMem(NextPow2(MipInfo.Width), NextPow2(MipInfo.Height), True);
+        for i := 0 to MipCount - 1 do
+        begin
+          MipInfo := FTexData.Data(FImageIndex, i);
+          FTexH.SetMipImage(0, 0, MipInfo.Width, MipInfo.Height, i, FTexData.Format, MipInfo.Data);
+        end;
+      end;
+    end;
+  end;
+  if FDropLocalAfterBuild then FTexData := nil;
+  Result := True;
+end;
+
+function TavTexture.Width: Integer;
+begin
+  if Assigned(FTexH) then
+    Result := FTexH.Width
+  else
+    Result := 0;
+end;
+
+function TavTexture.Height: Integer;
+begin
+  if Assigned(FTexH) then
+    Result := FTexH.Height
+  else
+    Result := 0;
+end;
+
+function TavTexture.Size: TVec2;
+begin
+  if Assigned(FTexH) then
+  begin
+    Result.x := FTexH.Width;
+    Result.y := FTexH.Height;
+  end
+  else
+  begin
+    Result.x := 0;
+    Result.y := 0;
+  end;
+end;
+
+function TavTexture.ImageSize: TVec2;
+begin
+  Result := FImageSize;
+end;
+
+procedure TavTexture.AfterConstruction;
+begin
+  FAutoGenerateMips := True;
+  inherited AfterConstruction;
+end;
 
 { TavCursor }
 
@@ -1375,6 +1504,13 @@ begin
   FProgram.SetUniform(Field, m);
 end;
 
+procedure TavProgram.SetUniform(const Field: TUniformField; const tex: TavTexture; const sampler: TSamplerInfo);
+begin
+  if tex = nil then Exit;
+  tex.Build;
+  FProgram.SetUniform(Field, tex.FTexH, sampler);
+end;
+
 procedure TavProgram.SetUniform(const AName: string; const value: integer);
 begin
   FProgram.SetUniform(GetUniformField(AName), integer(value));
@@ -1413,6 +1549,13 @@ end;
 procedure TavProgram.SetUniform(const AName: string; const m: TMat4);
 begin
   FProgram.SetUniform(GetUniformField(AName), m);
+end;
+
+procedure TavProgram.SetUniform(const AName: string; const tex: TavTexture; const sampler: TSamplerInfo);
+begin
+  if tex = nil then Exit;
+  tex.DoBuild;
+  FProgram.SetUniform(GetUniformField(AName), tex.FTexH, sampler);
 end;
 
 procedure TavProgram.LoadFromJSON(const AProgram: string; FromResource: boolean);

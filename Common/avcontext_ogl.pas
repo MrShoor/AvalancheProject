@@ -1999,21 +1999,25 @@ begin
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo);
-//var gltex: ITextureHandle_OGL;
+var TexH: GLuint;
 begin
-{
   if Field = nil then Exit;
   if Field.DataClass <> dcSampler then Exit;
-  if not Supports(tex, ITextureHandle_OGL, gltex) then Exit;
-  gltex.Select(PInteger(Field.Data)^);
-  glUniform1i(TOGLUniformField(Field).ID, PInteger(Field.Data)^);
+  if tex = nil then Exit;
+  {
+    if not Supports(tex, ITextureHandle_OGL, gltex) then Exit;
+    gltex.Select(PInteger(Field.Data)^);
+  }
+  TexH := (tex as IHandle).Handle;
+  glActiveTexture(GL_TEXTURE0 + PInteger(Field.Data)^);
+  glBindTexture(GL_TEXTURE_2D, TexH);
 
+  glUniform1i(TUniformField_OGL(Field).ID, PInteger(Field.Data)^);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GLMagTextureFilter[Sampler.MagFilter]);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GLMinTextureFilter[Sampler.MipFilter, Sampler.MinFilter]);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GLWrap[Sampler.Wrap_X]);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GLWrap[Sampler.Wrap_Y]);
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, Sampler.Anisotropy);
-}
 end;
 
 procedure TProgram.Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode;
@@ -2220,7 +2224,7 @@ end;
 
 function TContext_OGL.CreateTexture: IctxTexture;
 begin
-  Result := TTexture.Create();
+  Result := TTexture.Create(Self);
 end;
 
 function TContext_OGL.CreateFrameBuffer: IctxFrameBuffer;
@@ -2292,6 +2296,8 @@ begin
   FreeAndNil(FPrograms);
   FStatesIntf := nil;
   FreeAndNil(FStates);
+  DestroyRenderingContext(FRC);
+  ReleaseDC(FWnd, FDC);
   inherited Destroy;
 end;
 

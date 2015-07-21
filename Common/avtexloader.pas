@@ -1,15 +1,15 @@
 unit avTexLoader;
 
-{$DEFINE VAMPYRE}
+{$Define VAMPYRE}
 
 interface
 
 uses SysUtils,
-     {$IFDEF VAMPYRE}
+     {$IfDef VAMPYRE}
      ImagingTypes,
      ImagingUtility,
      Imaging,
-     {$ENDIF}
+     {$EndIf}
      avTypes,
      mutils;
 
@@ -24,11 +24,15 @@ const
 function LoadTexture(const data        : TByteArr;
                      const targetWidth : Integer = SIZE_DEFAULT;
                      const targetHeight: Integer = SIZE_DEFAULT;
-                     const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData;
+                     const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
+function LoadTexture(const FileName    : string;
+                     const targetWidth : Integer = SIZE_DEFAULT;
+                     const targetHeight: Integer = SIZE_DEFAULT;
+                     const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
 
 implementation
 
-uses Classes, Math;
+uses Classes;
 
 type
 
@@ -63,20 +67,44 @@ type
     function MipCount(const Index: Integer): Integer;
     function Data(const Index, MipLevel: Integer): TTextureMipInfo;
 
-    constructor Create(var ImgData: TImageData;
+    {$IfDef VAMPYRE}
+    constructor Create(ImgData: TDynImageDataArray;
                        targetWidth, targetHeight : Integer;
                        targetFormat              : TImageFormat);
+    {$EndIf}
     destructor Destroy; override;
   end;
 
+{$IfDef VAMPYRE}
 function LoadTexture(const data                      : TByteArr;
                      const targetWidth, targetHeight : Integer;
                      const targetFormat              : TImageFormat): ITextureData;
-var img: TImageData;
+var imgs: TDynImageDataArray;
 begin
-    if not LoadImageFromMemory(@data[0], Length(data), img) then Exit(nil);
-    Result := TTextureData.Create(img, targetWidth, targetHeight, targetFormat);
+  imgs := nil;
+  if not LoadMultiImageFromMemory(@data[0], Length(data), imgs) then Exit(nil);
+  try
+    Result := TTextureData.Create(imgs, targetWidth, targetHeight, targetFormat);
+  finally
+    FreeImagesInArray(imgs);
+  end;
 end;
+{$EndIf}
+
+{$IfDef VAMPYRE}
+function LoadTexture(const FileName: string; const targetWidth: Integer;
+  const targetHeight: Integer; const targetFormat: TImageFormat): ITextureData;
+var imgs: TDynImageDataArray;
+begin
+  imgs := nil;
+  if not LoadMultiImageFromFile(FileName, imgs) then Exit(nil);
+  try
+    Result := TTextureData.Create(imgs, targetWidth, targetHeight, targetFormat);
+  finally
+    FreeImagesInArray(imgs);
+  end;
+end;
+{$EndIf}
 
 { TTextureData.TMip }
 
@@ -130,9 +158,13 @@ begin
   Result.Level  := FMips[Index][MipLevel].FLevel;
 end;
 
-constructor TTextureData.Create(var ImgData: TImageData;
+{$IfDef VAMPYRE}
+constructor TTextureData.Create(ImgData: TDynImageDataArray;
                                 targetWidth, targetHeight : Integer;
                                 targetFormat              : TImageFormat);
+  type
+      TTextureType = (ttSingleImage, ttMipLeveling, ttTextureArray);
+
   procedure RaiseUnsupported;
   begin
     raise ETextureFormatError.Create('Unsupported format');
@@ -193,28 +225,79 @@ constructor TTextureData.Create(var ImgData: TImageData;
   end;
 
 var NewVamp: ImagingTypes.TImageFormat;
+    Img0: TImageData;
+    i: Integer;
+    TexType: TTextureType;
 begin
+  Assert(Length(ImgData)>0);
+  Img0 := ImgData[0];
+
   if targetFormat = TImageFormat.Unknown then
   begin
-    targetFormat := VampToAv(ImgData.Format);
+    targetFormat := VampToAv(Img0.Format);
     if targetFormat = TImageFormat.Unknown then RaiseUnsupported;
   end;
   NewVamp := AvToVamp(targetFormat);
   if NewVamp = ifUnknown then RaiseUnsupported;
-  if NewVamp <> ImgData.Format then ConvertImage(ImgData, NewVamp);
+  FFormat := targetFormat;
 
-  if targetWidth = SIZE_DEFAULT then targetWidth := ImgData.Width;
-  if targetHeight = SIZE_DEFAULT then targetHeight := ImgData.Height;
-  if targetWidth = SIZE_NEXTPOW2 then targetWidth := NextPow2(ImgData.Width);
-  if targetHeight = SIZE_NEXTPOW2 then targetHeight := NextPow2(ImgData.Height);
+  TexType := ttSingleImage;
+  if Length(ImgData) > 1 then
+  begin
+    if (ImgData[0].Width = ImgData[1].Width) and (ImgData[0].Height = ImgData[1].Height) then
+      TexType := ttTextureArray
+    else
+    begin
+      if IsPow2(ImgData[0].Width) and IsPow2(ImgData[0].Height) and
+         (ImgData[0].Width shr 2 = ImgData[1].Width) and (ImgData[0].Height shr 2 = ImgData[1].Height) then
+         TexType := ttMipLeveling;
+    end;
+  end;
 
-  if (targetWidth <> ImgData.Width) or (targetHeight <> ImgData.Height) then
-    ResizeImage(ImgData, targetWidth, targetHeight, rfBicubic);
+  if targetWidth = SIZE_DEFAULT then targetWidth := ImgData[0].Width;
+  if targetHeight = SIZE_DEFAULT then targetHeight := ImgData[0].Height;
+  if targetWidth = SIZE_NEXTPOW2 then targetWidth := NextPow2(ImgData[0].Width);
+  if targetHeight = SIZE_NEXTPOW2 then targetHeight := NextPow2(ImgData[0].Height);
+  if (TexType = ttMipLeveling) then
+    if not (IsPow2(targetWidth) and IsPow2(targetHeight)) then
+      TexType := ttSingleImage;
 
-  SetLength(FMips, 1);
-  SetLength(FMips[0], 1);
-  FMips[0][0] := TMip.Create(0, ImgData.Width, ImgData.Height, ImgData.Bits, ImgData.Size);
+  case TexType of
+    ttSingleImage:
+        SetLength(FMips, 1, 1);
+    ttMipLeveling:
+        SetLength(FMips, 1, Length(ImgData));
+    ttTextureArray:
+        SetLength(FMips, Length(ImgData), 1);
+  end;
+
+  for i := 0 to Length(ImgData) - 1 do
+  begin
+    if NewVamp <> ImgData[i].Format then ConvertImage(ImgData[i], NewVamp);
+
+    if (targetWidth <> ImgData[i].Width) or (targetHeight <> ImgData[i].Height) then
+      ResizeImage(ImgData[i], targetWidth, targetHeight, rfBicubic);
+
+    case TexType of
+      ttSingleImage:
+          begin
+            FMips[0][0] := TMip.Create(0, ImgData[i].Width, ImgData[i].Height, ImgData[i].Bits, ImgData[i].Size);
+            Break;
+          end;
+      ttMipLeveling:
+          begin
+            FMips[0][i] := TMip.Create(i, ImgData[i].Width, ImgData[i].Height, ImgData[i].Bits, ImgData[i].Size);
+            targetWidth := targetWidth shr 2;
+            targetHeight := targetHeight shr 2;
+          end;
+      ttTextureArray:
+          begin
+            FMips[i][0] := TMip.Create(0, ImgData[i].Width, ImgData[i].Height, ImgData[i].Bits, ImgData[i].Size);
+          end;
+    end;
+  end;
 end;
+{$EndIf}
 
 destructor TTextureData.Destroy;
 begin

@@ -239,6 +239,15 @@ const
         { D24 } 4,
         { D32 } 4,
         { D32f } 4);
+    Sampler_NoFilter : TSamplerInfo = (
+      MinFilter  : tfNearest;
+      MagFilter  : tfNearest;
+      MipFilter  : tfNone;
+      Anisotropy : 16;
+      Wrap_X     : twRepeat;
+      Wrap_Y     : twRepeat;
+      Border     : (x: 0; y: 0; z: 0; w: 0);
+    );
 
 function Create_DataLayout(const AFields: TFieldInfoArr; AStrideSize: Integer = 0): IDataLayout;
 function CalcPrimCount(const ItemsCount: Integer; const PrimType: TPrimitiveType): Integer;
