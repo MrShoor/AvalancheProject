@@ -5,7 +5,7 @@ unit avRes;
 interface
 
 uses
-  Classes, SysUtils, avBase, avContext, mutils, avTypes, avPlatform;
+  Classes, SysUtils, avBase, avContext, mutils, avTypes, avPlatform, avContnrs;
 
 type
   TavProgram = class;
@@ -405,6 +405,19 @@ type
     destructor Destroy; override;
   end;
 
+  { TavFrameBuffer }
+
+  TavFrameBuffer = class(TavRes)
+  private type
+    TColorsList = specialize TArray<IWeakRef>;
+    IColorsList = specialize IArray<IWeakRef>;
+  private
+    FColors: IColorsList;
+    FDepth : IWeakRef;
+  public
+    procedure AfterConstruction; override;
+  end;
+
 implementation
 
 uses
@@ -412,6 +425,14 @@ uses
   Math,
   avLog,
   avContext_OGL;
+
+{ TavFrameBuffer }
+
+procedure TavFrameBuffer.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FColors := TColorsList.Create(nil);
+end;
 
 { TavTexture }
 

@@ -123,6 +123,19 @@ type
 
   IctxFrameBuffer = interface
   ['{E2A4C25A-B9E2-40B4-B2F8-3E1EF8C93B8E}']
+    // getters/setters
+    function GetRenderRect: TRectF;
+    procedure SetRenderRect(AValue: TRectF);
+    // getters/setters
+
+    procedure Select;
+
+    procedure Clear;
+    procedure EnableColorTarget(index: Integer; Enabled: Boolean);
+    procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0);
+    procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0);
+
+    property RenderRect: TRectF read GetRenderRect write SetRenderRect;
   end;
 
   IRenderStates = interface

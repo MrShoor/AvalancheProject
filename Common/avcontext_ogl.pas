@@ -131,6 +131,36 @@ const
                                                            {D32    } GL_DEPTH_COMPONENT32,
                                                            {D32f   } GL_DEPTH_COMPONENT32F
                                                        );
+  GLAttachmetType: array [TTextureFormat] of Cardinal = (  {RGBA   } GL_COLOR_ATTACHMENT0,
+                                                           {RGBA16 } GL_COLOR_ATTACHMENT0,
+                                                           {RGBA16f} GL_COLOR_ATTACHMENT0,
+                                                           {RGBA32 } GL_COLOR_ATTACHMENT0,
+                                                           {RGBA32f} GL_COLOR_ATTACHMENT0,
+                                                           {RGB    } GL_COLOR_ATTACHMENT0,
+                                                           {RGB16  } GL_COLOR_ATTACHMENT0,
+                                                           {RGB16f } GL_COLOR_ATTACHMENT0,
+                                                           {RGB32  } GL_COLOR_ATTACHMENT0,
+                                                           {RGB32f } GL_COLOR_ATTACHMENT0,
+                                                           {RG     } GL_COLOR_ATTACHMENT0,
+                                                           {RG16   } GL_COLOR_ATTACHMENT0,
+                                                           {RG16f  } GL_COLOR_ATTACHMENT0,
+                                                           {RG32   } GL_COLOR_ATTACHMENT0,
+                                                           {RG32f  } GL_COLOR_ATTACHMENT0,
+                                                           {R      } GL_COLOR_ATTACHMENT0,
+                                                           {R16    } GL_COLOR_ATTACHMENT0,
+                                                           {R16f   } GL_COLOR_ATTACHMENT0,
+                                                           {R32    } GL_COLOR_ATTACHMENT0,
+                                                           {R32f   } GL_COLOR_ATTACHMENT0,
+                                                           {DXT1   } GL_COLOR_ATTACHMENT0,
+                                                           {DXT3   } GL_COLOR_ATTACHMENT0,
+                                                           {DXT5   } GL_COLOR_ATTACHMENT0,
+                                                           {D24_S8 } GL_DEPTH_STENCIL_ATTACHMENT,
+                                                           {D32f_S8} GL_DEPTH_STENCIL_ATTACHMENT,
+                                                           {D16    } GL_DEPTH_ATTACHMENT,
+                                                           {D24    } GL_DEPTH_ATTACHMENT,
+                                                           {D32    } GL_DEPTH_ATTACHMENT,
+                                                           {D32f   } GL_DEPTH_ATTACHMENT
+                                                       );
   GLMapAccess: array [TMapingUsage] of Cardinal = ({muWriteOnly}GL_WRITE_ONLY,
                                                    {muReadOnly} GL_READ_ONLY,
                                                    {muReadWrite}GL_READ_WRITE);
@@ -872,6 +902,153 @@ type
     constructor Create(AContext: TContext_OGL); override;
     destructor Destroy; override;
   end;
+
+  { TFrameBuffer }
+
+  TFrameBuffer = class(THandle, IctxFrameBuffer)
+  private const
+
+  private
+    FRenderRect         : TRectF;
+    FMaxColorAttacments : Integer;
+
+    FEnabledColorTargets: array of Boolean;
+    FGLEnabled          : array of GLenum;
+  protected
+    procedure AllocHandle; override;
+    procedure FreeHandle; override;
+  public
+    // getters/setters
+    function GetRenderRect: TRectF;
+    procedure SetRenderRect(AValue: TRectF);
+    // getters/setters
+
+    procedure Select;
+
+    procedure Clear;
+    procedure EnableColorTarget(index: Integer; Enabled: Boolean);
+    procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
+    procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
+
+    property RenderRect: TRectF read GetRenderRect write SetRenderRect;
+  public
+    constructor Create(AContext: TContext_OGL); override;
+//    destructor Destroy; override;
+  end;
+
+procedure TFrameBuffer.AllocHandle;
+begin
+  glGenFramebuffers(1, @FHandle);
+end;
+
+procedure TFrameBuffer.FreeHandle;
+begin
+  glDeleteFramebuffers(1, @FHandle);
+  FHandle := 0;
+end;
+
+function TFrameBuffer.GetRenderRect: TRectF;
+begin
+  Result := FRenderRect;
+end;
+
+procedure TFrameBuffer.SetRenderRect(AValue: TRectF);
+begin
+  if FRenderRect = AValue then Exit;
+  FRenderRect := AValue;
+end;
+
+procedure TFrameBuffer.Select;
+var i, n: Integer;
+begin
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FHandle);
+
+  n := 0;
+  for i := 0 to Length(FEnabledColorTargets) - 1 do
+    if FEnabledColorTargets[i] then
+    begin
+      FGLEnabled[n] := GL_COLOR_ATTACHMENT0 + i;
+      Inc(n);
+    end;
+
+  glDrawBuffers(n, @FGLEnabled[0]);
+end;
+
+procedure TFrameBuffer.Clear;
+var i: Integer;
+    ActiveObject: GLuint;
+begin
+  {$IFNDEF NOglNamed}
+  if Assigned(glNamedFramebufferTexture2DEXT) then
+  begin
+    for i := 0 to FMaxColorAttacments - 1 do
+      glNamedFramebufferTexture2DEXT(FHandle, GL_COLOR_ATTACHMENT0+i, GL_TEXTURE_2D, 0, 0);
+  end
+  else
+  {$ENDIF}
+  begin
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, @ActiveObject);
+    glBindFramebuffer(GL_FRAMEBUFFER, FHandle);
+    for i := 0 to FMaxColorAttacments - 1 do
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0+i, GL_TEXTURE_2D, 0, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, ActiveObject);
+  end;
+  for i := 0 to Length(FEnabledColorTargets) - 1 do
+    FEnabledColorTargets[i] := False;
+end;
+
+procedure TFrameBuffer.EnableColorTarget(index: Integer; Enabled: Boolean);
+begin
+  FEnabledColorTargets[index] := Enabled;
+end;
+
+procedure TFrameBuffer.SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
+var ActiveObject: GLuint;
+begin
+  {$IFNDEF NOglNamed}
+  if Assigned(glNamedFramebufferTexture2DEXT) then
+  begin
+      glNamedFramebufferTexture2DEXT(FHandle, GL_COLOR_ATTACHMENT0+index, GL_TEXTURE_2D, (tex as IHandle).Handle, mipLevel);
+  end
+  else
+  {$ENDIF}
+  begin
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, @ActiveObject);
+    glBindFramebuffer(GL_FRAMEBUFFER, FHandle);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0+index, GL_TEXTURE_2D, (tex as IHandle).Handle, mipLevel);
+    glBindFramebuffer(GL_FRAMEBUFFER, ActiveObject);
+  end;
+  FEnabledColorTargets[index] := True;
+end;
+
+procedure TFrameBuffer.SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
+var ActiveObject: GLuint;
+    GLAttType: GLuint;
+begin
+  GLAttType := GLAttachmetType[tex.Format];
+  Assert(GLAttType <> GL_COLOR_ATTACHMENT0);
+  {$IFNDEF NOglNamed}
+  if Assigned(glNamedFramebufferTexture2DEXT) then
+  begin
+      glNamedFramebufferTexture2DEXT(FHandle, GLAttType, GL_TEXTURE_2D, (tex as IHandle).Handle, mipLevel);
+  end
+  else
+  {$ENDIF}
+  begin
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, @ActiveObject);
+    glBindFramebuffer(GL_FRAMEBUFFER, FHandle);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GLAttType, GL_TEXTURE_2D, (tex as IHandle).Handle, mipLevel);
+    glBindFramebuffer(GL_FRAMEBUFFER, ActiveObject);
+  end;
+end;
+
+constructor TFrameBuffer.Create(AContext: TContext_OGL);
+begin
+  inherited Create(AContext);
+  glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, @FMaxColorAttacments);
+  SetLength(FEnabledColorTargets, FMaxColorAttacments);
+  SetLength(FGLEnabled, FMaxColorAttacments);
+end;
 
 { TTexture }
 
@@ -2229,7 +2406,7 @@ end;
 
 function TContext_OGL.CreateFrameBuffer: IctxFrameBuffer;
 begin
-
+  Result := TFrameBuffer.Create(Self);
 end;
 
 function TContext_OGL.States: IRenderStates;
