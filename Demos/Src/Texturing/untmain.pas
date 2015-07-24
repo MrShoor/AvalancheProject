@@ -35,6 +35,10 @@ type
     FCubeVertices: TavVB;
     FCubeIndices: TavIB;
     FTexture: TavTexture;
+
+    FFrameBuffer: TavFrameBuffer;
+
+    procedure BuildFramebuffer;
   public
     procedure EraseBackground(DC: HDC); override;
     procedure RenderScene;
@@ -151,6 +155,8 @@ begin
   FCubeIndices.Indices := ind;
   FCubeIndices.CullMode := cmBack;
 
+  BuildFramebuffer;
+
   cc := TavCameraController.Create(FMain);
   cc.CanRotate := True;
 //  cc.Enabled := True;
@@ -166,6 +172,19 @@ begin
   RenderScene;
 end;
 
+procedure TfrmMain.BuildFramebuffer;
+var tex: TavTexture;
+begin
+  FFrameBuffer := TavFrameBuffer.Create(FMain);
+  tex := TavTexture.Create(FFrameBuffer);
+  tex.TargetFormat := TTextureFormat.RGBA;
+  FFrameBuffer.SetColor(0, tex, 0);
+
+  tex := TavTexture.Create(FFrameBuffer);
+  tex.TargetFormat := TTextureFormat.D32f;
+  FFrameBuffer.SetDepth(tex, 0);
+end;
+
 procedure TfrmMain.EraseBackground(DC: HDC);
 begin
   //inherited EraseBackground(DC);
@@ -177,6 +196,9 @@ begin
   if FMain.Bind then
   try
     FMain.Clear(Vec(0.0,0.0,0.0,1.0), True, 1, True);
+
+    FFrameBuffer.FrameRect := RectF(0, ClientWidth, 0, ClientHeight);
+    FFrameBuffer.Select;
 //    FMain.States.Wireframe := True;
 //    FMain.States.DepthTest := True;
     FProgram.Select;

@@ -117,9 +117,9 @@ const
                                                            {RG32   } GL_RG32UI,
                                                            {RG32f  } GL_RG32F,
                                                            {R      } GL_RED,
-                                                           {R16    } GL_R16,
+                                                           {R16F    } GL_R16,
                                                            {R16f   } GL_R16F,
-                                                           {R32    } GL_R32UI,
+                                                           {R32F    } GL_R32UI,
                                                            {R32f   } GL_R32F,
                                                            {DXT1   } GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,
                                                            {DXT3   } GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,
@@ -147,9 +147,9 @@ const
                                                            {RG32   } GL_COLOR_ATTACHMENT0,
                                                            {RG32f  } GL_COLOR_ATTACHMENT0,
                                                            {R      } GL_COLOR_ATTACHMENT0,
-                                                           {R16    } GL_COLOR_ATTACHMENT0,
+                                                           {R16F    } GL_COLOR_ATTACHMENT0,
                                                            {R16f   } GL_COLOR_ATTACHMENT0,
-                                                           {R32    } GL_COLOR_ATTACHMENT0,
+                                                           {R32F    } GL_COLOR_ATTACHMENT0,
                                                            {R32f   } GL_COLOR_ATTACHMENT0,
                                                            {DXT1   } GL_COLOR_ATTACHMENT0,
                                                            {DXT3   } GL_COLOR_ATTACHMENT0,
@@ -724,20 +724,37 @@ type
                                                              {R8G8B8       }  GL_BGR,
                                                              {B8G8R8A8     }  GL_BGRA,
                                                              {R8G8B8A8     }  GL_RGBA,
-                                                             {R16          }  GL_RED,
-                                                             {R16G16       }  GL_RG,
-                                                             {R16G16B16    }  GL_BGR,  //??
-                                                             {A16R16G16B16 }  GL_BGRA, //??
-                                                             {B16G16R16    }  GL_RGB,  //??
-                                                             {A16B16G16R16 }  GL_RGBA, //??
-                                                             {R32          }  GL_RED,
-                                                             {R32G32       }  GL_RG,
-                                                             {R32G32B32    }  GL_RGB,
+                                                             {R16F         }  GL_RED,
+                                                             {R16G16F      }  GL_RG,
+                                                             {R16G16B16F   }  GL_BGR,  //??
+                                                             {A16R16G16B16F}  GL_BGRA, //??
+                                                             {B16G16R16F   }  GL_RGB,  //??
+                                                             {A16B16G16R16F}  GL_RGBA, //??
+                                                             {R32F         }  GL_RED,
+                                                             {R32G32F      }  GL_RG,
+                                                             {R32G32B32F   }  GL_RGB,
                                                              {A32R32G32B32F}  GL_RGBA,
                                                              {A32B32G32R32F}  GL_RGBA, //??
                                                              {DXT1         }  GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,
                                                              {DXT3         }  GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,
-                                                             {DXT5         }  GL_COMPRESSED_RGBA_S3TC_DXT5_EXT
+                                                             {DXT5         }  GL_COMPRESSED_RGBA_S3TC_DXT5_EXT,
+                                                             {D24_S8       }  GL_RG,
+                                                             {D32f_S8      }  GL_RG,
+                                                             {D16          }  GL_RED,
+                                                             {D24          }  GL_RED,
+                                                             {D32          }  GL_RED,
+                                                             {D32f         }  GL_RED,
+                                                             {R16          }  GL_RED,
+                                                             {R16G16       }  GL_RG,
+                                                             {R16G16B16    }  GL_RGB,
+                                                             {A16R16G16B16 }  GL_BGRA,
+                                                             {B16G16R16    }  GL_BGR,
+                                                             {A16B16G16R16 }  GL_RGBA,
+                                                             {R32          }  GL_RED,
+                                                             {R32G32       }  GL_RG,
+                                                             {R32G32B32    }  GL_RGB,
+                                                             {A32R32G32B32 }  GL_BGRA,
+                                                             {A32B32G32R32 }  GL_RGBA
                                                            );
     GLImageComponentFormat: array [TImageFormat] of Cardinal = ( {Unknown      }  GL_NONE,
                                                                  {Gray8        }  GL_UNSIGNED_BYTE,
@@ -749,20 +766,37 @@ type
                                                                  {R8G8B8       }  GL_UNSIGNED_BYTE,
                                                                  {B8G8R8A8     }  GL_UNSIGNED_INT_8_8_8_8_REV,
                                                                  {R8G8B8A8     }  GL_UNSIGNED_BYTE,
-                                                                 {R16          }  GL_UNSIGNED_SHORT,
-                                                                 {R16G16       }  GL_UNSIGNED_SHORT,
-                                                                 {R16G16B16    }  GL_UNSIGNED_SHORT,
-                                                                 {A16R16G16B16 }  GL_UNSIGNED_SHORT,
-                                                                 {B16G16R16    }  GL_UNSIGNED_SHORT,
-                                                                 {A16B16G16R16 }  GL_UNSIGNED_SHORT,
-                                                                 {R32          }  GL_FLOAT,
-                                                                 {R32G32       }  GL_FLOAT,
-                                                                 {R32G32B32    }  GL_FLOAT,
+                                                                 {R16F         }  GL_HALF_FLOAT,
+                                                                 {R16G16F      }  GL_HALF_FLOAT,
+                                                                 {R16G16B16F   }  GL_HALF_FLOAT,
+                                                                 {A16R16G16B16F}  GL_HALF_FLOAT,
+                                                                 {B16G16R16F   }  GL_HALF_FLOAT,
+                                                                 {A16B16G16R16F}  GL_HALF_FLOAT,
+                                                                 {R32F         }  GL_FLOAT,
+                                                                 {R32G32F      }  GL_FLOAT,
+                                                                 {R32G32B32F   }  GL_FLOAT,
                                                                  {A32R32G32B32F}  GL_FLOAT,
                                                                  {A32B32G32R32F}  GL_FLOAT,
                                                                  {DXT1         }  GL_NONE,
                                                                  {DXT3         }  GL_NONE,
-                                                                 {DXT5         }  GL_NONE
+                                                                 {DXT5         }  GL_NONE,
+                                                                 {D24_S8       }  GL_UNSIGNED_INT_24_8,
+                                                                 {D32f_S8      }  GL_FLOAT_32_UNSIGNED_INT_24_8_REV,
+                                                                 {D16          }  GL_UNSIGNED_SHORT,
+                                                                 {D24          }  GL_UNSIGNED_INT_24_8,
+                                                                 {D32          }  GL_UNSIGNED_INT,
+                                                                 {D32f         }  GL_FLOAT,
+                                                                 {R16          }  GL_UNSIGNED_SHORT,
+                                                                 {R16G16       }  GL_UNSIGNED_SHORT,
+                                                                 {R16G16B16    }  GL_UNSIGNED_SHORT,
+                                                                 {A16R16G16B16 }  GL_NONE,
+                                                                 {B16G16R16    }  GL_UNSIGNED_SHORT,
+                                                                 {A16B16G16R16 }  GL_NONE,
+                                                                 {R32          }  GL_UNSIGNED_INT,
+                                                                 {R32G32       }  GL_UNSIGNED_INT,
+                                                                 {R32G32B32    }  GL_UNSIGNED_INT,
+                                                                 {A32R32G32B32 }  GL_NONE,
+                                                                 {A32B32G32R32 }  GL_NONE
                                                                );
   private
     FFormat : TTextureFormat;
@@ -1004,40 +1038,59 @@ end;
 
 procedure TFrameBuffer.SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
 var ActiveObject: GLuint;
+    TexH: GLuint;
 begin
+  if Assigned(tex) then
+    TexH := (tex as IHandle).Handle
+  else
+    TexH := 0;
   {$IFNDEF NOglNamed}
   if Assigned(glNamedFramebufferTexture2DEXT) then
   begin
-      glNamedFramebufferTexture2DEXT(FHandle, GL_COLOR_ATTACHMENT0+index, GL_TEXTURE_2D, (tex as IHandle).Handle, mipLevel);
+      glNamedFramebufferTexture2DEXT(FHandle, GL_COLOR_ATTACHMENT0+index, GL_TEXTURE_2D, TexH, mipLevel);
   end
   else
   {$ENDIF}
   begin
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, @ActiveObject);
     glBindFramebuffer(GL_FRAMEBUFFER, FHandle);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0+index, GL_TEXTURE_2D, (tex as IHandle).Handle, mipLevel);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0+index, GL_TEXTURE_2D, TexH, mipLevel);
     glBindFramebuffer(GL_FRAMEBUFFER, ActiveObject);
   end;
-  FEnabledColorTargets[index] := True;
+  FEnabledColorTargets[index] := Assigned(tex);
 end;
 
 procedure TFrameBuffer.SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
 var ActiveObject: GLuint;
     GLAttType: GLuint;
+    TexH: GLuint;
 begin
-  GLAttType := GLAttachmetType[tex.Format];
+  if Assigned(tex) then
+  begin
+    TexH := (tex as IHandle).Handle;
+    GLAttType := GLAttachmetType[tex.Format];
+  end
+  else
+  begin
+    TexH := 0;
+    GLAttType := GL_DEPTH_STENCIL_ATTACHMENT;
+  end;
   Assert(GLAttType <> GL_COLOR_ATTACHMENT0);
   {$IFNDEF NOglNamed}
   if Assigned(glNamedFramebufferTexture2DEXT) then
   begin
-      glNamedFramebufferTexture2DEXT(FHandle, GLAttType, GL_TEXTURE_2D, (tex as IHandle).Handle, mipLevel);
+      glNamedFramebufferTexture2DEXT(FHandle, GLAttType, GL_TEXTURE_2D, TexH, mipLevel);
+      if TexH = 0 then
+        glNamedFramebufferTexture2DEXT(FHandle, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, TexH, mipLevel);
   end
   else
   {$ENDIF}
   begin
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, @ActiveObject);
     glBindFramebuffer(GL_FRAMEBUFFER, FHandle);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GLAttType, GL_TEXTURE_2D, (tex as IHandle).Handle, mipLevel);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GLAttType, GL_TEXTURE_2D, TexH, mipLevel);
+    if TexH = 0 then
+      glNamedFramebufferTexture2DEXT(FHandle, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, TexH, mipLevel);
     glBindFramebuffer(GL_FRAMEBUFFER, ActiveObject);
   end;
 end;

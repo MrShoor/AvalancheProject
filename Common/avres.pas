@@ -409,12 +409,38 @@ type
 
   TavFrameBuffer = class(TavRes)
   private type
-    TColorsList = specialize TArray<IWeakRef>;
-    IColorsList = specialize IArray<IWeakRef>;
+    TAttachInfo = record
+      tex: IWeakRef;
+      mipLevel: Integer;
+    end;
+  private const
+    EmptyAttachInfo: TAttachInfo = (tex : nil; mipLevel : 0);
+  private type
+    TColorsList = specialize TArray<TAttachInfo>;
+    IColorsList = specialize IArray<TAttachInfo>;
   private
-    FColors: IColorsList;
-    FDepth : IWeakRef;
+    FFrameBuf: IctxFrameBuffer;
+    FColors  : IColorsList;
+    FDepth   : TAttachInfo;
+    FFrameRect: TRectF;
+    procedure SetFrameRect(AValue: TRectF);
+  protected
+    procedure BeforeFree3D; override;
+    function DoBuild: Boolean; override;
   public
+    procedure Select;
+
+    property FrameRect: TRectF read FFrameRect write SetFrameRect;
+
+    procedure Clear;
+
+    function GetColor(Index: Integer): TavTexture;
+    function GetColorMipLevel(Index: Integer): Integer;
+    procedure SetColor(Index: Integer; AValue: TavTexture; mipLevel: Integer = 0);
+
+    function GetDepth: TavTexture;
+    procedure SetDepth(AValue: TavTexture; mipLevel: Integer);
+
     procedure AfterConstruction; override;
   end;
 
@@ -424,14 +450,143 @@ uses
   TypInfo,
   Math,
   avLog,
-  avContext_OGL;
+  avContext_OGL,
+  avTexLoader;
 
 { TavFrameBuffer }
+
+function TavFrameBuffer.GetColor(Index: Integer): TavTexture;
+var ref: IWeakRef;
+begin
+  if (Index >= 0) and (Index < FColors.Count) then
+    ref := FColors.Item[Index].tex
+  else
+    ref := nil;
+  if Assigned(ref) then
+      Result := TavTexture(ref.Obj);
+end;
+
+function TavFrameBuffer.GetColorMipLevel(Index: Integer): Integer;
+begin
+  if (Index >= 0) and (Index < FColors.Count) then
+    Result := FColors.Item[Index].mipLevel
+  else
+    Result := 0;
+end;
+
+function TavFrameBuffer.GetDepth: TavTexture;
+begin
+  Result := nil;
+  if Assigned(FDepth.tex) then
+    Result := TavTexture(FDepth.tex.Obj);
+end;
+
+procedure TavFrameBuffer.SetColor(Index: Integer; AValue: TavTexture; mipLevel: Integer = 0);
+var oldCount: Integer;
+    ainfo: TAttachInfo;
+    i: Integer;
+begin
+  oldCount := FColors.Count;
+  for i := oldCount to Index do
+    FColors.Add(EmptyAttachInfo);
+  if Assigned(AValue) then
+  begin
+    ainfo.tex := AValue.WeakRef;
+    ainfo.mipLevel := mipLevel;
+    FColors.Item[index] := ainfo;
+  end;
+  Invalidate;
+end;
+
+procedure TavFrameBuffer.SetDepth(AValue: TavTexture; mipLevel: Integer);
+begin
+  if Assigned(AValue) then
+    FDepth.tex := AValue.WeakRef
+  else
+    FDepth.tex := nil;
+  FDepth.mipLevel := mipLevel;
+  Invalidate;
+end;
+
+procedure TavFrameBuffer.SetFrameRect(AValue: TRectF);
+begin
+  if FFrameRect = AValue then Exit;
+  FFrameRect := AValue;
+  Invalidate;
+end;
+
+procedure TavFrameBuffer.BeforeFree3D;
+begin
+  inherited BeforeFree3D;
+  if Assigned(FFrameBuf) then Invalidate;
+  FFrameBuf := nil;
+end;
+
+function TavFrameBuffer.DoBuild: Boolean;
+  function GetTex(const ainfo: TAttachInfo): TavTexture; inline;
+  begin
+    if Assigned(ainfo.tex) then
+      Result := TavTexture(ainfo.tex.Obj)
+    else
+      Result := nil;
+  end;
+
+  procedure ResizeTex(tex: TavTexture; FrameSize: TVec2i; mipLevel: Integer); //inline;
+  var NewTexSize: TVec2i;
+  begin
+    NewTexSize := NextPow2(FrameSize) * (1 shl mipLevel);
+    if (tex.Size.x <> NewTexSize.x) or (tex.Size.y <> NewTexSize.y) then
+      tex.TexData := EmptyTexData(NewTexSize.x, NewTexSize.y, tex.TargetFormat, mipLevel > 0);
+  end;
+
+var ainfo: TAttachInfo;
+    tex: TavTexture;
+    i: Integer;
+    FrameSize: TVec2i;
+begin
+  Result := inherited DoBuild;
+  if FFrameBuf = nil then
+    FFrameBuf := Main.Context.CreateFrameBuffer
+  else
+    FFrameBuf.Clear;
+
+  FrameSize := mutils.Ceil(Max(FFrameRect.LeftTop, FFrameRect.RightBottom));
+
+  for i := 0 to FColors.Count - 1 do
+  begin
+    ainfo := FColors[i];
+    tex := GetTex(ainfo);
+    if Assigned(tex) then
+    begin
+      ResizeTex(tex, FrameSize, ainfo.mipLevel);
+      FFrameBuf.SetColor(i, tex.FTexH, ainfo.mipLevel);
+    end;
+  end;
+
+  tex := GetTex(FDepth);
+  if Assigned(tex) then
+  begin
+    ResizeTex(tex, FrameSize, FDepth.mipLevel);
+    FFrameBuf.SetDepthStencil(tex.FTexH, FDepth.mipLevel);
+  end;
+end;
+
+procedure TavFrameBuffer.Select;
+begin
+  Build;
+  FFrameBuf.Select;
+end;
+
+procedure TavFrameBuffer.Clear;
+begin
+  FColors.Clear;
+  Invalidate;
+end;
 
 procedure TavFrameBuffer.AfterConstruction;
 begin
   inherited AfterConstruction;
-  FColors := TColorsList.Create(nil);
+  FColors := TColorsList.Create(EmptyAttachInfo);
 end;
 
 { TavTexture }

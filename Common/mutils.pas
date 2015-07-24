@@ -184,8 +184,23 @@ function Inv(const m: TMat2): TMat2; overload;{$IFNDEF NoInline} inline; {$ENDIF
 function Inv(const m: TMat3): TMat3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat4): TMat4; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 
-function IsPow2(Num: LongInt): Boolean;
-function NextPow2(Num: LongInt): LongInt;
+function Trunc(const V: TVec2): TVec2i; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Trunc(const V: TVec3): TVec3i; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Trunc(const V: TVec4): TVec4i; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Round(const V: TVec2): TVec2i; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Round(const V: TVec3): TVec3i; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Round(const V: TVec4): TVec4i; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Ceil(const V: TVec2): TVec2i; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Ceil(const V: TVec3): TVec3i; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Ceil(const V: TVec4): TVec4i; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Floor(const V: TVec2): TVec2i; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Floor(const V: TVec3): TVec3i; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Floor(const V: TVec4): TVec4i; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+
+function IsPow2(Num: LongInt): Boolean; overload;
+function IsPow2(Vec: TVec2i): Boolean; overload;
+function NextPow2(Num: LongInt): LongInt; overload;
+function NextPow2(Vec: TVec2i): TVec2i; overload;
 
 function Bezier3(const pt1, pt2, pt3, pt4: TVec2; t: single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
@@ -442,9 +457,98 @@ begin
   Result.w := v1.w + s * (v2.w-v1.w);
 end;
 
+function Trunc(const V: TVec2): TVec2i;
+begin
+  Result.x := Trunc(V.x);
+  Result.y := Trunc(V.y);
+end;
+
+function Trunc(const V: TVec3): TVec3i;
+begin
+  Result.x := Trunc(V.x);
+  Result.y := Trunc(V.y);
+  Result.z := Trunc(V.z);
+end;
+
+function Trunc(const V: TVec4): TVec4i;
+begin
+  Result.x := Trunc(V.x);
+  Result.y := Trunc(V.y);
+  Result.z := Trunc(V.z);
+  Result.w := Trunc(V.w);
+end;
+
+function Round(const V: TVec2): TVec2i;
+begin
+  Result.x := Round(V.x);
+  Result.y := Round(V.y);
+end;
+
+function Round(const V: TVec3): TVec3i;
+begin
+  Result.x := Round(V.x);
+  Result.y := Round(V.y);
+  Result.z := Round(V.z);
+end;
+
+function Round(const V: TVec4): TVec4i;
+begin
+  Result.x := Round(V.x);
+  Result.y := Round(V.y);
+  Result.z := Round(V.z);
+  Result.w := Round(V.w);
+end;
+
+function Ceil(const V: TVec2): TVec2i;
+begin
+  Result.x := Ceil(V.x);
+  Result.y := Ceil(V.y);
+end;
+
+function Ceil(const V: TVec3): TVec3i;
+begin
+  Result.x := Ceil(V.x);
+  Result.y := Ceil(V.y);
+  Result.z := Ceil(V.z);
+end;
+
+function Ceil(const V: TVec4): TVec4i;
+begin
+  Result.x := Ceil(V.x);
+  Result.y := Ceil(V.y);
+  Result.z := Ceil(V.z);
+  Result.w := Ceil(V.w);
+end;
+
+function Floor(const V: TVec2): TVec2i;
+begin
+  Result.x := Floor(V.x);
+  Result.y := Floor(V.y);
+end;
+
+function Floor(const V: TVec3): TVec3i;
+begin
+  Result.x := Floor(V.x);
+  Result.y := Floor(V.y);
+  Result.z := Floor(V.z);
+end;
+
+function Floor(const V: TVec4): TVec4i;
+begin
+  Result.x := Floor(V.x);
+  Result.y := Floor(V.y);
+  Result.z := Floor(V.z);
+  Result.w := Floor(V.w);
+end;
+
 function IsPow2(Num: LongInt): Boolean;
 begin
   Result := (Num and -Num) = Num;
+end;
+
+function IsPow2(Vec: TVec2i): Boolean;
+begin
+  Result := IsPow2(Vec.x) and IsPow2(Vec.y);
 end;
 
 function NextPow2(Num: LongInt): LongInt; //http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
@@ -456,6 +560,12 @@ begin
   Num := Num Or (Num Shr 8);
   Num := Num Or (Num Shr 16);
   Result := Num + 1;
+end;
+
+function NextPow2(Vec: TVec2i): TVec2i;
+begin
+  Result.x := NextPow2(Vec.x);
+  Result.y := NextPow2(Vec.y);
 end;
 
 function Bezier3(const pt1, pt2, pt3, pt4: TVec2; t: single): TVec2;

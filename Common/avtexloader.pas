@@ -21,6 +21,8 @@ const
     SIZE_NEXTPOW2  = -2;
     FORMAT_DEFAULT = TImageFormat.Unknown;
 
+function EmptyTexData(Width, Height: Integer; Format: TTextureFormat; withMips: Boolean = False): ITextureData;
+
 function LoadTexture(const data        : TByteArr;
                      const targetWidth : Integer = SIZE_DEFAULT;
                      const targetHeight: Integer = SIZE_DEFAULT;
@@ -33,6 +35,80 @@ function LoadTexture(const FileName    : string;
 implementation
 
 uses Classes;
+
+const
+BestImageFormat : array [TTextureFormat] of TImageFormat = (
+    { RGBA    } TImageFormat.R8G8B8A8,
+    { RGBA16  } TImageFormat.A16B16G16R16,
+    { RGBA16f } TImageFormat.A16B16G16R16F,
+    { RGBA32  } TImageFormat.A32B32G32R32,
+    { RGBA32f } TImageFormat.A32B32G32R32F,
+    { RGB     } TImageFormat.R8G8B8,
+    { RGB16   } TImageFormat.R16G16B16,
+    { RGB16f  } TImageFormat.R16G16B16F,
+    { RGB32   } TImageFormat.R32G32B32,
+    { RGB32f  } TImageFormat.R32G32B32F,
+    { RG      } TImageFormat.R8G8,
+    { RG16    } TImageFormat.R16G16,
+    { RG16f   } TImageFormat.R16G16F,
+    { RG32    } TImageFormat.R32G32,
+    { RG32f   } TImageFormat.R32G32F,
+    { R       } TImageFormat.R32,
+    { R16     } TImageFormat.R16,
+    { R16f    } TImageFormat.R16F,
+    { R32F    } TImageFormat.Unknown,
+    { R32f    } TImageFormat.R32F,
+    { DXT1    } TImageFormat.DXT1,
+    { DXT3    } TImageFormat.DXT3,
+    { DXT5    } TImageFormat.DXT5,
+    { D24_S8  } TImageFormat.D24_S8,
+    { D32f_S8 } TImageFormat.D32f_S8,
+    { D16     } TImageFormat.D16,
+    { D24     } TImageFormat.D24,
+    { D32     } TImageFormat.D32,
+    { D32f    } TImageFormat.D32f);
+BestTextureFormat : array [TImageFormat] of TTextureFormat = (
+    { Unknown       } TTextureFormat.RGBA,
+    { Gray8         } TTextureFormat.R,
+    { R3G3B2        } TTextureFormat.RGB,
+    { R8G8          } TTextureFormat.RG,
+    { R5G6B5        } TTextureFormat.RGB,
+    { A1R5G5B5      } TTextureFormat.RGBA,
+    { A4R4G4B4      } TTextureFormat.RGBA,
+    { R8G8B8        } TTextureFormat.RGB,
+    { B8G8R8A8      } TTextureFormat.RGBA,
+    { R8G8B8A8      } TTextureFormat.RGBA,
+    { R16F          } TTextureFormat.R16f,
+    { R16G16F       } TTextureFormat.RG16f,
+    { R16G16B16F    } TTextureFormat.RGB16f,
+    { A16R16G16B16F } TTextureFormat.RGBA16f,
+    { B16G16R16F    } TTextureFormat.RGB16f,
+    { A16B16G16R16F } TTextureFormat.RGBA16f,
+    { R32F          } TTextureFormat.R32f,
+    { R32G32F       } TTextureFormat.RG32f,
+    { R32G32B32F    } TTextureFormat.RGB32f,
+    { A32R32G32B32F } TTextureFormat.RGBA32f,
+    { A32B32G32R32F } TTextureFormat.RGBA32f,
+    { DXT1          } TTextureFormat.DXT1,
+    { DXT3          } TTextureFormat.DXT3,
+    { DXT5          } TTextureFormat.DXT5,
+    { D24_S8        } TTextureFormat.D24_S8,
+    { D32f_S8       } TTextureFormat.D32f_S8,
+    { D16           } TTextureFormat.D16,
+    { D24           } TTextureFormat.D24,
+    { D32           } TTextureFormat.D32,
+    { D32f          } TTextureFormat.D32f,
+    { R16           } TTextureFormat.R16,
+    { R16G16        } TTextureFormat.RG16,
+    { R16G16B16     } TTextureFormat.RGB16,
+    { A16R16G16B16  } TTextureFormat.RGBA16,
+    { B16G16R16     } TTextureFormat.RGB16,
+    { A16B16G16R16  } TTextureFormat.RGBA16,
+    { R32           } TTextureFormat.R32,
+    { R32G32        } TTextureFormat.RG32,
+    { R32G32B32     } TTextureFormat.RGB32,
+    { A32R32G32B32  } TTextureFormat.RGBA32,
+    { A32B32G32R32  } TTextureFormat.RGBA32);
 
 type
 
@@ -72,8 +148,14 @@ type
                        targetWidth, targetHeight : Integer;
                        targetFormat              : TImageFormat);
     {$EndIf}
+    constructor CreateEmpty(AWidth, AHeight: Integer; AFormat: TImageFormat; withMips: Boolean = False);
     destructor Destroy; override;
   end;
+
+function EmptyTexData(Width, Height: Integer; Format: TTextureFormat; withMips: Boolean): ITextureData;
+begin
+  Result := TTextureData.CreateEmpty(Width, Height, BestImageFormat[Format], withMips);
+end;
 
 {$IfDef VAMPYRE}
 function LoadTexture(const data                      : TByteArr;
@@ -175,19 +257,19 @@ constructor TTextureData.Create(ImgData: TDynImageDataArray;
      case srcFormat of
        ifGray8        : Result := TImageFormat.Gray8;
        ifA8Gray8      : Result := TImageFormat.R8G8;
-       ifGray16       : Result := TImageFormat.R16;
-       ifGray32       : Result := TImageFormat.R32;
-       ifA16Gray16    : Result := TImageFormat.R16G16;
+       ifGray16       : Result := TImageFormat.R16F;
+       ifGray32       : Result := TImageFormat.R32F;
+       ifA16Gray16    : Result := TImageFormat.R16G16F;
        ifR5G6B5       : Result := TImageFormat.R5G6B5;
        ifR8G8B8       : Result := TImageFormat.R8G8B8;
        ifA8R8G8B8     : Result := TImageFormat.B8G8R8A8;
        ifX8R8G8B8     : Result := TImageFormat.B8G8R8A8;
-       ifR32F         : Result := TImageFormat.R32;
+       ifR32F         : Result := TImageFormat.R32F;
        ifA32R32G32B32F: Result := TImageFormat.A32R32G32B32F;
        ifA32B32G32R32F: Result := TImageFormat.A32B32G32R32F;
-       ifR16F         : Result := TImageFormat.R16;
-       ifA16R16G16B16F: Result := TImageFormat.A16R16G16B16;
-       ifA16B16G16R16F: Result := TImageFormat.A16B16G16R16;
+       ifR16F         : Result := TImageFormat.R16F;
+       ifA16R16G16B16F: Result := TImageFormat.A16R16G16B16F;
+       ifA16B16G16R16F: Result := TImageFormat.A16B16G16R16F;
        ifDXT1         : Result := TImageFormat.DXT1;
        ifDXT3         : Result := TImageFormat.DXT3;
        ifDXT5         : Result := TImageFormat.DXT5;
@@ -202,23 +284,23 @@ constructor TTextureData.Create(ImgData: TDynImageDataArray;
   function AvToVamp(srcFormat: TImageFormat): ImagingTypes.TImageFormat;
   begin
     case srcFormat of
-      TImageFormat.Unknown      : Result := ifDefault;
-      TImageFormat.Gray8        : Result := ifGray8;
-      TImageFormat.R3G3B2       : Result := ifR3G3B2;
-      TImageFormat.R5G6B5       : Result := ifR5G6B5;
-      TImageFormat.A1R5G5B5     : Result := ifA1R5G5B5;
-      TImageFormat.A4R4G4B4     : Result := ifA4R4G4B4;
-      TImageFormat.R8G8B8       : Result := ifR8G8B8;
-      TImageFormat.B8G8R8A8     : Result := ifA8R8G8B8;
-      TImageFormat.R16          : Result := ifR16F;
-      TImageFormat.A16R16G16B16 : Result := ifA16R16G16B16F;
-      TImageFormat.A16B16G16R16 : Result := ifA16B16G16R16F;
-      TImageFormat.R32          : Result := ifR32F;
-      TImageFormat.A32R32G32B32F: Result := ifA32R32G32B32F;
-      TImageFormat.A32B32G32R32F: Result := ifA32B32G32R32F;
-      TImageFormat.DXT1         : Result := ifDXT1;
-      TImageFormat.DXT3         : Result := ifDXT3;
-      TImageFormat.DXT5         : Result := ifDXT5;
+      TImageFormat.Unknown       : Result := ifDefault;
+      TImageFormat.Gray8         : Result := ifGray8;
+      TImageFormat.R3G3B2        : Result := ifR3G3B2;
+      TImageFormat.R5G6B5        : Result := ifR5G6B5;
+      TImageFormat.A1R5G5B5      : Result := ifA1R5G5B5;
+      TImageFormat.A4R4G4B4      : Result := ifA4R4G4B4;
+      TImageFormat.R8G8B8        : Result := ifR8G8B8;
+      TImageFormat.B8G8R8A8      : Result := ifA8R8G8B8;
+      TImageFormat.R16F           : Result := ifR16F;
+      TImageFormat.A16R16G16B16F  : Result := ifA16R16G16B16F;
+      TImageFormat.A16B16G16R16F : Result := ifA16B16G16R16F;
+      TImageFormat.R32F           : Result := ifR32F;
+      TImageFormat.A32R32G32B32F : Result := ifA32R32G32B32F;
+      TImageFormat.A32B32G32R32F : Result := ifA32B32G32R32F;
+      TImageFormat.DXT1          : Result := ifDXT1;
+      TImageFormat.DXT3          : Result := ifDXT3;
+      TImageFormat.DXT5          : Result := ifDXT5;
     else
       Result := ifUnknown;
     end;
@@ -297,6 +379,25 @@ begin
     end;
   end;
 end;
+
+constructor TTextureData.CreateEmpty(AWidth, AHeight: Integer; AFormat: TImageFormat; withMips: Boolean);
+var NewMipCount: Integer;
+    i: Integer;
+begin
+  withMips := withMips and IsPow2(Vec(AWidth, AHeight));
+  if withMips then
+    NewMipCount := Log2Int(Min(AWidth, AHeight))
+  else
+    NewMipCount := 1;
+  SetLength(FMips, 1, NewMipCount);
+  for i := 0 to NewMipCount - 1 do
+  begin
+    FMips[0][i] := TMip.Create(i, AWidth, AHeight, Nil, 0);
+    AWidth := AWidth shr 1;
+    AHeight := AHeight shr 1;
+  end;
+end;
+
 {$EndIf}
 
 destructor TTextureData.Destroy;
