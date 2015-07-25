@@ -1,7 +1,7 @@
 #include "hlsl.h"
 
 struct PS_Input {
-    float4 Pos   : POSITION;
+    float4 Pos   : SV_Position;
     float3 Normal: Normal;
     float2 TexCrd: TexCrd;
 };
@@ -17,5 +17,6 @@ PS_Output PS(PS_Input In) {
     float3 n = normalize(In.Normal);    
     float4 diff = Diffuse.Sample(DiffuseSampler, In.TexCrd);
     Out.Color = max(0.0, -n.z) * diff;
+//    Out.Color = In.Pos.z;
     return Out;
 }

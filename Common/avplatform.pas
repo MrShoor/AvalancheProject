@@ -16,7 +16,8 @@ type
 
 procedure CaptureWindow(Window: TWindow);
 procedure ReleaseCaptureWindow;
-procedure GetRectOfWindow(Window: TWindow; out Left, Top, Width, Height: integer);
+procedure GetRectOfWindow(Window: TWindow; out Left, Top, Right, Bottom: integer); overload;
+function GetRectOfWindow(Window: TWindow): TRectI; overload;
 procedure InvalidateWindow(Window: TWindow; EraseBackground: Boolean);
 function  IsValidWindow(Window: TWindow): Boolean;
 
@@ -219,14 +220,24 @@ begin
   ReleaseCapture;
 end;
 
-procedure GetRectOfWindow(Window: TWindow; out Left, Top, Width, Height: integer);
+procedure GetRectOfWindow(Window: TWindow; out Left, Top, Right, Bottom: integer);
 var rct: TRect;
 begin
   GetClientRect(Window, rct);
-  Left:=rct.Left;
-  Top:=rct.Top;
-  Width:=rct.Right - rct.Left;
-  Height:=rct.Bottom - rct.Top;
+  Left  :=rct.Left;
+  Top   :=rct.Top;
+  Right :=rct.Right;
+  Bottom:=rct.Bottom;
+end;
+
+function GetRectOfWindow(Window: TWindow): TRectI;
+var rct: TRect;
+begin
+  GetClientRect(Window, rct);
+  Result.Left  :=rct.Left;
+  Result.Top   :=rct.Top;
+  Result.Right :=rct.Right;
+  Result.Bottom:=rct.Bottom;
 end;
 
 procedure InvalidateWindow(Window: TWindow; EraseBackground: Boolean);

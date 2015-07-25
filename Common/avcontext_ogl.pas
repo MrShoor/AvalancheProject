@@ -1,5 +1,6 @@
 unit avContext_OGL;
 //{$DEFINE NOVAO}
+//{$DEFINE NOglNamed}
 
 {$mode objfpc}{$H+}
 
@@ -84,6 +85,9 @@ operator = (const a, b: TVAOInfo): Boolean;
 implementation
 
 uses SuperObject, avLog;
+
+const
+  DEFAULT_BackBuffer: Boolean = True;
 
 const
   GLPoolType: array [TBufferPoolType] of Cardinal = ( {StaticDraw }  GL_STATIC_DRAW,
@@ -564,7 +568,7 @@ type
     FBlendSrc     : TBlendFunc;
     FBlendDest    : TBlendFunc;
     FBlending     : Boolean;
-    FViewport     : TRect;
+    FViewport     : TRectI;
     FWireframe    : Boolean;
     FScissor      : Boolean;
     FStencil      : Boolean;
@@ -579,7 +583,7 @@ type
     function GetLineWidth: Single;
     function GetNearFarClamp: Boolean;
     function GetVertexProgramPointSize: Boolean;
-    function GetViewport: TRect;
+    function GetViewport: TRectI;
     function GetWireframe: Boolean;
     procedure SetCullMode(const Value: TCullingMode);
     procedure SetLineWidth(const Value: Single);
@@ -590,7 +594,7 @@ type
     procedure SetDepthFunc(const Value: TCompareFunc);
     procedure SetNearFarClamp(const Value: Boolean);
     procedure SetBlending(const Value: Boolean);
-    procedure SetViewport(const Value: TRect);
+    procedure SetViewport(const Value: TRectI);
     procedure SetWireframe(const Value: Boolean);
   public
     procedure SetBlendFunctions(Src, Dest: TBlendFunc);
@@ -738,12 +742,12 @@ type
                                                              {DXT1         }  GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,
                                                              {DXT3         }  GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,
                                                              {DXT5         }  GL_COMPRESSED_RGBA_S3TC_DXT5_EXT,
-                                                             {D24_S8       }  GL_RG,
-                                                             {D32f_S8      }  GL_RG,
-                                                             {D16          }  GL_RED,
-                                                             {D24          }  GL_RED,
-                                                             {D32          }  GL_RED,
-                                                             {D32f         }  GL_RED,
+                                                             {D24_S8       }  GL_DEPTH_STENCIL,
+                                                             {D32f_S8      }  GL_DEPTH_STENCIL,
+                                                             {D16          }  GL_DEPTH_COMPONENT,
+                                                             {D24          }  GL_DEPTH_COMPONENT,
+                                                             {D32          }  GL_DEPTH_COMPONENT,
+                                                             {D32f         }  GL_DEPTH_COMPONENT,
                                                              {R16          }  GL_RED,
                                                              {R16G16       }  GL_RG,
                                                              {R16G16B16    }  GL_RGB,
@@ -943,20 +947,16 @@ type
   private const
 
   private
-    FRenderRect         : TRectF;
     FMaxColorAttacments : Integer;
 
     FEnabledColorTargets: array of Boolean;
     FGLEnabled          : array of GLenum;
+    FValid: Boolean;
+    procedure Invalidate;
   protected
     procedure AllocHandle; override;
     procedure FreeHandle; override;
   public
-    // getters/setters
-    function GetRenderRect: TRectF;
-    procedure SetRenderRect(AValue: TRectF);
-    // getters/setters
-
     procedure Select;
 
     procedure Clear;
@@ -964,11 +964,16 @@ type
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
 
-    property RenderRect: TRectF read GetRenderRect write SetRenderRect;
+    procedure BlitToWindow(const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
   public
     constructor Create(AContext: TContext_OGL); override;
 //    destructor Destroy; override;
   end;
+
+procedure TFrameBuffer.Invalidate;
+begin
+  FValid := False;
+end;
 
 procedure TFrameBuffer.AllocHandle;
 begin
@@ -981,22 +986,12 @@ begin
   FHandle := 0;
 end;
 
-function TFrameBuffer.GetRenderRect: TRectF;
-begin
-  Result := FRenderRect;
-end;
-
-procedure TFrameBuffer.SetRenderRect(AValue: TRectF);
-begin
-  if FRenderRect = AValue then Exit;
-  FRenderRect := AValue;
-end;
-
 procedure TFrameBuffer.Select;
 var i, n: Integer;
+    status: Integer;
+    err: String;
 begin
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FHandle);
-
   n := 0;
   for i := 0 to Length(FEnabledColorTargets) - 1 do
     if FEnabledColorTargets[i] then
@@ -1005,7 +1000,28 @@ begin
       Inc(n);
     end;
 
-  glDrawBuffers(n, @FGLEnabled[0]);
+  if n = 1 then
+    glDrawBuffer(FGLEnabled[0])
+  else
+    glDrawBuffers(n, @FGLEnabled[0]);
+
+  if not FValid then
+  begin
+    status := glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+    err:='error at glCheckFramebufferStatus: ';
+    case status of
+      GL_FRAMEBUFFER_UNDEFINED: err:=err+': GL_FRAMEBUFFER_UNDEFINED';
+      GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT: err:=err+': GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT';
+      GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT: err:=err+': GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT';
+      GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER: err:=err+': GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER';
+      GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER: err:=err+': GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER';
+      GL_FRAMEBUFFER_UNSUPPORTED: err:=err+': GL_FRAMEBUFFER_UNSUPPORTED';
+      GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE: err:=err+': GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE';
+      GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS: err:=err+': GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS';
+    end;
+    LogLn(err);
+    FValid := True;
+  end;
 end;
 
 procedure TFrameBuffer.Clear;
@@ -1021,14 +1037,15 @@ begin
   else
   {$ENDIF}
   begin
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING, @ActiveObject);
-    glBindFramebuffer(GL_FRAMEBUFFER, FHandle);
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, @ActiveObject);
+    if ActiveObject <> FHandle then glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FHandle);
     for i := 0 to FMaxColorAttacments - 1 do
-      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0+i, GL_TEXTURE_2D, 0, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, ActiveObject);
+      glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0+i, GL_TEXTURE_2D, 0, 0);
+    if ActiveObject <> FHandle then glBindFramebuffer(GL_DRAW_FRAMEBUFFER, ActiveObject);
   end;
   for i := 0 to Length(FEnabledColorTargets) - 1 do
     FEnabledColorTargets[i] := False;
+  Invalidate;
 end;
 
 procedure TFrameBuffer.EnableColorTarget(index: Integer; Enabled: Boolean);
@@ -1052,12 +1069,13 @@ begin
   else
   {$ENDIF}
   begin
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING, @ActiveObject);
-    glBindFramebuffer(GL_FRAMEBUFFER, FHandle);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0+index, GL_TEXTURE_2D, TexH, mipLevel);
-    glBindFramebuffer(GL_FRAMEBUFFER, ActiveObject);
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, @ActiveObject);
+    if ActiveObject <> FHandle then glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FHandle);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0+index, GL_TEXTURE_2D, TexH, mipLevel);
+    if ActiveObject <> FHandle then glBindFramebuffer(GL_DRAW_FRAMEBUFFER, ActiveObject);
   end;
   FEnabledColorTargets[index] := Assigned(tex);
+  Invalidate;
 end;
 
 procedure TFrameBuffer.SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
@@ -1086,13 +1104,25 @@ begin
   else
   {$ENDIF}
   begin
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING, @ActiveObject);
-    glBindFramebuffer(GL_FRAMEBUFFER, FHandle);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GLAttType, GL_TEXTURE_2D, TexH, mipLevel);
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, @ActiveObject);
+    if ActiveObject <> FHandle then glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FHandle);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GLAttType, GL_TEXTURE_2D, TexH, mipLevel);
     if TexH = 0 then
-      glNamedFramebufferTexture2DEXT(FHandle, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, TexH, mipLevel);
-    glBindFramebuffer(GL_FRAMEBUFFER, ActiveObject);
+      glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, TexH, mipLevel);
+    if ActiveObject <> FHandle then glBindFramebuffer(GL_DRAW_FRAMEBUFFER, ActiveObject);
   end;
+  Invalidate;
+end;
+
+procedure TFrameBuffer.BlitToWindow(const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
+const GLFilter: array [TTextureFilter] of GLuint = (GL_NEAREST, GL_NEAREST,  GL_LINEAR);
+      GLTargetBuffer: array [Boolean] of GLuint = (GL_FRONT, GL_BACK);
+begin
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, FHandle);
+  glReadBuffer(GL_COLOR_ATTACHMENT0);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+  glDrawBuffer(GLTargetBuffer[DEFAULT_BackBuffer]);
+  glBlitFramebuffer(srcRect.Left, srcRect.Top, srcRect.Right, srcRect.Bottom, dstRect.Left, dstRect.Top, dstRect.Right, dstRect.Bottom, GL_COLOR_BUFFER_BIT, GLFilter[Filter]);
 end;
 
 constructor TFrameBuffer.Create(AContext: TContext_OGL);
@@ -1188,8 +1218,11 @@ begin
   if (W <> Width) or (H <> Height) or (Format <> TargetFormat) then
     AllocMem(W, H, False, DataFormat, nil);
 
-  glBindTexture(GL_TEXTURE_2D, FHandle);
-  glTexSubImage2D(GL_TEXTURE_2D, 0, X, Y, ImageWidth, ImageHeight, GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data);
+  if assigned(Data) then
+  begin
+    glBindTexture(GL_TEXTURE_2D, FHandle);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, X, Y, ImageWidth, ImageHeight, GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data);
+  end;
   if GenMipmaps then
     glGenerateMipmap(GL_TEXTURE_2D);
 end;
@@ -1262,7 +1295,7 @@ begin
   Result := FVertexProgramPointSize;
 end;
 
-function TStates_OGL.GetViewport: TRect;
+function TStates_OGL.GetViewport: TRectI;
 begin
   Result := FViewport;
 end;
@@ -1375,7 +1408,7 @@ begin
   end;
 end;
 
-procedure TStates_OGL.SetViewport(const Value: TRect);
+procedure TStates_OGL.SetViewport(const Value: TRectI);
 begin
   if ((FViewport.Left   <> Value.Left  ) or
       (FViewport.Top    <> Value.Top   ) or
@@ -2494,9 +2527,27 @@ end;
 procedure TContext_OGL.Clear(const color  : TVec4;      doColor  : Boolean = True;
                                    depth  : Single = 1; doDepth  : Boolean = False;
                                    stencil: Byte   = 0; doStencil: Boolean = False);
+var GLClearBits: GLuint;
 begin
-  glClearColor(color.x, color.y, color.z, color.w);
-  glClear(GL_COLOR_BUFFER_BIT);
+  GLClearBits := 0;
+  if doColor then
+  begin
+    glClearColor(color.x, color.y, color.z, color.w);
+    GLClearBits := GL_COLOR_BUFFER_BIT;
+  end;
+
+  if doDepth then
+  begin
+    glClearDepthf(depth);
+    GLClearBits := GLClearBits or GL_DEPTH_BUFFER_BIT;
+  end;
+
+  if doStencil then
+  begin
+    glClearStencil(stencil);
+    GLClearBits := GLClearBits or GL_STENCIL_BUFFER_BIT;
+  end;
+  glClear(GLClearBits);
 end;
 
 procedure TContext_OGL.Present;
@@ -2508,7 +2559,10 @@ constructor TContext_OGL.Create(const Wnd: TWindow);
 begin
   FWnd := Wnd;
   FDC := GetDC(FWnd);
-  FRC := CreateRenderingContext(FDC, [], 32, 0, 0, 0, 0, 0);
+  if DEFAULT_BackBuffer then
+    FRC := CreateRenderingContext(FDC, [opDoubleBuffered], 32, 0, 0, 0, 0, 0)
+  else
+    FRC := CreateRenderingContext(FDC, [], 32, 0, 0, 0, 0, 0);
   ActivateRenderingContext(FDC, FRC);
   DeactivateRenderingContext;
 

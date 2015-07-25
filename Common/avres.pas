@@ -422,15 +422,15 @@ type
     FFrameBuf: IctxFrameBuffer;
     FColors  : IColorsList;
     FDepth   : TAttachInfo;
-    FFrameRect: TRectF;
-    procedure SetFrameRect(AValue: TRectF);
+    FFrameRect: TRectI;
+    procedure SetFrameRect(AValue: TRectI);
   protected
     procedure BeforeFree3D; override;
     function DoBuild: Boolean; override;
   public
-    procedure Select;
+    procedure Select(UpdateProjMatrix: Boolean = True);
 
-    property FrameRect: TRectF read FFrameRect write SetFrameRect;
+    property FrameRect: TRectI read FFrameRect write SetFrameRect;
 
     procedure Clear;
 
@@ -440,6 +440,8 @@ type
 
     function GetDepth: TavTexture;
     procedure SetDepth(AValue: TavTexture; mipLevel: Integer);
+
+    procedure BlitToWindow;
 
     procedure AfterConstruction; override;
   end;
@@ -508,9 +510,14 @@ begin
   Invalidate;
 end;
 
-procedure TavFrameBuffer.SetFrameRect(AValue: TRectF);
+procedure TavFrameBuffer.BlitToWindow;
 begin
-  if FFrameRect = AValue then Exit;
+  FFrameBuf.BlitToWindow(FFrameRect, GetRectOfWindow(Main.Window), tfNearest);
+end;
+
+procedure TavFrameBuffer.SetFrameRect(AValue: TRectI);
+begin
+  if (FFrameRect = AValue) then Exit;
   FFrameRect := AValue;
   Invalidate;
 end;
@@ -537,6 +544,7 @@ function TavFrameBuffer.DoBuild: Boolean;
     NewTexSize := NextPow2(FrameSize) * (1 shl mipLevel);
     if (tex.Size.x <> NewTexSize.x) or (tex.Size.y <> NewTexSize.y) then
       tex.TexData := EmptyTexData(NewTexSize.x, NewTexSize.y, tex.TargetFormat, mipLevel > 0);
+    tex.Build;
   end;
 
 var ainfo: TAttachInfo;
@@ -550,7 +558,7 @@ begin
   else
     FFrameBuf.Clear;
 
-  FrameSize := mutils.Ceil(Max(FFrameRect.LeftTop, FFrameRect.RightBottom));
+  FrameSize := Max(Vec(FFrameRect.Left, FFrameRect.Top), Vec(FFrameRect.Right, FFrameRect.Bottom));
 
   for i := 0 to FColors.Count - 1 do
   begin
@@ -560,7 +568,9 @@ begin
     begin
       ResizeTex(tex, FrameSize, ainfo.mipLevel);
       FFrameBuf.SetColor(i, tex.FTexH, ainfo.mipLevel);
-    end;
+    end
+    else
+      FFrameBuf.SetColor(i, nil, ainfo.mipLevel);
   end;
 
   tex := GetTex(FDepth);
@@ -568,12 +578,17 @@ begin
   begin
     ResizeTex(tex, FrameSize, FDepth.mipLevel);
     FFrameBuf.SetDepthStencil(tex.FTexH, FDepth.mipLevel);
-  end;
+  end
+  else
+    FFrameBuf.SetDepthStencil(nil, FDepth.mipLevel);
 end;
 
-procedure TavFrameBuffer.Select;
+procedure TavFrameBuffer.Select(UpdateProjMatrix: Boolean);
 begin
   Build;
+  Main.Context.States.ViewPort := FFrameRect;
+  if UpdateProjMatrix then
+    Main.Projection.Aspect := (FFrameRect.Bottom - FFrameRect.Top)/(FFrameRect.Right - FFrameRect.Left);
   FFrameBuf.Select;
 end;
 

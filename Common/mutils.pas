@@ -120,6 +120,20 @@ type
     0: (Left, Top, Right, Bottom: Single);
     1: (LeftTop, RightBottom: TVec2);
     2: (f: array [0..4] of Single);
+    3: (v: TVec4);
+  end;
+
+  { TRectI }
+
+  TRectI = record
+    function Center  : TVec2;
+    function Size    : TVec2i;
+    function IsEmpty : Boolean;
+  case Byte of
+    0: (Left, Top, Right, Bottom: Integer);
+    1: (LeftTop, RightBottom: TVec2i);
+    2: (f: array [0..4] of Integer);
+    3: (v: TVec4i);
   end;
 
   { TPlane }
@@ -156,7 +170,8 @@ function Mat(const newX, newY, newPos: TVec2): TMat3; overload; {$IFNDEF NoInlin
 function Mat(const Rotate: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Mat(const Rotate: Single; newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
-function RectF(Left, Right, Top, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
+function RectF(Left, Top, Right, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
+function RectI(Left, Top, Right, Bottom: Integer): TRectI; {$IFNDEF NoInline} inline; {$ENDIF}
 function Plane(const normal, point: TVec3): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Plane(A,B,C,D: single): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Plane(const pt1, pt2, pt3: TVec3): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -207,10 +222,30 @@ function Bezier3(const pt1, pt2, pt3, pt4: TVec2; t: single): TVec2; overload; {
 function SetViewMatrix(var MatrixView: TMat4; const From, At, Worldup: TVec3; leftHanded: boolean = true): HResult;
 
 operator = (const v1, v2: TRectF): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
+operator = (const v1, v2: TRectI): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
+
+operator * (const v: TVec2i; s: Single): TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
 
 implementation {$undef INTF} {$define IMPL}
 
 uses Math;
+
+  { TRectI }
+
+function TRectI.Center: TVec2;
+begin
+  Result := LeftTop*0.5 + RightBottom*0.5;
+end;
+
+function TRectI.Size: TVec2i;
+begin
+  Result := RightBottom - LeftTop;
+end;
+
+function TRectI.IsEmpty: Boolean;
+begin
+  Result := (Right<=Left) or (Bottom<=Top);
+end;
 
 {$define TCompType := Single}
 {$define TV2 := TVec2}
@@ -359,7 +394,15 @@ begin
                  newPos        );
 end;
 
-function RectF(Left, Right, Top, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
+function RectF(Left, Top, Right, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.Left := Left;
+  Result.Right := Right;
+  Result.Top := Top;
+  Result.Bottom := Bottom;
+end;
+
+function RectI(Left, Top, Right, Bottom: Integer): TRectI; {$IFNDEF NoInline} inline; {$ENDIF}
 begin
   Result.Left := Left;
   Result.Right := Right;
@@ -639,6 +682,17 @@ end;
 operator = (const v1, v2: TRectF): Boolean;
 begin
   Result := (v1.LeftTop = v2.LeftTop) and (v1.RightBottom = v2.RightBottom);
+end;
+
+operator = (const v1, v2: TRectI): Boolean;
+begin
+  Result := (v1.LeftTop = v2.LeftTop) and (v1.RightBottom = v2.RightBottom);
+end;
+
+operator * (const v: TVec2i; s: Single): TVec2;
+begin
+  Result.x := v.x * s;
+  Result.y := v.y * s;
 end;
 
 function Intersect(const Line1, Line2: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}

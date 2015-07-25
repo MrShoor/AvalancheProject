@@ -1,11 +1,21 @@
 object frmMain: TfrmMain
   Left = 585
-  Height = 439
+  Height = 510
   Top = 234
-  Width = 676
+  Width = 771
   Caption = 'frmMain'
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnPaint = FormPaint
-  LCLVersion = '1.4.0.4'
+  LCLVersion = '1.4.2.0'
+  object Timer1: TTimer
+    OnTimer = Timer1Timer
+    left = 245
+    top = 147
+  end
+  object ApplicationProperties1: TApplicationProperties
+    OnIdle = ApplicationProperties1Idle
+    left = 191
+    top = 185
+  end
 end

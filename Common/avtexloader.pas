@@ -384,6 +384,7 @@ constructor TTextureData.CreateEmpty(AWidth, AHeight: Integer; AFormat: TImageFo
 var NewMipCount: Integer;
     i: Integer;
 begin
+  FFormat := AFormat;
   withMips := withMips and IsPow2(Vec(AWidth, AHeight));
   if withMips then
     NewMipCount := Log2Int(Min(AWidth, AHeight))

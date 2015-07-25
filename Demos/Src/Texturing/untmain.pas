@@ -7,7 +7,8 @@ interface
 
 uses
   LCLType, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
-  avRes, avTypes, avTess, avContnrs, mutils, avCameraController, avTexLoader;
+  ExtCtrls, avRes, avTypes, avTess, avContnrs, mutils, avCameraController,
+  avTexLoader, dglOpenGL;
 
 type
 
@@ -25,11 +26,16 @@ type
   { TfrmMain }
 
   TfrmMain = class(TForm)
+    ApplicationProperties1: TApplicationProperties;
+    Timer1: TTimer;
+    procedure ApplicationProperties1Idle(Sender: TObject; var Done: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormPaint(Sender: TObject);
+    procedure Timer1Timer(Sender: TObject);
   private
     FMain: TavMainRender;
+    FFPSCount: Integer;
 
     FProgram: TavProgram;
     FCubeVertices: TavVB;
@@ -153,13 +159,20 @@ begin
   FCubeIndices := TavIB.Create(FMain);
   FCubeIndices.PrimType := ptTriangles;
   FCubeIndices.Indices := ind;
-  FCubeIndices.CullMode := cmBack;
+  FCubeIndices.CullMode := cmNone;
 
   BuildFramebuffer;
 
   cc := TavCameraController.Create(FMain);
   cc.CanRotate := True;
 //  cc.Enabled := True;
+end;
+
+procedure TfrmMain.ApplicationProperties1Idle(Sender: TObject; var Done: Boolean);
+begin
+  Done := False;
+  Application.ProcessMessages;
+  Invalidate;
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
@@ -172,16 +185,24 @@ begin
   RenderScene;
 end;
 
+procedure TfrmMain.Timer1Timer(Sender: TObject);
+begin
+  Caption := IntToStr(FFPSCount);
+  FFPSCount := 0;
+end;
+
 procedure TfrmMain.BuildFramebuffer;
 var tex: TavTexture;
 begin
   FFrameBuffer := TavFrameBuffer.Create(FMain);
   tex := TavTexture.Create(FFrameBuffer);
   tex.TargetFormat := TTextureFormat.RGBA;
+  tex.AutoGenerateMips := False;
   FFrameBuffer.SetColor(0, tex, 0);
 
   tex := TavTexture.Create(FFrameBuffer);
   tex.TargetFormat := TTextureFormat.D32f;
+  tex.AutoGenerateMips := False;
   FFrameBuffer.SetDepth(tex, 0);
 end;
 
@@ -191,21 +212,36 @@ begin
 end;
 
 procedure TfrmMain.RenderScene;
+//var fi: Single;
 begin
   if FMain = nil then Exit;
   if FMain.Bind then
   try
-    FMain.Clear(Vec(0.0,0.0,0.0,1.0), True, 1, True);
+//    FMain.Projection.FarPlane := 1.5;
+    FMain.Projection.DepthRange := Vec(1.0, 0.0);
+    if FMain.Projection.DepthRange.x > FMain.Projection.DepthRange.y then
+      FMain.States.DepthFunc := cfGreater
+    else
+      FMain.States.DepthFunc := cfLess;
+    FMain.States.DepthTest := True;
 
-    FFrameBuffer.FrameRect := RectF(0, ClientWidth, 0, ClientHeight);
+//    fi := (GetTickCount mod 100000) / 500;
+//    if Random(2) = 0 then fi := 0 else fi := 0.125*pi;
+//    FMain.Camera.Eye := Vec(cos(fi),0,sin(fi)) * 3.6;
+
+    wglSwapIntervalEXT(1);
+    FFrameBuffer.FrameRect := RectI(0, 0, ClientWidth, ClientHeight);
     FFrameBuffer.Select;
+    FMain.Clear(Vec(0.0,0.2,0.4,1.0), True, FMain.Projection.DepthRange.y, True);
 //    FMain.States.Wireframe := True;
-//    FMain.States.DepthTest := True;
     FProgram.Select;
     FProgram.SetAttributes(FCubeVertices, FCubeIndices, nil);
     FProgram.SetUniform('Diffuse', FTexture, Sampler_NoFilter);
     FProgram.Draw();
+    FFrameBuffer.BlitToWindow;
     FMain.Present;
+
+    Inc(FFPSCount);
   finally
     FMain.Unbind;
   end;

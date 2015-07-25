@@ -123,11 +123,6 @@ type
 
   IctxFrameBuffer = interface
   ['{E2A4C25A-B9E2-40B4-B2F8-3E1EF8C93B8E}']
-    // getters/setters
-    function GetRenderRect: TRectF;
-    procedure SetRenderRect(AValue: TRectF);
-    // getters/setters
-
     procedure Select;
 
     procedure Clear;
@@ -135,7 +130,7 @@ type
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0);
 
-    property RenderRect: TRectF read GetRenderRect write SetRenderRect;
+    procedure BlitToWindow(const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
   end;
 
   IRenderStates = interface
@@ -152,7 +147,7 @@ type
     function GetLineWidth              : Single;
     function GetNearFarClamp           : Boolean;
     function GetVertexProgramPointSize : Boolean;
-    function GetViewport               : TRect;
+    function GetViewport               : TRectI;
     function GetWireframe              : Boolean;
     procedure SetCullMode              (const Value : TCullingMode);
     procedure SetLineWidth             (const Value : Single);
@@ -163,7 +158,7 @@ type
     procedure SetDepthFunc             (const Value : TCompareFunc);
     procedure SetNearFarClamp          (const Value : Boolean);
     procedure SetBlending              (const Value : Boolean);
-    procedure SetViewport              (const Value : TRect);
+    procedure SetViewport              (const Value : TRectI);
     procedure SetWireframe             (const Value : Boolean);
     procedure SetScissor(Enabled : Boolean; const Value : TRect);
     procedure SetStencil(Enabled : Boolean; StencilFunc : TCompareFunc; Ref : Integer; Mask : Byte; sFail, dFail, dPass : TStencilAction);
@@ -171,7 +166,7 @@ type
     procedure SetBlendFunctions(Src, Dest : TBlendFunc);
 
     // getters/setters
-    property Viewport               : TRect        read GetViewport               write SetViewport;
+    property Viewport               : TRectI       read GetViewport               write SetViewport;
 
     property Wireframe              : Boolean      read GetWireframe              write SetWireframe;
     property CullMode               : TCullingMode read GetCullMode               write SetCullMode;
