@@ -166,6 +166,8 @@ type
 
     procedure UpdateMatrix;
   public
+    function DepthRangeMinMax: TVec2;
+
     property Fov        : single read FFov         write SetFov;
     property Aspect     : single read FAspect      write SetAspect;
     property NearPlane  : single read FNearPlane   write SetNearPlane;
@@ -446,6 +448,8 @@ type
     procedure AfterConstruction; override;
   end;
 
+function Create_FrameBuffer(Parent: TavObject; textures: array of TTextureFormat): TavFrameBuffer;
+
 implementation
 
 uses
@@ -454,6 +458,33 @@ uses
   avLog,
   avContext_OGL,
   avTexLoader;
+
+function Create_FrameBuffer(Parent: TavObject; textures: array of TTextureFormat): TavFrameBuffer;
+var i, colorIndex: Integer;
+    tex: TavTexture;
+    hasDepth: Boolean;
+begin
+  Result := TavFrameBuffer.Create(Parent);
+  colorIndex := 0;
+  hasDepth := False;
+  for i := Low(textures) to High(textures) do
+  begin
+    if IsDepthTexture[textures[i]] and hasDepth then Continue;
+    tex := TavTexture.Create(Result);
+    tex.TargetFormat := textures[i];
+    tex.AutoGenerateMips := False;
+    if IsDepthTexture[textures[i]] then
+    begin
+        Result.SetDepth(tex, 0);
+        hasDepth := True;
+    end
+    else
+    begin
+        Result.SetColor(colorIndex, tex, 0);
+        Inc(colorIndex);
+    end;
+  end;
+end;
 
 { TavFrameBuffer }
 
@@ -703,7 +734,6 @@ end;
 
 procedure TavTexture.AfterConstruction;
 begin
-  FAutoGenerateMips := True;
   inherited AfterConstruction;
 end;
 
@@ -865,6 +895,14 @@ begin
 
   FuMatrix := Inv(FMatrix);
   Inc(FUpdateID);
+end;
+
+function TavProjection.DepthRangeMinMax: TVec2;
+const APIToRange: array [T3DAPI] of TVec2 = ( (x: -1; y: 1) );
+begin
+  Result := Vec(0.0, 0.0);
+  if Parent is TavMainRender then
+    Result := APIToRange[TavMainRender(Parent).ActiveApi];
 end;
 
 procedure TavProjection.BeginUpdate;

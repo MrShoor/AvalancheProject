@@ -8,15 +8,17 @@ struct VS_Input {
 };
 
 struct VS_Output {
-    float4 Pos   : SV_Position;
-    float3 Normal: Normal;
-    float2 TexCrd: TexCrd;
+    float4 Pos    : SV_Position;
+    float3 Normal : Normal;
+    float3 ViewPos: ViewPos;
+    float2 TexCrd : TexCrd;
 };
 
 VS_Output VS(VS_Input In) {
     VS_Output Out;
-    Out.Pos = mul(VP_Matrix, float4(In.vsCoord, 1.0));    
+    Out.Pos = mul(VP_Matrix, float4(In.vsCoord, 1.0));
     Out.Normal = mul(V_Matrix, float4(In.vsNormal, 0.0)).xyz;
+    Out.ViewPos = mul(V_Matrix, float4(In.vsCoord, 1.0)).xyz;
     Out.TexCrd = In.vsTexCrd;
     return Out;
 }

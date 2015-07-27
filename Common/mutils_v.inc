@@ -4,6 +4,8 @@ type
 
   TV2 = record
     x, y: TCompType;
+  public
+    function yx: TV2; {$IFNDEF NoInline} inline; {$ENDIF}
   end;
   PV2 =^TV2;
 
@@ -161,6 +163,14 @@ type
 {$ENDIF}
 
 {$IFDEF IMPL}
+  { TV2 }
+
+  function TV2.yx: TV2;
+  begin
+    Result.x := y;
+    Result.y := x;
+  end;
+
   { TM2 }
 
   function TM2.GetCol(index: Integer): TV2;

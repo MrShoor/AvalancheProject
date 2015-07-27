@@ -31,8 +31,10 @@ vec4 Input2;
 vec4 phase0_Output0;
  out  vec4 Normal0;
 #define Output1 Normal0
+ out  vec4 ViewPos0;
+#define Output2 ViewPos0
  out  vec4 TexCrd0;
-#define Output2 TexCrd0
+#define Output3 TexCrd0
 vec4 Temp[1];
 ivec4 Temp_int[1];
 uvec4 Temp_uint[1];
@@ -48,7 +50,11 @@ void main()
     Temp[0].xyz = Input1.yyy * V_Matrix[1].xyz;
     Temp[0].xyz = V_Matrix[0].xyz * Input1.xxx + Temp[0].xyz;
     Output1.xyz = V_Matrix[2].xyz * Input1.zzz + Temp[0].xyz;
-    Output2.xy = Input2.xy;
+    Temp[0].xyz = Input0.yyy * V_Matrix[1].xyz;
+    Temp[0].xyz = V_Matrix[0].xyz * Input0.xxx + Temp[0].xyz;
+    Temp[0].xyz = V_Matrix[2].xyz * Input0.zzz + Temp[0].xyz;
+    Output2.xyz = Temp[0].xyz + V_Matrix[3].xyz;
+    Output3.xy = Input2.xy;
     gl_Position = vec4(phase0_Output0);
     return;
 }

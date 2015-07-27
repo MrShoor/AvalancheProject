@@ -257,10 +257,58 @@ const
     { D24     } 4,
     { D32     } 4,
     { D32f    } 4);
+    IsDepthTexture : array [TTextureFormat] of Boolean = (
+    { RGBA    } false,
+    { RGBA16  } false,
+    { RGBA16f } false,
+    { RGBA32  } false,
+    { RGBA32f } false,
+    { RGB     } false,
+    { RGB16   } false,
+    { RGB16f  } false,
+    { RGB32   } false,
+    { RGB32f  } false,
+    { RG      } false,
+    { RG16    } false,
+    { RG16f   } false,
+    { RG32    } false,
+    { RG32f   } false,
+    { R       } false,
+    { R16F    } false,
+    { R16f    } false,
+    { R32F    } false,
+    { R32f    } false,
+    { DXT1    } false,
+    { DXT3    } false,
+    { DXT5    } false,
+    { D24_S8  } true,
+    { D32f_S8 } true,
+    { D16     } true,
+    { D24     } true,
+    { D32     } true,
+    { D32f    } true);
     Sampler_NoFilter : TSamplerInfo = (
       MinFilter  : tfNearest;
       MagFilter  : tfNearest;
       MipFilter  : tfNone;
+      Anisotropy : 16;
+      Wrap_X     : twRepeat;
+      Wrap_Y     : twRepeat;
+      Border     : (x: 0; y: 0; z: 0; w: 0);
+    );
+    Sampler_LinearNoMips : TSamplerInfo = (
+      MinFilter  : tfLinear;
+      MagFilter  : tfLinear;
+      MipFilter  : tfNone;
+      Anisotropy : 16;
+      Wrap_X     : twRepeat;
+      Wrap_Y     : twRepeat;
+      Border     : (x: 0; y: 0; z: 0; w: 0);
+    );
+    Sampler_Linear : TSamplerInfo = (
+      MinFilter  : tfLinear;
+      MagFilter  : tfLinear;
+      MipFilter  : tfLinear;
       Anisotropy : 16;
       Wrap_X     : twRepeat;
       Wrap_Y     : twRepeat;

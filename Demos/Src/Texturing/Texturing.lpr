@@ -1,5 +1,6 @@
 program Texturing;
 
+{$AppType Console}
 {$mode objfpc}{$H+}
 
 uses
@@ -13,6 +14,7 @@ uses
 {$R *.res}
 
 begin
+  WriteLn('Hold mouse right button for rotate');
   RequireDerivedFormResource := True;
   Application.Initialize;
   Application.CreateForm(TfrmMain, frmMain);

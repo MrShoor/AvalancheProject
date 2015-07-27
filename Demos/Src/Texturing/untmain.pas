@@ -26,16 +26,11 @@ type
   { TfrmMain }
 
   TfrmMain = class(TForm)
-    ApplicationProperties1: TApplicationProperties;
-    Timer1: TTimer;
-    procedure ApplicationProperties1Idle(Sender: TObject; var Done: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormPaint(Sender: TObject);
-    procedure Timer1Timer(Sender: TObject);
   private
     FMain: TavMainRender;
-    FFPSCount: Integer;
 
     FProgram: TavProgram;
     FCubeVertices: TavVB;
@@ -43,8 +38,6 @@ type
     FTexture: TavTexture;
 
     FFrameBuffer: TavFrameBuffer;
-
-    procedure BuildFramebuffer;
   public
     procedure EraseBackground(DC: HDC); override;
     procedure RenderScene;
@@ -56,6 +49,7 @@ var
 implementation
 
 {$R *.lfm}
+
 {$R 'Texturing_shaders\shaders.res'}
 
 { TCubeVertex }
@@ -142,12 +136,18 @@ begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
   FMain.Init3D();
+  FMain.Camera.Eye := Vec(-1.6, 1.4,-2.0);
+  FMain.Projection.FarPlane := 10.0;
+  FMain.Projection.NearPlane := 0.1;
+
+  FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
 
   FProgram := TavProgram.Create(FMain);
   FProgram.LoadFromJSON('OGL_base', True);
 
   FTexture := TavTexture.Create(FMain);
   FTexture.TargetFormat := TTextureFormat.RGBA;
+  FTexture.AutoGenerateMips := True;
   FTexture.TexData := LoadTexture('..\Media\tig.jpg', SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.B8G8R8A8);
 
   USize := FTexture.TexData.Data(0,0).Width/NextPow2(FTexture.TexData.Data(0,0).Width);
@@ -159,20 +159,10 @@ begin
   FCubeIndices := TavIB.Create(FMain);
   FCubeIndices.PrimType := ptTriangles;
   FCubeIndices.Indices := ind;
-  FCubeIndices.CullMode := cmNone;
-
-  BuildFramebuffer;
+  FCubeIndices.CullMode := cmBack;
 
   cc := TavCameraController.Create(FMain);
   cc.CanRotate := True;
-//  cc.Enabled := True;
-end;
-
-procedure TfrmMain.ApplicationProperties1Idle(Sender: TObject; var Done: Boolean);
-begin
-  Done := False;
-  Application.ProcessMessages;
-  Invalidate;
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
@@ -185,63 +175,30 @@ begin
   RenderScene;
 end;
 
-procedure TfrmMain.Timer1Timer(Sender: TObject);
-begin
-  Caption := IntToStr(FFPSCount);
-  FFPSCount := 0;
-end;
-
-procedure TfrmMain.BuildFramebuffer;
-var tex: TavTexture;
-begin
-  FFrameBuffer := TavFrameBuffer.Create(FMain);
-  tex := TavTexture.Create(FFrameBuffer);
-  tex.TargetFormat := TTextureFormat.RGBA;
-  tex.AutoGenerateMips := False;
-  FFrameBuffer.SetColor(0, tex, 0);
-
-  tex := TavTexture.Create(FFrameBuffer);
-  tex.TargetFormat := TTextureFormat.D32f;
-  tex.AutoGenerateMips := False;
-  FFrameBuffer.SetDepth(tex, 0);
-end;
-
 procedure TfrmMain.EraseBackground(DC: HDC);
 begin
   //inherited EraseBackground(DC);
 end;
 
 procedure TfrmMain.RenderScene;
-//var fi: Single;
 begin
   if FMain = nil then Exit;
   if FMain.Bind then
   try
-//    FMain.Projection.FarPlane := 1.5;
-    FMain.Projection.DepthRange := Vec(1.0, 0.0);
-    if FMain.Projection.DepthRange.x > FMain.Projection.DepthRange.y then
-      FMain.States.DepthFunc := cfGreater
-    else
-      FMain.States.DepthFunc := cfLess;
     FMain.States.DepthTest := True;
 
-//    fi := (GetTickCount mod 100000) / 500;
-//    if Random(2) = 0 then fi := 0 else fi := 0.125*pi;
-//    FMain.Camera.Eye := Vec(cos(fi),0,sin(fi)) * 3.6;
-
-    wglSwapIntervalEXT(1);
     FFrameBuffer.FrameRect := RectI(0, 0, ClientWidth, ClientHeight);
     FFrameBuffer.Select;
+
     FMain.Clear(Vec(0.0,0.2,0.4,1.0), True, FMain.Projection.DepthRange.y, True);
-//    FMain.States.Wireframe := True;
+
     FProgram.Select;
     FProgram.SetAttributes(FCubeVertices, FCubeIndices, nil);
-    FProgram.SetUniform('Diffuse', FTexture, Sampler_NoFilter);
+    FProgram.SetUniform('Diffuse', FTexture, Sampler_Linear);
     FProgram.Draw();
+
     FFrameBuffer.BlitToWindow;
     FMain.Present;
-
-    Inc(FFPSCount);
   finally
     FMain.Unbind;
   end;

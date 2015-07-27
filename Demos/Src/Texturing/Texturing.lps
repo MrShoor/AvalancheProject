@@ -3,14 +3,15 @@
   <ProjectSession>
     <PathDelim Value="\"/>
     <Version Value="9"/>
-    <BuildModes Active="Default"/>
-    <Units Count="49">
+    <BuildModes Active="Debug"/>
+    <Units Count="19">
       <Unit0>
         <Filename Value="Texturing.lpr"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="-1"/>
-        <CursorPos X="42" Y="12"/>
-        <UsageCount Value="95"/>
+        <EditorIndex Value="1"/>
+        <CursorPos X="33" Y="10"/>
+        <UsageCount Value="225"/>
+        <Loaded Value="True"/>
       </Unit0>
       <Unit1>
         <Filename Value="untmain.pas"/>
@@ -20,9 +21,8 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="untMain"/>
         <IsVisibleTab Value="True"/>
-        <TopLine Value="201"/>
-        <CursorPos X="35" Y="220"/>
-        <UsageCount Value="95"/>
+        <CursorPos X="85" Y="28"/>
+        <UsageCount Value="225"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit1>
@@ -33,7 +33,7 @@
         <WindowIndex Value="-1"/>
         <TopLine Value="-1"/>
         <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="95"/>
+        <UsageCount Value="225"/>
         <DefaultSyntaxHighlighter Value="XML"/>
       </Unit2>
       <Unit3>
@@ -43,7 +43,7 @@
         <WindowIndex Value="-1"/>
         <TopLine Value="-1"/>
         <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="90"/>
+        <UsageCount Value="220"/>
         <DefaultSyntaxHighlighter Value="None"/>
       </Unit3>
       <Unit4>
@@ -53,475 +53,249 @@
         <WindowIndex Value="-1"/>
         <TopLine Value="-1"/>
         <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="82"/>
+        <UsageCount Value="212"/>
         <DefaultSyntaxHighlighter Value="None"/>
       </Unit4>
       <Unit5>
-        <Filename Value="..\..\..\avbase.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit5>
-      <Unit6>
-        <Filename Value="..\..\..\avcameracontroller.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit6>
-      <Unit7>
-        <Filename Value="..\..\..\avcanvas.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit7>
-      <Unit8>
-        <Filename Value="..\..\..\avcontext.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit8>
-      <Unit9>
-        <Filename Value="..\..\..\avcontext_ogl.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit9>
-      <Unit10>
-        <Filename Value="..\..\..\avcontrols.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit10>
-      <Unit11>
-        <Filename Value="..\..\..\avlog.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit11>
-      <Unit12>
-        <Filename Value="..\..\..\avplatform.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit12>
-      <Unit13>
-        <Filename Value="..\..\..\avtess.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit13>
-      <Unit14>
-        <Filename Value="..\..\..\avtimer.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit14>
-      <Unit15>
-        <Filename Value="..\..\..\avtypes.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit15>
-      <Unit16>
-        <Filename Value="..\..\..\dglOpenGL.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit16>
-      <Unit17>
-        <Filename Value="..\..\..\superobject.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit17>
-      <Unit18>
-        <Filename Value="..\..\..\Common\avbase.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="25"/>
-        <UsageCount Value="13"/>
-      </Unit18>
-      <Unit19>
         <Filename Value="..\..\..\Common\avcameracontroller.pas"/>
         <UnitName Value="avCameraController"/>
-        <EditorIndex Value="1"/>
+        <EditorIndex Value="2"/>
         <TopLine Value="185"/>
         <CursorPos X="55" Y="169"/>
-        <UsageCount Value="56"/>
+        <UsageCount Value="122"/>
         <Loaded Value="True"/>
-      </Unit19>
-      <Unit20>
-        <Filename Value="..\..\..\Common\avcanvas.pas"/>
-        <UnitName Value="avCanvas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="180"/>
-        <CursorPos X="43" Y="190"/>
-        <UsageCount Value="13"/>
-      </Unit20>
-      <Unit21>
+      </Unit5>
+      <Unit6>
         <Filename Value="..\..\..\Common\avcontext.pas"/>
         <UnitName Value="avContext"/>
-        <EditorIndex Value="11"/>
+        <EditorIndex Value="12"/>
         <TopLine Value="122"/>
         <CursorPos X="61" Y="161"/>
-        <UsageCount Value="56"/>
+        <UsageCount Value="122"/>
         <Loaded Value="True"/>
-      </Unit21>
-      <Unit22>
+      </Unit6>
+      <Unit7>
         <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
         <UnitName Value="avContext_OGL"/>
-        <EditorIndex Value="8"/>
-        <TopLine Value="2518"/>
-        <CursorPos X="25" Y="2541"/>
-        <UsageCount Value="56"/>
+        <EditorIndex Value="9"/>
+        <TopLine Value="2129"/>
+        <CursorPos Y="2160"/>
+        <UsageCount Value="122"/>
         <Loaded Value="True"/>
-      </Unit22>
-      <Unit23>
+      </Unit7>
+      <Unit8>
         <Filename Value="..\..\..\Common\avcontnrs.pas"/>
         <UnitName Value="avContnrs"/>
-        <EditorIndex Value="10"/>
+        <EditorIndex Value="11"/>
         <CursorPos X="17" Y="9"/>
-        <UsageCount Value="47"/>
+        <UsageCount Value="113"/>
         <Loaded Value="True"/>
-      </Unit23>
-      <Unit24>
-        <Filename Value="..\..\..\Common\avcontrols.pas"/>
-        <EditorIndex Value="-1"/>
-        <CursorPos X="37" Y="15"/>
-        <UsageCount Value="13"/>
-      </Unit24>
-      <Unit25>
-        <Filename Value="..\..\..\Common\avlog.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit25>
-      <Unit26>
+      </Unit8>
+      <Unit9>
         <Filename Value="..\..\..\Common\avplatform.pas"/>
         <UnitName Value="avPlatform"/>
-        <EditorIndex Value="2"/>
+        <EditorIndex Value="3"/>
         <TopLine Value="214"/>
         <CursorPos X="45" Y="238"/>
-        <UsageCount Value="56"/>
+        <UsageCount Value="122"/>
         <Loaded Value="True"/>
-      </Unit26>
-      <Unit27>
+      </Unit9>
+      <Unit10>
         <Filename Value="..\..\..\Common\avres.pas"/>
         <UnitName Value="avRes"/>
-        <EditorIndex Value="4"/>
-        <TopLine Value="1358"/>
-        <CursorPos X="3" Y="1363"/>
-        <UsageCount Value="57"/>
+        <EditorIndex Value="5"/>
+        <TopLine Value="1627"/>
+        <CursorPos Y="1666"/>
+        <UsageCount Value="123"/>
         <Loaded Value="True"/>
-      </Unit27>
-      <Unit28>
+      </Unit10>
+      <Unit11>
         <Filename Value="..\..\..\Common\avtess.pas"/>
         <UnitName Value="avTess"/>
-        <EditorIndex Value="3"/>
+        <EditorIndex Value="4"/>
         <TopLine Value="46"/>
         <CursorPos X="35" Y="87"/>
-        <UsageCount Value="57"/>
+        <UsageCount Value="123"/>
         <Loaded Value="True"/>
-      </Unit28>
-      <Unit29>
-        <Filename Value="..\..\..\Common\avtimer.pas"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit29>
-      <Unit30>
+      </Unit11>
+      <Unit12>
         <Filename Value="..\..\..\Common\avtypes.pas"/>
         <UnitName Value="avTypes"/>
-        <EditorIndex Value="12"/>
-        <TopLine Value="67"/>
-        <CursorPos X="61" Y="92"/>
-        <UsageCount Value="57"/>
+        <EditorIndex Value="13"/>
+        <TopLine Value="265"/>
+        <CursorPos X="25" Y="299"/>
+        <UsageCount Value="123"/>
         <Loaded Value="True"/>
-      </Unit30>
-      <Unit31>
+      </Unit12>
+      <Unit13>
         <Filename Value="..\..\..\Common\dglOpenGL.pas"/>
-        <EditorIndex Value="9"/>
+        <EditorIndex Value="10"/>
         <TopLine Value="18609"/>
         <CursorPos X="53" Y="18618"/>
-        <UsageCount Value="20"/>
+        <UsageCount Value="89"/>
         <Loaded Value="True"/>
-      </Unit31>
-      <Unit32>
-        <Filename Value="..\..\..\Common\LooseTree.inc"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-      </Unit32>
-      <Unit33>
+      </Unit13>
+      <Unit14>
         <Filename Value="..\..\..\Common\mutils.pas"/>
-        <EditorIndex Value="6"/>
-        <TopLine Value="396"/>
-        <CursorPos X="125" Y="407"/>
-        <UsageCount Value="53"/>
+        <EditorIndex Value="7"/>
+        <TopLine Value="2"/>
+        <CursorPos X="37" Y="20"/>
+        <UsageCount Value="119"/>
         <Loaded Value="True"/>
-      </Unit33>
-      <Unit34>
+      </Unit14>
+      <Unit15>
         <Filename Value="..\..\..\Common\mutils_v.inc"/>
-        <EditorIndex Value="5"/>
-        <TopLine Value="212"/>
-        <CursorPos Y="239"/>
-        <UsageCount Value="44"/>
+        <EditorIndex Value="6"/>
+        <TopLine Value="70"/>
+        <CursorPos X="5" Y="10"/>
+        <UsageCount Value="109"/>
         <Loaded Value="True"/>
-      </Unit34>
-      <Unit35>
-        <Filename Value="C:\lazarus\lcl\forms.pp"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="124"/>
-        <CursorPos X="3" Y="148"/>
-        <UsageCount Value="3"/>
-      </Unit35>
-      <Unit36>
-        <Filename Value="C:\lazarus\lcl\controls.pp"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="2165"/>
-        <CursorPos X="49" Y="2201"/>
-        <UsageCount Value="3"/>
-      </Unit36>
-      <Unit37>
-        <Filename Value="Texturing_shaders\texturing.rc"/>
-        <EditorIndex Value="-1"/>
-        <UsageCount Value="14"/>
-        <DefaultSyntaxHighlighter Value="None"/>
-      </Unit37>
-      <Unit38>
-        <Filename Value="Texturing_shaders\texturing.RES"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-        <DefaultSyntaxHighlighter Value="None"/>
-      </Unit38>
-      <Unit39>
-        <Filename Value="Texturing.res"/>
-        <EditorIndex Value="-1"/>
-        <WindowIndex Value="-1"/>
-        <TopLine Value="-1"/>
-        <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="13"/>
-        <DefaultSyntaxHighlighter Value="None"/>
-      </Unit39>
-      <Unit40>
+      </Unit15>
+      <Unit16>
         <Filename Value="..\..\..\Common\avtexloader.pas"/>
         <UnitName Value="avTexLoader"/>
-        <EditorIndex Value="13"/>
+        <EditorIndex Value="14"/>
         <TopLine Value="327"/>
         <CursorPos X="67" Y="351"/>
-        <UsageCount Value="43"/>
+        <UsageCount Value="109"/>
         <Loaded Value="True"/>
-      </Unit40>
-      <Unit41>
-        <Filename Value="C:\lazarus\fpc\2.6.4\source\rtl\objpas\sysutils\sysutilh.inc"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="71"/>
-        <CursorPos X="4" Y="95"/>
-        <UsageCount Value="4"/>
-      </Unit41>
-      <Unit42>
-        <Filename Value="C:\3dparty\Imaging\Source\ImagingUtility.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="751"/>
-        <CursorPos X="3" Y="753"/>
-        <UsageCount Value="5"/>
-      </Unit42>
-      <Unit43>
-        <Filename Value="C:\3dparty\Imaging\Source\Imaging.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="1036"/>
-        <CursorPos X="46" Y="1063"/>
-        <UsageCount Value="5"/>
-      </Unit43>
-      <Unit44>
-        <Filename Value="C:\3dparty\Imaging\Source\ImagingTypes.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="382"/>
-        <CursorPos X="3" Y="337"/>
-        <UsageCount Value="4"/>
-      </Unit44>
-      <Unit45>
+      </Unit16>
+      <Unit17>
         <Filename Value="..\..\..\avalanche.pas"/>
         <UnitName Value="Avalanche"/>
-        <EditorIndex Value="7"/>
+        <EditorIndex Value="8"/>
         <CursorPos X="30" Y="12"/>
-        <UsageCount Value="41"/>
+        <UsageCount Value="107"/>
         <Loaded Value="True"/>
-      </Unit45>
-      <Unit46>
-        <Filename Value="..\..\..\..\DelphiLibs\Imaging\Source\Imaging.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="3086"/>
-        <CursorPos X="59" Y="3097"/>
-        <UsageCount Value="9"/>
-        <DefaultSyntaxHighlighter Value="Delphi"/>
-      </Unit46>
-      <Unit47>
+      </Unit17>
+      <Unit18>
         <Filename Value="C:\lazarus\fpc\2.6.4\source\rtl\win\wininc\func.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="524"/>
         <CursorPos X="10" Y="543"/>
-        <UsageCount Value="29"/>
-      </Unit47>
-      <Unit48>
-        <Filename Value="C:\lazarus\fpc\2.6.4\source\rtl\inc\mathh.inc"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="47"/>
-        <CursorPos X="14" Y="81"/>
-        <UsageCount Value="5"/>
-      </Unit48>
+        <UsageCount Value="15"/>
+      </Unit18>
     </Units>
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="946" Column="18" TopLine="921"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="1820" TopLine="1777"/>
       </Position1>
       <Position2>
-        <Filename Value="..\..\..\Common\avres.pas"/>
-        <Caret Line="589" Column="46" TopLine="570"/>
+        <Filename Value="untmain.pas"/>
+        <Caret Line="255" TopLine="216"/>
       </Position2>
       <Position3>
-        <Filename Value="..\..\..\Common\avcontext.pas"/>
-        <Caret Line="169" Column="45" TopLine="145"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="1509" TopLine="1484"/>
       </Position3>
       <Position4>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="960" Column="15" TopLine="935"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="1511" TopLine="1484"/>
       </Position4>
       <Position5>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="586" Column="33" TopLine="564"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="1513" TopLine="1484"/>
       </Position5>
       <Position6>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="597" Column="15" TopLine="574"/>
+        <Filename Value="untmain.pas"/>
+        <Caret Line="255" TopLine="216"/>
       </Position6>
       <Position7>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="1300" Column="22" TopLine="1276"/>
+        <Filename Value="untmain.pas"/>
+        <Caret Line="253" TopLine="216"/>
       </Position7>
       <Position8>
         <Filename Value="..\..\..\Common\avres.pas"/>
-        <Caret Line="589" Column="46" TopLine="570"/>
+        <Caret Line="1652" TopLine="1627"/>
       </Position8>
       <Position9>
-        <Filename Value="untmain.pas"/>
-        <Caret Line="230" Column="46" TopLine="195"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="1653" TopLine="1627"/>
       </Position9>
       <Position10>
-        <Filename Value="untmain.pas"/>
-        <Caret Line="9" Column="3"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="1655" TopLine="1627"/>
       </Position10>
       <Position11>
-        <Filename Value="untmain.pas"/>
-        <Caret Line="230" Column="21" TopLine="195"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="1656" TopLine="1627"/>
       </Position11>
       <Position12>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="550" Column="54" TopLine="548"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="1657" TopLine="1627"/>
       </Position12>
       <Position13>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="897" Column="20" TopLine="873"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="1658" TopLine="1627"/>
       </Position13>
       <Position14>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="898" Column="20" TopLine="888"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="1659" TopLine="1627"/>
       </Position14>
       <Position15>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="899" Column="20" TopLine="888"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="1664" TopLine="1627"/>
       </Position15>
       <Position16>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
+        <Filename Value="untmain.pas"/>
+        <Caret Line="195" Column="34" TopLine="157"/>
       </Position16>
       <Position17>
         <Filename Value="untmain.pas"/>
-        <Caret Line="231" Column="51" TopLine="195"/>
+        <Caret Line="197" Column="52" TopLine="172"/>
       </Position17>
       <Position18>
         <Filename Value="untmain.pas"/>
-        <Caret Line="147" Column="24" TopLine="137"/>
+        <Caret Line="184" Column="27" TopLine="172"/>
       </Position18>
       <Position19>
         <Filename Value="untmain.pas"/>
+        <Caret Line="199" Column="51" TopLine="189"/>
       </Position19>
       <Position20>
         <Filename Value="untmain.pas"/>
-        <Caret Line="147" TopLine="107"/>
+        <Caret Line="48" Column="14" TopLine="27"/>
       </Position20>
       <Position21>
-        <Filename Value="..\..\..\Common\avres.pas"/>
-        <Caret Line="1338" TopLine="1313"/>
+        <Filename Value="untmain.pas"/>
+        <Caret Line="217" TopLine="167"/>
       </Position21>
       <Position22>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="2499" TopLine="2474"/>
+        <Filename Value="untmain.pas"/>
+        <Caret Line="40" Column="20"/>
       </Position22>
       <Position23>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="2500" TopLine="2474"/>
+        <Filename Value="untmain.pas"/>
+        <Caret Line="39" Column="20"/>
       </Position23>
       <Position24>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="2501" TopLine="2474"/>
+        <Filename Value="untmain.pas"/>
+        <Caret Line="43" TopLine="17"/>
       </Position24>
       <Position25>
-        <Filename Value="..\..\..\Common\avres.pas"/>
-        <Caret Line="1339" TopLine="1313"/>
+        <Filename Value="untmain.pas"/>
+        <Caret Line="42" TopLine="17"/>
       </Position25>
       <Position26>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="1379" TopLine="1354"/>
+        <Filename Value="untmain.pas"/>
+        <Caret Line="44" TopLine="17"/>
       </Position26>
       <Position27>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="1380" TopLine="1354"/>
+        <Filename Value="untmain.pas"/>
+        <Caret Line="210" Column="60" TopLine="173"/>
       </Position27>
       <Position28>
         <Filename Value="untmain.pas"/>
-        <Caret Line="220" Column="76" TopLine="195"/>
+        <Caret Line="212" Column="19" TopLine="173"/>
       </Position28>
       <Position29>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
-        <Caret Line="594" Column="15" TopLine="515"/>
+        <Filename Value="untmain.pas"/>
+        <Caret Line="74" Column="118" TopLine="46"/>
       </Position29>
       <Position30>
-        <Filename Value="..\..\..\Common\avcontext_ogl.pas"/>
+        <Filename Value="untmain.pas"/>
+        <Caret Line="194" Column="52" TopLine="154"/>
       </Position30>
     </JumpHistory>
   </ProjectSession>
