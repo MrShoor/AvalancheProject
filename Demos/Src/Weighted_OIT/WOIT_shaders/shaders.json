@@ -1,0 +1,21 @@
+{
+    "fxc_params"  : "/nologo /O3 /Zi /Gec",
+    "HLSLcc_lang" : 330,
+    "HLSLcc_flags": ["HLSLCC_FLAG_DISABLE_GLOBALS_STRUCT",
+                     "HLSLCC_FLAG_INOUT_SEMANTIC_NAMES",
+                     "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],    
+    "OGLTranslate" : true,
+    "outdir" : "!Out",
+    "DXPrefix" : "DX_",
+    "OGLPrefix" : "OGL_",
+    "vertexEntry" : "VS",
+    "fragmentEntry" : "PS",
+    "programs":[
+        {
+        "name"     : "base",
+        "vertex"   : "base_v.cpp",
+        "fragment" : "base_f.cpp",
+        "path"     :["WOIT"]
+        }      
+    ]
+}

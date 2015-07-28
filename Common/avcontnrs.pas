@@ -12,6 +12,7 @@ uses
 type
   TInterfacedObjectEx = TInterfacedObject;
   TCompareMethod = function (item1, item2: Pointer; dataSize: Integer): Boolean of object;
+  TCompareMethodStatic = function (item1, item2: Pointer; dataSize: Integer; userData: Pointer): Boolean;
 
   EContnrsError = class(Exception);
 
@@ -31,6 +32,8 @@ type
     function  IndexOf(const item: TValue): Integer;
 
     procedure Clear(const TrimCapacity: Boolean = False);
+
+    procedure Sort(comparator: TCompareMethodStatic; userData: Pointer);
 
     property Item[index: Integer]: TValue read GetItem write SetItem; default;
     property PItem[index: Integer]: Pointer read GetPItem;
@@ -65,6 +68,8 @@ type
     function IndexOf(const item: TValue): Integer;
 
     procedure Clear(const TrimCapacity: Boolean = False);
+
+    procedure Sort(comparator: TCompareMethodStatic; userData: Pointer);
 
     property Capacity: Integer read GetCapacity write SetCapacity;
   public
@@ -666,6 +671,11 @@ begin
   FCount := 0;
   if TrimCapacity then
     SetLength(FData, 0);
+end;
+
+procedure TArray.Sort(comparator: TCompareMethodStatic; userData: Pointer);
+begin
+
 end;
 
 constructor TArray.Create;
