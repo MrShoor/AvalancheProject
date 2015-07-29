@@ -434,7 +434,7 @@ type
 
     property FrameRect: TRectI read FFrameRect write SetFrameRect;
 
-    procedure Clear;
+    procedure ClearColorList;
 
     function GetColor(Index: Integer): TavTexture;
     function GetColorMipLevel(Index: Integer): Integer;
@@ -443,7 +443,10 @@ type
     function GetDepth: TavTexture;
     procedure SetDepth(AValue: TavTexture; mipLevel: Integer);
 
-    procedure BlitToWindow;
+    procedure Clear(index: Integer; color: TVec4);
+    procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
+
+    procedure BlitToWindow(index: Integer = 0);
 
     procedure AfterConstruction; override;
   end;
@@ -541,9 +544,20 @@ begin
   Invalidate;
 end;
 
-procedure TavFrameBuffer.BlitToWindow;
+procedure TavFrameBuffer.Clear(index: Integer; color: TVec4);
 begin
-  FFrameBuf.BlitToWindow(FFrameRect, GetRectOfWindow(Main.Window), tfNearest);
+  FFrameBuf.Clear(index, color);
+end;
+
+procedure TavFrameBuffer.ClearDS(depth: Single; clearDepth: Boolean;
+  stencil: Integer; clearStencil: Boolean);
+begin
+  FFrameBuf.ClearDS(depth, clearDepth, stencil, clearStencil);
+end;
+
+procedure TavFrameBuffer.BlitToWindow(index: Integer);
+begin
+  FFrameBuf.BlitToWindow(index, FFrameRect, GetRectOfWindow(Main.Window), tfNearest);
 end;
 
 procedure TavFrameBuffer.SetFrameRect(AValue: TRectI);
@@ -587,7 +601,7 @@ begin
   if FFrameBuf = nil then
     FFrameBuf := Main.Context.CreateFrameBuffer
   else
-    FFrameBuf.Clear;
+    FFrameBuf.ClearColorList;
 
   FrameSize := Max(Vec(FFrameRect.Left, FFrameRect.Top), Vec(FFrameRect.Right, FFrameRect.Bottom));
 
@@ -623,7 +637,7 @@ begin
   FFrameBuf.Select;
 end;
 
-procedure TavFrameBuffer.Clear;
+procedure TavFrameBuffer.ClearColorList;
 begin
   FColors.Clear;
   Invalidate;

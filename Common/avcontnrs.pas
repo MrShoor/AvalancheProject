@@ -12,7 +12,7 @@ uses
 type
   TInterfacedObjectEx = TInterfacedObject;
   TCompareMethod = function (item1, item2: Pointer; dataSize: Integer): Boolean of object;
-  TCompareMethodStatic = function (item1, item2: Pointer; dataSize: Integer; userData: Pointer): Boolean;
+  TCompareMethodStatic = function (item1, item2: Pointer; dataSize: Integer; userData: Pointer): Integer;
 
   EContnrsError = class(Exception);
 
@@ -54,6 +54,8 @@ type
     function CmpAString(item1, item2: Pointer; dataSize: Integer): Boolean;
     function CmpRecord(item1, item2: Pointer; dataSize: Integer): Boolean;
     function GetCompareMethod(tinfo: PTypeInfo): TCompareMethod;
+  private
+    procedure QuickSort(L, R : Longint; Compare: TCompareMethodStatic; userData: Pointer);
   protected
     function GetCapacity: Integer;
     procedure SetCapacity(const cap: Integer);
@@ -600,6 +602,48 @@ begin
   end;
 end;
 
+procedure TArray.QuickSort(L, R: Longint; Compare: TCompareMethodStatic;
+  userData: Pointer);
+var
+  I, J, N : Longint;
+  P, Q : TValue;
+begin
+ repeat
+   I := L;
+   J := R;
+   P := FData[ (L + R) div 2 ];
+   repeat
+     while Compare(@P, @FData[i], SizeOf(TValue), userData) > 0 do
+       I := I + 1;
+     while Compare(@P, @FData[J], SizeOf(TValue), userData) < 0 do
+       J := J - 1;
+     If I <= J then
+     begin
+       Q := FData[I];
+       FData[I] := FData[J];
+       FData[J] := Q;
+       I := I + 1;
+       J := J - 1;
+     end;
+   until I > J;
+   // sort the smaller range recursively
+   // sort the bigger range via the loop
+   // Reasons: memory usage is O(log(n)) instead of O(n) and loop is faster than recursion
+   if J - L < R - I then
+   begin
+     if L < J then
+       QuickSort(L, J, Compare, userData);
+     L := I;
+   end
+   else
+   begin
+     if I < R then
+       QuickSort(I, R, Compare, userData);
+     R := J;
+   end;
+ until L >= R;
+end;
+
 function TArray.GetCapacity: Integer;
 begin
   Result := Length(FData);
@@ -675,7 +719,8 @@ end;
 
 procedure TArray.Sort(comparator: TCompareMethodStatic; userData: Pointer);
 begin
-
+  if FCount < 2 then Exit;
+  QuickSort(0, FCount-1, comparator, userData);
 end;
 
 constructor TArray.Create;

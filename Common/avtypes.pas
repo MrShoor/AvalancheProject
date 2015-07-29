@@ -97,7 +97,7 @@ type
   {$SCOPEDENUMS OFF}
   TTextureFilter = (tfNone, tfNearest, tfLinear);
   TTextureWrap   = (twRepeat, twMirror, twClamp, twClampToEdge);
-  TBlendFunc     = (bfZero, bfOne, bfSrcAlpha, bfInvSrcAlpha);
+  TBlendFunc     = (bfZero, bfOne, bfSrcAlpha, bfInvSrcAlpha, bfSrcColor, bfDstColor);
   TCompareFunc   = (cfNever,
                     cfLess,
                     cfEqual,

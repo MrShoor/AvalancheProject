@@ -234,7 +234,7 @@ end;
 
 function TTextureData.Data(const Index, MipLevel: Integer): TTextureMipInfo;
 begin
-  Result.Data   := @FMips[Index][MipLevel].FData[0];
+  Result.Data   := PByte(FMips[Index][MipLevel].FData);
   Result.Height := FMips[Index][MipLevel].FHeight;
   Result.Width  := FMips[Index][MipLevel].FWidth;
   Result.Level  := FMips[Index][MipLevel].FLevel;

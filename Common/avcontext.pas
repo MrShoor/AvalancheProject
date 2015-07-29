@@ -125,20 +125,23 @@ type
   ['{E2A4C25A-B9E2-40B4-B2F8-3E1EF8C93B8E}']
     procedure Select;
 
-    procedure Clear;
+    procedure ClearColorList;
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0);
 
-    procedure BlitToWindow(const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
+    procedure Clear(index: Integer; color: TVec4);
+    procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
+
+    procedure BlitToWindow(index: Integer; const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
   end;
 
   IRenderStates = interface
   ['{3695F390-25CC-441B-9603-F14952631C2E}']
     // getters/setters
-    function GetBlendDest              : TBlendFunc;
+    function GetBlendSrc (RenderTargetIndex: Integer = 0) : TBlendFunc;
+    function GetBlendDest(RenderTargetIndex: Integer = 0) : TBlendFunc;
     function GetBlending               : Boolean;
-    function GetBlendSrc               : TBlendFunc;
     function GetColorWrite             : Boolean;
     function GetCullMode               : TCullingMode;
     function GetDepthFunc              : TCompareFunc;
@@ -163,7 +166,7 @@ type
     procedure SetScissor(Enabled : Boolean; const Value : TRect);
     procedure SetStencil(Enabled : Boolean; StencilFunc : TCompareFunc; Ref : Integer; Mask : Byte; sFail, dFail, dPass : TStencilAction);
 
-    procedure SetBlendFunctions(Src, Dest : TBlendFunc);
+    procedure SetBlendFunctions(Src, Dest : TBlendFunc; RenderTargetIndex: Integer = 0);
 
     // getters/setters
     property Viewport               : TRectI       read GetViewport               write SetViewport;
@@ -174,8 +177,8 @@ type
     property VertexProgramPointSize : Boolean      read GetVertexProgramPointSize write SetVertexProgramPointSize;
 
     property Blending               : Boolean      read GetBlending               write SetBlending;
-    property BlendSrc               : TBlendFunc   read GetBlendSrc;
-    property BlendDest              : TBlendFunc   read GetBlendDest;
+    property BlendSrc [RenderTargetIndex: Integer] : TBlendFunc   read GetBlendSrc;
+    property BlendDest[RenderTargetIndex: Integer] : TBlendFunc   read GetBlendDest;
 
     property DepthTest              : Boolean      read GetDepthTest              write SetDepthTest;
     property DepthFunc              : TCompareFunc read GetDepthFunc              write SetDepthFunc;

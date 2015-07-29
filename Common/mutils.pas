@@ -29,6 +29,9 @@ type
 {$define TM2 := TMat2}
 {$define TM3 := TMat3}
 {$define TM4 := TMat4}
+{$define PM2 := PMat2}
+{$define PM3 := PMat3}
+{$define PM4 := PMat4}
 {$Include mutils_v.inc}
 
 {$define TCompType := Integer}
@@ -44,6 +47,9 @@ type
 {$define TM2 := TMat2i}
 {$define TM3 := TMat3i}
 {$define TM4 := TMat4i}
+{$define PM2 := PMat2i}
+{$define PM3 := PMat3i}
+{$define PM4 := PMat4i}
 {$Include mutils_v.inc}
 
 {$define TCompType := ShortInt}
@@ -59,6 +65,9 @@ type
 {$define TM2 := TMat2s}
 {$define TM3 := TMat3s}
 {$define TM4 := TMat4s}
+{$define PM2 := PMat2s}
+{$define PM3 := PMat3s}
+{$define PM4 := PMat4s}
 {$Include mutils_v.inc}
 
 {$define TCompType := Byte}
@@ -74,6 +83,9 @@ type
 {$define TM2 := TMat2b}
 {$define TM3 := TMat3b}
 {$define TM4 := TMat4b}
+{$define PM2 := PMat2b}
+{$define PM3 := PMat3b}
+{$define PM4 := PMat4b}
 {$Include mutils_v.inc}
 
 type

@@ -9,6 +9,9 @@ interface
 uses
   Classes, SysUtils, avTypes, avPlatform, dglOpenGL, Windows, mutils, avContext, avContnrs;
 
+const
+  MAX_RENDER_TARGET_COUNT = 8;
+
 type
   TavInterfacedObject = TInterfacedObject;
 
@@ -553,7 +556,9 @@ type
         GL_ZERO,                // bfZero
         GL_ONE,                 // bfOne
         GL_SRC_ALPHA,           // bfSrcAlpha
-        GL_ONE_MINUS_SRC_ALPHA  // bfInvSrcAlpha
+        GL_ONE_MINUS_SRC_ALPHA, // bfInvSrcAlpha
+        GL_SRC_COLOR,           // bfSrcColor
+        GL_DST_COLOR            // bfDstColor
       );
   private
     FContext      : TContext_OGL;
@@ -565,16 +570,16 @@ type
     FDepthTest    : Boolean;
     FDepthFunc    : TCompareFunc;
     FNearFarClamp : Boolean;
-    FBlendSrc     : TBlendFunc;
-    FBlendDest    : TBlendFunc;
+    FBlendSrc     : array [0..MAX_RENDER_TARGET_COUNT-1] of TBlendFunc;
+    FBlendDest    : array [0..MAX_RENDER_TARGET_COUNT-1] of TBlendFunc;
     FBlending     : Boolean;
     FViewport     : TRectI;
     FWireframe    : Boolean;
     FScissor      : Boolean;
     FStencil      : Boolean;
-    function GetBlendDest: TBlendFunc;
+    function GetBlendSrc(RenderTargetIndex: Integer = 0): TBlendFunc;
+    function GetBlendDest(RenderTargetIndex: Integer = 0): TBlendFunc;
     function GetBlending: Boolean;
-    function GetBlendSrc: TBlendFunc;
     function GetColorWrite: Boolean;
     function GetCullMode: TCullingMode;
     function GetDepthFunc: TCompareFunc;
@@ -597,7 +602,7 @@ type
     procedure SetViewport(const Value: TRectI);
     procedure SetWireframe(const Value: Boolean);
   public
-    procedure SetBlendFunctions(Src, Dest: TBlendFunc);
+    procedure SetBlendFunctions(Src, Dest: TBlendFunc; RenderTargetIndex: Integer = 0);
 
     constructor Create(AContext: TContext_OGL);
 
@@ -959,12 +964,15 @@ type
   public
     procedure Select;
 
-    procedure Clear;
+    procedure ClearColorList;
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
 
-    procedure BlitToWindow(const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
+    procedure Clear(index: Integer; color: TVec4);
+    procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
+
+    procedure BlitToWindow(index: Integer; const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
   public
     constructor Create(AContext: TContext_OGL); override;
 //    destructor Destroy; override;
@@ -1024,7 +1032,7 @@ begin
   end;
 end;
 
-procedure TFrameBuffer.Clear;
+procedure TFrameBuffer.ClearColorList;
 var i: Integer;
     ActiveObject: GLuint;
 begin
@@ -1114,12 +1122,29 @@ begin
   Invalidate;
 end;
 
-procedure TFrameBuffer.BlitToWindow(const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
+procedure TFrameBuffer.Clear(index: Integer; color: TVec4);
+begin
+  glClearBufferfv(GL_COLOR, index, @color);
+end;
+
+procedure TFrameBuffer.ClearDS(depth: Single; clearDepth: Boolean; stencil: Integer; clearStencil: Boolean);
+begin
+  if clearDepth and clearStencil then
+    glClearBufferfi(GL_DEPTH_STENCIL, 0, depth, stencil)
+  else
+  if clearDepth then
+    glClearBufferfv(GL_DEPTH, 0, @depth)
+  else
+  if clearStencil then
+    glClearBufferiv(GL_STENCIL, 0, @stencil);
+end;
+
+procedure TFrameBuffer.BlitToWindow(index: Integer; const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
 const GLFilter: array [TTextureFilter] of GLuint = (GL_NEAREST, GL_NEAREST,  GL_LINEAR);
       GLTargetBuffer: array [Boolean] of GLuint = (GL_FRONT, GL_BACK);
 begin
   glBindFramebuffer(GL_READ_FRAMEBUFFER, FHandle);
-  glReadBuffer(GL_COLOR_ATTACHMENT0);
+  glReadBuffer(GL_COLOR_ATTACHMENT0+index);
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
   glDrawBuffer(GLTargetBuffer[DEFAULT_BackBuffer]);
   glBlitFramebuffer(srcRect.Left, srcRect.Top, srcRect.Right, srcRect.Bottom, dstRect.Left, dstRect.Top, dstRect.Right, dstRect.Bottom, GL_COLOR_BUFFER_BIT, GLFilter[Filter]);
@@ -1240,19 +1265,19 @@ end;
 
 { TOGLStates }
 
-function TStates_OGL.GetBlendDest: TBlendFunc;
+function TStates_OGL.GetBlendSrc(RenderTargetIndex: Integer): TBlendFunc;
 begin
-  Result := FBlendDest;
+  Result := FBlendSrc[RenderTargetIndex];
+end;
+
+function TStates_OGL.GetBlendDest(RenderTargetIndex: Integer): TBlendFunc;
+begin
+  Result := FBlendDest[RenderTargetIndex];
 end;
 
 function TStates_OGL.GetBlending: Boolean;
 begin
   Result := FBlending;
-end;
-
-function TStates_OGL.GetBlendSrc: TBlendFunc;
-begin
-  Result := FBlendSrc;
 end;
 
 function TStates_OGL.GetColorWrite: Boolean;
@@ -1432,13 +1457,13 @@ begin
   end;
 end;
 
-procedure TStates_OGL.SetBlendFunctions(Src, Dest: TBlendFunc);
+procedure TStates_OGL.SetBlendFunctions(Src, Dest: TBlendFunc; RenderTargetIndex: Integer);
 begin
-  if (Src <> FBlendSrc) and (Dest <> FBlendDest) and FContext.Binded then
+  if ( (Src <> FBlendSrc[RenderTargetIndex]) or (Dest <> FBlendDest[RenderTargetIndex]) ) and FContext.Binded then
   begin
-    FBlendSrc := Src;
-    FBlendDest := Dest;
-    glBlendFunc( GLBlendFunction[Src], GLBlendFunction[Dest] );
+    FBlendSrc[RenderTargetIndex] := Src;
+    FBlendDest[RenderTargetIndex] := Dest;
+    glBlendFunci( RenderTargetIndex, GLBlendFunction[Src], GLBlendFunction[Dest] );
   end;
 end;
 
@@ -1452,6 +1477,7 @@ var gb: GLboolean;
     gi: GLint;
     gf: GLfloat;
     colorwritemask: array [0..3] of GLboolean;
+    i: Integer;
 begin
   glGetBooleanv(GL_CULL_FACE, @gb);
   glGetIntegerv(GL_CULL_FACE_MODE, @gi);
@@ -1498,8 +1524,11 @@ begin
   FBlending := gb;
 
   //GL_BLEND_FUNC    not defined at glGet??
-  FBlendSrc := bfOne;
-  FBlendDest := bfZero;
+  for i := 0 to MAX_RENDER_TARGET_COUNT - 1 do
+  begin
+    FBlendSrc[i] := bfOne;
+    FBlendDest[i] := bfZero;
+  end;
 
   glGetIntegerv(GL_VIEWPORT, @FViewport);
   FViewport.Right := FViewport.Right + FViewport.Left;

@@ -44,6 +44,7 @@ type
     0: (f: array [0..1,0..1] of TCompType);
     1: (Row: array [0..1] of TV2);
   end;
+  PM2 = ^TM2;
 
   { TM3 }
 
@@ -57,6 +58,7 @@ type
     0: (f: array [0..2,0..2] of TCompType);
     1: (Row: array [0..2] of TV3);
   end;
+  PM3 = ^TM3;
 
   { TM4 }
 
@@ -70,6 +72,7 @@ type
     0: (f: array [0..3,0..3] of TCompType);
     1: (Row: array [0..3] of TV4);
   end;
+  PM4 = ^TM4;
 
   Operator = (const v1, v2: TV2): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator + (const v1, v2: TV2): TV2; {$IFNDEF NoInline} inline; {$ENDIF}
