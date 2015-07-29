@@ -1,4 +1,5 @@
 #include "hlsl.h"
+#include "..\phong.h"
 
 struct PS_Input {
     float4 Pos    : SV_Position;
@@ -14,6 +15,7 @@ struct PS_Output {
 PS_Output PS(PS_Input In) {
     PS_Output Out;
     float3 n = normalize(In.Normal);
-    Out.Color = max(0.0, -dot(normalize(In.ViewPos), n)) * In.Color;
+    Out.Color.xyz = Phong(0.0, 0.0, In.ViewPos, n, In.Color.xyz);
+    Out.Color.a = In.Color.a;
     return Out;
 }

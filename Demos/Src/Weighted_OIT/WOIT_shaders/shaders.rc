@@ -1,2 +1,6 @@
-DX_base RCDATA "!Out\DX_base.hlsl"
-OGL_base RCDATA "!Out\OGL_base.glsl"
+DX_Classic RCDATA "!Out\DX_Classic.hlsl"
+OGL_Classic RCDATA "!Out\OGL_Classic.glsl"
+DX_WOIT_Accum RCDATA "!Out\DX_WOIT_Accum.hlsl"
+OGL_WOIT_Accum RCDATA "!Out\OGL_WOIT_Accum.glsl"
+DX_WOIT_Resolve RCDATA "!Out\DX_WOIT_Resolve.hlsl"
+OGL_WOIT_Resolve RCDATA "!Out\OGL_WOIT_Resolve.glsl"

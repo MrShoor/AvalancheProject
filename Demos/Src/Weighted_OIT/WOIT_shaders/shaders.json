@@ -12,10 +12,22 @@
     "fragmentEntry" : "PS",
     "programs":[
         {
-        "name"     : "base",
-        "vertex"   : "base_v.cpp",
-        "fragment" : "base_f.cpp",
-        "path"     :["WOIT"]
-        }      
+        "name"     : "Classic",
+        "vertex"   : "classic_v.cpp",
+        "fragment" : "classic_f.cpp",
+        "path"     :["Classic"]
+        },
+        {
+        "name"     : "WOIT_Accum",
+        "vertex"   : "accum_v.cpp",
+        "fragment" : "accum_f.cpp",
+        "path"     :["WOIT_Accum"]
+        },
+        {
+        "name"     : "WOIT_Resolve",
+        "vertex"   : "resolve_v.cpp",
+        "fragment" : "resolve_f.cpp",
+        "path"     :["WOIT_Resolve"]
+        }        
     ]
 }
