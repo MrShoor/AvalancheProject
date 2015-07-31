@@ -2296,10 +2296,7 @@ begin
   if Field = nil then Exit;
   if Field.DataClass <> dcSampler then Exit;
   if tex = nil then Exit;
-  {
-    if not Supports(tex, ITextureHandle_OGL, gltex) then Exit;
-    gltex.Select(PInteger(Field.Data)^);
-  }
+
   TexH := (tex as IHandle).Handle;
   glActiveTexture(GL_TEXTURE0 + PInteger(Field.Data)^);
   glBindTexture(GL_TEXTURE_2D, TexH);

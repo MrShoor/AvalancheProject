@@ -8,7 +8,7 @@ interface
 uses
   LCLType, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
   ExtCtrls, avRes, avTypes, avTess, avContnrs, mutils, avCameraController,
-  avTexLoader, dglOpenGL;
+  avTexLoader;
 
 type
 

@@ -9,11 +9,11 @@
       <PathDelim Value="\"/>
       <SearchPaths>
         <IncludeFiles Value="Common;Canvas_Shaders"/>
-        <OtherUnitFiles Value="Common"/>
+        <OtherUnitFiles Value="Common;Common\DX_JSB"/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Files Count="19">
+    <Files Count="23">
       <Item1>
         <Filename Value="Common\avbase.pas"/>
         <UnitName Value="avBase"/>
@@ -90,6 +90,22 @@
         <Filename Value="Canvas_Shaders\Canvas_Shaders.RES"/>
         <Type Value="Binary"/>
       </Item19>
+      <Item20>
+        <Filename Value="Common\DX_JSB\D3D11_JSB.pas"/>
+        <UnitName Value="D3D11_JSB"/>
+      </Item20>
+      <Item21>
+        <Filename Value="Common\DX_JSB\DXGI_JSB.pas"/>
+        <UnitName Value="DXGI_JSB"/>
+      </Item21>
+      <Item22>
+        <Filename Value="Common\DX_JSB\DXTypes_JSB.pas"/>
+        <UnitName Value="DXTypes_JSB"/>
+      </Item22>
+      <Item23>
+        <Filename Value="Common\DX_JSB\D3DCommon_JSB.pas"/>
+        <UnitName Value="D3DCommon_JSB"/>
+      </Item23>
     </Files>
     <RequiredPkgs Count="2">
       <Item1>
