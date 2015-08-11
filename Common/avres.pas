@@ -460,6 +460,7 @@ uses
   Math,
   avLog,
   avContext_OGL,
+  avContext_DX11,
   avTexLoader;
 
 function Create_FrameBuffer(Parent: TavObject; textures: array of TTextureFormat): TavFrameBuffer;
@@ -912,7 +913,7 @@ begin
 end;
 
 function TavProjection.DepthRangeMinMax: TVec2;
-const APIToRange: array [T3DAPI] of TVec2 = ( (x: -1; y: 1) );
+const APIToRange: array [T3DAPI] of TVec2 = ( {OGL}(x: -1; y: 1), {DX11} (x: 0; y: 1) );
 begin
   Result := Vec(0.0, 0.0);
   if Parent is TavMainRender then
@@ -1339,6 +1340,11 @@ begin
               begin
                 FContext := TContext_OGL.Create(FWindow);
                 FProjection.DepthRange := Vec(-1.0, 1.0);
+              end;
+            apiDX11:
+              begin
+                FContext := TContext_DX11.Create(FWindow);
+                FProjection.DepthRange := Vec(0, 1.0);
               end;
         end;
         FActiveApi := api;

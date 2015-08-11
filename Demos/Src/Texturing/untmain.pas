@@ -135,31 +135,31 @@ var vert: IVerticesData;
 begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
-  FMain.Init3D();
+  FMain.Init3D(apiDX11);
   FMain.Camera.Eye := Vec(-1.6, 1.4,-2.0);
   FMain.Projection.FarPlane := 10.0;
   FMain.Projection.NearPlane := 0.1;
 
-  FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
+  //FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
+  //
+  //FProgram := TavProgram.Create(FMain);
+  //FProgram.LoadFromJSON('OGL_base', True);
+  //
+  //FTexture := TavTexture.Create(FMain);
+  //FTexture.TargetFormat := TTextureFormat.RGBA;
+  //FTexture.AutoGenerateMips := True;
+  //FTexture.TexData := LoadTexture('..\Media\tig.jpg', SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.B8G8R8A8);
 
-  FProgram := TavProgram.Create(FMain);
-  FProgram.LoadFromJSON('OGL_base', True);
-
-  FTexture := TavTexture.Create(FMain);
-  FTexture.TargetFormat := TTextureFormat.RGBA;
-  FTexture.AutoGenerateMips := True;
-  FTexture.TexData := LoadTexture('..\Media\tig.jpg', SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.B8G8R8A8);
-
-  USize := FTexture.TexData.Data(0,0).Width/NextPow2(FTexture.TexData.Data(0,0).Width);
-  VSize := FTexture.TexData.Data(0,0).Height/NextPow2(FTexture.TexData.Data(0,0).Height);
-  GenCube(H, H, H, USize, VSize, vert, ind);
-
-  FCubeVertices := TavVB.Create(FMain);
-  FCubeVertices.Vertices := vert;
-  FCubeIndices := TavIB.Create(FMain);
-  FCubeIndices.PrimType := ptTriangles;
-  FCubeIndices.Indices := ind;
-  FCubeIndices.CullMode := cmBack;
+  //USize := FTexture.TexData.Data(0,0).Width/NextPow2(FTexture.TexData.Data(0,0).Width);
+  //VSize := FTexture.TexData.Data(0,0).Height/NextPow2(FTexture.TexData.Data(0,0).Height);
+  //GenCube(H, H, H, USize, VSize, vert, ind);
+  //
+  //FCubeVertices := TavVB.Create(FMain);
+  //FCubeVertices.Vertices := vert;
+  //FCubeIndices := TavIB.Create(FMain);
+  //FCubeIndices.PrimType := ptTriangles;
+  //FCubeIndices.Indices := ind;
+  //FCubeIndices.CullMode := cmBack;
 
   cc := TavCameraController.Create(FMain);
   cc.CanRotate := True;
@@ -185,19 +185,19 @@ begin
   if FMain = nil then Exit;
   if FMain.Bind then
   try
-    FMain.States.DepthTest := True;
+//    FMain.States.DepthTest := True;
 
-    FFrameBuffer.FrameRect := RectI(0, 0, ClientWidth, ClientHeight);
-    FFrameBuffer.Select;
+//    FFrameBuffer.FrameRect := RectI(0, 0, ClientWidth, ClientHeight);
+//    FFrameBuffer.Select;
 
     FMain.Clear(Vec(0.0,0.2,0.4,1.0), True, FMain.Projection.DepthRange.y, True);
 
-    FProgram.Select;
-    FProgram.SetAttributes(FCubeVertices, FCubeIndices, nil);
-    FProgram.SetUniform('Diffuse', FTexture, Sampler_Linear);
-    FProgram.Draw();
+    //FProgram.Select;
+//    FProgram.SetAttributes(FCubeVertices, FCubeIndices, nil);
+//    FProgram.SetUniform('Diffuse', FTexture, Sampler_Linear);
+//    FProgram.Draw();
 
-    FFrameBuffer.BlitToWindow;
+//    FFrameBuffer.BlitToWindow;
     FMain.Present;
   finally
     FMain.Unbind;

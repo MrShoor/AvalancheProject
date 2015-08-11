@@ -13,7 +13,7 @@
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Files Count="23">
+    <Files Count="24">
       <Item1>
         <Filename Value="Common\avbase.pas"/>
         <UnitName Value="avBase"/>
@@ -106,6 +106,10 @@
         <Filename Value="Common\DX_JSB\D3DCommon_JSB.pas"/>
         <UnitName Value="D3DCommon_JSB"/>
       </Item23>
+      <Item24>
+        <Filename Value="Common\avcontext_dx11.pas"/>
+        <UnitName Value="avContext_DX11"/>
+      </Item24>
     </Files>
     <RequiredPkgs Count="2">
       <Item1>

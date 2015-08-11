@@ -76,7 +76,7 @@ type
   TIntArr = array of Integer;
   TWordArr = array of Word;
 
-  T3DAPI = (apiOGL);
+  T3DAPI = (apiOGL, apiDX11);
 
   TShaderType = (stUnknown, stVertex, stGeometry, stFragment);
   TCullingMode = (cmNone, cmBack, cmFront);

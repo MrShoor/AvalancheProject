@@ -90,7 +90,7 @@ implementation
 uses SuperObject, avLog;
 
 const
-  DEFAULT_BackBuffer: Boolean = True;
+  DEFAULT_BackBuffer: Boolean = False;
 
 const
   GLPoolType: array [TBufferPoolType] of Cardinal = ( {StaticDraw }  GL_STATIC_DRAW,

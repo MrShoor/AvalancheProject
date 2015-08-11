@@ -116,7 +116,7 @@
         <PackageName Value="LCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="5">
+    <Units Count="6">
       <Unit0>
         <Filename Value="Texturing.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -141,6 +141,11 @@
         <Filename Value="..\..\..\Canvas_Shaders\Canvas_Shaders.RES"/>
         <IsPartOfProject Value="True"/>
       </Unit4>
+      <Unit5>
+        <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="avContext_DX11"/>
+      </Unit5>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
