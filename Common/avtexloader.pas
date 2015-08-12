@@ -76,7 +76,7 @@ BestTextureFormat : array [TImageFormat] of TTextureFormat = (
     { A1R5G5B5      } TTextureFormat.RGBA,
     { A4R4G4B4      } TTextureFormat.RGBA,
     { R8G8B8        } TTextureFormat.RGB,
-    { B8G8R8A8      } TTextureFormat.RGBA,
+    { A8R8G8B8      } TTextureFormat.RGBA,
     { R8G8B8A8      } TTextureFormat.RGBA,
     { R16F          } TTextureFormat.R16f,
     { R16G16F       } TTextureFormat.RG16f,
@@ -262,8 +262,8 @@ constructor TTextureData.Create(ImgData: TDynImageDataArray;
        ifA16Gray16    : Result := TImageFormat.R16G16F;
        ifR5G6B5       : Result := TImageFormat.R5G6B5;
        ifR8G8B8       : Result := TImageFormat.R8G8B8;
-       ifA8R8G8B8     : Result := TImageFormat.B8G8R8A8;
-       ifX8R8G8B8     : Result := TImageFormat.B8G8R8A8;
+       ifA8R8G8B8     : Result := TImageFormat.A8R8G8B8;
+       ifX8R8G8B8     : Result := TImageFormat.A8R8G8B8;
        ifR32F         : Result := TImageFormat.R32F;
        ifA32R32G32B32F: Result := TImageFormat.A32R32G32B32F;
        ifA32B32G32R32F: Result := TImageFormat.A32B32G32R32F;
@@ -291,7 +291,7 @@ constructor TTextureData.Create(ImgData: TDynImageDataArray;
       TImageFormat.A1R5G5B5      : Result := ifA1R5G5B5;
       TImageFormat.A4R4G4B4      : Result := ifA4R4G4B4;
       TImageFormat.R8G8B8        : Result := ifR8G8B8;
-      TImageFormat.B8G8R8A8      : Result := ifA8R8G8B8;
+      TImageFormat.A8R8G8B8      : Result := ifA8R8G8B8;
       TImageFormat.R16F           : Result := ifR16F;
       TImageFormat.A16R16G16B16F  : Result := ifA16R16G16B16F;
       TImageFormat.A16B16G16R16F : Result := ifA16B16G16R16F;

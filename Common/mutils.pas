@@ -240,6 +240,8 @@ function IsPow2(Num: LongInt): Boolean; overload;
 function IsPow2(Vec: TVec2i): Boolean; overload;
 function NextPow2(Num: LongInt): LongInt; overload;
 function NextPow2(Vec: TVec2i): TVec2i; overload;
+function Log2Int(v: Integer): Integer;
+function GetMipsCount(Width, Height: Integer): Integer;
 
 function Bezier3(const pt1, pt2, pt3, pt4: TVec2; t: single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
@@ -702,6 +704,41 @@ function NextPow2(Vec: TVec2i): TVec2i;
 begin
   Result.x := NextPow2(Vec.x);
   Result.y := NextPow2(Vec.y);
+end;
+
+function Log2Int(v: Integer): Integer; //http://graphics.stanford.edu/~seander/bithacks.html#IntegerLog
+begin
+  if (v > $FFFF) then
+  begin
+    Result := 16;
+    v := v shr Result;
+  end
+  else
+    Result := 0;
+
+  if (v > $FF) then
+  begin
+    v := v shr 8;
+    Result := Result or 8;
+  end;
+
+  if (v > $F) then
+  begin
+    v := v shr 4;
+    Result := Result or 4;
+  end;
+
+  if (v > $3) then
+  begin
+    v := v shr 2;
+    Result := Result or 2;
+  end;
+  Result := Result or (v shr 1);
+end;
+
+function GetMipsCount(Width, Height: Integer): Integer;
+begin
+  Result := Log2Int(Min(Width, Height) - 1) + 2;
 end;
 
 function Bezier3(const pt1, pt2, pt3, pt4: TVec2; t: single): TVec2;
