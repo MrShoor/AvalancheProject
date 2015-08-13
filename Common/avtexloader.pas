@@ -38,7 +38,7 @@ uses Classes;
 
 const
 BestImageFormat : array [TTextureFormat] of TImageFormat = (
-    { RGBA    } TImageFormat.R8G8B8A8,
+    { RGBA    } TImageFormat.A8B8G8R8,
     { RGBA16  } TImageFormat.A16B16G16R16,
     { RGBA16f } TImageFormat.A16B16G16R16F,
     { RGBA32  } TImageFormat.A32B32G32R32,
@@ -77,7 +77,7 @@ BestTextureFormat : array [TImageFormat] of TTextureFormat = (
     { A4R4G4B4      } TTextureFormat.RGBA,
     { R8G8B8        } TTextureFormat.RGB,
     { A8R8G8B8      } TTextureFormat.RGBA,
-    { R8G8B8A8      } TTextureFormat.RGBA,
+    { A8B8G8R8      } TTextureFormat.RGBA,
     { R16F          } TTextureFormat.R16f,
     { R16G16F       } TTextureFormat.RG16f,
     { R16G16B16F    } TTextureFormat.RGB16f,

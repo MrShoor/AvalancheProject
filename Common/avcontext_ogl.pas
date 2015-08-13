@@ -517,14 +517,6 @@ end;
 
 type
 
-  { TNoRefObject }
-
-  TNoRefObject = class (TObject, IUnknown)
-    function QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj) : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
-    function _AddRef : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
-    function _Release : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
-  end;
-
   { TStates_OGL }
 
   TStates_OGL = class (TNoRefObject, IRenderStates)
@@ -732,7 +724,7 @@ type
                                                              {A4R4G4B4     }  GL_BGRA,
                                                              {R8G8B8       }  GL_BGR,
                                                              {A8R8G8B8     }  GL_BGRA,
-                                                             {R8G8B8A8     }  GL_RGBA,
+                                                             {A8B8G8R8     }  GL_RGBA,
                                                              {R16F         }  GL_RED,
                                                              {R16G16F      }  GL_RG,
                                                              {R16G16B16F   }  GL_BGR,  //??
@@ -774,7 +766,7 @@ type
                                                                  {A4R4G4B4     }  GL_UNSIGNED_SHORT_4_4_4_4,
                                                                  {R8G8B8       }  GL_UNSIGNED_BYTE,
                                                                  {A8R8G8B8     }  GL_UNSIGNED_INT_8_8_8_8_REV,
-                                                                 {R8G8B8A8     }  GL_UNSIGNED_BYTE,
+                                                                 {A8B8G8R8     }  GL_UNSIGNED_BYTE,
                                                                  {R16F         }  GL_HALF_FLOAT,
                                                                  {R16G16F      }  GL_HALF_FLOAT,
                                                                  {R16G16B16F   }  GL_HALF_FLOAT,
@@ -1573,26 +1565,6 @@ begin
     glStencilFunc(GLCompareFunction[StencilFunc], Ref, Mask);
     glStencilOp(GLStencilAction[sFail], GLStencilAction[dFail], GLStencilAction[dPass]);
   end;
-end;
-
-{ TNoRefObject }
-
-function TNoRefObject.QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj) : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
-begin
-  if GetInterface(IID, Obj) then
-    Result := 0
-  else
-    Result := E_NOINTERFACE;
-end;
-
-function TNoRefObject._AddRef : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
-begin
-  Result := -1;
-end;
-
-function TNoRefObject._Release : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
-begin
-  Result := -1;
 end;
 
 { TIndexBuffer }

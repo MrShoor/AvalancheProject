@@ -91,7 +91,7 @@ type
   TIndexSize = (Word, DWord);
   TTextureFormat = (RGBA, RGBA16, RGBA16f, RGBA32, RGBA32f, RGB, RGB16, RGB16f, RGB32, RGB32f, RG, RG16, RG16f, RG32, RG32f, R, R16, R16f, R32,
                     R32f, DXT1, DXT3, DXT5, D24_S8, D32f_S8, D16, D24, D32, D32f);
-  TImageFormat = (Unknown, Gray8, R3G3B2, R8G8, R5G6B5, A1R5G5B5, A4R4G4B4, R8G8B8, A8R8G8B8, R8G8B8A8, R16F, R16G16F, R16G16B16F, A16R16G16B16F, B16G16R16F,
+  TImageFormat = (Unknown, Gray8, R3G3B2, R8G8, R5G6B5, A1R5G5B5, A4R4G4B4, R8G8B8, A8R8G8B8, A8B8G8R8, R16F, R16G16F, R16G16B16F, A16R16G16B16F, B16G16R16F,
                   A16B16G16R16F, R32F, R32G32F, R32G32B32F, A32R32G32B32F, A32B32G32R32F, DXT1, DXT3, DXT5, D24_S8, D32f_S8, D16, D24, D32, D32f,
                   R16, R16G16, R16G16B16, A16R16G16B16, B16G16R16, A16B16G16R16, R32, R32G32, R32G32B32, A32R32G32B32, A32B32G32R32);
   {$SCOPEDENUMS OFF}
@@ -195,7 +195,7 @@ const
     { A4R4G4B4      } 2,
     { R8G8B8        } 3,
     { A8R8G8B8      } 4,
-    { R8G8B8A8      } 4,
+    { A8B8G8R8      } 4,
     { R16F          } 2,
     { R16G16F       } 4,
     { R16G16B16F    } 6,
@@ -315,6 +315,15 @@ const
       Border     : (x: 0; y: 0; z: 0; w: 0);
     );
 
+type
+  { TNoRefObject }
+
+  TNoRefObject = class (TObject, IUnknown)
+    function QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj) : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+    function _AddRef : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+    function _Release : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+  end;
+
 function Create_DataLayout(const AFields: TFieldInfoArr; AStrideSize: Integer = 0): IDataLayout;
 function CalcPrimCount(const ItemsCount: Integer; const PrimType: TPrimitiveType): Integer;
 function ComponentTypeSize(const AType: TComponentType): Integer;
@@ -377,6 +386,26 @@ begin
   else
     Assert(False, 'Not implemented yet')
   end;
+end;
+
+{ TNoRefObject }
+
+function TNoRefObject.QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj) : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+begin
+  if GetInterface(IID, Obj) then
+    Result := 0
+  else
+    Result := E_NOINTERFACE;
+end;
+
+function TNoRefObject._AddRef : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+begin
+  Result := -1;
+end;
+
+function TNoRefObject._Release : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+begin
+  Result := -1;
 end;
 
 { TDataLayout }

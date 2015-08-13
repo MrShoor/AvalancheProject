@@ -135,7 +135,7 @@ var vert: IVerticesData;
 begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
-  FMain.Init3D(apiOGL);
+  FMain.Init3D();
   FMain.Camera.Eye := Vec(-1.6, 1.4,-2.0);
   FMain.Projection.FarPlane := 10.0;
   FMain.Projection.NearPlane := 0.1;
@@ -180,17 +180,11 @@ begin
   //inherited EraseBackground(DC);
 end;
 
-var cnt: Integer = 0;
-
 procedure TfrmMain.RenderScene;
 begin
   if FMain = nil then Exit;
   if FMain.Bind then
   try
-    inc(cnt);
-    if cnt = 3 then
-      FTexture.Build;
-
     FMain.States.DepthTest := True;
 
     FFrameBuffer.FrameRect := RectI(0, 0, ClientWidth, ClientHeight);

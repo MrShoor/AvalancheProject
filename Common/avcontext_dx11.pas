@@ -18,10 +18,13 @@ type
   private
     FStates: TObject;
     FStatesIntf: IRenderStates;
+
     FBindCount: Integer;
     FActiveProgram: IctxProgram;
+    FActiveFrameBuffer: IctxFrameBuffer;
 
     FSwapChain: IDXGISwapChain;
+    FBackBuffer: ID3D11Texture2D;
     FRenderTarget: ID3D11RenderTargetView;
     FDevice: ID3D11Device;
     FDeviceContext: ID3D11DeviceContext;
@@ -92,6 +95,38 @@ const
   {D32f} DXGI_FORMAT_R32_TYPELESS
   );
 
+  D3D11ViewFormat: array [TTextureFormat] of TDXGI_Format = (
+  {RGBA} DXGI_FORMAT_R8G8B8A8_UNORM,
+  {RGBA16} DXGI_FORMAT_R16G16B16A16_UNORM,
+  {RGBA16f} DXGI_FORMAT_R16G16B16A16_FLOAT,
+  {RGBA32} DXGI_FORMAT_R32G32B32A32_SINT,
+  {RGBA32f} DXGI_FORMAT_R32G32B32A32_FLOAT,
+  {RGB} DXGI_FORMAT_UNKNOWN,
+  {RGB16} DXGI_FORMAT_UNKNOWN,
+  {RGB16f} DXGI_FORMAT_UNKNOWN,
+  {RGB32} DXGI_FORMAT_R32G32B32_SINT,
+  {RGB32f} DXGI_FORMAT_R32G32B32_FLOAT,
+  {RG} DXGI_FORMAT_R8G8_UNORM,
+  {RG16} DXGI_FORMAT_R16G16_UNORM,
+  {RG16f} DXGI_FORMAT_R16G16_FLOAT,
+  {RG32} DXGI_FORMAT_R32G32_SINT,
+  {RG32f} DXGI_FORMAT_R32G32_FLOAT,
+  {R} DXGI_FORMAT_R8_UNORM,
+  {R16} DXGI_FORMAT_R16_UNORM,
+  {R16f} DXGI_FORMAT_R16_FLOAT,
+  {R32} DXGI_FORMAT_R32_SINT,
+  {R32f} DXGI_FORMAT_R32_FLOAT,
+  {DXT1} DXGI_FORMAT_UNKNOWN,
+  {DXT3} DXGI_FORMAT_UNKNOWN,
+  {DXT5} DXGI_FORMAT_UNKNOWN,
+  {D24_S8} DXGI_FORMAT_D24_UNORM_S8_UINT,
+  {D32f_S8} DXGI_FORMAT_D32_FLOAT_S8X24_UINT,
+  {D16} DXGI_FORMAT_D16_UNORM,
+  {D24} DXGI_FORMAT_D24_UNORM_S8_UINT,
+  {D32} DXGI_FORMAT_UNKNOWN,
+  {D32f} DXGI_FORMAT_D32_FLOAT
+  );
+
 procedure Check3DError(hr: HRESULT);
 var s: string;
 begin
@@ -138,6 +173,61 @@ end;
 
 type
 
+  { TStates }
+
+  TStates = class (TNoRefObject, IRenderStates)
+  private
+    // getters/setters
+    function GetBlendSrc (RenderTargetIndex: Integer = 0) : TBlendFunc;
+    function GetBlendDest(RenderTargetIndex: Integer = 0) : TBlendFunc;
+    function GetBlending               : Boolean;
+    function GetColorWrite             : Boolean;
+    function GetCullMode               : TCullingMode;
+    function GetDepthFunc              : TCompareFunc;
+    function GetDepthTest              : Boolean;
+    function GetDepthWrite             : Boolean;
+    function GetLineWidth              : Single;
+    function GetNearFarClamp           : Boolean;
+    function GetVertexProgramPointSize : Boolean;
+    function GetViewport               : TRectI;
+    function GetWireframe              : Boolean;
+    procedure SetCullMode              (const Value : TCullingMode);
+    procedure SetLineWidth             (const Value : Single);
+    procedure SetVertexProgramPointSize(const Value : Boolean);
+    procedure SetColorWrite            (const Value : Boolean);
+    procedure SetDepthTest             (const Value : Boolean);
+    procedure SetDepthWrite            (const Value : Boolean);
+    procedure SetDepthFunc             (const Value : TCompareFunc);
+    procedure SetNearFarClamp          (const Value : Boolean);
+    procedure SetBlending              (const Value : Boolean);
+    procedure SetViewport              (const Value : TRectI);
+    procedure SetWireframe             (const Value : Boolean);
+    procedure SetScissor(Enabled : Boolean; const Value : TRect);
+    procedure SetStencil(Enabled : Boolean; StencilFunc : TCompareFunc; Ref : Integer; Mask : Byte; sFail, dFail, dPass : TStencilAction);
+
+    procedure SetBlendFunctions(Src, Dest : TBlendFunc; RenderTargetIndex: Integer = 0);
+
+    // getters/setters
+    property Viewport               : TRectI       read GetViewport               write SetViewport;
+
+    property Wireframe              : Boolean      read GetWireframe              write SetWireframe;
+    property CullMode               : TCullingMode read GetCullMode               write SetCullMode;
+    property LineWidth              : Single       read GetLineWidth              write SetLineWidth;
+    property VertexProgramPointSize : Boolean      read GetVertexProgramPointSize write SetVertexProgramPointSize;
+
+    property Blending               : Boolean      read GetBlending               write SetBlending;
+    property BlendSrc [RenderTargetIndex: Integer] : TBlendFunc   read GetBlendSrc;
+    property BlendDest[RenderTargetIndex: Integer] : TBlendFunc   read GetBlendDest;
+
+    property DepthTest              : Boolean      read GetDepthTest              write SetDepthTest;
+    property DepthFunc              : TCompareFunc read GetDepthFunc              write SetDepthFunc;
+    property DepthWrite             : Boolean      read GetDepthWrite             write SetDepthWrite;
+    property ColorWrite             : Boolean      read GetColorWrite             write SetColorWrite;
+
+    property NearFarClamp           : Boolean      read GetNearFarClamp           write SetNearFarClamp;
+  end;
+
+
   { TColorSpaceConverter }
 
   TColorSpaceConverter = class
@@ -157,9 +247,15 @@ type
     destructor Destroy; override;
   end;
 
+  IctxTexture_DX11 = interface (IctxTexture)
+  ['{32A32DF0-5E08-4BDC-98AC-79144BAF3BCB}']
+    function GetHandle : ID3D11Texture2D;
+    function GetResView: ID3D11ShaderResourceView;
+  end;
+
   { TTexture }
 
-  TTexture = class (THandleObject, IctxTexture)
+  TTexture = class (THandleObject, IctxTexture, IctxTexture_DX11)
   private
     FTargetFormat: TTextureFormat;
     FWidth: Integer;
@@ -171,6 +267,8 @@ type
     FResView: ID3D11ShaderResourceView;
 
     function BuildDesc(AWidth, AHeight: Integer; WithMips: Boolean): TD3D11_Texture2DDesc;
+
+    function GetHandle : ID3D11Texture2D;
     function GetResView: ID3D11ShaderResourceView;
   public
     //*******
@@ -193,12 +291,32 @@ type
     procedure SetMipImage(DestRect: TRect; MipLevel: Integer; DataFormat: TImageFormat; Data: PByte); overload;
   end;
 
+  TFrameBuffer = class;
+
+  IctxFrameBuffer_DX11 = interface
+  ['{7CF255BF-6B18-49E9-927A-8C2D59D36A0C}']
+    function GetObj: TFrameBuffer;
+  end;
+
   { TFrameBuffer }
 
-  TFrameBuffer = class (THandleObject, IctxFrameBuffer)
+  TFrameBuffer = class (THandleObject, IctxFrameBuffer, IctxFrameBuffer_DX11)
+  private type
+    TTexInfo = record
+      Tex    : IctxTexture;
+      Mip    : Integer;
+      Enabled: Boolean;
+    end;
   private
-    FViews: array of ID3D11RenderTargetView;
-    FDepthStencil: ID3D11DepthStencilView;
+    FTex   : array of TTexInfo;
+    FViews : array of ID3D11RenderTargetView;
+
+    FDepthView: ID3D11DepthStencilView;
+    FDepthTex : IctxTexture;
+    FDepthMip : Integer;
+
+    FValid: Boolean;
+    function GetObj: TFrameBuffer;
   public
     procedure Select;
 
@@ -212,6 +330,145 @@ type
 
     procedure BlitToWindow(index: Integer; const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
   end;
+
+{ TStates }
+
+function TStates.GetBlendSrc(RenderTargetIndex: Integer): TBlendFunc;
+begin
+
+end;
+
+function TStates.GetBlendDest(RenderTargetIndex: Integer): TBlendFunc;
+begin
+
+end;
+
+function TStates.GetBlending: Boolean;
+begin
+
+end;
+
+function TStates.GetColorWrite: Boolean;
+begin
+
+end;
+
+function TStates.GetCullMode: TCullingMode;
+begin
+
+end;
+
+function TStates.GetDepthFunc: TCompareFunc;
+begin
+
+end;
+
+function TStates.GetDepthTest: Boolean;
+begin
+
+end;
+
+function TStates.GetDepthWrite: Boolean;
+begin
+
+end;
+
+function TStates.GetLineWidth: Single;
+begin
+
+end;
+
+function TStates.GetNearFarClamp: Boolean;
+begin
+
+end;
+
+function TStates.GetVertexProgramPointSize: Boolean;
+begin
+
+end;
+
+function TStates.GetViewport: TRectI;
+begin
+
+end;
+
+function TStates.GetWireframe: Boolean;
+begin
+
+end;
+
+procedure TStates.SetCullMode(const Value: TCullingMode);
+begin
+
+end;
+
+procedure TStates.SetLineWidth(const Value: Single);
+begin
+
+end;
+
+procedure TStates.SetVertexProgramPointSize(const Value: Boolean);
+begin
+
+end;
+
+procedure TStates.SetColorWrite(const Value: Boolean);
+begin
+
+end;
+
+procedure TStates.SetDepthTest(const Value: Boolean);
+begin
+
+end;
+
+procedure TStates.SetDepthWrite(const Value: Boolean);
+begin
+
+end;
+
+procedure TStates.SetDepthFunc(const Value: TCompareFunc);
+begin
+
+end;
+
+procedure TStates.SetNearFarClamp(const Value: Boolean);
+begin
+
+end;
+
+procedure TStates.SetBlending(const Value: Boolean);
+begin
+
+end;
+
+procedure TStates.SetViewport(const Value: TRectI);
+begin
+
+end;
+
+procedure TStates.SetWireframe(const Value: Boolean);
+begin
+
+end;
+
+procedure TStates.SetScissor(Enabled: Boolean; const Value: TRect);
+begin
+
+end;
+
+procedure TStates.SetStencil(Enabled: Boolean; StencilFunc: TCompareFunc;
+  Ref: Integer; Mask: Byte; sFail, dFail, dPass: TStencilAction);
+begin
+
+end;
+
+procedure TStates.SetBlendFunctions(Src, Dest: TBlendFunc;
+  RenderTargetIndex: Integer);
+begin
+
+end;
 
 { TColorSpaceConverter }
 
@@ -396,7 +653,7 @@ begin
   begin
     ADst := ASrc;
     ADstSize := ASrcSize;
-    Result := False;
+    Exit(False);
   end;
 
   PixelCount := ASrcSize div ImgFormat.StrideSize;
@@ -451,6 +708,11 @@ begin
   Result.CPUAccessFlags := 0;
   Result.MiscFlags := 0;
   FFormat := FTargetFormat;
+end;
+
+function TTexture.GetHandle: ID3D11Texture2D;
+begin
+  Result := FTexture;
 end;
 
 function TTexture.GetResView: ID3D11ShaderResourceView;
@@ -558,6 +820,8 @@ var tex  : PByte;
     texShouldFree: Boolean;
     Box: TD3D11_Box;
 begin
+    if Data = nil then Exit;
+
     imgWidth := (DestRect.Right - DestRect.Left);
     imgHeight := (DestRect.Bottom - DestRect.Top);
     if imgWidth <= 0 then Exit;
@@ -580,47 +844,124 @@ end;
 
 { TFrameBuffer }
 
-procedure TFrameBuffer.Select;
+function TFrameBuffer.GetObj: TFrameBuffer;
 begin
+  Result := Self;
+end;
+
+procedure TFrameBuffer.Select;
+var i: Integer;
+    RTDesc: TD3D11_RenderTargetViewDesc;
+    DSDesc: TD3D11_DepthStencilViewDesc;
+begin
+  if not FValid then
+  begin
+    for i := 0 to Length(FTex) - 1 do
+    begin
+      if FTex[i].Tex = nil then
+      begin
+        FViews[i] := nil;
+        Continue;
+      end;
+
+      RTDesc.Format := D3D11ViewFormat[FTex[i].Tex.Format];
+      RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2D;
+      RTDesc.Texture2D.MipSlice := FTex[i].Mip;
+
+      Check3DError(FContext.FDevice.CreateRenderTargetView((FTex[i].Tex as IctxTexture_DX11).GetHandle, @RTDesc, FViews[i]));
+    end;
+
+    if Assigned(FDepthTex) then
+    begin
+      DSDesc.Format := D3D11ViewFormat[FDepthTex.Format];
+      DSDesc.ViewDimension := D3D11_DSV_DIMENSION_TEXTURE2D;
+      DSDesc.Texture2D.MipSlice := FDepthMip;
+
+      Check3DError(FContext.FDevice.CreateDepthStencilView((FDepthTex as IctxTexture_DX11).GetHandle, @DSDesc, FDepthView));
+    end
+    else
+      FDepthView := nil;
+
+    FValid := True;
+  end;
   FContext.SetFrameBuffer(Self);
 end;
 
 procedure TFrameBuffer.ClearColorList;
 begin
-
+  FViews := nil;
+  FTex := nil;
+  FValid := False;
 end;
 
 procedure TFrameBuffer.EnableColorTarget(index: Integer; Enabled: Boolean);
 begin
-
+  Assert(index >= 0);
+  Assert(index < Length(FTex));
+  FTex[index].Enabled := Enabled;
 end;
 
-procedure TFrameBuffer.SetColor(index: Integer; tex: IctxTexture;
-  mipLevel: Integer);
+procedure TFrameBuffer.SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
 begin
+  if index <= Length(FTex) then
+  begin
+    SetLength(FViews, index + 1);
+    SetLength(FTex, index + 1);
+  end;
 
+  if FTex[index].Tex = tex then Exit;
+
+  FTex[index].Tex := tex;
+  FTex[index].Mip := mipLevel;
+  FTex[index].Enabled := True;
+  FViews[index] := nil;
+
+  FValid := False;
 end;
 
 procedure TFrameBuffer.SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
 begin
+  if FDepthTex = tex then Exit;
 
+  FDepthTex := tex;
+  FDepthView := nil;
+  FDepthMip := mipLevel;
+
+  FValid := False;
 end;
 
 procedure TFrameBuffer.Clear(index: Integer; color: TVec4);
 begin
-
+  Assert(FViews[index] <> nil);
+  FContext.FDeviceContext.ClearRenderTargetView(FViews[index], TColorArray(color));
 end;
 
 procedure TFrameBuffer.ClearDS(depth: Single; clearDepth: Boolean;
   stencil: Integer; clearStencil: Boolean);
+var flags: DWord;
 begin
-
+  Assert(FDepthView <> nil);
+  flags := 0;
+  if clearDepth then flags := flags or DWord(D3D11_CLEAR_DEPTH);
+  if clearStencil then flags := flags or DWord(D3D11_CLEAR_STENCIL);
+  if flags = 0 then Exit;
+  FContext.FDeviceContext.ClearDepthStencilView(FDepthView, flags, depth, stencil);
 end;
 
 procedure TFrameBuffer.BlitToWindow(index: Integer; const srcRect,
   dstRect: TRectI; const Filter: TTextureFilter);
+var SrcBox: TD3D11_Box;
 begin
-
+  //todo blitting with stretch
+  if FTex[index].Tex = nil then Exit;
+  SrcBox.left := srcRect.Left;
+  SrcBox.top := srcRect.Top;
+  SrcBox.right := srcRect.Right;
+  SrcBox.bottom := srcRect.Bottom;
+  SrcBox.front := 0;
+  SrcBox.back := 1;
+  FContext.FDeviceContext.CopySubresourceRegion(FContext.FBackBuffer, 0, dstRect.Left, dstRect.Top, 0,
+                                                (FTex[index].Tex as IctxTexture_DX11).GetHandle, FTex[index].Mip, @SrcBox);
 end;
 
 { THandleObject }
@@ -651,7 +992,6 @@ end;
 
 procedure TContext_DX11.RebuildViews(const AWidth, AHeight: Cardinal);
 var SwapChainDesc: TDXGI_SwapChainDesc;
-    BackBuffer: ID3D11Texture2D;
     ViewPort: TD3D11_Viewport;
 begin
   FSwapChain.GetDesc(SwapChainDesc);
@@ -659,14 +999,14 @@ begin
      (SwapChainDesc.BufferDesc.Height = AHeight) and
      Assigned(FRenderTarget) then Exit;
   FRenderTarget := nil;
-  BackBuffer := nil;
+  FBackBuffer := nil;
 
   FDeviceContext.ClearState;
   //TD3D10States(FStatesObj).InvalidateAllStates;
   FSwapChain.ResizeBuffers(SwapChainDesc.BufferCount, AWidth, AHeight, SwapChainDesc.BufferDesc.Format, SwapChainDesc.Flags);
 
-  Check3DError(FSwapChain.GetBuffer(0, ID3D11Texture2D, BackBuffer));
-  Check3DError(FDevice.CreateRenderTargetView(BackBuffer, nil, FRenderTarget));
+  Check3DError(FSwapChain.GetBuffer(0, ID3D11Texture2D, FBackBuffer));
+  Check3DError(FDevice.CreateRenderTargetView(FBackBuffer, nil, FRenderTarget));
 
   FDeviceContext.OMSetRenderTargets(1, @FRenderTarget, nil);
   //FDevice.IASetPrimitiveTopology(D3D10PrimitiveType[FPrimTopology]);
@@ -686,7 +1026,7 @@ procedure TContext_DX11.SetFrameBuffer(const AObject: TObject);
   begin
       dummy := nil;
       FDeviceContext.OMSetRenderTargets(1, @dummy, nil);
-      FDeviceContext.OMSetRenderTargets(Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthStencil);
+      FDeviceContext.OMSetRenderTargets(Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView);
   end;
   procedure SetDefaultRenderTargets;
   var
@@ -698,6 +1038,7 @@ procedure TContext_DX11.SetFrameBuffer(const AObject: TObject);
   end;
 var FBO: TFrameBuffer absolute AObject;
 begin
+  FActiveFrameBuffer := FBO;
   if assigned(FBO) then
   begin
       SetFBORenderTargets(FBO);
@@ -730,12 +1071,12 @@ end;
 
 function TContext_DX11.CreateFrameBuffer: IctxFrameBuffer;
 begin
-
+  Result := TFrameBuffer.Create(Self);
 end;
 
 function TContext_DX11.States: IRenderStates;
 begin
-
+  Result := FStatesIntf;
 end;
 
 function TContext_DX11.Binded: Boolean;
@@ -769,10 +1110,22 @@ end;
 
 procedure TContext_DX11.Clear(const color: TVec4; doColor: Boolean;
   depth: Single; doDepth: Boolean; stencil: Byte; doStencil: Boolean);
+var FBO: TFrameBuffer;
+    i: Integer;
 begin
-  FDeviceContext.ClearRenderTargetView(FRenderTarget, TColorArray(color));
-//  FDeviceContext.ClearRenderTargetView();
-//  FDeviceContext.ClearDepthStencilView();
+  if Assigned(FActiveFrameBuffer) then
+    FBO := (FActiveFrameBuffer as IctxFrameBuffer_DX11).GetObj;
+  if Assigned(FBO) then
+  begin
+    for i := 0 to Length(FBO.FViews) - 1 do
+      FBO.Clear(i, color);
+    FBO.ClearDS(depth, doDepth, stencil, doStencil);
+  end
+  Else
+  begin
+    FDeviceContext.ClearRenderTargetView(FRenderTarget, TColorArray(color));
+    //FDeviceContext.ClearDepthStencilView();
+  end;
 end;
 
 procedure TContext_DX11.Present;
@@ -783,6 +1136,9 @@ end;
 constructor TContext_DX11.Create(const Wnd: TWindow);
 var SwapChainDesc: TDXGI_SwapChainDesc;
 begin
+  FStates := TStates.Create;
+  FStatesIntf := TStates(FStates);
+
   FWnd := Wnd;
 
   SwapChainDesc.BufferCount := 1;
@@ -807,9 +1163,12 @@ destructor TContext_DX11.Destroy;
 begin
   FDeviceContext.ClearState;
   FRenderTarget := nil;
+  FBackBuffer := nil;
   FSwapChain := nil;
   FDevice := nil;
   FDeviceContext := nil;
+  FStatesIntf := nil;
+  FreeAndNil(FStates);
   inherited Destroy;
 end;
 
