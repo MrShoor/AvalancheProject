@@ -177,6 +177,93 @@ type
 
   TStates = class (TNoRefObject, IRenderStates)
   private
+    const DXBlend : array [TBlendFunc] of D3D11_BLEND = (
+      D3D11_BLEND_ZERO,         // bfZero
+      D3D11_BLEND_ONE,          // bfOne
+      D3D11_BLEND_SRC_ALPHA,    // bfSrcAlpha
+      D3D11_BLEND_INV_SRC_ALPHA,// bfInvSrcAlpha
+      D3D11_BLEND_SRC_COLOR,    // bfSrcColor
+      D3D11_BLEND_DEST_COLOR    // bfDstColor
+    );
+
+    const DXDepthMask : array [Boolean] of D3D11_DEPTH_WRITE_MASK = (
+      D3D11_DEPTH_WRITE_MASK_ZERO,
+      D3D11_DEPTH_WRITE_MASK_ALL
+    );
+
+    const DXCompareFunc : array [TCompareFunc] of TD3D11_ComparisonFunc = (
+      D3D11_COMPARISON_NEVER,         // cfNever
+      D3D11_COMPARISON_LESS,          // cfLess
+      D3D11_COMPARISON_EQUAL,         // cfEqual
+      D3D11_COMPARISON_NOT_EQUAL,     // cfNotEqual
+      D3D11_COMPARISON_LESS_EQUAL,    // cfLessEqual
+      D3D11_COMPARISON_GREATER,       // cfGreater
+      D3D11_COMPARISON_GREATER_EQUAL, // cfGreaterEqual
+      D3D11_COMPARISON_ALWAYS         // cfAlways
+    );
+
+    const F3DDepthFunc : array [TD3D11_ComparisonFunc] of TCompareFunc = (
+      cfNever,        // D3D11_COMPARISON_NEVER
+      cfLess,         // D3D11_COMPARISON_LESS
+      cfEqual,        // D3D11_COMPARISON_EQUAL
+      cfLessEqual,    // D3D11_COMPARISON_LESS_EQUAL
+      cfGreater,      // D3D11_COMPARISON_GREATER
+      cfNotEqual,     // D3D11_COMPARISON_NOT_EQUAL
+      cfGreaterEqual, // D3D11_COMPARISON_GREATER_EQUAL
+      cfAlways        // D3D11_COMPARISON_ALWAYS
+    );
+
+    const DXStencilAction : array [TStencilAction] of TD3D11_StencilOp = (
+      D3D11_STENCIL_OP_KEEP,     //saKeep
+      D3D11_STENCIL_OP_REPLACE,  //saSet
+      D3D11_STENCIL_OP_ZERO,     //saZero
+      D3D11_STENCIL_OP_INVERT,   //saInvert
+      D3D11_STENCIL_OP_INCR,     //saInc
+      D3D11_STENCIL_OP_DECR,     //saDec
+      D3D11_STENCIL_OP_INCR_SAT, //saIncWrap
+      D3D11_STENCIL_OP_DECR_SAT  //saDecWrap
+    );
+  private type
+    TBlendStateHash_func = specialize TMurmur2Hash<TD3D11_BlendDesc>;
+    TBlendStateMap = specialize THashMap<TD3D11_BlendDesc, ID3D11BlendState, TBlendStateHash_func>;
+    IBlendStateMap = specialize IHashMap<TD3D11_BlendDesc, ID3D11BlendState, TBlendStateHash_func>;
+
+    TRasterStateHash_func = specialize TMurmur2Hash<TD3D11_RasterizerDesc>;
+    TRasterStateMap = specialize THashMap<TD3D11_RasterizerDesc, ID3D11RasterizerState, TRasterStateHash_func>;
+    IRasterStateMap = specialize IHashMap<TD3D11_RasterizerDesc, ID3D11RasterizerState, TRasterStateHash_func>;
+
+    TDepthStateHash_func = specialize TMurmur2Hash<TD3D11_DepthStencilDesc>;
+    TDepthStateMap = specialize THashMap<TD3D11_DepthStencilDesc, ID3D11DepthStencilState, TDepthStateHash_func>;
+    IDepthStateMap = specialize IHashMap<TD3D11_DepthStencilDesc, ID3D11DepthStencilState, TDepthStateHash_func>;
+  private
+    FContext: TContext_DX11;
+
+    FViewport: TRectI;
+
+    FBDesc: TD3D11_BlendDesc;
+    FBDescDirty: Boolean;
+    FBlendStates: IBlendStateMap;
+    FBlendStateLast: ID3D11BlendState;
+
+    FRDesc: TD3D11_RasterizerDesc;
+    FRDescDirty: Boolean;
+    FRasterStates: IRasterStateMap;
+    FRasterStateLast: ID3D11RasterizerState;
+
+    FDDesc: TD3D11_DepthStencilDesc;
+    FDDescDirty: Boolean;
+    FDepthStates: IDepthStateMap;
+    FDepthStateLast: ID3D11DepthStencilState;
+    FDStencilRefLast: Integer;
+    FDStencilRef: Integer;
+  protected
+    procedure LoadDefaultState;
+
+    procedure InvalidateAllStates;
+    procedure UpdateBlendState;
+    procedure UpdateRasterState;
+    procedure UpdateDepthState;
+  protected
     // getters/setters
     function GetBlendSrc (RenderTargetIndex: Integer = 0) : TBlendFunc;
     function GetBlendDest(RenderTargetIndex: Integer = 0) : TBlendFunc;
@@ -225,6 +312,8 @@ type
     property ColorWrite             : Boolean      read GetColorWrite             write SetColorWrite;
 
     property NearFarClamp           : Boolean      read GetNearFarClamp           write SetNearFarClamp;
+  public
+    constructor Create(AContext: TContext_DX11);
   end;
 
 
@@ -332,6 +421,126 @@ type
   end;
 
 { TStates }
+
+procedure TStates.LoadDefaultState;
+var i: Integer;
+begin
+  FBDescDirty := True;
+  FBDesc.AlphaToCoverageEnable := False;
+  FBDesc.IndependentBlendEnable := True;
+  for i := 0 to 7 do
+  begin
+    FBDesc.RenderTarget[i].BlendEnable := False;
+    FBDesc.RenderTarget[i].SrcBlend := D3D11_BLEND_ONE;
+    FBDesc.RenderTarget[i].DestBlend := D3D11_BLEND_ZERO;
+    FBDesc.RenderTarget[i].BlendOp := D3D11_BLEND_OP_ADD;
+    FBDesc.RenderTarget[i].SrcBlendAlpha := D3D11_BLEND_ONE;
+    FBDesc.RenderTarget[i].DestBlendAlpha := D3D11_BLEND_ZERO;
+    FBDesc.RenderTarget[i].BlendOpAlpha := D3D11_BLEND_OP_ADD;
+    FBDesc.RenderTarget[i].RenderTargetWriteMask := Byte(D3D11_COLOR_WRITE_ENABLE_ALL);
+  end;
+
+  FRDescDirty := True;
+  FRDesc.FillMode := D3D11_FILL_SOLID;
+  FRDesc.CullMode := D3D11_CULL_BACK;
+  FRDesc.FrontCounterClockwise := False;
+  FRDesc.DepthBias := 0;
+  FRDesc.DepthBiasClamp := 0;
+  FRDesc.SlopeScaledDepthBias := 0;
+  FRDesc.DepthClipEnable := True;
+  FRDesc.ScissorEnable := False;
+  FRDesc.MultisampleEnable := False;
+  FRDesc.AntialiasedLineEnable := False;
+
+  FDDescDirty := True;
+  // Depth test parameters
+  FDDesc.DepthEnable := True;
+  FDDesc.DepthWriteMask := D3D11_DEPTH_WRITE_MASK_ALL;
+  FDDesc.DepthFunc := D3D11_COMPARISON_LESS;
+  // Stencil test parameters
+  FDDesc.StencilEnable := False;
+  FDDesc.StencilReadMask := $FF;
+  FDDesc.StencilWriteMask := $FF;
+  // Stencil operations if pixel is front-facing
+  FDDesc.FrontFace.StencilFailOp := D3D11_STENCIL_OP_KEEP;
+  FDDesc.FrontFace.StencilDepthFailOp := D3D11_STENCIL_OP_INCR;
+  FDDesc.FrontFace.StencilPassOp := D3D11_STENCIL_OP_KEEP;
+  FDDesc.FrontFace.StencilFunc := D3D11_COMPARISON_ALWAYS;
+  // Stencil operations if pixel is back-facing
+  FDDesc.BackFace.StencilFailOp := D3D11_STENCIL_OP_KEEP;
+  FDDesc.BackFace.StencilDepthFailOp := D3D11_STENCIL_OP_DECR;
+  FDDesc.BackFace.StencilPassOp := D3D11_STENCIL_OP_KEEP;
+  FDDesc.BackFace.StencilFunc := D3D11_COMPARISON_ALWAYS;
+end;
+
+procedure TStates.InvalidateAllStates;
+begin
+  FBDescDirty := True;
+  FRDescDirty := True;
+  FDDescDirty := True;
+  FRasterStateLast := nil;
+  FDepthStateLast := nil;
+  FBlendStateLast := nil;
+end;
+
+procedure TStates.UpdateBlendState;
+const DefBlendFactor: TColorArray = (1.0, 1.0, 1.0, 1.0);
+var State: ID3D11BlendState;
+begin
+  if FBDescDirty then
+  begin
+    if not FBlendStates.TryGetValue(FBDesc, State) then
+    begin
+      FContext.FDevice.CreateBlendState(FBDesc, State);
+      FBlendStates.Add(FBDesc, State);
+    end;
+    if FBlendStateLast <> State then
+    begin
+      FBlendStateLast := State;
+      FContext.FDeviceContext.OMSetBlendState(State, DefBlendFactor, $FFFFFFFF);
+    end;
+    FBDescDirty := False;
+  end;
+end;
+
+procedure TStates.UpdateRasterState;
+var State: ID3D11RasterizerState;
+begin
+  if FRDescDirty then
+  begin
+    if not FRasterStates.TryGetValue(FRDesc, State) then
+    begin
+      FContext.FDevice.CreateRasterizerState(FRDesc, State);
+      FRasterStates.Add(FRDesc, State);
+    end;
+    if FRasterStateLast <> State then
+    begin
+      FRasterStateLast := State;
+      FContext.FDeviceContext.RSSetState(State);
+    end;
+    FRDescDirty := False;
+  end;
+end;
+
+procedure TStates.UpdateDepthState;
+var State: ID3D11DepthStencilState;
+begin
+  if FDDescDirty then
+  begin
+    if not FDepthStates.TryGetValue(FDDesc, State) then
+    begin
+      FContext.FDevice.CreateDepthStencilState(FDDesc, State);
+      FDepthStates.Add(FDDesc, State);
+    end;
+    if (FDepthStateLast <> State) Or (FDStencilRefLast <> FDStencilRef) then
+    begin
+      FDepthStateLast := State;
+      FDStencilRefLast := FDStencilRef;
+      FContext.FDeviceContext.OMSetDepthStencilState(State, FDStencilRef);
+    end;
+    FDDescDirty := False;
+  end;
+end;
 
 function TStates.GetBlendSrc(RenderTargetIndex: Integer): TBlendFunc;
 begin
@@ -468,6 +677,21 @@ procedure TStates.SetBlendFunctions(Src, Dest: TBlendFunc;
   RenderTargetIndex: Integer);
 begin
 
+end;
+
+constructor TStates.Create(AContext: TContext_DX11);
+begin
+  FContext := AContext;
+
+  FillChar(FBDesc, SizeOf(FBDesc), 0);
+  FillChar(FRDesc, SizeOf(FRDesc), 0);
+  FillChar(FDDesc, SizeOf(FDDesc), 0);
+
+  FBlendStates  := TBlendStateMap.Create(FBDesc, nil);
+  FRasterStates := TRasterStateMap.Create(FRDesc, nil);
+  FDepthStates  := TDepthStateMap.Create(FDDesc, nil);
+
+  LoadDefaultState;
 end;
 
 { TColorSpaceConverter }
@@ -1136,7 +1360,7 @@ end;
 constructor TContext_DX11.Create(const Wnd: TWindow);
 var SwapChainDesc: TDXGI_SwapChainDesc;
 begin
-  FStates := TStates.Create;
+  FStates := TStates.Create(Self);
   FStatesIntf := TStates(FStates);
 
   FWnd := Wnd;
