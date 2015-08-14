@@ -135,7 +135,7 @@ var vert: IVerticesData;
 begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
-  FMain.Init3D();
+  FMain.Init3D(apiOGL);
   FMain.Camera.Eye := Vec(-1.6, 1.4,-2.0);
   FMain.Projection.FarPlane := 10.0;
   FMain.Projection.NearPlane := 0.1;
