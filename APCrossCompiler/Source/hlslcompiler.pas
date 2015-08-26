@@ -189,8 +189,13 @@ const
   );
 
 type
+  {$IfDef fpc}
   TUniformsHash = specialize THashMap<string, TUniform, TMurmur2HashString>;
   IUniformsHash = specialize IHashMap<string, TUniform, TMurmur2HashString>;
+  {$Else}
+  TUniformsHash = TDictionary<string, TUniform>;
+  IUniformsHash = TDictionary<string, TUniform>;
+  {$EndIf}
   TUniforms = array of TUniform;
 
 var
@@ -352,7 +357,11 @@ var sl: TStringList;
     st: TShaderType;
     uniforms: array [TShaderType] of TUniforms;
 begin
+  {$IfDef fpc}
   UniformHash := TUniformsHash.Create('', EmptyUniform);
+  {$Else}
+  UniformHash := TUniformsHash.Create;
+  {$EndIf}
 
   for st := Low(TShaderType) to High(TShaderType) do
   begin
@@ -369,6 +378,10 @@ begin
   finally
     sl.Free;
   end;
+
+  {$IfNDef fpc}
+  FreeAndNil(UniformHash);
+  {$EndIf}
 end;
 
 { TIncludeAdapter }
