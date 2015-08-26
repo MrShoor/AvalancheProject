@@ -46,7 +46,7 @@ begin
   end;
 end;
 
-procedure TranslateShader(const prog: TProgramInfo; const ObjFile: string; var glsl: string);
+procedure TranslateShader(const prog: TProgramInfo; const ObjFile: string; out glsl: string);
 var output: string;
     params: string;
     newfile: string;
@@ -68,7 +68,7 @@ end;
 
 procedure CompileProgram(const prog: TProgramInfo; out HLSL_Prog, GLSL_Prog: string);
 var filename: string;
-    hlsl, glsl: string;
+    glsl: string;
     hlslObjFile: TShadersString;
     glslObjFile: TShadersString;
     i: TShaderType;

@@ -484,7 +484,7 @@ end;
 function THashMap.ContainsValue(const AValue: TValue): Boolean;
 var dummyKey: TKey;
 begin
-  ContainsValue(AValue, dummyKey);
+  Result := ContainsValue(AValue, dummyKey);
 end;
 
 function THashMap.ContainsValue(const AValue: TValue; out AKey: TKey): Boolean;
@@ -561,7 +561,7 @@ end;
 
 function TArray.CmpAString(item1, item2: Pointer; dataSize: Integer): Boolean;
 begin
-
+  Result := AnsiString(item1) = AnsiString(item2);
 end;
 
 function TArray.CmpRecord(item1, item2: Pointer; dataSize: Integer): Boolean;

@@ -7,11 +7,11 @@ unit GLSLCompiler;
 interface
 
 uses
-  Windows, Messages, Classes, SysUtils, dglOpenGL, CompileTask, superobject,
+  Windows, Classes, SysUtils, dglOpenGL, CompileTask, superobject,
   {$IfDef fpc}
-    avTypes, avContnrs;
+    avTypes;
   {$Else}
-    davTypes, Generics.Collections;
+    davTypes;
   {$EndIf}
 
 type
@@ -35,7 +35,7 @@ type
     procedure UnBind;
 
     constructor Create;
-    destructor Destroy;
+    destructor Destroy; override;
   end;
 
 var
@@ -92,6 +92,7 @@ begin
     glGetShaderiv(Shader, GL_INFO_LOG_LENGTH, @n);
     if n>1 then
     begin
+      tmplen := 0;
       SetLength(Log, n-1);
       glGetShaderInfoLog(Shader, n, tmplen, PAnsiChar(Log));
       Result := 'Shader compile log: ' + string(Log);
@@ -210,6 +211,7 @@ begin
   wglDeleteContext(FRC);
   ReleaseDC(FWnd, FDC);
   DestroyWindow(FWnd);
+  inherited Destroy;
 end;
 
 procedure TGLContext.UnBind;

@@ -120,8 +120,16 @@ begin
 end;
 
 procedure LinkHLSL(const prog: TProgramInfo; shaders: TShadersString; const OutFile: string);
+var sl : TStringList;
 begin
   // ToDo : implement it
+  sl := TStringList.Create;
+  try
+    sl.Text := 'Dummy';
+    sl.SaveToFile(OutFile);
+  finally
+    sl.Free;
+  end;
 end;
 
 { TIncludeAdapter }

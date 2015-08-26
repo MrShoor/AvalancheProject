@@ -58,6 +58,7 @@ begin
         else
             Exit($FFFFFFFF);
 
+        output := '';
         repeat
             FillChar(chBuf[0], BUFSIZE, 0);
             ReadFile(g_hChildStd_OUT_Rd, chBuf, BUFSIZE, rbyte, nil);
