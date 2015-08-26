@@ -105,6 +105,11 @@
       <OtherUnitFiles Value="..\..\Common;..\..;..\..\Common\DX_JSB"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
+    <CodeGeneration>
+      <Optimizations>
+        <OptimizationLevel Value="0"/>
+      </Optimizations>
+    </CodeGeneration>
     <Other>
       <CompilerMessages>
         <IgnoredMessages idx5026="True" idx5024="True" idx4081="True" idx4080="True" idx4079="True"/>

@@ -3163,50 +3163,87 @@ type
   D3D11_SHADER_INPUT_BIND_DESC=TD3D11_ShaderInputBindDesc;
   PD3D11_SHADER_INPUT_BIND_DESC=^TD3D11_ShaderInputBindDesc;
 
-  ID3D11ShaderReflectionType=class;
-  PID3D11ShaderReflectionType=^ID3D11ShaderReflectionType;
+  {$ifdef FPC}
+    {$Interfaces CORBA}
+    ID3D11ShaderReflectionType=interface;
+    PID3D11ShaderReflectionType=^ID3D11ShaderReflectionType;
 
-  ID3D11ShaderReflectionVariable=class;
-  PID3D11ShaderReflectionVariable=^ID3D11ShaderReflectionVariable;
+    ID3D11ShaderReflectionVariable=interface;
+    PID3D11ShaderReflectionVariable=^ID3D11ShaderReflectionVariable;
 
-  ID3D11ShaderReflectionConstantBuffer=class;
-  PID3D11ShaderReflectionConstantBuffer=^ID3D11ShaderReflectionConstantBuffer;
+    ID3D11ShaderReflectionConstantBuffer=interface;
+    PID3D11ShaderReflectionConstantBuffer=^ID3D11ShaderReflectionConstantBuffer;
 
-  ID3D11ShaderReflection=interface;
-  PID3D11ShaderReflection=^ID3D11ShaderReflection;
+    ID3D11ShaderReflectionType=interface
+      function GetDesc(out Desc:TD3D11_ShaderTypeDesc):HResult; stdcall;
+      function GetMemberTypeByIndex(Index:LongWord):ID3D11ShaderReflectionType; stdcall;
+      function GetMemberTypeByName(Name:PAnsiChar):ID3D11ShaderReflectionType; stdcall;
+      function GetMemberTypeName(Index:LongWord):PAnsiChar; stdcall;
+      function IsEqual(_Type:ID3D11ShaderReflectionType):HResult; stdcall;
+      function GetSubType:ID3D11ShaderReflectionType;  stdcall;
+      function GetBaseClass:ID3D11ShaderReflectionType; stdcall;
+      function GetNumInterfaces:LongWord; stdcall;
+      function GetInterfaceByIndex(Index:LongWord):ID3D11ShaderReflectionType; stdcall;
+      function IsOfType(_Type:ID3D11ShaderReflectionType):HResult; stdcall;
+      function ImplementsInterface(Base:ID3D11ShaderReflectionType):HResult; stdcall;
+    end;
 
-  ID3D11ShaderReflectionType=class // Cannot use 'interface' as the QueryInterface, AddRef and Release methods are missing.
-    function GetDesc(out Desc:TD3D11_ShaderTypeDesc):HResult; virtual; stdcall; abstract;
-    function GetMemberTypeByIndex(Index:LongWord):ID3D11ShaderReflectionType; virtual; stdcall; abstract;
-    function GetMemberTypeByName(Name:PAnsiChar):ID3D11ShaderReflectionType; virtual; stdcall; abstract;
-    function GetMemberTypeName(Index:LongWord):PAnsiChar; virtual; stdcall; abstract;
-    function IsEqual(_Type:ID3D11ShaderReflectionType):HResult; virtual; stdcall; abstract;
-    function GetSubType:ID3D11ShaderReflectionType; virtual; stdcall; abstract;
-    function GetBaseClass:ID3D11ShaderReflectionType; virtual; stdcall; abstract;
-    function GetNumInterfaces:LongWord; virtual; stdcall; abstract;
-    function GetInterfaceByIndex(Index:LongWord):ID3D11ShaderReflectionType; virtual; stdcall; abstract;
-    function IsOfType(_Type:ID3D11ShaderReflectionType):HResult; virtual; stdcall; abstract;
-    function ImplementsInterface(Base:ID3D11ShaderReflectionType):HResult; virtual; stdcall; abstract;
-  end;
+    ID3D11ShaderReflectionVariable=interface
+      function GetDesc(out Desc:TD3D11_ShaderVariableDesc):HResult; stdcall;
+      function GetType:Pointer;stdcall;//ID3D11ShaderReflectionType; stdcall;
+      function GetBuffer:ID3D11ShaderReflectionConstantBuffer; stdcall;
+      function GetInterfaceSlot(ArrayIndex:LongWord):LongWord; stdcall;
+    end;
 
-  ID3D11ShaderReflectionVariable=class // Cannot use 'interface' as the QueryInterface, AddRef and Release methods are missing.
-    function GetDesc(out Desc:TD3D11_ShaderVariableDesc):HResult; virtual; stdcall; abstract;
-    function GetType:ID3D11ShaderReflectionType; virtual; stdcall; abstract;
-    function GetBuffer:ID3D11ShaderReflectionConstantBuffer; virtual; stdcall; abstract;
-    function GetInterfaceSlot(ArrayIndex:LongWord):LongWord; virtual; stdcall; abstract;
-  end;
+    ID3D11ShaderReflectionConstantBuffer=interface
+      function GetDesc(pDesc:PTD3D11_ShaderBufferDesc):HResult; stdcall;
+      function GetVariableByIndex(Index:LongWord):Pointer; stdcall;//ID3D11ShaderReflectionVariable; stdcall;
+      function GetVariableByName(Name:PAnsiChar):ID3D11ShaderReflectionVariable; stdcall;
+    end;
+    {$Interfaces COM}
+  {$else}
+    ID3D11ShaderReflectionType=class;
+    PID3D11ShaderReflectionType=^ID3D11ShaderReflectionType;
 
-  ID3D11ShaderReflectionConstantBuffer=class // Cannot use 'interface' as the QueryInterface, AddRef and Release methods are missing.
-    function GetDesc(pDesc:PTD3D11_ShaderBufferDesc):HResult; virtual; stdcall; abstract;
-    function GetVariableByIndex(Index:LongWord):ID3D11ShaderReflectionVariable; virtual; stdcall; abstract;
-    function GetVariableByName(Name:PAnsiChar):ID3D11ShaderReflectionVariable; virtual; stdcall; abstract;
-  end;
+    ID3D11ShaderReflectionVariable=class;
+    PID3D11ShaderReflectionVariable=^ID3D11ShaderReflectionVariable;
+
+    ID3D11ShaderReflectionConstantBuffer=class;
+    PID3D11ShaderReflectionConstantBuffer=^ID3D11ShaderReflectionConstantBuffer;
+
+    ID3D11ShaderReflectionType=class // Cannot use 'interface' as the QueryInterface, AddRef and Release methods are missing.
+      function GetDesc(out Desc:TD3D11_ShaderTypeDesc):HResult; virtual; stdcall; abstract;
+      function GetMemberTypeByIndex(Index:LongWord):ID3D11ShaderReflectionType; virtual; stdcall; abstract;
+      function GetMemberTypeByName(Name:PAnsiChar):ID3D11ShaderReflectionType; virtual; stdcall; abstract;
+      function GetMemberTypeName(Index:LongWord):PAnsiChar; virtual; stdcall; abstract;
+      function IsEqual(_Type:ID3D11ShaderReflectionType):HResult; virtual; stdcall; abstract;
+      function GetSubType:ID3D11ShaderReflectionType; virtual; stdcall; abstract;
+      function GetBaseClass:ID3D11ShaderReflectionType; virtual; stdcall; abstract;
+      function GetNumInterfaces:LongWord; virtual; stdcall; abstract;
+      function GetInterfaceByIndex(Index:LongWord):ID3D11ShaderReflectionType; virtual; stdcall; abstract;
+      function IsOfType(_Type:ID3D11ShaderReflectionType):HResult; virtual; stdcall; abstract;
+      function ImplementsInterface(Base:ID3D11ShaderReflectionType):HResult; virtual; stdcall; abstract;
+    end;
+
+    ID3D11ShaderReflectionVariable=class // Cannot use 'interface' as the QueryInterface, AddRef and Release methods are missing.
+      function GetDesc(out Desc:TD3D11_ShaderVariableDesc):HResult; virtual; stdcall; abstract;
+      function GetType:ID3D11ShaderReflectionType; virtual; stdcall; abstract;
+      function GetBuffer:ID3D11ShaderReflectionConstantBuffer; virtual; stdcall; abstract;
+      function GetInterfaceSlot(ArrayIndex:LongWord):LongWord; virtual; stdcall; abstract;
+    end;
+
+    ID3D11ShaderReflectionConstantBuffer=class // Cannot use 'interface' as the QueryInterface, AddRef and Release methods are missing.
+      function GetDesc(pDesc:PTD3D11_ShaderBufferDesc):HResult; virtual; stdcall; abstract;
+      function GetVariableByIndex(Index:LongWord):ID3D11ShaderReflectionVariable; virtual; stdcall; abstract;
+      function GetVariableByName(Name:PAnsiChar):ID3D11ShaderReflectionVariable; virtual; stdcall; abstract;
+    end;
+  {$endif}
 
   ID3D11ShaderReflection=interface(IUnknown)
     ['{0A233719-3960-4578-9D7C-203B8B1D9CC1}']
     function GetDesc(out Desc:TD3D11_ShaderDesc):HResult; stdcall;
-    function GetConstantBufferByIndex(Index:LongWord):ID3D11ShaderReflectionConstantBuffer; stdcall;
-    function GetConstantBufferByName(Name:PAnsiChar):ID3D11ShaderReflectionConstantBuffer; stdcall;
+    function GetConstantBufferByIndex(Index:LongWord):Pointer;stdcall;//ID3D11ShaderReflectionConstantBuffer; stdcall;
+    function GetConstantBufferByName(Name:PAnsiChar):Pointer;stdcall;//ID3D11ShaderReflectionConstantBuffer; stdcall;
     function GetResourceBindingDesc(ResourceIndex:LongWord;out Desc:TD3D11_ShaderInputBindDesc):HResult; stdcall;
     function GetInputParameterDesc(ParameterIndex:LongWord;out Desc:TD3D11_SignatureParameterDesc):HResult; stdcall;
     function GetOutputParameterDesc(ParameterIndex:LongWord;out Desc:TD3D11_SignatureParameterDesc):HResult; stdcall;

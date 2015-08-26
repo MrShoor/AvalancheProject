@@ -7,9 +7,9 @@ unit HLSLCompiler;
 interface
 
 uses
-  Classes, SysUtils, CompileTask, D3DCompiler_JSB, D3DCommon_JSB,
+  Windows, Classes, SysUtils, CompileTask, D3DCompiler_JSB, D3DCommon_JSB, D3D11_JSB, DXGI_JSB,
   {$IfDef fpc}
-    avTypes, avContnrs;
+    avTypes, avContnrs, avContext;
   {$Else}
     davTypes, Generics.Collections;
   {$EndIf}
@@ -56,6 +56,50 @@ type
 procedure RaiseHLSL(msg: string);
 begin
     raise EHLSL.Create(msg);
+end;
+
+procedure Check3DError(hr: HRESULT);
+var s: string;
+begin
+    if hr = 0 then Exit;
+    case hr of
+//      D3D10_ERROR_FILE_NOT_FOUND                : s := 'D3D10_ERROR_FILE_NOT_FOUND';
+//      D3D10_ERROR_TOO_MANY_UNIQUE_STATE_OBJECTS : s := 'D3D10_ERROR_TOO_MANY_UNIQUE_STATE_OBJECTS';
+      //D3DERR_INVALIDCALL                        : s := 'D3DERR_INVALIDCALL';
+      //D3DERR_WASSTILLDRAWING                    : s := 'D3DERR_WASSTILLDRAWING';
+
+      DXGI_ERROR_INVALID_CALL                 : s := 'DXGI_ERROR_INVALID_CALL';
+      DXGI_ERROR_NOT_FOUND                    : s := 'DXGI_ERROR_NOT_FOUND';
+      DXGI_ERROR_MORE_DATA                    : s := 'DXGI_ERROR_MORE_DATA';
+      DXGI_ERROR_UNSUPPORTED                  : s := 'DXGI_ERROR_UNSUPPORTED';
+      DXGI_ERROR_DEVICE_REMOVED               : s := 'DXGI_ERROR_DEVICE_REMOVED';
+      DXGI_ERROR_DEVICE_HUNG                  : s := 'DXGI_ERROR_DEVICE_HUNG';
+      DXGI_ERROR_DEVICE_RESET                 : s := 'DXGI_ERROR_DEVICE_RESET';
+      DXGI_ERROR_WAS_STILL_DRAWING            : s := 'DXGI_ERROR_WAS_STILL_DRAWING';
+      DXGI_ERROR_FRAME_STATISTICS_DISJOINT    : s := 'DXGI_ERROR_FRAME_STATISTICS_DISJOINT';
+      DXGI_ERROR_GRAPHICS_VIDPN_SOURCE_IN_USE : s := 'DXGI_ERROR_GRAPHICS_VIDPN_SOURCE_IN_USE';
+      DXGI_ERROR_DRIVER_INTERNAL_ERROR        : s := 'DXGI_ERROR_DRIVER_INTERNAL_ERROR';
+      DXGI_ERROR_NONEXCLUSIVE                 : s := 'DXGI_ERROR_NONEXCLUSIVE';
+      DXGI_ERROR_NOT_CURRENTLY_AVAILABLE      : s := 'DXGI_ERROR_NOT_CURRENTLY_AVAILABLE';
+      DXGI_ERROR_REMOTE_CLIENT_DISCONNECTED   : s := 'DXGI_ERROR_REMOTE_CLIENT_DISCONNECTED';
+      DXGI_ERROR_REMOTE_OUTOFMEMORY           : s := 'DXGI_ERROR_REMOTE_OUTOFMEMORY';
+      //DXGI_ERROR_ACCESS_LOST                  : s := 'DXGI_ERROR_ACCESS_LOST';
+      //DXGI_ERROR_WAIT_TIMEOUT                 : s := 'DXGI_ERROR_WAIT_TIMEOUT';
+      //DXGI_ERROR_SESSION_DISCONNECTED         : s := 'DXGI_ERROR_SESSION_DISCONNECTED';
+      //DXGI_ERROR_RESTRICT_TO_OUTPUT_STALE     : s := 'DXGI_ERROR_RESTRICT_TO_OUTPUT_STALE';
+      //DXGI_ERROR_CANNOT_PROTECT_CONTENT       : s := 'DXGI_ERROR_CANNOT_PROTECT_CONTENT';
+      //DXGI_ERROR_ACCESS_DENIED                : s := 'DXGI_ERROR_ACCESS_DENIED';
+      //DXGI_ERROR_NAME_ALREADY_EXISTS          : s := 'DXGI_ERROR_NAME_ALREADY_EXISTS';
+
+      E_FAIL        : s := 'E_FAIL';
+      E_INVALIDARG  : s := 'E_INVALIDARG';
+      E_OUTOFMEMORY : s := 'E_OUTOFMEMORY';
+      E_NOTIMPL     : s := 'E_NOTIMPL';
+      S_FALSE       : s := 'S_FALSE';
+    else
+      s := IntToHex(hr, 8);
+    end;
+    RaiseHLSL(s);
 end;
 
 function Succeeded(Status: HRESULT): Boolean;
@@ -120,8 +164,203 @@ begin
 end;
 
 procedure LinkHLSL(const prog: TProgramInfo; shaders: TShadersString; const OutFile: string);
-var sl : TStringList;
+type
+  TUniform = record
+    Name: string;
+    DataClass: TDataClass;
+    ItemsCount: Integer;
+    ElementType: TComponentType;
+    ElementsCount: Integer;
+    Offset: Integer;
+    SamplerIndex: Integer;
+    Data: array of Byte;
+  end;
+
+const
+  EmptyUniform: TUniform = (
+    Name          : '';
+    DataClass     : dcVector;
+    ItemsCount    : 0;
+    ElementType   : ctFloat;
+    ElementsCount : 0;
+    Offset        : -1;
+    SamplerIndex  : 0;
+    Data          : Nil;
+  );
+
+type
+  TUniformsHash = specialize THashMap<string, TUniform, TMurmur2HashString>;
+  IUniformsHash = specialize IHashMap<string, TUniform, TMurmur2HashString>;
+  TUniforms = array of TUniform;
+
+var
+  UniformHash : IUniformsHash;
+
+  function GetShaderReflection(const filename: String): ID3D11ShaderReflection;
+  var fs: TFileStream;
+      data: TByteArr;
+  begin
+    fs := TFileStream.Create(filename, fmOpenRead);
+    try
+      SetLength(data, fs.Size);
+      fs.Read(data[0], Length(data));
+      Check3DError( D3DReflect(@data[0], Length(data), ID3D11ShaderReflection, Result) );
+    finally
+      fs.Free;
+    end;
+  end;
+
+  function GetDataClass(const UniformTypeDesc: TD3D11_ShaderTypeDesc): TDataClass;
+  begin
+      case UniformTypeDesc._Class of
+          D3D10_SVC_SCALAR: Result := dcScalar;
+          D3D10_SVC_VECTOR: Result := dcVector;
+
+          D3D10_SVC_MATRIX_ROWS,
+          D3D10_SVC_MATRIX_COLUMNS: Result := dcMatrix;
+
+          D3D10_SVC_OBJECT,
+          D3D10_SVC_STRUCT,
+          D3D11_SVC_INTERFACE_CLASS,
+          D3D11_SVC_INTERFACE_POINTER: Result := dcSampler;
+      else
+          Result := dcScalar;
+          Assert(False, 'Unsupported type');
+      end;
+  end;
+  function GetComponentType(const UniformTypeDesc: TD3D11_ShaderTypeDesc): TComponentType;
+  begin
+      case UniformTypeDesc._Type of
+          D3D10_SVT_BOOL  : Result := ctBool;
+          D3D10_SVT_INT   : Result := ctInt;
+          D3D10_SVT_FLOAT : Result := ctFloat;
+          D3D10_SVT_UINT  : Result := ctUInt;
+          D3D11_SVT_DOUBLE: Result := ctDouble;
+      else
+          Result := ctInt;
+      end;
+  end;
+
+  procedure RaiseDiffersUniforms(const name: string);
+  begin
+    RaiseHLSL('Uniform "'+name+'" duplicated but differs');
+  end;
+
+  function CreateUniformByDescs(const ShaderVarDesc: TD3D11_ShaderVariableDesc; const ShaderTypeDesc: TD3D11_ShaderTypeDesc): TUniform;
+  begin
+    if UniformHash.TryGetValue(ShaderVarDesc.Name, Result) then
+    begin
+      if Result.DataClass     <> GetDataClass(ShaderTypeDesc)                 then RaiseDiffersUniforms(ShaderVarDesc.Name);
+      if Result.ElementType   <> GetComponentType(ShaderTypeDesc)             then RaiseDiffersUniforms(ShaderVarDesc.Name);
+      if Result.ItemsCount    <> ShaderTypeDesc.Elements                      then RaiseDiffersUniforms(ShaderVarDesc.Name);
+      if Result.ElementsCount <> ShaderTypeDesc.Rows * ShaderTypeDesc.Columns then RaiseDiffersUniforms(ShaderVarDesc.Name);
+    end
+    else
+    begin
+      Result.Name := ShaderVarDesc.Name;
+      Result.DataClass     := GetDataClass(ShaderTypeDesc);
+      Result.ElementType   := GetComponentType(ShaderTypeDesc);
+      Result.ItemsCount    := ShaderTypeDesc.Elements;
+      Result.ElementsCount := ShaderTypeDesc.Rows * ShaderTypeDesc.Columns;
+      Result.Offset        := ShaderVarDesc.StartOffset;
+      if ShaderVarDesc.Size > 0 then
+      begin
+        SetLength(Result.Data, ShaderVarDesc.Size);
+        if ShaderVarDesc.DefaultValue = nil then
+          FillChar(Result.Data[0], SizeOf(Result.Data[0])*Length(Result.Data), 0)
+        else
+          Move(ShaderVarDesc.DefaultValue^, Result.Data[0], ShaderVarDesc.Size);
+      end
+      else
+        Result.Data := nil;
+      UniformHash.Add(ShaderVarDesc.Name, Result);
+    end;
+  end;
+  function CreateUniformByDesc(const ShaderBindDesc: TD3D11_ShaderInputBindDesc): TUniform;
+  begin
+    if UniformHash.TryGetValue(ShaderBindDesc.Name, Result) then
+    begin
+      if Result.DataClass     <> dcSampler  then RaiseDiffersUniforms(ShaderBindDesc.Name);
+      if Result.ElementType   <> ctInt      then RaiseDiffersUniforms(ShaderBindDesc.Name);
+      if Result.ItemsCount    <> 1          then RaiseDiffersUniforms(ShaderBindDesc.Name);
+      if Result.ElementsCount <> 1          then RaiseDiffersUniforms(ShaderBindDesc.Name);
+    end
+    else
+    begin
+      Result.Name := ShaderBindDesc.Name;
+      Result.DataClass := dcSampler;
+      Result.ElementType := ctInt;
+      Result.ItemsCount := 1;
+      Result.ElementsCount := 1;
+      Result.Offset := ShaderBindDesc.BindPoint;
+      Result.Data := nil;
+      UniformHash.Add(ShaderBindDesc.Name, Result);
+    end;
+  end;
+
+  function ReadUniforms(const ref: ID3D11ShaderReflection): TUniforms;
+  var
+      ShaderDesc: TD3D11_ShaderDesc;
+      ShaderBufferDesc: TD3D11_ShaderBufferDesc;
+      ShaderVarDesc: TD3D11_ShaderVariableDesc;
+      ShaderTypeDesc: TD3D11_ShaderTypeDesc;
+      ShaderBindDesc: TD3D11_ShaderInputBindDesc;
+      CBufferReflect: ID3D11ShaderReflectionConstantBuffer;
+      s: String;
+      I, J, N: Integer;
+  begin
+    Result := Nil;
+    Check3DError( ref.GetDesc(ShaderDesc) );
+    if ShaderDesc.ConstantBuffers > 0 then
+    begin
+      Pointer(CBufferReflect) := ref.GetConstantBufferByIndex(0);
+      Check3DError( CBufferReflect.GetDesc(@ShaderBufferDesc) );
+      for I := 0 to ShaderBufferDesc.Variables - 1 do
+      begin
+          Check3DError( ID3D11ShaderReflectionVariable(CBufferReflect.GetVariableByIndex(I)).GetDesc(ShaderVarDesc) );
+          Check3DError( ID3D11ShaderReflectionType(ID3D11ShaderReflectionVariable(CBufferReflect.GetVariableByIndex(I)).GetType).GetDesc(ShaderTypeDesc) );
+          if ShaderVarDesc.Flags And Cardinal(D3D10_SVF_USED) = 0 then Continue;
+          SetLength(Result, Length(Result) + 1);
+          Result[Length(Result)-1] := CreateUniformByDescs(ShaderVarDesc, ShaderTypeDesc);
+      end;
+
+      for I := 0 to ShaderDesc.BoundResources - 1 do
+      begin
+          Check3DError(ref.GetResourceBindingDesc(I, ShaderBindDesc));
+          if ShaderBindDesc._Type <> D3D10_SIT_TEXTURE then Continue;
+          SetLength(Result, Length(Result) + 1);
+          Result[Length(Result)-1] := CreateUniformByDesc(ShaderBindDesc);
+      end;
+
+      //assign samplers to textures
+      for I := 0 to ShaderDesc.BoundResources - 1 do
+      begin
+          Check3DError(ref.GetResourceBindingDesc(I, ShaderBindDesc));
+          if ShaderBindDesc._Type <> D3D10_SIT_SAMPLER then Continue;
+          s := string(ShaderBindDesc.Name);
+          N := Pos('Sampler', s);
+          if N = 0 then Continue;
+          Delete(s, N, Length('Sampler'));
+          for j := 0 to Length(Result) - 1 do
+            if Result[j].Name = s then
+              Result[j].SamplerIndex := ShaderBindDesc.BindPoint;
+      end;
+    end;
+  end;
+
+var sl: TStringList;
+    st: TShaderType;
+    uniforms: array [TShaderType] of TUniforms;
 begin
+  UniformHash := TUniformsHash.Create('', EmptyUniform);
+
+  for st := Low(TShaderType) to High(TShaderType) do
+  begin
+    if st = stUnknown then Continue;
+    if shaders[st] = '' then Continue;
+    uniforms[st] := ReadUniforms( GetShaderReflection(shaders[st]) );
+  end;
+
   // ToDo : implement it
   sl := TStringList.Create;
   try
