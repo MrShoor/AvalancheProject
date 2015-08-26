@@ -3,31 +3,33 @@
     "HLSLcc_lang" : 330,
     "HLSLcc_flags": ["HLSLCC_FLAG_DISABLE_GLOBALS_STRUCT",
                      "HLSLCC_FLAG_INOUT_SEMANTIC_NAMES",
-                     "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],    
+                     "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],
     "OGLTranslate" : true,
-    "outdir" : "!Out",
+    "OutDir" : "!Out",
     "DXPrefix" : "DX_",
     "OGLPrefix" : "OGL_",
-    "vertexEntry" : "VS",
-    "fragmentEntry" : "PS",
-    "programs":[
+    "VertexEntry" : "VS",
+    "FragmentEntry" : "PS",
+    "VertexTarget" : "vs_4_0",
+    "FragmentTarget" : "ps_4_0",
+    "Programs":[
         {
-        "name"     : "Classic",
-        "vertex"   : "classic_v.cpp",
-        "fragment" : "classic_f.cpp",
-        "path"     :["Classic"]
+        "Name"     : "Classic",
+        "Vertex"   : "classic_v.cpp",
+        "Fragment" : "classic_f.cpp",
+        "Path"     :["Classic"]
         },
         {
-        "name"     : "WOIT_Accum",
-        "vertex"   : "accum_v.cpp",
-        "fragment" : "accum_f.cpp",
-        "path"     :["WOIT_Accum"]
+        "Name"     : "WOIT_Accum",
+        "Vertex"   : "accum_v.cpp",
+        "Fragment" : "accum_f.cpp",
+        "Path"     :["WOIT_Accum"]
         },
         {
-        "name"     : "WOIT_Resolve",
-        "vertex"   : "resolve_v.cpp",
-        "fragment" : "resolve_f.cpp",
-        "path"     :["WOIT_Resolve"]
-        }        
+        "Name"     : "WOIT_Resolve",
+        "Vertex"   : "resolve_v.cpp",
+        "Fragment" : "resolve_f.cpp",
+        "Path"     :["WOIT_Resolve"]
+        }
     ]
 }

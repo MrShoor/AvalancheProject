@@ -2136,9 +2136,9 @@ begin
   ClearAttrList;
   ClearVAOList;
 
-  GLShader := CreateShader(AnsiString(obj.S['vertex']), stVertex);
+  GLShader := CreateShader(AnsiString(obj.S['Vertex']), stVertex);
   glAttachShader(FHandle, GLShader);
-  GLShader := CreateShader(AnsiString(obj.S['fragment']), stFragment);
+  GLShader := CreateShader(AnsiString(obj.S['Fragment']), stFragment);
   glAttachShader(FHandle, GLShader);
 
   glLinkProgram(FHandle);

@@ -127,7 +127,8 @@ begin
         for i := 0 to task.ProgramsCount - 1 do
         begin
             pinfo := task.GetProgram(i);
-            if not DirectoryExists(pinfo.OutDir) then ForceDirectories(pinfo.OutDir);
+            if pinfo.OutDir <> '' then
+              if not DirectoryExists(pinfo.OutDir) then ForceDirectories(pinfo.OutDir);
             CompileProgram(pinfo, hlsl, glsl);
 
             RC.Add(API_Prefix[apiDX11]  + pinfo.Name + ' RCDATA ' + '"' + pinfo.OutDir + '\' + hlsl + '"');

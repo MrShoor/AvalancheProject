@@ -3,19 +3,21 @@
     "HLSLcc_lang" : 330,
     "HLSLcc_flags": ["HLSLCC_FLAG_DISABLE_GLOBALS_STRUCT",
                      "HLSLCC_FLAG_INOUT_SEMANTIC_NAMES",
-                     "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],    
+                     "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],
     "OGLTranslate" : true,
-    "outdir" : "!Out",
+    "OutDir" : "!Out",
     "DXPrefix" : "DX_",
     "OGLPrefix" : "OGL_",
-    "vertexEntry" : "VS",
-    "fragmentEntry" : "PS",
-    "programs":[
+    "VertexEntry" : "VS",
+    "FragmentEntry" : "PS",
+    "VertexTarget" : "vs_4_0",
+    "FragmentTarget" : "ps_4_0",      
+    "Programs":[
         {
-        "name"     : "base",
-        "vertex"   : "base_v.cpp",
-        "fragment" : "base_f.cpp",
-        "path"     :["cube_instancing"]
+        "Name"     : "base",
+        "Vertex"   : "base_v.cpp",
+        "Fragment" : "base_f.cpp",
+        "Path"     :["cube_instancing"]
         }      
     ]
 }
