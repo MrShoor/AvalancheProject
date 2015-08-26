@@ -95,10 +95,10 @@ type
     procedure Add(const AKey: TKey; const AValue: TValue);
     procedure AddOrSet(const AKey: TKey; const AValue: TValue);
     procedure Delete(const AKey: TKey);
-    function TryGetValue(const AKey: TKey; var AValue: TValue): Boolean;
+    function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
     function Contains(const AKey: TKey): Boolean;
     function ContainsValue(const AValue: TValue): Boolean; overload;
-    function ContainsValue(const AValue: TValue; var AKey: TKey): Boolean; overload;
+    function ContainsValue(const AValue: TValue; out AKey: TKey): Boolean; overload;
     procedure Clear;
 
     procedure Reset;
@@ -155,10 +155,10 @@ type
     procedure Add(const AKey: TKey; const AValue: TValue);
     procedure AddOrSet(const AKey: TKey; const AValue: TValue);
     procedure Delete(const AKey: TKey);
-    function TryGetValue(const AKey: TKey; var AValue: TValue): Boolean;
+    function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
     function Contains(const AKey: TKey): Boolean;
     function ContainsValue(const AValue: TValue): Boolean; overload;
-    function ContainsValue(const AValue: TValue; var AKey: TKey): Boolean; overload;
+    function ContainsValue(const AValue: TValue; out AKey: TKey): Boolean; overload;
     procedure Clear;
 
     function WrapedIndexIsBetween(Left, Index, Right: Integer): Boolean;
@@ -437,7 +437,7 @@ end;
 
 procedure THashMap.Delete(const AKey: TKey);
 var hash: Cardinal;
-    bIndex, i, curInd: Integer;
+    bIndex, curInd: Integer;
 begin
   hash := THash.Hash(AKey);
   if not CalcBucketIndex(AKey, hash, bIndex) then
@@ -466,7 +466,7 @@ begin
   end;
 end;
 
-function THashMap.TryGetValue(const AKey: TKey; var AValue: TValue): Boolean;
+function THashMap.TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
 var bIndex: Integer = 0;
 begin
   if not CalcBucketIndex(AKey, THash.Hash(AKey), bIndex) then
@@ -487,7 +487,7 @@ begin
   ContainsValue(AValue, dummyKey);
 end;
 
-function THashMap.ContainsValue(const AValue: TValue; var AKey: TKey): Boolean;
+function THashMap.ContainsValue(const AValue: TValue; out AKey: TKey): Boolean;
 var i: Integer;
 begin
   for i := 0 to Length(FData)-1 do
@@ -605,7 +605,7 @@ end;
 procedure TArray.QuickSort(L, R: Longint; Compare: TCompareMethodStatic;
   userData: Pointer);
 var
-  I, J, N : Longint;
+  I, J : Longint;
   P, Q : TValue;
 begin
  repeat

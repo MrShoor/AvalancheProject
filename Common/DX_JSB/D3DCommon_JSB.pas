@@ -380,13 +380,25 @@ type
   D3D_INCLUDE_TYPE=TD3D_IncludeType;
   PD3D_INCLUDE_TYPE=^TD3D_IncludeType;
 
+
+
+  {$IfDef fpc}
+  {$Interfaces CORBA}
+  ID3DInclude=Interface;
+  PID3DInclude=^ID3DInclude;
+  ID3DInclude= Interface
+    function Open(IncludeType:TD3D_IncludeType;pFileName:PAnsiChar;pParentData:Pointer;ppData:PPointer;pBytes:PLongWord):HResult; stdcall;
+    function Close(pData:Pointer):HResult; stdcall;
+  end;
+  {$Interfaces COM}
+  {$Else}
   ID3DInclude=class;
   PID3DInclude=^ID3DInclude;
-
   ID3DInclude=class // Cannot use 'interface' as the QueryInterface, AddRef and Release methods are missing.
     function Open(IncludeType:TD3D_IncludeType;pFileName:PAnsiChar;pParentData:Pointer;ppData:PPointer;pBytes:PLongWord):HResult; virtual; stdcall; abstract;
     function Close(pData:Pointer):HResult; virtual; stdcall; abstract;
   end;
+  {$EndIf}
 
   TD3D_ShaderVariableClass=
   (

@@ -1,8 +1,11 @@
 unit mutils;
 
-{$Macro On}
-{$mode objfpc}{$H+}
-{$modeswitch advancedrecords}
+{$ifdef fpc}
+  {$Macro On}
+  {$mode objfpc}{$H+}
+  {$modeswitch advancedrecords}
+{$endif}
+
 {$define NoInline}
 
 interface {$define INTF}

@@ -93,6 +93,7 @@ uses
 
 type
 {$IFNDEF FPC}
+  {$DEFINE WINDOWS}
   PtrInt = longint;
   PtrUInt = Longword;
 {$ENDIF}
@@ -610,7 +611,7 @@ type
     function GetDataPtr: Pointer;
     procedure SetDataPtr(const Value: Pointer);
   protected
-    function QueryInterface(constref IID: TGUID; out Obj): HResult; virtual; stdcall;
+    function QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj) : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
     function _AddRef: Integer; virtual; stdcall;
     function _Release: Integer; virtual; stdcall;
 
@@ -3295,7 +3296,7 @@ begin
   ParseString(PSOChar(path), true, False, self, [foCreatePath, foPutValue], TSuperObject.Create(Value));
 end;
 
-function TSuperObject.QueryInterface(constref IID: TGUID; out Obj): HResult; stdcall;
+function TSuperObject.QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj) : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
 begin
   if GetInterface(IID, Obj) then
     Result := 0
