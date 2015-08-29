@@ -163,7 +163,6 @@ begin
   end;
 end;
 
-procedure LinkHLSL(const prog: TProgramInfo; shaders: TShadersString; const OutFile: string);
 type
   TUniform = record
     Name: string;
@@ -174,8 +173,11 @@ type
     Offset: Integer;
     SamplerIndex: Integer;
     Data: array of Byte;
+
+    procedure Write(const stream: TStream);
   end;
 
+procedure LinkHLSL(const prog: TProgramInfo; shaders: TShadersString; const OutFile: string);
 const
   EmptyUniform: TUniform = (
     Name          : '';
@@ -356,6 +358,8 @@ var
 var sl: TStringList;
     st: TShaderType;
     uniforms: array [TShaderType] of TUniforms;
+
+    uniformsCC : TFOURCC;
 begin
   {$IfDef fpc}
   UniformHash := TUniformsHash.Create('', EmptyUniform);
@@ -368,6 +372,13 @@ begin
     if st = stUnknown then Continue;
     if shaders[st] = '' then Continue;
     uniforms[st] := ReadUniforms( GetShaderReflection(shaders[st]) );
+  end;
+
+  uniformsCC := MakeFourCC('U','B','L','K');
+
+  for st := Low(TShaderType) to High(TShaderType) do
+  begin
+    //
   end;
 
   // ToDo : implement it
@@ -426,6 +437,37 @@ destructor TIncludeAdapter.Destroy;
 begin
   {$IfNDef fpc} FreeAndNil(FIncludes); {$EndIf}
   inherited Destroy;
+end;
+
+{ TUniform }
+
+procedure TUniform.Write(const stream: TStream);
+  procedure StreamWriteString(const stream: TStream; const str: AnsiString);
+  var n: Integer;
+  begin
+    n := Length(str);
+    stream.WriteBuffer(n, SizeOf(n));
+    if n > 0 then
+      stream.WriteBuffer(str[1], Length(str));
+  end;
+var b: Byte;
+    n: Integer;
+begin
+
+  StreamWriteString(stream, AnsiString(Name));
+  b := Ord(DataClass);
+  stream.WriteBuffer(b, 1);
+  b := Ord(ElementType);
+  stream.WriteBuffer(b, 1);
+  stream.WriteBuffer(ItemsCount, SizeOf(ItemsCount));
+  stream.WriteBuffer(ElementsCount, SizeOf(ElementsCount));
+  stream.WriteBuffer(Offset, SizeOf(Offset));
+  stream.WriteBuffer(SamplerIndex, SizeOf(SamplerIndex));
+
+  n := Length(Data);
+  stream.WriteBuffer(n, SizeOf(n));
+  if n > 0 then
+    stream.WriteBuffer(Data[0], n);
 end;
 
 end.

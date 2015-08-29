@@ -54,7 +54,8 @@ var output: string;
 begin
   newfile := ObjFile+'.gobj';
   params := Format('-in=%s -out=%s -lang=%d -flags=%d', [ObjFile, newfile, prog.HLSLcc_lang, prog.HLSLcc_flags]);
-  CreateHLSLccProcess(params, output);
+  if CreateHLSLccProcess(params, output) <> 0 then
+    RaiseTranslator('HLSLcc.exe execution failed');
   WriteLn(output);
   sl := TStringList.Create;
   try

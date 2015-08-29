@@ -30,7 +30,7 @@ var sinfo: TStartupInfo;
     chBuf: array [0..BUFSIZE-1] Of AnsiChar;
     rbyte: Cardinal;
 begin
-    Result := $FFFFFFFF;
+    Result := 0;
 
     FillChar(sattr, SizeOf(sattr), 0);
     sattr.nLength := SizeOf(sattr);

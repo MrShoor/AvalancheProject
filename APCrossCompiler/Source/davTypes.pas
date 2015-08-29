@@ -18,6 +18,19 @@ type
 const
   ShaderType_Name : array [TShaderType] of string = ('Unknown', 'Vertex', 'Geometry', 'Fragment');
 
+type
+  TFOURCC = Cardinal;
+
+function MakeFourCC(ch0,ch1,ch2,ch3: AnsiChar): TFOURCC;
+
 implementation
+
+function MakeFourCC(ch0,ch1,ch2,ch3: AnsiChar): TFOURCC;
+begin
+  Result := Byte(ch0);
+  Result := Result shl 8 or Byte(ch1);
+  Result := Result shl 8 or Byte(ch2);
+  Result := Result shl 8 or Byte(ch3);
+end;
 
 end.

@@ -327,6 +327,8 @@ const
     );
 
 type
+  TFOURCC = Cardinal;
+
   { TNoRefObject }
 
   TNoRefObject = class (TObject, IUnknown)
@@ -338,6 +340,8 @@ type
 function Create_DataLayout(const AFields: TFieldInfoArr; AStrideSize: Integer = 0): IDataLayout;
 function CalcPrimCount(const ItemsCount: Integer; const PrimType: TPrimitiveType): Integer;
 function ComponentTypeSize(const AType: TComponentType): Integer;
+
+function MakeFourCC(ch0,ch1,ch2,ch3: AnsiChar): TFOURCC;
 
 implementation
 
@@ -397,6 +401,14 @@ begin
   else
     Assert(False, 'Not implemented yet')
   end;
+end;
+
+function MakeFourCC(ch0,ch1,ch2,ch3: AnsiChar): TFOURCC;
+begin
+  Result := Byte(ch0);
+  Result := Result shl 8 or Byte(ch1);
+  Result := Result shl 8 or Byte(ch2);
+  Result := Result shl 8 or Byte(ch3);
 end;
 
 { TNoRefObject }
