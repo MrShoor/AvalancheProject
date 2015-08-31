@@ -20,7 +20,7 @@ type
 
 const
   ShaderType_Name : array [TShaderType] of string = ('Unknown', 'Vertex', 'Geometry', 'Fragment');
-  ShaderType_FourCC : array [TShaderType] of Cardinal = (0, $56455254, $47454F4D, $46524147);
+  ShaderType_FourCC : array [TShaderType] of Cardinal = (0, $54524556, $4D4F4547, $47415246);
 
 type
   TFOURCC = Cardinal;

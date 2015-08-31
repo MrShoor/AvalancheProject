@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, avTypes, avPlatform, avContext, avContnrs, mutils, contnrs,
-  D3D11_JSB, DXGI_JSB, DXTypes_JSB, D3DCommon_JSB, D3DCompiler_JSB;
+  D3D11_JSB, DXGI_JSB, DXTypes_JSB, D3DCommon_JSB;
 
 type
   TavInterfacedObject = TInterfacedObject;
@@ -913,6 +913,7 @@ begin
   Desc.BindFlags := GetBufferBindFlag;
   Desc.CPUAccessFlags := DXCpuAccess[FTargetPool];
   Desc.MiscFlags := 0;
+  Desc.StructureByteStride := 0;
 
   FBuffer := nil;
   if assigned(Data) then
@@ -1117,182 +1118,62 @@ begin
 end;
 
 procedure TProgram.Load(const AProgram: string; FromResource: Boolean);
-    function StreamReadString(const stream: TStream): WideString;
+    procedure ReadCodeData(stream: TStream; var Data: TByteArr);
     var n: Integer;
     begin
-        stream.ReadBuffer(n, SizeOf(n));
-        SetLength(Result, n);
-        stream.ReadBuffer(Result[1], Length(Result) * SizeOf(WideChar));
+      stream.ReadBuffer(n, SizeOf(n));
+      SetLength(Data, n);
+      stream.ReadBuffer(Data[0], n);
     end;
-    function StreamReadShaderData(const stream: TStream): TByteArr;
-    var n: Integer;
-    begin
-        stream.ReadBuffer(n, SizeOf(n));
-        SetLength(Result, n);
-        if n > 0 then
-            stream.ReadBuffer(Result[0], n);
-    end;
-    function GetDataClass(const UniformTypeDesc: TD3D11_ShaderTypeDesc): TDataClass;
-    begin
-        case UniformTypeDesc._Class of
-            D3D10_SVC_SCALAR: Result := dcScalar;
-            D3D10_SVC_VECTOR: Result := dcVector;
 
-            D3D10_SVC_MATRIX_ROWS,
-            D3D10_SVC_MATRIX_COLUMNS: Result := dcMatrix;
-
-            D3D10_SVC_OBJECT,
-            D3D10_SVC_STRUCT,
-            D3D11_SVC_INTERFACE_CLASS,
-            D3D11_SVC_INTERFACE_POINTER: Result := dcSampler;
-        else
-            Result := dcScalar;
-            Assert(False, 'Unsupported type');
-        end;
-    end;
-    function GetComponentType(const UniformTypeDesc: TD3D11_ShaderTypeDesc): TComponentType;
-    begin
-        case UniformTypeDesc._Type of
-            D3D10_SVT_BOOL  : Result := ctBool;
-            D3D10_SVT_INT   : Result := ctInt;
-            D3D10_SVT_FLOAT : Result := ctFloat;
-            D3D10_SVT_UINT  : Result := ctUInt;
-            D3D11_SVT_DOUBLE: Result := ctDouble;
-        else
-            Result := ctInt;
-        end;
-    end;
-    function AddUniformByDescs(const ShaderVarDesc: TD3D11_ShaderVariableDesc; const ShaderTypeDesc: TD3D11_ShaderTypeDesc): TUniformField_DX;
-    var WasCreated: Boolean;
-    begin
-        Result := ObtainUniformField(string(ShaderVarDesc.Name), WasCreated);
-        If WasCreated Then
-        begin
-            Result.DataClass     := GetDataClass(ShaderTypeDesc);
-            Result.ElementType   := GetComponentType(ShaderTypeDesc);
-            Result.ItemsCount    := ShaderTypeDesc.Elements;
-            Result.ElementsCount := ShaderTypeDesc.Rows * ShaderTypeDesc.Columns;
-        end
-        else
-        begin
-            Assert(Result.DataClass     = GetDataClass(ShaderTypeDesc),
-                   'Uniform ' + Result.Name + ' at program ' + AProgram + ' differs between shaders in DataClass');
-
-            Assert(Result.ElementType   = GetComponentType(ShaderTypeDesc),
-                   'Uniform ' + Result.Name + ' at program ' + AProgram + ' differs between shaders in ElementType');
-
-            Assert(Cardinal(Result.ItemsCount) = ShaderTypeDesc.Elements,
-                   'Uniform ' + Result.Name + ' at program ' + AProgram + ' differs between shaders in ItemsCount');
-
-            Assert(Cardinal(Result.ElementsCount) = ShaderTypeDesc.Rows * ShaderTypeDesc.Columns,
-                   'Uniform ' + Result.Name + ' at program ' + AProgram + ' differs between shaders in ElementsCount');
-
-        end;
-    end;
-    function AddUniformByDesc(const ShaderBindDesc: TD3D11_ShaderInputBindDesc): TUniformField_DX;
-    var WasCreated: Boolean;
-    begin
-        Result := ObtainUniformField(string(ShaderBindDesc.Name), WasCreated);
-        If WasCreated Then
-        begin
-            Result.DataClass := dcSampler;
-            Result.ElementType := ctInt;
-            Result.ItemsCount := 1;
-            Result.ElementsCount := 1;
-        end
-        else
-        begin
-            Assert(Result.DataClass = dcSampler,
-                   'Uniform ' + Result.Name + ' at program ' + AProgram + ' differs between shaders in DataClass');
-
-            Assert(Result.ElementType = ctInt,
-                   'Uniform ' + Result.Name + ' at program ' + AProgram + ' differs between shaders in ElementType');
-
-            Assert(Result.ItemsCount = 1,
-                   'Uniform ' + Result.Name + ' at program ' + AProgram + ' differs between shaders in ItemsCount');
-
-            Assert(Result.ElementsCount = 1,
-                   'Uniform ' + Result.Name + ' at program ' + AProgram + ' differs between shaders in ElementsCount');
-        end;
-    end;
-    function LoadUniformsFromConstantReflection(st: TShaderType; Reflection: ID3D11ShaderReflection): TConstantBuffer;
-    var I, N: Integer;
-        s: String;
+    function ReadUniformChunk(Stream: TStream; st: TShaderType): TConstantBuffer;
+    var blockName: AnsiString;
+        blockSize: Integer;
+        i, n, n2: Integer;
+        UName: AnsiString;
         UField: TUniformField_DX;
-        UF : TUniformField;
-        ShaderDesc: TD3D11_ShaderDesc;
-        ShaderBufferDesc: TD3D11_ShaderBufferDesc;
-        ShaderVarDesc: TD3D11_ShaderVariableDesc;
-        ShaderTypeDesc: TD3D11_ShaderTypeDesc;
-        ShaderBindDesc: TD3D11_ShaderInputBindDesc;
-        CBufferReflect: ID3D11ShaderReflectionConstantBuffer;
+        WasCreated: Boolean;
+        b: Byte;
+        Offset: Integer;
     begin
-      Result := nil;
-      if Reflection = nil then Exit;
-      Check3DError(Reflection.GetDesc(ShaderDesc));
-      if ShaderDesc.ConstantBuffers > 0 then
-      begin
-        CBufferReflect := Reflection.GetConstantBufferByIndex(0);
-        Check3DError(CBufferReflect.GetDesc(@ShaderBufferDesc));
-        Result := TConstantBuffer.Create(FContext);
-        Result.AllocMem(ShaderBufferDesc.Size, nil);
-        for I := 0 to ShaderBufferDesc.Variables - 1 do
-        begin
-          Check3DError(CBufferReflect.GetVariableByIndex(I).GetDesc(ShaderVarDesc));
-          Check3DError(CBufferReflect.GetVariableByIndex(I).GetType.GetDesc(ShaderTypeDesc));
-          if ShaderVarDesc.Flags And Cardinal(D3D10_SVF_USED) = 0 then Continue;
+      Result := Nil;
+      StreamReadString(Stream, blockName);
+      Stream.ReadBuffer(blockSize, SizeOf(blockSize));
+      if blockSize = 0 then Exit;
+      Result := TConstantBuffer.Create(FContext);
+      Result.AllocMem(blockSize, nil);
 
-          UField := AddUniformByDescs(ShaderVarDesc, ShaderTypeDesc);
-          UField.FCB[st] := Result;
-          UField.FData[st] := Result.Ptr;
-          Inc(UField.FData[st], ShaderVarDesc.StartOffset);
-          if Assigned(ShaderVarDesc.DefaultValue) then
-              Move(ShaderVarDesc.DefaultValue^, UField.FData[st]^, ShaderVarDesc.Size)
-          else
-              FillChar(UField.FData[st]^, ShaderVarDesc.Size, 0);
-          UField.Data := UField.FData[st];
-          UField.DataSize := ShaderVarDesc.Size;
+      Stream.ReadBuffer(n, SizeOf(n));
+      for i := 0 to n-1 do
+      begin
+        StreamReadString(Stream, UName);
+        UField := ObtainUniformField(UName, WasCreated);
+        UField.FCB[st] := Result;
+        UField.FData[st] := Result.Ptr;
+
+        Stream.ReadBuffer(b, 1);
+        UField.DataClass := TDataClass(b);
+        Stream.ReadBuffer(b, 1);
+        UField.ElementType := TComponentType(b);
+        Stream.ReadBuffer(UField.ItemsCount, SizeOf(UField.ItemsCount));
+        Stream.ReadBuffer(UField.ElementsCount, SizeOf(UField.ElementsCount));
+        Stream.ReadBuffer(Offset, SizeOf(Offset));
+        case UField.DataClass of
+          dcSampler: UField.FResourceIndex[st] := Offset;
+        else
+          if Offset > 0 then
+            Inc(UField.FData[st], Offset);
         end;
-      end;
+        Stream.ReadBuffer(UField.FSamplerIndex[st], SizeOf(UField.FSamplerIndex[st]));
+        Stream.ReadBuffer(n2, SizeOf(n2));
+        if n2 > 0 then
+          Stream.ReadBuffer(UField.FData[st]^, n2);
 
-      for I := 0 to ShaderDesc.BoundResources - 1 do
-      begin
-          Check3DError(Reflection.GetResourceBindingDesc(I, ShaderBindDesc));
-          if ShaderBindDesc._Type <> D3D10_SIT_TEXTURE then Continue;
-          UField := AddUniformByDesc(ShaderBindDesc);
-          UField.FResourceIndex[st] := ShaderBindDesc.BindPoint;
-          UField.FSamplerIndex[st] := -1;
+        UField.Data := UField.FData[st];
+        UField.DataSize := n2;
       end;
-
-      //assign samplers to textures
-      for I := 0 to ShaderDesc.BoundResources - 1 do
-      begin
-          Check3DError(Reflection.GetResourceBindingDesc(I, ShaderBindDesc));
-          if ShaderBindDesc._Type <> D3D10_SIT_SAMPLER then Continue;
-          s := string(ShaderBindDesc.Name);
-          N := Pos('Sampler', s);
-          if N = 0 then Continue;
-          Delete(s, N, Length('Sampler'));
-          UField := TUniformField_DX(GetUniformField(s));
-          if UField = nil then Continue;
-          UField.FSamplerIndex[st] := ShaderBindDesc.BindPoint;
-      end;
-
-      N := 0;
-      FUniforms.Reset;
-      while FUniforms.Next(s, UF) do
-        if UF.DataClass = dcSampler then
-          Inc(N);
-      SetLength(FResUniforms, N);
-      N := 0;
-      FUniforms.Reset;
-      while FUniforms.Next(s, UF) do
-        if UF.DataClass = dcSampler then
-        begin
-          FResUniforms[N] := UF as TUniformField_DX;
-          Inc(N);
-        end;
     end;
+
 var stream: TStream;
     ShaderRef: array [TShaderType] of ID3D11ShaderReflection;
     st: TShaderType;
@@ -1300,6 +1181,10 @@ var stream: TStream;
     vShader: ID3D11VertexShader;
     gShader: ID3D11GeometryShader;
     pShader: ID3D11PixelShader;
+    ChunkID: TFOURCC;
+    ChunkSize: Cardinal;
+    NewPos, NewPos2 : Int64;
+    i: Integer;
 begin
   stream := nil;
   ClearUniformList;
@@ -1314,29 +1199,109 @@ begin
         stream := TResourceStream.Create(HInstance, AProgram, RT_RCDATA)
     else
         stream := TFileStream.Create(AProgram, fmOpenRead);
-    StreamReadString(stream);//reading name
 
-    for st := stVertex to stFragment do
+    while Stream.Position <> Stream.Size do
     begin
-      FData[st] := StreamReadShaderData(stream);
-      if Length(FData[st]) > 0 then
-      begin
-          case st of
-              stUnknown : ;
-              stVertex  : begin
-                            Check3DError(FContext.FDevice.CreateVertexShader(@FData[st][0], Length(FData[st]), nil, vShader));
-                            FShader[st] := vShader;
-                          end;
-              stGeometry: begin
-                            Check3DError(FContext.FDevice.CreateGeometryShader(@FData[st][0], Length(FData[st]), nil, gShader));
-                            FShader[st] := gShader;
-                          end;
-              stFragment: begin
-                            Check3DError(FContext.FDevice.CreatePixelShader(@FData[st][0], Length(FData[st]), nil, pShader));
-                            FShader[st] := pShader;
-                          end;
+      stream.ReadBuffer(ChunkID, SizeOf(ChunkID));
+      stream.ReadBuffer(ChunkSize, SizeOf(ChunkSize));
+      NewPos := stream.Position + ChunkSize;
+
+      try
+        if ChunkID = ShaderType_FourCC[stVertex] then
+        begin
+          for i := 0 to 1 do
+          begin
+            stream.ReadBuffer(ChunkID, SizeOf(ChunkID));
+            stream.ReadBuffer(ChunkSize, SizeOf(ChunkSize));
+            NewPos2 := stream.Position + ChunkSize;
+            try
+              if ChunkID = MakeFourCC('C','O','D','E') then
+              begin
+                ReadCodeData(stream, FData[stVertex]);
+                Check3DError(FContext.FDevice.CreateVertexShader(@FData[stVertex][0], Length(FData[stVertex]), nil, vShader));
+                FShader[stVertex] := vShader;
+                Continue;
+              end;
+
+              if ChunkID = MakeFourCC('U','B','L','K') then
+              begin
+                FCB[stVertex] := ReadUniformChunk(stream, stVertex);
+                Continue;
+              end;
+
+              Assert(False, 'Only 2 type of chunk availble');
+            finally
+              stream.Position := NewPos2;
+            end;
           end;
-          Check3DError(D3DReflect(@FData[st][0], Length(FData[st]), ID3D11ShaderReflection, ShaderRef[st]));
+
+          Continue;
+        end;
+
+        If ChunkID = ShaderType_FourCC[stGeometry] then
+        begin
+          for i := 0 to 1 do
+          begin
+            stream.ReadBuffer(ChunkID, SizeOf(ChunkID));
+            stream.ReadBuffer(ChunkSize, SizeOf(ChunkSize));
+            NewPos2 := stream.Position + ChunkSize;
+            try
+              if ChunkID = MakeFourCC('C','O','D','E') then
+              begin
+                ReadCodeData(stream, FData[stGeometry]);
+                Check3DError(FContext.FDevice.CreateGeometryShader(@FData[stGeometry][0], Length(FData[stGeometry]), nil, gShader));
+                FShader[stGeometry] := gShader;
+                Continue;
+              end;
+
+              if ChunkID = MakeFourCC('U','B','L','K') then
+              begin
+                FCB[stGeometry] := ReadUniformChunk(stream, stGeometry);
+                Continue;
+              end;
+
+              Assert(False, 'Only 2 type of chunk availble');
+            finally
+              stream.Position := NewPos2;
+            end;
+          end;
+
+          Continue;
+        end;
+
+        if ChunkID = ShaderType_FourCC[stFragment] then
+        begin
+          for i := 0 to 1 do
+          begin
+            stream.ReadBuffer(ChunkID, SizeOf(ChunkID));
+            stream.ReadBuffer(ChunkSize, SizeOf(ChunkSize));
+            NewPos2 := stream.Position + ChunkSize;
+            try
+              if ChunkID = MakeFourCC('C','O','D','E') then
+              begin
+                ReadCodeData(stream, FData[stFragment]);
+                Check3DError(FContext.FDevice.CreatePixelShader(@FData[stFragment][0], Length(FData[stFragment]), nil, pShader));
+                FShader[stFragment] := pShader;
+                Continue;
+              end;
+
+              if ChunkID = MakeFourCC('U','B','L','K') then
+              begin
+                FCB[stFragment] := ReadUniformChunk(stream, stFragment);
+                Continue;
+              end;
+
+              Assert(False, 'Only 2 type of chunk availble');
+            finally
+              stream.Position := NewPos2;
+            end;
+          end;
+
+          Continue;
+        end;
+
+      finally
+        stream.Position := NewPos;
       end;
     end;
   finally
@@ -1344,10 +1309,7 @@ begin
   end;
 
   for st := stVertex to stFragment do
-  begin
-    FCB[st] := LoadUniformsFromConstantReflection(st, ShaderRef[st]);
     if Assigned(FCB[st]) then FCB[st].Invalidate;
-  end;
 end;
 
 procedure TProgram.SetAttributes(const AModel, AInstances: IctxVetexBuffer;

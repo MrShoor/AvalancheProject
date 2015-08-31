@@ -320,7 +320,7 @@ var
     end;
   end;
 
-  function ReadUniforms(const ref: ID3D11ShaderReflection): TUniforms;
+  function ReadUniforms(const ref: ID3D11ShaderReflection; out UBSize: Integer): TUniforms;
   var
       ShaderDesc: TD3D11_ShaderDesc;
       ShaderBufferDesc: TD3D11_ShaderBufferDesc;
@@ -332,11 +332,13 @@ var
       I, J, N: Integer;
   begin
     Result := Nil;
+    UBSize := 0;
     Check3DError( ref.GetDesc(ShaderDesc) );
     if ShaderDesc.ConstantBuffers > 0 then
     begin
       Pointer(CBufferReflect) := ref.GetConstantBufferByIndex(0);
       Check3DError( CBufferReflect.GetDesc(@ShaderBufferDesc) );
+      UBSize := ShaderBufferDesc.Size;
       for I := 0 to ShaderBufferDesc.Variables - 1 do
       begin
           Check3DError( ID3D11ShaderReflectionVariable(CBufferReflect.GetVariableByIndex(I)).GetDesc(ShaderVarDesc) );
@@ -370,10 +372,11 @@ var
     end;
   end;
 
-  procedure WriteUnifroms(stream: TStream; const UBName: AnsiString; const Un: TUniforms);
+  procedure WriteUnifroms(stream: TStream; const UBName: AnsiString; UBSize: Integer; const Un: TUniforms);
   var i, n: Integer;
   begin
     StreamWriteString(stream, UBName);
+    stream.WriteBuffer(UBSize, SizeOf(UBSize));
     n := Length(Un);
     stream.WriteBuffer(n, SizeOf(n));
     for i := 0 to n - 1 do
@@ -382,9 +385,11 @@ var
 
 var st: TShaderType;
     uniforms: array [TShaderType] of TUniforms;
+    UBSize: array [TShaderType] of Integer;
 
     ShaderChunk, UBChunk, CodeChunk: TChunkWriter;
     fs, fsCode: TFileStream;
+    n: Integer;
 begin
   Write('Linking(HLSL): "', prog.Name, '" ... ');
   {$IfDef fpc}
@@ -397,7 +402,7 @@ begin
   begin
     if st = stUnknown then Continue;
     if shaders[st] = '' then Continue;
-    uniforms[st] := ReadUniforms( GetShaderReflection(shaders[st]) );
+    uniforms[st] := ReadUniforms( GetShaderReflection(shaders[st]), UBSize[st] );
   end;
 
   fs := TFileStream.Create(OutFile, fmCreate);
@@ -409,22 +414,25 @@ begin
 
         ShaderChunk := TChunkWriter.Create(fs, ShaderType_FourCC[st]);
         try
-          UBChunk := TChunkWriter.Create(fs, MakeFourCC('U','B','L','K'));
-          try
-            WriteUnifroms(fs, '$Globals', uniforms[st]);
-          finally
-            FreeAndNil(UBChunk);
-          end;
           CodeChunk := TChunkWriter.Create(fs, MakeFourCC('C','O','D','E'));
           try
             fsCode := TFileStream.Create(shaders[st], fmOpenRead);
             try
+              n := fsCode.Size;
+              fs.WriteBuffer(n, SizeOf(n));
               fs.CopyFrom(fsCode, fsCode.Size);
             finally
               FreeAndNil(fsCode);
             end;
           finally
             FreeAndNil(CodeChunk);
+          end;
+
+          UBChunk := TChunkWriter.Create(fs, MakeFourCC('U','B','L','K'));
+          try
+            WriteUnifroms(fs, '$Globals', UBSize[st], uniforms[st]);
+          finally
+            FreeAndNil(UBChunk);
           end;
         finally
           FreeAndNil(ShaderChunk);
