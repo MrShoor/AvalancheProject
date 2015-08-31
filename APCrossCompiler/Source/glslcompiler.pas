@@ -104,7 +104,9 @@ var Shader: GLuint;
     CompRes: GLint;
     codeLen: Integer;
     codePtr: PAnsiChar;
+    Log: string;
 begin
+  Write('Compiling(GLSL): "', ShaderType_Name[st], '" ... ');
   BindGlobalContext;
   Shader := glCreateShader(GL_ShaderType[st]);
   try
@@ -116,10 +118,13 @@ begin
     if CompRes = GL_FALSE then
       RaiseGLSL(GetShaderCompileLog(Shader));
   finally
-    WriteLn(GetShaderCompileLog(Shader));
+    Log := GetShaderCompileLog(Shader);
+    if Length(Log) > 5 then
+      WriteLn(Log);
     glDeleteShader(Shader);
     UnBindGlobalContext;
   end;
+  WriteLn('done.');
 end;
 
 procedure LinkGLSL(const prog: TProgramInfo; code: TShadersString; const OutFile: string);
@@ -151,6 +156,7 @@ var GLProg: GLuint;
 
     sobj: ISuperObject;
 begin
+  Write('Linking(GLSL): "', prog.Name, '" ... ');
   BindGlobalContext;
   GLProg := glCreateProgram();
   try
@@ -188,6 +194,7 @@ begin
     glDeleteProgram(GLProg);
     UnBindGlobalContext;
   end;
+  WriteLn('done.');
 end;
 
 { TGLContext }

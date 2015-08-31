@@ -2,6 +2,7 @@ unit HLSLCompiler;
 
 {$IfDef fpc}
   {$mode objfpc}{$H+}
+  {$modeswitch advancedrecords}
 {$EndIf}
 
 interface
@@ -50,6 +51,17 @@ type
     function Close(pData:Pointer):HResult; {$IfNDef fpc} Override; {$EndIf} stdcall;
 
     constructor Create(const prog: TProgramInfo);
+    destructor Destroy; override;
+  end;
+
+  { TChunkWriter }
+
+  TChunkWriter = class
+  private
+    FStream: TStream;
+    FPos: Int64;
+  public
+    constructor Create(fs: TStream; id: TFOURCC);
     destructor Destroy; override;
   end;
 
@@ -142,6 +154,7 @@ var astr: AnsiString;
     output: ID3DBlob;
     fs: TFileStream;
 begin
+  Write('Compiling(HLSL): "', prog.Shader[st], '" ... ');
   astr := OpenFileToString(prog.Shader[st], prog);
   incl := TIncludeAdapter.Create(prog);
   try
@@ -157,10 +170,12 @@ begin
       fs.Free;
     end;
   finally
+    // ToDo: Reparse errors
     if Assigned(output) then
       WriteLn(PAnsiChar(output.GetBufferPointer));
     incl.Free;
   end;
+  WriteLn('done.');
 end;
 
 type
@@ -355,12 +370,23 @@ var
     end;
   end;
 
-var sl: TStringList;
-    st: TShaderType;
+  procedure WriteUnifroms(stream: TStream; const UBName: AnsiString; const Un: TUniforms);
+  var i, n: Integer;
+  begin
+    StreamWriteString(stream, UBName);
+    n := Length(Un);
+    stream.WriteBuffer(n, SizeOf(n));
+    for i := 0 to n - 1 do
+      un[i].Write(stream);
+  end;
+
+var st: TShaderType;
     uniforms: array [TShaderType] of TUniforms;
 
-    uniformsCC : TFOURCC;
+    ShaderChunk, UBChunk, CodeChunk: TChunkWriter;
+    fs, fsCode: TFileStream;
 begin
+  Write('Linking(HLSL): "', prog.Name, '" ... ');
   {$IfDef fpc}
   UniformHash := TUniformsHash.Create('', EmptyUniform);
   {$Else}
@@ -374,25 +400,74 @@ begin
     uniforms[st] := ReadUniforms( GetShaderReflection(shaders[st]) );
   end;
 
-  uniformsCC := MakeFourCC('U','B','L','K');
-
-  for st := Low(TShaderType) to High(TShaderType) do
-  begin
-    //
-  end;
-
-  // ToDo : implement it
-  sl := TStringList.Create;
+  fs := TFileStream.Create(OutFile, fmCreate);
   try
-    sl.Text := 'Dummy';
-    sl.SaveToFile(OutFile);
+    for st := Low(TShaderType) to High(TShaderType) do
+    begin
+        if st = stUnknown then Continue;
+        if shaders[st] = '' then Continue;
+
+        ShaderChunk := TChunkWriter.Create(fs, ShaderType_FourCC[st]);
+        try
+          UBChunk := TChunkWriter.Create(fs, MakeFourCC('U','B','L','K'));
+          try
+            WriteUnifroms(fs, '$Globals', uniforms[st]);
+          finally
+            FreeAndNil(UBChunk);
+          end;
+          CodeChunk := TChunkWriter.Create(fs, MakeFourCC('C','O','D','E'));
+          try
+            fsCode := TFileStream.Create(shaders[st], fmOpenRead);
+            try
+              fs.CopyFrom(fsCode, fsCode.Size);
+            finally
+              FreeAndNil(fsCode);
+            end;
+          finally
+            FreeAndNil(CodeChunk);
+          end;
+        finally
+          FreeAndNil(ShaderChunk);
+        end;
+    end;
   finally
-    sl.Free;
+    FreeAndNil(fs);
   end;
 
   {$IfNDef fpc}
   FreeAndNil(UniformHash);
   {$EndIf}
+  WriteLn('done.');
+end;
+
+{ TChunkWriter }
+
+constructor TChunkWriter.Create(fs: TStream; id: TFOURCC);
+var dummy: Integer;
+begin
+  FStream := fs;
+  FStream.WriteBuffer(id, SizeOf(id));
+  dummy := 0;
+  FPos := FStream.Position;
+  FStream.WriteBuffer(dummy, SizeOf(dummy));
+end;
+
+destructor TChunkWriter.Destroy;
+var oldPos: Int64;
+    ChunkSize: Integer;
+    b: Byte;
+begin
+  if FStream.Position mod 2 = 1 then
+  begin
+    b := 0;
+    FStream.WriteBuffer(b, SizeOf(b));
+  end;
+  ChunkSize := FStream.Position - FPos - SizeOf(ChunkSize);
+  oldPos := FStream.Position;
+  FStream.Position := FPos;
+  FStream.WriteBuffer(ChunkSize, SizeOf(ChunkSize));
+  FStream.Position := oldPos;
+  inherited Destroy;
 end;
 
 { TIncludeAdapter }

@@ -52,6 +52,7 @@ var output: string;
     newfile: string;
     sl: TStringList;
 begin
+  WriteLn('Translating: "', ExtractFileName(ObjFile), '" ... ');
   newfile := ObjFile+'.gobj';
   params := Format('-in=%s -out=%s -lang=%d -flags=%d', [ObjFile, newfile, prog.HLSLcc_lang, prog.HLSLcc_flags]);
   if CreateHLSLccProcess(params, output) <> 0 then
@@ -65,6 +66,7 @@ begin
   finally
     sl.Free;
   end;
+  WriteLn('done.');
 end;
 
 procedure CompileProgram(const prog: TProgramInfo; out HLSL_Prog, GLSL_Prog: string);
@@ -135,6 +137,8 @@ begin
             RC.Add(API_Prefix[apiDX11]  + pinfo.Name + ' RCDATA ' + '"' + pinfo.OutDir + '\' + hlsl + '"');
             if pinfo.OGLTranslate then
                 RC.Add(API_Prefix[apiOGL] + pinfo.Name + ' RCDATA ' + '"' + pinfo.OutDir + '\' + glsl + '"');
+
+            WriteLn('--------------');
         end;
         RC.SaveToFile(task.ProjectName + '.rc');
     finally
