@@ -19,9 +19,8 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="untMain"/>
-        <IsVisibleTab Value="True"/>
         <TopLine Value="172"/>
-        <CursorPos X="22" Y="197"/>
+        <CursorPos X="32" Y="192"/>
         <UsageCount Value="225"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -60,9 +59,10 @@
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="avContext_DX11"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="4"/>
-        <TopLine Value="1024"/>
-        <CursorPos X="35" Y="1041"/>
+        <TopLine Value="1427"/>
+        <CursorPos Y="1443"/>
         <UsageCount Value="90"/>
         <Loaded Value="True"/>
       </Unit5>
@@ -110,8 +110,8 @@
         <Filename Value="..\..\..\Common\avres.pas"/>
         <UnitName Value="avRes"/>
         <EditorIndex Value="1"/>
-        <TopLine Value="1691"/>
-        <CursorPos Y="1708"/>
+        <TopLine Value="682"/>
+        <CursorPos X="57" Y="697"/>
         <UsageCount Value="109"/>
         <Loaded Value="True"/>
       </Unit11>
@@ -170,7 +170,7 @@
         <Filename Value="..\..\..\Common\DX_JSB\D3D11_JSB.pas"/>
         <EditorIndex Value="7"/>
         <TopLine Value="686"/>
-        <CursorPos X="19" Y="716"/>
+        <CursorPos X="43" Y="703"/>
         <UsageCount Value="43"/>
         <Loaded Value="True"/>
       </Unit19>
@@ -291,127 +291,135 @@
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1044" Column="33" TopLine="1034"/>
+        <Caret Line="1438" TopLine="1428"/>
       </Position1>
       <Position2>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1416" TopLine="1397"/>
+        <Caret Line="1439" TopLine="1428"/>
       </Position2>
       <Position3>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1172" Column="40" TopLine="1142"/>
+        <Caret Line="1436" TopLine="1428"/>
       </Position3>
       <Position4>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1173" Column="30" TopLine="1143"/>
+        <Caret Line="1431" Column="22" TopLine="1428"/>
       </Position4>
       <Position5>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="192" TopLine="174"/>
+        <Caret Line="741" TopLine="737"/>
       </Position5>
       <Position6>
-        <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1041" Column="61" TopLine="1024"/>
+        <Filename Value="untmain.pas"/>
+        <Caret Line="197" TopLine="172"/>
       </Position6>
       <Position7>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1327" TopLine="1308"/>
+        <Caret Line="741" TopLine="734"/>
       </Position7>
       <Position8>
-        <Filename Value="..\..\..\Common\avres.pas"/>
-        <Caret Line="1708" TopLine="1691"/>
+        <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
+        <Caret Line="742" TopLine="734"/>
       </Position8>
       <Position9>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1327" TopLine="1308"/>
+        <Caret Line="743" TopLine="734"/>
       </Position9>
       <Position10>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1033" Column="42" TopLine="1013"/>
+        <Caret Line="741" TopLine="722"/>
       </Position10>
       <Position11>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1042" TopLine="1013"/>
+        <Caret Line="1440" Column="17" TopLine="1423"/>
       </Position11>
       <Position12>
-        <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1327" TopLine="1308"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="395" Column="15" TopLine="360"/>
       </Position12>
       <Position13>
-        <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1042" TopLine="1025"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
       </Position13>
       <Position14>
-        <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="192" TopLine="174"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="322" Column="14" TopLine="304"/>
       </Position14>
       <Position15>
-        <Filename Value="untmain.pas"/>
-        <Caret Line="196" TopLine="172"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="712" TopLine="683"/>
       </Position15>
       <Position16>
         <Filename Value="..\..\..\Common\avres.pas"/>
-        <Caret Line="1708" TopLine="1691"/>
+        <Caret Line="713" TopLine="683"/>
       </Position16>
       <Position17>
-        <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1314" Column="10" TopLine="1293"/>
+        <Filename Value="..\..\..\Common\avres.pas"/>
+        <Caret Line="1806" Column="7" TopLine="1789"/>
       </Position17>
       <Position18>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1327" TopLine="1297"/>
+        <Caret Line="1436" Column="3" TopLine="1429"/>
       </Position18>
       <Position19>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1025" Column="48" TopLine="1016"/>
+        <Caret Line="737" Column="39" TopLine="719"/>
       </Position19>
       <Position20>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1042" TopLine="1016"/>
+        <Caret Line="1457" Column="89" TopLine="1421"/>
       </Position20>
       <Position21>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="178" Column="57" TopLine="174"/>
+        <Caret Line="1444" Column="36" TopLine="1426"/>
       </Position21>
       <Position22>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1039" Column="83" TopLine="1018"/>
+        <Caret Line="1446" TopLine="1426"/>
       </Position22>
       <Position23>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="672" Column="5" TopLine="654"/>
+        <Caret Line="1449" TopLine="1426"/>
       </Position23>
       <Position24>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1220" Column="38" TopLine="1195"/>
+        <Caret Line="1451" TopLine="1426"/>
       </Position24>
       <Position25>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1034" Column="79" TopLine="1024"/>
+        <Caret Line="1454" TopLine="1426"/>
       </Position25>
       <Position26>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1220" Column="56" TopLine="1213"/>
+        <Caret Line="1266" Column="43" TopLine="1238"/>
       </Position26>
       <Position27>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1221" Column="45" TopLine="1201"/>
+        <Caret Line="1163" Column="72" TopLine="1151"/>
       </Position27>
       <Position28>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="662" Column="71" TopLine="680"/>
+        <Caret Line="1167" TopLine="1151"/>
       </Position28>
       <Position29>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
-        <Caret Line="1206" Column="67" TopLine="1171"/>
+        <Caret Line="1442" TopLine="1423"/>
       </Position29>
       <Position30>
-        <Filename Value="untmain.pas"/>
-        <Caret Line="146" Column="28" TopLine="118"/>
+        <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
+        <Caret Line="1455" TopLine="1425"/>
       </Position30>
     </JumpHistory>
   </ProjectSession>
   <Debugging>
+    <BreakPoints Count="1">
+      <Item1>
+        <Kind Value="bpkSource"/>
+        <WatchScope Value="wpsLocal"/>
+        <WatchKind Value="wpkWrite"/>
+        <Source Value="..\..\..\Common\avcontext_dx11.pas"/>
+        <Line Value="1167"/>
+      </Item1>
+    </BreakPoints>
     <Watches Count="5">
       <Item1>
         <Expression Value="ChunkID"/>

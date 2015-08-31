@@ -1803,7 +1803,7 @@ end;
 procedure TavProgram.SetUniform(const AName: string; const tex: TavTexture; const sampler: TSamplerInfo);
 begin
   if tex = nil then Exit;
-  tex.DoBuild;
+  tex.Build;
   FProgram.SetUniform(GetUniformField(AName), tex.FTexH, sampler);
 end;
 

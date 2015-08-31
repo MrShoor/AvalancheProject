@@ -347,28 +347,28 @@ var
           SetLength(Result, Length(Result) + 1);
           Result[Length(Result)-1] := CreateUniformByDescs(ShaderVarDesc, ShaderTypeDesc);
       end;
+    end;
 
-      for I := 0 to ShaderDesc.BoundResources - 1 do
-      begin
-          Check3DError(ref.GetResourceBindingDesc(I, ShaderBindDesc));
-          if ShaderBindDesc._Type <> D3D10_SIT_TEXTURE then Continue;
-          SetLength(Result, Length(Result) + 1);
-          Result[Length(Result)-1] := CreateUniformByDesc(ShaderBindDesc);
-      end;
+    for I := 0 to ShaderDesc.BoundResources - 1 do
+    begin
+        Check3DError(ref.GetResourceBindingDesc(I, ShaderBindDesc));
+        if ShaderBindDesc._Type <> D3D10_SIT_TEXTURE then Continue;
+        SetLength(Result, Length(Result) + 1);
+        Result[Length(Result)-1] := CreateUniformByDesc(ShaderBindDesc);
+    end;
 
-      //assign samplers to textures
-      for I := 0 to ShaderDesc.BoundResources - 1 do
-      begin
-          Check3DError(ref.GetResourceBindingDesc(I, ShaderBindDesc));
-          if ShaderBindDesc._Type <> D3D10_SIT_SAMPLER then Continue;
-          s := string(ShaderBindDesc.Name);
-          N := Pos('Sampler', s);
-          if N = 0 then Continue;
-          Delete(s, N, Length('Sampler'));
-          for j := 0 to Length(Result) - 1 do
-            if Result[j].Name = s then
-              Result[j].SamplerIndex := ShaderBindDesc.BindPoint;
-      end;
+    //assign samplers to textures
+    for I := 0 to ShaderDesc.BoundResources - 1 do
+    begin
+        Check3DError(ref.GetResourceBindingDesc(I, ShaderBindDesc));
+        if ShaderBindDesc._Type <> D3D10_SIT_SAMPLER then Continue;
+        s := string(ShaderBindDesc.Name);
+        N := Pos('Sampler', s);
+        if N = 0 then Continue;
+        Delete(s, N, Length('Sampler'));
+        for j := 0 to Length(Result) - 1 do
+          if Result[j].Name = s then
+            Result[j].SamplerIndex := ShaderBindDesc.BindPoint;
     end;
   end;
 

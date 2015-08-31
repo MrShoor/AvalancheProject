@@ -1139,9 +1139,11 @@ procedure TProgram.Load(const AProgram: string; FromResource: Boolean);
       Result := Nil;
       StreamReadString(Stream, blockName);
       Stream.ReadBuffer(blockSize, SizeOf(blockSize));
-      if blockSize = 0 then Exit;
-      Result := TConstantBuffer.Create(FContext);
-      Result.AllocMem(blockSize, nil);
+      if blockSize > 0 then
+      begin
+        Result := TConstantBuffer.Create(FContext);
+        Result.AllocMem(blockSize, nil);
+      end;
 
       Stream.ReadBuffer(n, SizeOf(n));
       for i := 0 to n-1 do
@@ -1149,7 +1151,7 @@ procedure TProgram.Load(const AProgram: string; FromResource: Boolean);
         StreamReadString(Stream, UName);
         UField := ObtainUniformField(UName, WasCreated);
         UField.FCB[st] := Result;
-        UField.FData[st] := Result.Ptr;
+        UField.FData[st] := nil;
 
         Stream.ReadBuffer(b, 1);
         UField.DataClass := TDataClass(b);
@@ -1159,8 +1161,13 @@ procedure TProgram.Load(const AProgram: string; FromResource: Boolean);
         Stream.ReadBuffer(UField.ElementsCount, SizeOf(UField.ElementsCount));
         Stream.ReadBuffer(Offset, SizeOf(Offset));
         case UField.DataClass of
-          dcSampler: UField.FResourceIndex[st] := Offset;
+          dcSampler:
+            begin
+              UField.FCB[st] := nil;
+              UField.FResourceIndex[st] := Offset;
+            end
         else
+          UField.FData[st] := Result.Ptr;
           if Offset > 0 then
             Inc(UField.FData[st], Offset);
         end;
@@ -1431,6 +1438,21 @@ begin
   resview := dxtex.GetResView;
   SamplerState := FContext.ObtainSamplerState(Sampler);
   DXField.SetResource(resview, SamplerState);
+
+  if DXField.FResourceIndex[stVertex]>=0 then
+    FContext.FDeviceContext.VSSetShaderResources(DXField.FResourceIndex[stVertex], 1, @resview);
+  if DXField.FSamplerIndex[stVertex]>=0 then
+    FContext.FDeviceContext.VSSetSamplers(DXField.FSamplerIndex[stVertex], 1, @SamplerState);
+
+  if DXField.FResourceIndex[stGeometry]>=0 then
+      FContext.FDeviceContext.GSSetShaderResources(DXField.FResourceIndex[stGeometry], 1, @resview);
+  if DXField.FSamplerIndex[stGeometry]>=0 then
+      FContext.FDeviceContext.GSSetSamplers(DXField.FSamplerIndex[stGeometry], 1, @SamplerState);
+
+  if DXField.FResourceIndex[stFragment]>=0 then
+    FContext.FDeviceContext.PSSetShaderResources(DXField.FResourceIndex[stFragment], 1, @resview);
+  if DXField.FSamplerIndex[stFragment]>=0 then
+    FContext.FDeviceContext.PSSetSamplers(DXField.FSamplerIndex[stFragment], 1, @SamplerState);
 end;
 
 procedure TProgram.Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode;
