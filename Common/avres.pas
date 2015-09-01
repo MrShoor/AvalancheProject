@@ -345,15 +345,18 @@ type
                         V_Matrix,
                         V_InverseMatrix,
                         P_Matrix,
-                        P_InverseMatrix);
+                        P_InverseMatrix,
+                        FBOFlip);
   private
     FSrc: string;
+    FSrcPath: string;
     FFromRes: Boolean;
     FProgram : IctxProgram;
 
     FUniformsMatrices     : array [TUniformMatrices] of TUniformField;
     FCameraUpdateID       : Int64;
     FProjectionUpdateID   : Int64;
+    FFlipUpdated          : Boolean;
 
     FDefaultPrimType: TPrimitiveType;
     FDefaultCullMode: TCullingMode;
@@ -394,7 +397,7 @@ type
     procedure SetUniform (const AName: string; const m: TMat4);           overload;
     procedure SetUniform (const AName: string; const tex: TavTexture; const sampler: TSamplerInfo); overload;
 
-    procedure LoadFromJSON(const AProgram: string; FromResource: boolean = false); overload;
+    procedure LoadFromJSON(const AProgram: string; FromResource: boolean = false; const AProgramPath: string = ''); overload;
 
     procedure Draw(InstanceCount: Integer = 0;
                    Start: integer = 0; Count: integer = - 1;
@@ -1617,16 +1620,26 @@ begin
   inherited BeforeFree3D;
   if Assigned(FProgram) then Invalidate;
   FProgram := nil;
+  FCameraUpdateID := -1;
+  FProjectionUpdateID := -1;
+  FFlipUpdated := False;
 end;
 
 function TavProgram.DoBuild: Boolean;
 var
   i: TUniformMatrices;
   pInfo: PTypeInfo;
+  newSrc: String;
 begin
   if not Assigned(FProgram) then
     FProgram := Main.Context.CreateProgram;
-  FProgram.Load(FSrc, FFromRes);
+
+  if FFromRes then
+    newSrc := API_Prefix[Main.ActiveApi] + FSrc
+  else
+    newSrc := FSrcPath+'\'+API_Prefix[Main.ActiveApi]+FSrc+API_Suffix[Main.ActiveApi];
+
+  FProgram.Load(newSrc, FFromRes);
 
   pInfo := TypeInfo(TUniformMatrices);
   for i := Low(TUniformMatrices) to High(TUniformMatrices) do
@@ -1645,6 +1658,8 @@ begin
   MValid[P_InverseMatrix]  := MValid[P_Matrix];
   MValid[VP_Matrix]        := MValid[V_Matrix] and MValid[P_Matrix];
   MValid[VP_InverseMatrix] := MValid[VP_Matrix];
+  MValid[FBOFlip] := FFlipUpdated;
+
   for i := Low(TUniformMatrices) to High(TUniformMatrices) do
     if (not MValid[i]) and Assigned(FUniformsMatrices[i]) then
     case i of
@@ -1654,7 +1669,14 @@ begin
       V_InverseMatrix : SetUniform(FUniformsMatrices[i], Main.Camera.uMatrix);
       P_Matrix        : SetUniform(FUniformsMatrices[i], Main.Projection.Matrix);
       P_InverseMatrix : SetUniform(FUniformsMatrices[i], Main.Projection.uMatrix);
+      FBOFlip         : if Main.ActiveApi = apiOGL then
+                          SetUniform(FUniformsMatrices[i], Vec(1.0,-1.0))
+                        else
+                          SetUniform(FUniformsMatrices[i], Vec(1.0, 1.0));
     end;
+  FCameraUpdateID := Main.Camera.UpdateID;
+  FProjectionUpdateID := Main.Projection.UpdateID;
+  FFlipUpdated := True;
 end;
 
 procedure TavProgram.Select;
@@ -1807,10 +1829,14 @@ begin
   FProgram.SetUniform(GetUniformField(AName), tex.FTexH, sampler);
 end;
 
-procedure TavProgram.LoadFromJSON(const AProgram: string; FromResource: boolean);
+procedure TavProgram.LoadFromJSON(const AProgram: string; FromResource: boolean; const AProgramPath: string = '');
 begin
   FSrc := AProgram;
   FFromRes := FromResource;
+  FSrcPath := AProgramPath;
+  FCameraUpdateID := -1;
+  FProjectionUpdateID := -1;
+  FFlipUpdated := False;
   Invalidate;
 end;
 

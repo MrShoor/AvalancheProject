@@ -191,7 +191,7 @@ var vert: IVerticesData;
 begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
-  FMain.Init3D();
+  FMain.Init3D(apiOGL);
 //  FMain.Camera.Eye := Vec(-16, 14, -20);
   FMain.Camera.Eye := Vec(-14, 0, 0);
   FMain.Projection.FarPlane := 500.0;
@@ -201,11 +201,11 @@ begin
   FWOIT_FrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA16f, TTextureFormat.R16f]);
 
   FClassic_Program := TavProgram.Create(FMain);
-  FClassic_Program.LoadFromJSON('OGL_Classic', True);
+  FClassic_Program.LoadFromJSON('Classic', True);
   FWOIT_AccumProgram := TavProgram.Create(FMain);
-  FWOIT_AccumProgram.LoadFromJSON('OGL_WOIT_Accum', True);
+  FWOIT_AccumProgram.LoadFromJSON('WOIT_Accum', True);
   FWOIT_ResolveProgram := TavProgram.Create(FMain);
-  FWOIT_ResolveProgram.LoadFromJSON('OGL_WOIT_Resolve', True);
+  FWOIT_ResolveProgram.LoadFromJSON('WOIT_Resolve', True);
 
   GenCube(H, H, H, 0, 0, vert, ind);
 
@@ -302,7 +302,7 @@ begin
     if cbSorted.Checked then
     begin
       //classic OVER blending with back-to-front sort
-      FMain.States.Blending := True;
+      FMain.States.Blending[AllTargets] := True;
       FMain.States.SetBlendFunctions(bfSrcAlpha, bfInvSrcAlpha);
 
       FClassic_FrameBuffer.FrameRect := RectI(0, 0, ClientWidth, ClientHeight);
@@ -323,7 +323,7 @@ begin
       FWOIT_FrameBuffer.FrameRect := RectI(0, 0, ClientWidth, ClientHeight);
       FWOIT_FrameBuffer.Select();
 
-      FMain.States.Blending := True;
+      FMain.States.Blending[AllTargets] := True;
       FMain.States.SetBlendFunctions(bfOne, bfOne, 0); //accum buffer
       FMain.States.SetBlendFunctions(bfDstColor, bfZero, 1); //product buffer
 

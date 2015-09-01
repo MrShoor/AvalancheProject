@@ -1,4 +1,5 @@
 #include "hlsl.h"
+#include "matrices.h"
 
 float4 FrameTexRect;
 
@@ -14,6 +15,6 @@ struct VS_Output {
 VS_Output VS(VS_Input In) {
     VS_Output Out;
     Out.Pos = float4(In.vsCoord, 0.5, 1.0);
-    Out.TexCrd = lerp(FrameTexRect.xy, FrameTexRect.zw, In.vsCoord*0.5 + 0.5);
+    Out.TexCrd = lerp(FrameTexRect.xy, FrameTexRect.zw, In.vsCoord*float2(0.5,-0.5)*FBOFlip + 0.5);
     return Out;
 }

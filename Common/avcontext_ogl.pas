@@ -549,6 +549,8 @@ type
         GL_ONE,                 // bfOne
         GL_SRC_ALPHA,           // bfSrcAlpha
         GL_ONE_MINUS_SRC_ALPHA, // bfInvSrcAlpha
+        GL_DST_ALPHA,           // bfDstAlpha
+        GL_ONE_MINUS_DST_ALPHA, // bfInvDstAlpha
         GL_SRC_COLOR,           // bfSrcColor
         GL_DST_COLOR            // bfDstColor
       );
@@ -564,14 +566,14 @@ type
     FNearFarClamp : Boolean;
     FBlendSrc     : array [0..MAX_RENDER_TARGET_COUNT-1] of TBlendFunc;
     FBlendDest    : array [0..MAX_RENDER_TARGET_COUNT-1] of TBlendFunc;
-    FBlending     : Boolean;
+    FBlending     : array [0..MAX_RENDER_TARGET_COUNT-1] of Boolean;
     FViewport     : TRectI;
     FWireframe    : Boolean;
     FScissor      : Boolean;
     FStencil      : Boolean;
-    function GetBlendSrc(RenderTargetIndex: Integer = 0): TBlendFunc;
-    function GetBlendDest(RenderTargetIndex: Integer = 0): TBlendFunc;
-    function GetBlending: Boolean;
+    function GetBlendSrc (RenderTargetIndex: Integer = AllTargets): TBlendFunc;
+    function GetBlendDest(RenderTargetIndex: Integer = AllTargets): TBlendFunc;
+    function GetBlending (RenderTargetIndex: Integer = AllTargets): Boolean;
     function GetColorWrite: Boolean;
     function GetCullMode: TCullingMode;
     function GetDepthFunc: TCompareFunc;
@@ -590,11 +592,11 @@ type
     procedure SetDepthWrite(const Value: Boolean);
     procedure SetDepthFunc(const Value: TCompareFunc);
     procedure SetNearFarClamp(const Value: Boolean);
-    procedure SetBlending(const Value: Boolean);
+    procedure SetBlending(RenderTargetIndex: Integer; const Value : Boolean);
     procedure SetViewport(const Value: TRectI);
     procedure SetWireframe(const Value: Boolean);
   public
-    procedure SetBlendFunctions(Src, Dest: TBlendFunc; RenderTargetIndex: Integer = 0);
+    procedure SetBlendFunctions(Src, Dest: TBlendFunc; RenderTargetIndex: Integer = AllTargets);
 
     constructor Create(AContext: TContext_OGL);
 
@@ -1259,17 +1261,19 @@ end;
 
 function TStates_OGL.GetBlendSrc(RenderTargetIndex: Integer): TBlendFunc;
 begin
+  if RenderTargetIndex = AllTargets then RenderTargetIndex := 0;
   Result := FBlendSrc[RenderTargetIndex];
 end;
 
 function TStates_OGL.GetBlendDest(RenderTargetIndex: Integer): TBlendFunc;
 begin
+  if RenderTargetIndex = AllTargets then RenderTargetIndex := 0;
   Result := FBlendDest[RenderTargetIndex];
 end;
 
-function TStates_OGL.GetBlending: Boolean;
+function TStates_OGL.GetBlending(RenderTargetIndex: Integer = AllTargets): Boolean;
 begin
-  Result := FBlending;
+  Result := FBlending[max(0, RenderTargetIndex)];
 end;
 
 function TStates_OGL.GetColorWrite: Boolean;
@@ -1413,15 +1417,30 @@ begin
   end;
 end;
 
-procedure TStates_OGL.SetBlending(const Value: Boolean);
+procedure TStates_OGL.SetBlending(RenderTargetIndex: Integer; const Value : Boolean);
+var at: Boolean;
 begin
-  if (FBlending <> Value) and FContext.Binded Then
+  if RenderTargetIndex = AllTargets then
   begin
-    FBlending := Value;
-    if FBlending then
-      glEnable(GL_BLEND)
+    at := True;
+    RenderTargetIndex := 0;
+  end
+  else
+    at := False;
+
+  if (Value <> FBlending[RenderTargetIndex]) and FContext.Binded then
+  begin
+    FBlending[RenderTargetIndex] := Value;
+    if at then
+      if Value then
+        glEnable(GL_BLEND)
+      else
+        glDisable(GL_BLEND)
     else
-      glDisable(GL_BLEND);
+      if Value then
+        glEnablei(RenderTargetIndex, GL_BLEND)
+      else
+        glDisablei(RenderTargetIndex, GL_BLEND);
   end;
 end;
 
@@ -1450,12 +1469,24 @@ begin
 end;
 
 procedure TStates_OGL.SetBlendFunctions(Src, Dest: TBlendFunc; RenderTargetIndex: Integer);
+var at: Boolean;
 begin
+  if RenderTargetIndex = AllTargets then
+  begin
+    at := True;
+    RenderTargetIndex := 0;
+  end
+  else
+    at := False;
+
   if ( (Src <> FBlendSrc[RenderTargetIndex]) or (Dest <> FBlendDest[RenderTargetIndex]) ) and FContext.Binded then
   begin
     FBlendSrc[RenderTargetIndex] := Src;
     FBlendDest[RenderTargetIndex] := Dest;
-    glBlendFunci( RenderTargetIndex, GLBlendFunction[Src], GLBlendFunction[Dest] );
+    if at then
+      glBlendFunc( GLBlendFunction[Src], GLBlendFunction[Dest] )
+    else
+      glBlendFunci( RenderTargetIndex, GLBlendFunction[Src], GLBlendFunction[Dest] );
   end;
 end;
 
@@ -1513,7 +1544,8 @@ begin
   FNearFarClamp := False;
 
   glGetBooleanv(GL_BLEND, @gb);
-  FBlending := gb;
+  for i := 0 to MAX_RENDER_TARGET_COUNT - 1 do
+    FBlending[i] := gb;
 
   //GL_BLEND_FUNC    not defined at glGet??
   for i := 0 to MAX_RENDER_TARGET_COUNT - 1 do

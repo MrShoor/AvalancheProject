@@ -8,7 +8,7 @@ struct PS_Input {
 };
 
 struct PS_Output {
-    float4 Color : COLOR;
+    float4 Color : SV_Target;
 };
 
 Texture2D Diffuse; SamplerState DiffuseSampler;

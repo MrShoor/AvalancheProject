@@ -45,7 +45,7 @@ type
     procedure SetFrameBuffer(const AObject: TObject); //TFrameBuffer
     function ObtainSamplerState(const ASampler: TSamplerInfo): ID3D11SamplerState;
   public
-    procedure UpdateStates; // ToDo: impl UpdateStates
+    procedure UpdateStates;
 
     function CreateVertexBuffer : IctxVetexBuffer;
     function CreateIndexBuffer : IctxIndexBuffer;
@@ -291,11 +291,15 @@ type
 
   TStates = class (TNoRefObject, IRenderStates)
   private
+    const DXCullMode : array [TCullingMode] of D3D11_CULL_MODE = (D3D11_CULL_NONE, D3D11_CULL_BACK, D3D11_CULL_FRONT);
+
     const DXBlend : array [TBlendFunc] of D3D11_BLEND = (
       D3D11_BLEND_ZERO,         // bfZero
       D3D11_BLEND_ONE,          // bfOne
       D3D11_BLEND_SRC_ALPHA,    // bfSrcAlpha
       D3D11_BLEND_INV_SRC_ALPHA,// bfInvSrcAlpha
+      D3D11_BLEND_DEST_ALPHA,    // bfDstAlpha
+      D3D11_BLEND_INV_DEST_ALPHA,// bfInvDstAlpha
       D3D11_BLEND_SRC_COLOR,    // bfSrcColor
       D3D11_BLEND_DEST_COLOR    // bfDstColor
     );
@@ -380,9 +384,9 @@ type
     procedure UpdateDepthState;
   protected
     // getters/setters
-    function GetBlendSrc (RenderTargetIndex: Integer = 0) : TBlendFunc;
-    function GetBlendDest(RenderTargetIndex: Integer = 0) : TBlendFunc;
-    function GetBlending               : Boolean;
+    function GetBlendSrc (RenderTargetIndex: Integer = AllTargets): TBlendFunc;
+    function GetBlendDest(RenderTargetIndex: Integer = AllTargets): TBlendFunc;
+    function GetBlending (RenderTargetIndex: Integer = AllTargets): Boolean;
     function GetColorWrite             : Boolean;
     function GetCullMode               : TCullingMode;
     function GetDepthFunc              : TCompareFunc;
@@ -401,13 +405,13 @@ type
     procedure SetDepthWrite            (const Value : Boolean);
     procedure SetDepthFunc             (const Value : TCompareFunc);
     procedure SetNearFarClamp          (const Value : Boolean);
-    procedure SetBlending              (const Value : Boolean);
+    procedure SetBlending              (RenderTargetIndex: Integer; const Value : Boolean);
     procedure SetViewport              (const Value : TRectI);
     procedure SetWireframe             (const Value : Boolean);
     procedure SetScissor(Enabled : Boolean; const Value : TRect);
     procedure SetStencil(Enabled : Boolean; StencilFunc : TCompareFunc; Ref : Integer; Mask : Byte; sFail, dFail, dPass : TStencilAction);
 
-    procedure SetBlendFunctions(Src, Dest : TBlendFunc; RenderTargetIndex: Integer = 0);
+    procedure SetBlendFunctions(Src, Dest : TBlendFunc; RenderTargetIndex: Integer = AllTargets);
 
     // getters/setters
     property Viewport               : TRectI       read GetViewport               write SetViewport;
@@ -417,7 +421,7 @@ type
     property LineWidth              : Single       read GetLineWidth              write SetLineWidth;
     property VertexProgramPointSize : Boolean      read GetVertexProgramPointSize write SetVertexProgramPointSize;
 
-    property Blending               : Boolean      read GetBlending               write SetBlending;
+    property Blending [RenderTargetIndex: Integer] : Boolean      read GetBlending  write SetBlending;
     property BlendSrc [RenderTargetIndex: Integer] : TBlendFunc   read GetBlendSrc;
     property BlendDest[RenderTargetIndex: Integer] : TBlendFunc   read GetBlendDest;
 
@@ -1506,7 +1510,7 @@ begin
   FRDescDirty := True;
   FRDesc.FillMode := D3D11_FILL_SOLID;
   FRDesc.CullMode := D3D11_CULL_BACK;
-  FRDesc.FrontCounterClockwise := False;
+  FRDesc.FrontCounterClockwise := True;
   FRDesc.DepthBias := 0;
   FRDesc.DepthBiasClamp := 0;
   FRDesc.SlopeScaledDepthBias := 0;
@@ -1517,7 +1521,7 @@ begin
 
   FDDescDirty := True;
   // Depth test parameters
-  FDDesc.DepthEnable := True;
+  FDDesc.DepthEnable := False;
   FDDesc.DepthWriteMask := D3D11_DEPTH_WRITE_MASK_ALL;
   FDDesc.DepthFunc := D3D11_COMPARISON_LESS;
   // Stencil test parameters
@@ -1554,7 +1558,7 @@ begin
   begin
     if not FBlendStates.TryGetValue(FBDesc, State) then
     begin
-      FContext.FDevice.CreateBlendState(FBDesc, State);
+      Check3DError( FContext.FDevice.CreateBlendState(FBDesc, State) );
       FBlendStates.Add(FBDesc, State);
     end;
     if FBlendStateLast <> State then
@@ -1607,17 +1611,35 @@ end;
 
 function TStates.GetBlendSrc(RenderTargetIndex: Integer): TBlendFunc;
 begin
-
+  case FBDesc.RenderTarget[max(0, RenderTargetIndex)].SrcBlend of
+    D3D11_BLEND_ZERO: Result := bfZero;
+    D3D11_BLEND_ONE: Result := bfOne;
+    D3D11_BLEND_SRC_COLOR: Result := bfSrcColor;
+    D3D11_BLEND_SRC_ALPHA: Result := bfSrcAlpha;
+    D3D11_BLEND_INV_SRC_ALPHA: Result := bfInvSrcAlpha;
+    D3D11_BLEND_DEST_COLOR: Result := bfDstColor;
+  else
+    Assert(False, 'not implemented yet');
+  end;
 end;
 
 function TStates.GetBlendDest(RenderTargetIndex: Integer): TBlendFunc;
 begin
-
+  case FBDesc.RenderTarget[max(0, RenderTargetIndex)].DestBlend of
+    D3D11_BLEND_ZERO: Result := bfZero;
+    D3D11_BLEND_ONE: Result := bfOne;
+    D3D11_BLEND_SRC_COLOR: Result := bfSrcColor;
+    D3D11_BLEND_SRC_ALPHA: Result := bfSrcAlpha;
+    D3D11_BLEND_INV_SRC_ALPHA: Result := bfInvSrcAlpha;
+    D3D11_BLEND_DEST_COLOR: Result := bfDstColor;
+  else
+    Assert(False, 'not implemented yet');
+  end;
 end;
 
-function TStates.GetBlending: Boolean;
+function TStates.GetBlending(RenderTargetIndex: Integer = AllTargets): Boolean;
 begin
-
+  Result := FBDesc.RenderTarget[max(0, RenderTargetIndex)].BlendEnable;
 end;
 
 function TStates.GetColorWrite: Boolean;
@@ -1627,7 +1649,11 @@ end;
 
 function TStates.GetCullMode: TCullingMode;
 begin
-
+  case FRDesc.CullMode of
+    D3D11_CULL_NONE: Result := cmNone;
+    D3D11_CULL_FRONT: Result := cmFront;
+    D3D11_CULL_BACK: Result := cmBack;
+  end;
 end;
 
 function TStates.GetDepthFunc: TCompareFunc;
@@ -1672,7 +1698,8 @@ end;
 
 procedure TStates.SetCullMode(const Value: TCullingMode);
 begin
-
+  FRDescDirty := FRDescDirty or (FRDesc.CullMode <> DXCullMode[Value]);
+  FRDesc.CullMode := DXCullMode[Value];
 end;
 
 procedure TStates.SetLineWidth(const Value: Single);
@@ -1710,9 +1737,22 @@ begin
 
 end;
 
-procedure TStates.SetBlending(const Value: Boolean);
+procedure TStates.SetBlending(RenderTargetIndex: Integer; const Value : Boolean);
+var i: Integer;
 begin
-
+  if RenderTargetIndex = AllTargets then
+  begin
+    for i := 0 to Length(FBDesc.RenderTarget) - 1 do
+    begin
+      FBDescDirty := FBDescDirty or (FBDesc.RenderTarget[i].BlendEnable <> Value);
+      FBDesc.RenderTarget[i].BlendEnable := Value;
+    end;
+  end
+  else
+  begin
+    FBDescDirty := FBDescDirty or (FBDesc.RenderTarget[RenderTargetIndex].BlendEnable <> Value);
+    FBDesc.RenderTarget[RenderTargetIndex].BlendEnable := Value;
+  end;
 end;
 
 procedure TStates.SetViewport(const Value: TRectI);
@@ -1736,10 +1776,58 @@ begin
 
 end;
 
-procedure TStates.SetBlendFunctions(Src, Dest: TBlendFunc;
-  RenderTargetIndex: Integer);
+procedure TStates.SetBlendFunctions(Src, Dest: TBlendFunc; RenderTargetIndex: Integer);
+var i: Integer;
 begin
+  if RenderTargetIndex = AllTargets then
+  begin
+    for i := 0 to Length(FBDesc.RenderTarget) - 1 do
+    begin
+      FBDescDirty := FBDescDirty or
+                     (FBDesc.RenderTarget[i].SrcBlend <> DXBlend[Src]) or
+                     (FBDesc.RenderTarget[i].DestBlend <> DXBlend[Dest]);
+      FBDesc.RenderTarget[i].SrcBlend := DXBlend[Src];
+      FBDesc.RenderTarget[i].DestBlend := DXBlend[Dest];
 
+      // ToDo separate alpha blendstate
+      case Src of
+        bfDstColor : FBDesc.RenderTarget[i].SrcBlendAlpha := DXBlend[bfDstAlpha];
+        bfSrcColor : FBDesc.RenderTarget[i].SrcBlendAlpha := DXBlend[bfSrcAlpha];
+      else
+        FBDesc.RenderTarget[i].SrcBlendAlpha := FBDesc.RenderTarget[i].SrcBlend;
+      end;
+
+      case Dest of
+        bfDstColor : FBDesc.RenderTarget[i].DestBlendAlpha := DXBlend[bfDstAlpha];
+        bfSrcColor : FBDesc.RenderTarget[i].DestBlendAlpha := DXBlend[bfSrcAlpha];
+      else
+        FBDesc.RenderTarget[i].DestBlendAlpha := FBDesc.RenderTarget[i].DestBlend;
+      end;
+    end;
+  end
+  else
+  begin
+    FBDescDirty := FBDescDirty or
+                   (FBDesc.RenderTarget[RenderTargetIndex].SrcBlend <> DXBlend[Src]) or
+                   (FBDesc.RenderTarget[RenderTargetIndex].DestBlend <> DXBlend[Dest]);
+    FBDesc.RenderTarget[RenderTargetIndex].SrcBlend := DXBlend[Src];
+    FBDesc.RenderTarget[RenderTargetIndex].DestBlend := DXBlend[Dest];
+
+    // ToDo separate alpha blendstate
+    case Src of
+      bfDstColor : FBDesc.RenderTarget[RenderTargetIndex].SrcBlendAlpha := DXBlend[bfDstAlpha];
+      bfSrcColor : FBDesc.RenderTarget[RenderTargetIndex].SrcBlendAlpha := DXBlend[bfSrcAlpha];
+    else
+      FBDesc.RenderTarget[RenderTargetIndex].SrcBlendAlpha := FBDesc.RenderTarget[RenderTargetIndex].SrcBlend;
+    end;
+
+    case Dest of
+      bfDstColor : FBDesc.RenderTarget[RenderTargetIndex].DestBlendAlpha := DXBlend[bfDstAlpha];
+      bfSrcColor : FBDesc.RenderTarget[RenderTargetIndex].DestBlendAlpha := DXBlend[bfSrcAlpha];
+    else
+      FBDesc.RenderTarget[RenderTargetIndex].DestBlendAlpha := FBDesc.RenderTarget[RenderTargetIndex].DestBlend;
+    end;
+  end;
 end;
 
 constructor TStates.Create(AContext: TContext_DX11);
@@ -2290,14 +2378,14 @@ begin
   FBackBuffer := nil;
 
   FDeviceContext.ClearState;
-  //TD3D10States(FStatesObj).InvalidateAllStates;
+  TStates(FStates).InvalidateAllStates;
   FSwapChain.ResizeBuffers(SwapChainDesc.BufferCount, AWidth, AHeight, SwapChainDesc.BufferDesc.Format, SwapChainDesc.Flags);
 
   Check3DError(FSwapChain.GetBuffer(0, ID3D11Texture2D, FBackBuffer));
   Check3DError(FDevice.CreateRenderTargetView(FBackBuffer, nil, FRenderTarget));
 
   FDeviceContext.OMSetRenderTargets(1, @FRenderTarget, nil);
-  //FDevice.IASetPrimitiveTopology(D3D10PrimitiveType[FPrimTopology]);
+  //FDeviceContext.IASetPrimitiveTopology(DXPrimitiveType[FPrimTopology]);
   ViewPort.TopLeftX := 0;
   ViewPort.TopLeftY := 0;
   ViewPort.Width := AWidth;
@@ -2366,7 +2454,10 @@ var Desc: TD3D11_SamplerDesc;
 begin
   if not FSamplerMap.TryGetValue(ASampler, Result) then
   begin
-    Desc.Filter := DX_Filter[ASampler.MinFilter, ASampler.MagFilter, ASampler.MipFilter];
+    if ASampler.Anisotropy > 0 then
+      Desc.Filter := D3D11_FILTER_ANISOTROPIC
+    else
+      Desc.Filter := DX_Filter[ASampler.MinFilter, ASampler.MagFilter, ASampler.MipFilter];
     Desc.AddressU := D3D11_Wrap[ASampler.Wrap_X];
     Desc.AddressV := D3D11_Wrap[ASampler.Wrap_Y];
     Desc.AddressW := D3D11_TEXTURE_ADDRESS_WRAP;
@@ -2387,7 +2478,9 @@ end;
 
 procedure TContext_DX11.UpdateStates;
 begin
-
+  TStates(FStates).UpdateBlendState;
+  TStates(FStates).UpdateRasterState;
+  TStates(FStates).UpdateDepthState;
 end;
 
 function TContext_DX11.CreateVertexBuffer: IctxVetexBuffer;
@@ -2496,6 +2589,7 @@ begin
   SwapChainDesc.OutputWindow := Wnd;
   SwapChainDesc.Windowed := True;
   SwapChainDesc.SwapEffect := DXGI_SWAP_EFFECT_DISCARD;
+  SwapChainDesc.Flags := 0;
 
   Check3DError(
     D3D11CreateDeviceAndSwapChain(nil,

@@ -34,6 +34,9 @@ const
 
   SETSIZE_IN_BYTES = 4;
 
+const
+  AllTargets = -1;
+
 type
   TavMessage = packed record
     msg    : Cardinal;
@@ -109,7 +112,7 @@ type
   {$SCOPEDENUMS OFF}
   TTextureFilter = (tfNone, tfNearest, tfLinear);
   TTextureWrap   = (twRepeat, twMirror, twClamp, twClampToEdge);
-  TBlendFunc     = (bfZero, bfOne, bfSrcAlpha, bfInvSrcAlpha, bfSrcColor, bfDstColor);
+  TBlendFunc     = (bfZero, bfOne, bfSrcAlpha, bfInvSrcAlpha, bfDstAlpha, bfInfDstAlpha, bfSrcColor, bfDstColor);
   TCompareFunc   = (cfNever,
                     cfLess,
                     cfEqual,

@@ -6,7 +6,7 @@ struct PS_Input {
 };
 
 struct PS_Output {
-    float4 Color : COLOR;
+    float4 Color : SV_Target;
 };
 
 Texture2D Accum; SamplerState AccumSampler;
@@ -17,6 +17,5 @@ PS_Output PS(PS_Input In) {
     float4 accum = Accum.Sample(AccumSampler, In.TexCrd);
     Out.Color.rgb = accum.rgb / max(0.00001, accum.a);
     Out.Color.a = 1.0 - Product.Sample(ProductSampler, In.TexCrd).r;
-    //Out.Color =  * Product.Sample(ProductSampler, In.TexCrd).r;// * 0.01;
     return Out;
 }

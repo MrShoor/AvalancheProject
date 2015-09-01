@@ -9,7 +9,7 @@ struct PS_Input {
 };
 
 struct PS_Output {
-    float4 Color : COLOR;
+    float4 Color : SV_Target;
 };
 
 PS_Output PS(PS_Input In) {

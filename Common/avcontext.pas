@@ -139,9 +139,9 @@ type
   IRenderStates = interface
   ['{3695F390-25CC-441B-9603-F14952631C2E}']
     // getters/setters
-    function GetBlendSrc (RenderTargetIndex: Integer = 0) : TBlendFunc;
-    function GetBlendDest(RenderTargetIndex: Integer = 0) : TBlendFunc;
-    function GetBlending               : Boolean;
+    function GetBlendSrc (RenderTargetIndex: Integer = AllTargets) : TBlendFunc;
+    function GetBlendDest(RenderTargetIndex: Integer = AllTargets) : TBlendFunc;
+    function GetBlending (RenderTargetIndex: Integer = AllTargets) : Boolean;
     function GetColorWrite             : Boolean;
     function GetCullMode               : TCullingMode;
     function GetDepthFunc              : TCompareFunc;
@@ -160,13 +160,13 @@ type
     procedure SetDepthWrite            (const Value : Boolean);
     procedure SetDepthFunc             (const Value : TCompareFunc);
     procedure SetNearFarClamp          (const Value : Boolean);
-    procedure SetBlending              (const Value : Boolean);
+    procedure SetBlending              (RenderTargetIndex: Integer; const Value : Boolean);
     procedure SetViewport              (const Value : TRectI);
     procedure SetWireframe             (const Value : Boolean);
     procedure SetScissor(Enabled : Boolean; const Value : TRect);
     procedure SetStencil(Enabled : Boolean; StencilFunc : TCompareFunc; Ref : Integer; Mask : Byte; sFail, dFail, dPass : TStencilAction);
 
-    procedure SetBlendFunctions(Src, Dest : TBlendFunc; RenderTargetIndex: Integer = 0);
+    procedure SetBlendFunctions(Src, Dest : TBlendFunc; RenderTargetIndex: Integer = AllTargets);
 
     // getters/setters
     property Viewport               : TRectI       read GetViewport               write SetViewport;
@@ -176,9 +176,9 @@ type
     property LineWidth              : Single       read GetLineWidth              write SetLineWidth;
     property VertexProgramPointSize : Boolean      read GetVertexProgramPointSize write SetVertexProgramPointSize;
 
-    property Blending               : Boolean      read GetBlending               write SetBlending;
-    property BlendSrc [RenderTargetIndex: Integer] : TBlendFunc   read GetBlendSrc;
-    property BlendDest[RenderTargetIndex: Integer] : TBlendFunc   read GetBlendDest;
+    property Blending [RenderTargetIndex: Integer] : Boolean      read GetBlending write SetBlending;
+    property BlendSrc [RenderTargetIndex: Integer] : TBlendFunc   read GetBlendSrc;  //use SetBlendFunctions for set this parametrs
+    property BlendDest[RenderTargetIndex: Integer] : TBlendFunc   read GetBlendDest; //use SetBlendFunctions for set this parametrs
 
     property DepthTest              : Boolean      read GetDepthTest              write SetDepthTest;
     property DepthFunc              : TCompareFunc read GetDepthFunc              write SetDepthFunc;

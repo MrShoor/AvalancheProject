@@ -179,7 +179,7 @@ begin
   FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
 
   FProgram := TavProgram.Create(FMain);
-  FProgram.LoadFromJSON('OGL_base', True);
+  FProgram.LoadFromJSON('base', True);
 
   GenCube(H, H, H, 0, 0, vert, ind);
 
