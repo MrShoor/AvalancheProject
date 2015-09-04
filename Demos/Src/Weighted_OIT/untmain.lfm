@@ -3,11 +3,13 @@ object frmMain: TfrmMain
   Height = 510
   Top = 234
   Width = 771
-  Caption = 'frmMain'
+  Caption = 'OpenGL'
   ClientHeight = 510
   ClientWidth = 771
+  KeyPreview = True
   OnCreate = FormCreate
   OnDestroy = FormDestroy
+  OnMouseDown = FormMouseDown
   OnPaint = FormPaint
   LCLVersion = '1.4.2.0'
   object cbSorted: TCheckBox
@@ -18,5 +20,14 @@ object frmMain: TfrmMain
     Caption = 'cbSorted'
     OnChange = cbSortedChange
     TabOrder = 0
+  end
+  object Button1: TButton
+    Left = 8
+    Height = 25
+    Top = 32
+    Width = 88
+    Caption = 'Switch GAPI'
+    OnClick = Button1Click
+    TabOrder = 1
   end
 end

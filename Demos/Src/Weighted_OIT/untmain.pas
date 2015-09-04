@@ -8,7 +8,7 @@ interface
 uses
   LCLType, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
   ExtCtrls, StdCtrls, avRes, avTypes, avTess, avContnrs, mutils,
-  avCameraController, Math;
+  avCameraController, Math, ContextSwitcher;
 
 type
 
@@ -46,10 +46,14 @@ type
   { TfrmMain }
 
   TfrmMain = class(TForm)
+    Button1: TButton;
     cbSorted: TCheckBox;
+    procedure Button1Click(Sender: TObject);
     procedure cbSortedChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure FormMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
     procedure FormPaint(Sender: TObject);
   private
     FMain: TavMainRender;
@@ -66,6 +70,8 @@ type
     FWOIT_FrameBuffer: TavFrameBuffer;
     FWOIT_AccumProgram: TavProgram;
     FWOIT_ResolveProgram: TavProgram;
+
+    FContextSwitcher: TavContextSwitcher;
   private
     function GenCubeInstances(ZSorted: Boolean = False): IVerticesData; overload;
     function GenCubeInstances(const RangeMin, RangeMax: TVec3I; ZSorted: Boolean = False): IVerticesData; overload;
@@ -191,7 +197,10 @@ var vert: IVerticesData;
 begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
-  FMain.Init3D(apiOGL);
+  FMain.Init3D();
+
+  FContextSwitcher := TavContextSwitcher.Create(FMain, False);
+
 //  FMain.Camera.Eye := Vec(-16, 14, -20);
   FMain.Camera.Eye := Vec(-14, 0, 0);
   FMain.Projection.FarPlane := 500.0;
@@ -232,9 +241,24 @@ begin
   Invalidate;
 end;
 
+procedure TfrmMain.Button1Click(Sender: TObject);
+begin
+  FContextSwitcher.SwitchContext;
+  case FMain.ActiveApi of
+    apiOGL: Caption := 'OpenGL';
+    apiDX11: Caption := 'DirectX';
+  end;
+end;
+
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
   FreeAndNil(FMain);
+end;
+
+procedure TfrmMain.FormMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  SetFocus;
 end;
 
 procedure TfrmMain.FormPaint(Sender: TObject);

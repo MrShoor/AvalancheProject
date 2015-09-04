@@ -7,8 +7,8 @@ interface
 
 uses
   LCLType, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, StdCtrls, avRes, avTypes, avTess, avContnrs, mutils,
-  avCameraController, avTexLoader;
+  ExtCtrls, avRes, avTypes, avTess, avContnrs, mutils,
+  avCameraController, avTexLoader, ContextSwitcher;
 
 type
 
@@ -26,9 +26,6 @@ type
   { TfrmMain }
 
   TfrmMain = class(TForm)
-    Panel1: TPanel;
-    cbDX: TRadioButton;
-    cbOGL: TRadioButton;
     procedure cbDXChange(Sender: TObject);
     procedure cbOGLChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -43,8 +40,6 @@ type
     FTexture: TavTexture;
 
     FFrameBuffer: TavFrameBuffer;
-
-    procedure Sync3DApi;
   public
     procedure EraseBackground(DC: HDC); override;
     procedure RenderScene;
@@ -142,10 +137,12 @@ var vert: IVerticesData;
 begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
-//  FMain.Init3D(apiDX11);
+  FMain.Init3D();
   FMain.Camera.Eye := Vec(-1.6, 1.4,-2.0);
   FMain.Projection.FarPlane := 10.0;
   FMain.Projection.NearPlane := 0.1;
+
+  TavContextSwitcher.Create(FMain);
 
   FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
 
@@ -192,22 +189,6 @@ begin
   RenderScene;
 end;
 
-procedure TfrmMain.Sync3DApi;
-var targetAPI: T3DAPI;
-begin
-  if cbOGL.Checked then
-    targetAPI := apiOGL
-  else
-    targetAPI := apiDX11;
-
-  if FMain.Inited3D then
-    if FMain.ActiveApi <> targetAPI then
-      FMain.Free3D;
-
-  if not FMain.Inited3D then
-      FMain.Init3D(targetAPI);
-end;
-
 procedure TfrmMain.EraseBackground(DC: HDC);
 begin
   //inherited EraseBackground(DC);
@@ -216,7 +197,6 @@ end;
 procedure TfrmMain.RenderScene;
 begin
   if FMain = nil then Exit;
-  Sync3DApi;
   if FMain.Bind then
   try
     FMain.States.DepthTest := True;

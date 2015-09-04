@@ -66,6 +66,7 @@ type
                           depth  : Single = 1; doDepth  : Boolean = False;
                           stencil: Byte   = 0; doStencil: Boolean = False);
     procedure Present;
+    procedure InvalidateWindow;
 
     property Window: TWindow read GetWindow write SetWindow;
     property ActiveProgram: TavProgram read GetActiveProgram write SetActiveProgram;
@@ -1428,6 +1429,11 @@ procedure TavMainRender.Present;
 begin
   FContext.Present;
   Inc(FFrameID);
+end;
+
+procedure TavMainRender.InvalidateWindow;
+begin
+  avPlatform.InvalidateWindow(FWindow, False);
 end;
 
 procedure TavMainRender.Dispatch(var message);

@@ -7,7 +7,8 @@ interface
 
 uses
   LCLType, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, avRes, avTypes, avTess, avContnrs, mutils, avCameraController;
+  ExtCtrls, avRes, avTypes, avTess, avContnrs, mutils, avCameraController,
+  ContextSwitcher;
 
 type
 
@@ -175,6 +176,8 @@ begin
   FMain.Camera.Eye := Vec(-16, 14, -20);
   FMain.Projection.FarPlane := 300.0;
   FMain.Projection.NearPlane := 0.1;
+
+  TavContextSwitcher.Create(FMain);
 
   FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
 
