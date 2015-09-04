@@ -136,55 +136,54 @@ type
     procedure BlitToWindow(index: Integer; const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
   end;
 
+  { IRenderStates }
+
   IRenderStates = interface
   ['{3695F390-25CC-441B-9603-F14952631C2E}']
     // getters/setters
     function GetBlendSrc (RenderTargetIndex: Integer = AllTargets) : TBlendFunc;
     function GetBlendDest(RenderTargetIndex: Integer = AllTargets) : TBlendFunc;
     function GetBlending (RenderTargetIndex: Integer = AllTargets) : Boolean;
-    function GetColorWrite             : Boolean;
+    function GetColorMask(RenderTargetIndex: Integer = AllTargets) : TColorMask;
     function GetCullMode               : TCullingMode;
     function GetDepthFunc              : TCompareFunc;
     function GetDepthTest              : Boolean;
     function GetDepthWrite             : Boolean;
-    function GetLineWidth              : Single;
     function GetNearFarClamp           : Boolean;
-    function GetVertexProgramPointSize : Boolean;
     function GetViewport               : TRectI;
+    function GetScissor                : TRectI;
+    function GetScissorTest            : Boolean;
     function GetWireframe              : Boolean;
     procedure SetCullMode              (const Value : TCullingMode);
-    procedure SetLineWidth             (const Value : Single);
-    procedure SetVertexProgramPointSize(const Value : Boolean);
-    procedure SetColorWrite            (const Value : Boolean);
     procedure SetDepthTest             (const Value : Boolean);
     procedure SetDepthWrite            (const Value : Boolean);
     procedure SetDepthFunc             (const Value : TCompareFunc);
     procedure SetNearFarClamp          (const Value : Boolean);
     procedure SetBlending              (RenderTargetIndex: Integer; const Value : Boolean);
+    procedure SetColorMask             (RenderTargetIndex: Integer; const Value : TColorMask);
     procedure SetViewport              (const Value : TRectI);
+    procedure SetScissor               (const Value : TRectI);
+    procedure SetScissorTest           (const Value : Boolean);
     procedure SetWireframe             (const Value : Boolean);
-    procedure SetScissor(Enabled : Boolean; const Value : TRect);
     procedure SetStencil(Enabled : Boolean; StencilFunc : TCompareFunc; Ref : Integer; Mask : Byte; sFail, dFail, dPass : TStencilAction);
-
-    procedure SetBlendFunctions(Src, Dest : TBlendFunc; RenderTargetIndex: Integer = AllTargets);
-
     // getters/setters
+
     property Viewport               : TRectI       read GetViewport               write SetViewport;
+    property Scissor                : TRectI       read GetScissor                write SetScissor;
+    property SicssorTest            : Boolean      read GetScissorTest            write SetScissorTest;
 
     property Wireframe              : Boolean      read GetWireframe              write SetWireframe;
     property CullMode               : TCullingMode read GetCullMode               write SetCullMode;
-    property LineWidth              : Single       read GetLineWidth              write SetLineWidth;
-    property VertexProgramPointSize : Boolean      read GetVertexProgramPointSize write SetVertexProgramPointSize;
 
-    property Blending [RenderTargetIndex: Integer] : Boolean      read GetBlending write SetBlending;
+    property ColorMask[RenderTargetIndex: Integer] : TColorMask   read GetColorMask write SetColorMask;
+    property Blending [RenderTargetIndex: Integer] : Boolean      read GetBlending  write SetBlending;
     property BlendSrc [RenderTargetIndex: Integer] : TBlendFunc   read GetBlendSrc;  //use SetBlendFunctions for set this parametrs
     property BlendDest[RenderTargetIndex: Integer] : TBlendFunc   read GetBlendDest; //use SetBlendFunctions for set this parametrs
+    procedure SetBlendFunctions(Src, Dest : TBlendFunc; RenderTargetIndex: Integer = AllTargets);
 
     property DepthTest              : Boolean      read GetDepthTest              write SetDepthTest;
     property DepthFunc              : TCompareFunc read GetDepthFunc              write SetDepthFunc;
     property DepthWrite             : Boolean      read GetDepthWrite             write SetDepthWrite;
-    property ColorWrite             : Boolean      read GetColorWrite             write SetColorWrite;
-
     property NearFarClamp           : Boolean      read GetNearFarClamp           write SetNearFarClamp;
   end;
 

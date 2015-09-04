@@ -129,7 +129,12 @@ type
                     saDec,
                     saIncWrap,
                     saDecWrap);
+  TColorMaskComponent = (cmRed, cmGreen, cmBlue, cmAlpha);
+  TColorMask = set of TColorMaskComponent;
+Const
+  AllChanells : TColorMask = [cmRed, cmGreen, cmBlue, cmAlpha];
 
+Type
   TSamplerInfo = record
     MinFilter  : TTextureFilter;
     MagFilter  : TTextureFilter;

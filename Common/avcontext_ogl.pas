@@ -557,9 +557,6 @@ type
   private
     FContext      : TContext_OGL;
     FCullMode     : TCullingMode;
-    FLineWidth    : Single;
-    FVertexProgramPointSize: Boolean;
-    FColorWrite   : Boolean;
     FDepthWrite   : Boolean;
     FDepthTest    : Boolean;
     FDepthFunc    : TCompareFunc;
@@ -567,33 +564,35 @@ type
     FBlendSrc     : array [0..MAX_RENDER_TARGET_COUNT-1] of TBlendFunc;
     FBlendDest    : array [0..MAX_RENDER_TARGET_COUNT-1] of TBlendFunc;
     FBlending     : array [0..MAX_RENDER_TARGET_COUNT-1] of Boolean;
+    FColorMask    : array [0..MAX_RENDER_TARGET_COUNT-1] of TColorMask;
     FViewport     : TRectI;
+    FScissor      : TRectI;
+    FScissorTest  : Boolean;
     FWireframe    : Boolean;
-    FScissor      : Boolean;
     FStencil      : Boolean;
     function GetBlendSrc (RenderTargetIndex: Integer = AllTargets): TBlendFunc;
     function GetBlendDest(RenderTargetIndex: Integer = AllTargets): TBlendFunc;
     function GetBlending (RenderTargetIndex: Integer = AllTargets): Boolean;
-    function GetColorWrite: Boolean;
+    function GetColorMask(RenderTargetIndex: Integer = AllTargets): TColorMask;
     function GetCullMode: TCullingMode;
     function GetDepthFunc: TCompareFunc;
     function GetDepthTest: Boolean;
     function GetDepthWrite: Boolean;
-    function GetLineWidth: Single;
     function GetNearFarClamp: Boolean;
-    function GetVertexProgramPointSize: Boolean;
     function GetViewport: TRectI;
+    function GetScissor: TRectI;
+    function GetScissorTest: Boolean;
     function GetWireframe: Boolean;
     procedure SetCullMode(const Value: TCullingMode);
-    procedure SetLineWidth(const Value: Single);
-    procedure SetVertexProgramPointSize(const Value: Boolean);
-    procedure SetColorWrite(const Value: Boolean);
     procedure SetDepthTest(const Value: Boolean);
     procedure SetDepthWrite(const Value: Boolean);
     procedure SetDepthFunc(const Value: TCompareFunc);
     procedure SetNearFarClamp(const Value: Boolean);
+    procedure SetColorMask(RenderTargetIndex: Integer; const Value: TColorMask);
     procedure SetBlending(RenderTargetIndex: Integer; const Value : Boolean);
     procedure SetViewport(const Value: TRectI);
+    procedure SetScissor(const Value : TRectI);
+    procedure SetScissorTest(const Value : Boolean);
     procedure SetWireframe(const Value: Boolean);
   public
     procedure SetBlendFunctions(Src, Dest: TBlendFunc; RenderTargetIndex: Integer = AllTargets);
@@ -602,7 +601,6 @@ type
 
     procedure ReadDefaultStates;
 
-    procedure SetScissor(Enabled: Boolean; const Value: TRect);
     procedure SetStencil(Enabled: Boolean; StencilFunc: TCompareFunc; Ref: Integer; Mask: Byte; sFail, dFail, dPass: TStencilAction);
   end;
 
@@ -1276,9 +1274,9 @@ begin
   Result := FBlending[max(0, RenderTargetIndex)];
 end;
 
-function TStates_OGL.GetColorWrite: Boolean;
+function TStates_OGL.GetColorMask(RenderTargetIndex: Integer = AllTargets): TColorMask;
 begin
-  Result := FColorWrite;
+  Result := FColorMask[Max(0, RenderTargetIndex)];
 end;
 
 function TStates_OGL.GetCullMode: TCullingMode;
@@ -1301,24 +1299,24 @@ begin
   Result := FDepthWrite;
 end;
 
-function TStates_OGL.GetLineWidth: Single;
-begin
-  Result := FLineWidth;
-end;
-
 function TStates_OGL.GetNearFarClamp: Boolean;
 begin
   Result := FNearFarClamp;
 end;
 
-function TStates_OGL.GetVertexProgramPointSize: Boolean;
-begin
-  Result := FVertexProgramPointSize;
-end;
-
 function TStates_OGL.GetViewport: TRectI;
 begin
   Result := FViewport;
+end;
+
+function TStates_OGL.GetScissor: TRectI;
+begin
+  Result := FScissor;
+end;
+
+function TStates_OGL.GetScissorTest: Boolean;
+begin
+  Result := FScissorTest;
 end;
 
 function TStates_OGL.GetWireframe: Boolean;
@@ -1345,33 +1343,24 @@ begin
   end;
 end;
 
-procedure TStates_OGL.SetLineWidth(const Value: Single);
+procedure TStates_OGL.SetColorMask(RenderTargetIndex: Integer; const Value: TColorMask);
+var at: Boolean;
 begin
-  if (FLineWidth <> Value) and FContext.Binded then
+  if RenderTargetIndex = AllTargets then
   begin
-    FLineWidth := Value;
-    glLineWidth(Value);
-  end;
-end;
+    at := True;
+    RenderTargetIndex := 0;
+  end
+  else
+    at := False;
 
-procedure TStates_OGL.SetVertexProgramPointSize(const Value: Boolean);
-begin
-  if (FVertexProgramPointSize <> Value) and FContext.Binded then
+  if (Value <> FColorMask[RenderTargetIndex]) and FContext.Binded then
   begin
-    FVertexProgramPointSize := Value;
-    if FVertexProgramPointSize then
-      glEnable(GL_VERTEX_PROGRAM_POINT_SIZE)
+    FColorMask[RenderTargetIndex] := Value;
+    if at then
+      glColorMask(cmRed in Value, cmGreen in Value, cmBlue in Value, cmAlpha in Value)
     else
-      glDisable(GL_VERTEX_PROGRAM_POINT_SIZE);
-  end;
-end;
-
-procedure TStates_OGL.SetColorWrite(const Value: Boolean);
-begin
-  if (FColorWrite <> Value) and (FContext.Binded) then
-  begin
-    FColorWrite := Value;
-    glColorMask(FColorWrite, FColorWrite, FColorWrite, FColorWrite);
+      glColorMaski(RenderTargetIndex, cmRed in Value, cmGreen in Value, cmBlue in Value, cmAlpha in Value);
   end;
 end;
 
@@ -1456,6 +1445,30 @@ begin
   end;
 end;
 
+procedure TStates_OGL.SetScissor(const Value: TRectI);
+begin
+  if ((FScissor.Left   <> Value.Left  ) or
+      (FScissor.Top    <> Value.Top   ) or
+      (FScissor.Right  <> Value.Right ) or
+      (FScissor.Bottom <> Value.Bottom)) and FContext.Binded then
+  begin
+    FScissor := Value;
+    glScissor(FScissor.Left, FScissor.Top, FScissor.Right - FScissor.Left, FScissor.Bottom - FScissor.Top);
+  end;
+end;
+
+procedure TStates_OGL.SetScissorTest(const Value: Boolean);
+begin
+  if (FScissorTest <> Value) and FContext.Binded then
+  begin
+    FScissorTest := Value;
+    if Value then
+      glEnable(GL_SCISSOR_TEST)
+    else
+      glDisable(GL_SCISSOR_TEST);
+  end;
+end;
+
 procedure TStates_OGL.SetWireframe(const Value: Boolean);
 begin
   if Value <> FWireframe then
@@ -1512,14 +1525,19 @@ begin
   else
     FCullMode := cmNone;
 
-  glGetFloatv(GL_LINE_WIDTH, @gf);
-  FLineWidth := gf;
-
-  //GL_VERTEX_PROGRAM_POINT_SIZE    not defined at glGet??
-  FVertexProgramPointSize := False;
-
   glGetBooleanv(GL_COLOR_WRITEMASK, @colorwritemask[0]);
-  FColorWrite := colorwritemask[0];
+  for i := 0 to MAX_RENDER_TARGET_COUNT - 1 do
+  begin
+    FColorMask[i] := [];
+    if colorwritemask[0] then
+      FColorMask[i] := FColorMask[i] + [cmRed];
+    if colorwritemask[1] then
+      FColorMask[i] := FColorMask[i] + [cmGreen];
+    if colorwritemask[2] then
+      FColorMask[i] := FColorMask[i] + [cmBlue];
+    if colorwritemask[3] then
+      FColorMask[i] := FColorMask[i] + [cmAlpha];
+  end;
 
   glGetBooleanv(GL_DEPTH_TEST, @gb);
   FDepthTest := gb;
@@ -1540,6 +1558,9 @@ begin
     FDepthFunc := cfLess;
   end;
 
+  glGetBooleanv(GL_SCISSOR_TEST, @gb);
+  FScissorTest := gb;
+
   //GL_DEPTH_CLAMP    not defined at glGet??
   FNearFarClamp := False;
 
@@ -1558,26 +1579,15 @@ begin
   FViewport.Right := FViewport.Right + FViewport.Left;
   FViewport.Bottom := FViewport.Bottom + FViewport.Top;
 
+  glGetIntegerv(GL_SCISSOR_BOX, @FScissor);
+  FScissor.Right := FScissor.Right + FScissor.Left;
+  FScissor.Bottom := FScissor.Bottom + FScissor.Top;
+
   glGetIntegerv(GL_POLYGON_MODE, @gi);
   if gi = GL_LINE then
     FWireframe := True
   else
     FWireframe := False;
-end;
-
-procedure TStates_OGL.SetScissor(Enabled: Boolean; const Value: TRect);
-begin
-  if FScissor <> Enabled then
-  begin
-    FScissor := Enabled;
-    if Enabled then
-      glEnable(GL_SCISSOR_TEST)
-    else
-      glDisable(GL_SCISSOR_TEST);
-  end;
-
-  if FScissor then
-    glScissor(Value.Left, Value.Top, Value.Right - Value.Left, Value.Bottom - Value.Top);
 end;
 
 procedure TStates_OGL.SetStencil(Enabled: Boolean; StencilFunc: TCompareFunc;

@@ -320,7 +320,7 @@ type
       D3D11_COMPARISON_ALWAYS         // cfAlways
     );
 
-    const F3DDepthFunc : array [TD3D11_ComparisonFunc] of TCompareFunc = (
+    const AVDepthFunc : array [TD3D11_ComparisonFunc] of TCompareFunc = (
       cfNever,
       cfNever,        // D3D11_COMPARISON_NEVER
       cfLess,         // D3D11_COMPARISON_LESS
@@ -358,6 +358,7 @@ type
     FContext: TContext_DX11;
 
     FViewport: TRectI;
+    FScissor : TRectI;
 
     FBDesc: TD3D11_BlendDesc;
     FBDescDirty: Boolean;
@@ -387,50 +388,34 @@ type
     function GetBlendSrc (RenderTargetIndex: Integer = AllTargets): TBlendFunc;
     function GetBlendDest(RenderTargetIndex: Integer = AllTargets): TBlendFunc;
     function GetBlending (RenderTargetIndex: Integer = AllTargets): Boolean;
-    function GetColorWrite             : Boolean;
+    function GetColorMask(RenderTargetIndex: Integer = AllTargets): TColorMask;
     function GetCullMode               : TCullingMode;
     function GetDepthFunc              : TCompareFunc;
     function GetDepthTest              : Boolean;
     function GetDepthWrite             : Boolean;
-    function GetLineWidth              : Single;
     function GetNearFarClamp           : Boolean;
-    function GetVertexProgramPointSize : Boolean;
     function GetViewport               : TRectI;
+    function GetScissor                : TRectI;
+    function GetScissorTest            : Boolean;
     function GetWireframe              : Boolean;
     procedure SetCullMode              (const Value : TCullingMode);
-    procedure SetLineWidth             (const Value : Single);
-    procedure SetVertexProgramPointSize(const Value : Boolean);
-    procedure SetColorWrite            (const Value : Boolean);
     procedure SetDepthTest             (const Value : Boolean);
     procedure SetDepthWrite            (const Value : Boolean);
     procedure SetDepthFunc             (const Value : TCompareFunc);
     procedure SetNearFarClamp          (const Value : Boolean);
     procedure SetBlending              (RenderTargetIndex: Integer; const Value : Boolean);
+    procedure SetColorMask             (RenderTargetIndex: Integer; const Value : TColorMask);
     procedure SetViewport              (const Value : TRectI);
+    procedure SetScissor               (const Value : TRectI);
+    procedure SetScissorTest           (const Value : Boolean);
     procedure SetWireframe             (const Value : Boolean);
-    procedure SetScissor(Enabled : Boolean; const Value : TRect);
+
     procedure SetStencil(Enabled : Boolean; StencilFunc : TCompareFunc; Ref : Integer; Mask : Byte; sFail, dFail, dPass : TStencilAction);
-
     procedure SetBlendFunctions(Src, Dest : TBlendFunc; RenderTargetIndex: Integer = AllTargets);
-
     // getters/setters
-    property Viewport               : TRectI       read GetViewport               write SetViewport;
 
-    property Wireframe              : Boolean      read GetWireframe              write SetWireframe;
-    property CullMode               : TCullingMode read GetCullMode               write SetCullMode;
-    property LineWidth              : Single       read GetLineWidth              write SetLineWidth;
-    property VertexProgramPointSize : Boolean      read GetVertexProgramPointSize write SetVertexProgramPointSize;
-
-    property Blending [RenderTargetIndex: Integer] : Boolean      read GetBlending  write SetBlending;
-    property BlendSrc [RenderTargetIndex: Integer] : TBlendFunc   read GetBlendSrc;
-    property BlendDest[RenderTargetIndex: Integer] : TBlendFunc   read GetBlendDest;
-
-    property DepthTest              : Boolean      read GetDepthTest              write SetDepthTest;
-    property DepthFunc              : TCompareFunc read GetDepthFunc              write SetDepthFunc;
-    property DepthWrite             : Boolean      read GetDepthWrite             write SetDepthWrite;
-    property ColorWrite             : Boolean      read GetColorWrite             write SetColorWrite;
-
-    property NearFarClamp           : Boolean      read GetNearFarClamp           write SetNearFarClamp;
+    property Scissor                : TRectI       read GetScissor                write SetScissor;
+    property SicssorTest            : Boolean      read GetScissorTest            write SetScissorTest;
   public
     constructor Create(AContext: TContext_DX11);
   end;
@@ -1642,9 +1627,16 @@ begin
   Result := FBDesc.RenderTarget[max(0, RenderTargetIndex)].BlendEnable;
 end;
 
-function TStates.GetColorWrite: Boolean;
+function TStates.GetColorMask(RenderTargetIndex: Integer): TColorMask;
+var mask: Byte;
 begin
-
+  RenderTargetIndex := max(0, RenderTargetIndex);
+  mask := FBDesc.RenderTarget[RenderTargetIndex].RenderTargetWriteMask;
+  Result := [];
+  if mask and Byte(D3D11_COLOR_WRITE_ENABLE_RED)   <> 0 then Result := Result + [cmRed];
+  if mask and Byte(D3D11_COLOR_WRITE_ENABLE_GREEN) <> 0 then Result := Result + [cmGreen];
+  if mask and Byte(D3D11_COLOR_WRITE_ENABLE_BLUE)  <> 0 then Result := Result + [cmBlue];
+  if mask and Byte(D3D11_COLOR_WRITE_ENABLE_ALPHA) <> 0 then Result := Result + [cmAlpha];
 end;
 
 function TStates.GetCullMode: TCullingMode;
@@ -1658,42 +1650,43 @@ end;
 
 function TStates.GetDepthFunc: TCompareFunc;
 begin
-
+  Result := AVDepthFunc[FDDesc.DepthFunc];
 end;
 
 function TStates.GetDepthTest: Boolean;
 begin
-
+  Result := FDDesc.DepthEnable;
 end;
 
 function TStates.GetDepthWrite: Boolean;
 begin
-
-end;
-
-function TStates.GetLineWidth: Single;
-begin
-
+  Result := FDDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
 end;
 
 function TStates.GetNearFarClamp: Boolean;
 begin
-
-end;
-
-function TStates.GetVertexProgramPointSize: Boolean;
-begin
-
+  Result := not FRDesc.DepthClipEnable;
 end;
 
 function TStates.GetViewport: TRectI;
 begin
+  Result := FViewport;
+end;
 
+function TStates.GetScissor: TRectI;
+begin
+  Result := FScissor;
+end;
+
+function TStates.GetScissorTest: Boolean;
+begin
+  Result := FRDesc.ScissorEnable;
 end;
 
 function TStates.GetWireframe: Boolean;
+const AVWire: array [TD3D11_FillMode] of Boolean = (True, False);
 begin
-
+  Result := AVWire[FRDesc.FillMode];
 end;
 
 procedure TStates.SetCullMode(const Value: TCullingMode);
@@ -1702,39 +1695,53 @@ begin
   FRDesc.CullMode := DXCullMode[Value];
 end;
 
-procedure TStates.SetLineWidth(const Value: Single);
+procedure TStates.SetColorMask(RenderTargetIndex: Integer; const Value: TColorMask);
+var i: Integer;
+    dxMask: Byte;
 begin
+  dxMask := 0;
+  if cmRed   in Value then dxMask := dxMask or Byte(D3D11_COLOR_WRITE_ENABLE_RED);
+  if cmGreen in Value then dxMask := dxMask or Byte(D3D11_COLOR_WRITE_ENABLE_GREEN);
+  if cmBlue  in Value then dxMask := dxMask or Byte(D3D11_COLOR_WRITE_ENABLE_BLUE);
+  if cmAlpha in Value then dxMask := dxMask or Byte(D3D11_COLOR_WRITE_ENABLE_ALPHA);
 
-end;
-
-procedure TStates.SetVertexProgramPointSize(const Value: Boolean);
-begin
-
-end;
-
-procedure TStates.SetColorWrite(const Value: Boolean);
-begin
-
+  if RenderTargetIndex = AllTargets then
+  begin
+    for i := 0 to Length(FBDesc.RenderTarget) - 1 do
+    begin
+      FBDescDirty := FBDescDirty or (FBDesc.RenderTarget[i].RenderTargetWriteMask <> dxMask);
+      FBDesc.RenderTarget[i].RenderTargetWriteMask := dxMask;
+    end;
+  end
+  else
+  begin
+    FBDescDirty := FBDescDirty or (FBDesc.RenderTarget[RenderTargetIndex].RenderTargetWriteMask <> dxMask);
+    FBDesc.RenderTarget[RenderTargetIndex].RenderTargetWriteMask := dxMask;
+  end;
 end;
 
 procedure TStates.SetDepthTest(const Value: Boolean);
 begin
-
+  FDDescDirty := FDDescDirty or (FDDesc.DepthEnable <> Value);
+  FDDesc.DepthEnable := Value;
 end;
 
 procedure TStates.SetDepthWrite(const Value: Boolean);
 begin
-
+  FDDescDirty := FDDescDirty or (FDDesc.DepthWriteMask <> DXDepthMask[Value]);
+  FDDesc.DepthWriteMask := DXDepthMask[Value];
 end;
 
 procedure TStates.SetDepthFunc(const Value: TCompareFunc);
 begin
-
+  FDDescDirty := FDDescDirty or (FDDesc.DepthFunc <> DXCompareFunc[Value]);
+  FDDesc.DepthFunc := DXCompareFunc[Value];
 end;
 
 procedure TStates.SetNearFarClamp(const Value: Boolean);
 begin
-
+  FRDescDirty := FRDescDirty or (FRDesc.DepthClipEnable=Value);
+  FRDesc.DepthClipEnable := not Value;
 end;
 
 procedure TStates.SetBlending(RenderTargetIndex: Integer; const Value : Boolean);
@@ -1756,24 +1763,70 @@ begin
 end;
 
 procedure TStates.SetViewport(const Value: TRectI);
+var vp: TD3D11_Viewport;
 begin
+  if (FViewport.Left <> Value.Left) or
+     (FViewport.Top <> Value.Top) or
+     (FViewport.Right <> Value.Right) or
+     (FViewport.Bottom <> Value.Bottom) then
+  begin
+    FViewport := Value;
+    vp.TopLeftX := Value.Left;
+    vp.TopLeftY := Value.Top;
+    vp.Width := Value.Right - Value.Left;
+    vp.Height := Value.Bottom - Value.Top;
+    vp.MinDepth := 0;
+    vp.MaxDepth := 1;
+    FContext.FDeviceContext.RSSetViewports(1, @vp);
+  end;
+end;
 
+procedure TStates.SetScissor(const Value: TRectI);
+var sr: TD3D11_Rect;
+begin
+  if (FScissor.Left <> Value.Left) or
+     (FScissor.Top <> Value.Top) or
+     (FScissor.Right <> Value.Right) or
+     (FScissor.Bottom <> Value.Bottom) then
+  begin
+    FScissor := Value;
+    sr.Left := Value.Left;
+    sr.Top := Value.Top;
+    sr.Right := Value.Right;
+    sr.Bottom := Value.Bottom;
+    FContext.FDeviceContext.RSSetScissorRects(1, @sr);
+  end;
+end;
+
+procedure TStates.SetScissorTest(const Value: Boolean);
+begin
+  FRDescDirty := FRDescDirty or (FRDesc.ScissorEnable <> Value);
+  FRDesc.ScissorEnable := Value;
 end;
 
 procedure TStates.SetWireframe(const Value: Boolean);
+const D3DWire: array [Boolean] of TD3D11_FillMode = (D3D11_FILL_SOLID, D3D11_FILL_WIREFRAME);
 begin
-
-end;
-
-procedure TStates.SetScissor(Enabled: Boolean; const Value: TRect);
-begin
-
+  FRDescDirty := FRDescDirty or (FRDesc.FillMode <> D3DWire[Value]);
+  FRDesc.FillMode:= D3DWire[Value];
 end;
 
 procedure TStates.SetStencil(Enabled: Boolean; StencilFunc: TCompareFunc;
   Ref: Integer; Mask: Byte; sFail, dFail, dPass: TStencilAction);
 begin
-
+  FDDesc.StencilEnable := Enabled;
+  FDDesc.StencilReadMask := Mask;
+  FDDesc.StencilWriteMask := Mask;
+  FDDesc.FrontFace.StencilFailOp := DXStencilAction[sFail];
+  FDDesc.FrontFace.StencilDepthFailOp := DXStencilAction[dFail];
+  FDDesc.FrontFace.StencilPassOp := DXStencilAction[dPass];
+  FDDesc.FrontFace.StencilFunc := DXCompareFunc[StencilFunc];
+  FDDesc.BackFace.StencilFailOp := DXStencilAction[sFail];
+  FDDesc.BackFace.StencilDepthFailOp := DXStencilAction[dFail];
+  FDDesc.BackFace.StencilPassOp := DXStencilAction[dPass];
+  FDDesc.BackFace.StencilFunc := DXCompareFunc[StencilFunc];
+  FDStencilRef := Ref;
+  FDDescDirty := True;
 end;
 
 procedure TStates.SetBlendFunctions(Src, Dest: TBlendFunc; RenderTargetIndex: Integer);
