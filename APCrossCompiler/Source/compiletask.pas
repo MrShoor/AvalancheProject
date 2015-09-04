@@ -276,6 +276,8 @@ end;
 constructor TCompileTask.Create(const filename: string);
 var sl: TStringList;
 begin
+  FProjectName := ChangeFileExt(ExtractFileName(filename), '');
+
   FPrograms := TProgramList.Create;
 
   if not FileExists(filename) then

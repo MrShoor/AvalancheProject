@@ -134,9 +134,9 @@ begin
               if not DirectoryExists(pinfo.OutDir) then ForceDirectories(pinfo.OutDir);
             CompileProgram(pinfo, hlsl, glsl);
 
-            RC.Add(API_Prefix[apiDX11]  + pinfo.Name + ' RCDATA ' + '"' + pinfo.OutDir + '\' + hlsl + '"');
+            RC.Add(API_Prefix[apiDX11]  + pinfo.Name + ' RCDATA ' + '"' + hlsl + '"');
             if pinfo.OGLTranslate then
-                RC.Add(API_Prefix[apiOGL] + pinfo.Name + ' RCDATA ' + '"' + pinfo.OutDir + '\' + glsl + '"');
+                RC.Add(API_Prefix[apiOGL] + pinfo.Name + ' RCDATA ' + '"' + glsl + '"');
 
             WriteLn('--------------');
         end;

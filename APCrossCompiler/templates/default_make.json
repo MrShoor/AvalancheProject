@@ -1,0 +1,20 @@
+{
+    "HLSLcc_lang" : 330,
+    "HLSLcc_flags": ["HLSLCC_FLAG_DISABLE_GLOBALS_STRUCT",
+                     "HLSLCC_FLAG_INOUT_SEMANTIC_NAMES",
+                     "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],    
+    "OGLTranslate" : true,
+    "OutDir" : "!Out",
+    "VertexEntry" : "VS",
+    "FragmentEntry" : "PS",
+    "VertexTarget" : "vs_4_0",
+    "FragmentTarget" : "ps_4_0",
+    "Programs":[
+        {
+        "Name"     : "default",
+	"Vertex"   : "default_v.cpp",
+	"Fragment" : "default_f.cpp",
+	"Path"     :["default"]
+        }      
+    ]
+}
