@@ -24,6 +24,8 @@ procedure LinkHLSL(const prog: TProgramInfo; shaders: TShadersString; const OutF
 
 implementation
 
+uses StrUtils;
+
 type
 
   { TIncludeAdapter }
@@ -49,6 +51,8 @@ type
   public
     function Open(IncludeType:TD3D_IncludeType;pFileName:PAnsiChar;pParentData:Pointer;ppData:PPointer;pBytes:PLongWord):HResult; {$IfNDef fpc} Override; {$EndIf} stdcall;
     function Close(pData:Pointer):HResult; {$IfNDef fpc} Override; {$EndIf} stdcall;
+
+    function FileNameByPointer(const ptr: Pointer): string;
 
     constructor Create(const prog: TProgramInfo);
     destructor Destroy; override;
@@ -145,22 +149,69 @@ begin
   end;
 end;
 
+function ReparseOutput(const str: ID3DBlob; const incl: TIncludeAdapter): string;
+var src: AnsiString;
+    addrS: string;
+    addrPos: Integer;
+    addr: Pointer;
+    fname: string;
+    rowInd, charInd: Integer;
+    OffsetIndex: Integer;
+    n1, n2: Integer;
+begin
+  SetLength(src, str.GetBufferSize);
+  Move(str.GetBufferPointer^, src[1], str.GetBufferSize);
+  addrPos := Pos('@0x', src);
+  Result := string(src);
+  if addrPos > 0 then
+  begin
+    //copy addr str for 32 bit application only
+    addrS := '$' + Copy(Result, addrPos + 3, 8);
+    if not TryStrToInt(addrS, Integer(addr)) then Exit;
+    OffsetIndex := addrPos + 3 + 8;
+
+    fname := incl.FileNameByPointer(addr);
+    if fname = '' then Exit;
+
+    //extract row index
+    n1 := PosEx('(', src, OffsetIndex);
+    if n1 <= 0 then Exit;
+    Inc(OffsetIndex);
+    n2 := PosEx(',', src, OffsetIndex);
+    if n2 <= 0 then Exit;
+    OffsetIndex := n2 + 1;
+    if not TryStrToInt(Copy(src, n1+1, n2-n1-1), rowInd) then Exit;
+
+    //extract char index
+    n1 := n2;
+    n2 := PosEx(')', src, OffsetIndex);
+    if n2 <= 0 then Exit;
+    OffsetIndex := n2 + 1;
+    if not TryStrToInt(Copy(src, n1+1, n2-n1-1), charInd) then Exit;
+
+    Inc(OffsetIndex);
+    Result := fname + ':' + IntToStr(rowInd) + ':' + IntToStr(charInd) + ':' + Copy(src, OffsetIndex, Length(src) - OffsetIndex - 1);
+  end;
+end;
+
 procedure CompileHLSL(const prog: TProgramInfo; st: TShaderType; const OutFile: string);
-var astr: AnsiString;
-    incl: TIncludeAdapter;
+var incl: TIncludeAdapter;
     entry: AnsiString;
     target: AnsiString;
     code: ID3DBlob;
     output: ID3DBlob;
     fs: TFileStream;
+
+    data: Pointer;
+    dataSize: LongWord;
 begin
   Write('Compiling(HLSL): "', prog.Shader[st], '" ... ');
-  astr := OpenFileToString(prog.Shader[st], prog);
   incl := TIncludeAdapter.Create(prog);
   try
     entry := AnsiString(prog.Entry[st]);
     target := AnsiString(prog.Target[st]);
-    CheckHResult( D3DCompile(@astr[1], Length(astr), nil, nil, incl, PAnsiChar(entry), PAnsiChar(target), D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY or D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, code, output) );
+    incl.Open(D3D_INCLUDE_LOCAL, PAnsiChar(AnsiString(prog.Shader[st])), nil, @data, @dataSize);
+    CheckHResult( D3DCompile(data, dataSize, nil, nil, incl, PAnsiChar(entry), PAnsiChar(target), D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY or D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, code, output) );
     if code = nil then
       RaiseHLSL('unknown error');
     fs := TFileStream.Create(OutFile, fmCreate);
@@ -170,9 +221,11 @@ begin
       fs.Free;
     end;
   finally
-    // ToDo: Reparse errors
     if Assigned(output) then
-      WriteLn(PAnsiChar(output.GetBufferPointer));
+    begin
+      WriteLn;
+      WriteLn(ReparseOutput(output, incl));
+    end;
     incl.Free;
   end;
   WriteLn('done.');
@@ -498,12 +551,23 @@ begin
   end;
   ppData^ := PAnsiChar(astr);
   pBytes^ := Length(astr);
-  Exit(S_OK);
+  Result := S_OK;
 end;
 
 function TIncludeAdapter.Close(pData: Pointer): HResult; stdcall;
 begin
   Result := S_OK;
+end;
+
+function TIncludeAdapter.FileNameByPointer(const ptr: Pointer): string;
+var fname: string;
+    data : AnsiString;
+begin
+  Result := '';
+  FIncludes.Reset;
+  while FIncludes.Next(fname, data) do
+    if Pointer(data)=ptr then
+      Exit(FProg.FullFileName(fname));
 end;
 
 constructor TIncludeAdapter.Create(const prog: TProgramInfo);
