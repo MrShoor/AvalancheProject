@@ -2345,7 +2345,7 @@ begin
       StrideSize := 4
     else
       StrideSize := 2;
-    Start := Start;
+    Start := Start * StrideSize;
     Count := Count;
     if InstanceCount = 0 then
     begin
@@ -2592,6 +2592,8 @@ end;
 
 procedure TContext_OGL.Present;
 begin
+  glUseProgram(0);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
   SwapBuffers(FDC);
 end;
 

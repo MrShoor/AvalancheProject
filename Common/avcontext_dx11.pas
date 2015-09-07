@@ -1684,9 +1684,13 @@ begin
 end;
 
 function TStates.GetWireframe: Boolean;
-const AVWire: array [TD3D11_FillMode] of Boolean = (True, False);
 begin
-  Result := AVWire[FRDesc.FillMode];
+  case FRDesc.FillMode of
+    D3D11_FILL_WIREFRAME: Result := True;
+    D3D11_FILL_SOLID    : Result := False;
+  else
+    Assert(False, 'WTF??');
+  end;
 end;
 
 procedure TStates.SetCullMode(const Value: TCullingMode);

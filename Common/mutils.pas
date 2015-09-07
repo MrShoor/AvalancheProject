@@ -4,9 +4,10 @@ unit mutils;
   {$Macro On}
   {$mode objfpc}{$H+}
   {$modeswitch advancedrecords}
+  {$fputype sse2}
 {$endif}
 
-{$define NoInline}
+//{$define NoInline}
 
 interface {$define INTF}
 
@@ -27,8 +28,8 @@ type
 {$define PV3 := PVec3}
 {$define PV4 := PVec4}
 {$define TV2Arr := TVec2Arr}
-{$define TV3Arr := TVec4Arr}
-{$define TV4Arr := TVec3Arr}
+{$define TV3Arr := TVec3Arr}
+{$define TV4Arr := TVec4Arr}
 {$define TM2 := TMat2}
 {$define TM3 := TMat3}
 {$define TM4 := TMat4}
@@ -45,8 +46,8 @@ type
 {$define PV3 := PVec3i}
 {$define PV4 := PVec4i}
 {$define TV2Arr := TVec2iArr}
-{$define TV3Arr := TVec4iArr}
-{$define TV4Arr := TVec3iArr}
+{$define TV3Arr := TVec3iArr}
+{$define TV4Arr := TVec4iArr}
 {$define TM2 := TMat2i}
 {$define TM3 := TMat3i}
 {$define TM4 := TMat4i}
@@ -63,8 +64,8 @@ type
 {$define PV3 := PVec3s}
 {$define PV4 := PVec4s}
 {$define TV2Arr := TVec2sArr}
-{$define TV3Arr := TVec4sArr}
-{$define TV4Arr := TVec3sArr}
+{$define TV3Arr := TVec3sArr}
+{$define TV4Arr := TVec4sArr}
 {$define TM2 := TMat2s}
 {$define TM3 := TMat3s}
 {$define TM4 := TMat4s}
@@ -81,8 +82,8 @@ type
 {$define PV3 := PVec3b}
 {$define PV4 := PVec4b}
 {$define TV2Arr := TVec2bArr}
-{$define TV3Arr := TVec4bArr}
-{$define TV4Arr := TVec3bArr}
+{$define TV3Arr := TVec3bArr}
+{$define TV4Arr := TVec4bArr}
 {$define TM2 := TMat2b}
 {$define TM3 := TMat3b}
 {$define TM4 := TMat4b}
@@ -149,6 +150,17 @@ type
     1: (LeftTop, RightBottom: TVec2i);
     2: (f: array [0..4] of Integer);
     3: (v: TVec4i);
+  end;
+
+  { TAABB }
+
+  TAABB = record
+    function Center  : TVec3;
+    function Size    : TVec3;
+    function IsEmpty : Boolean;
+    function Point(index: Integer): TVec3;
+  case Byte of
+    0: (min, max: TVec3);
   end;
 
   { TPlane }
@@ -253,11 +265,44 @@ function SetViewMatrix(var MatrixView: TMat4; const From, At, Worldup: TVec3; le
 operator = (const v1, v2: TRectF): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 operator = (const v1, v2: TRectI): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 
+operator + (const AABB: TAABB; v: TVec3): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
+
 operator * (const v: TVec2i; s: Single): TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
 
 implementation {$undef INTF} {$define IMPL}
 
 uses Math;
+
+{ TAABB }
+
+function TAABB.Center: TVec3;
+begin
+  Result := min*0.5 + max*0.5;
+end;
+
+function TAABB.Size: TVec3;
+begin
+  Result := max - min;
+end;
+
+function TAABB.IsEmpty: Boolean;
+begin
+  Result := (max.x<=min.x) or (max.y<=min.y) or (max.z<=min.z);
+end;
+
+function TAABB.Point(index: Integer): TVec3;
+begin
+  case index mod 8 of
+    0: Result := Vec(min.x, min.y, min.z);
+    1: Result := Vec(min.x, max.y, min.z);
+    2: Result := Vec(max.x, max.y, min.z);
+    3: Result := Vec(max.x, min.y, min.z);
+    4: Result := Vec(min.x, min.y, max.z);
+    5: Result := Vec(min.x, max.y, max.z);
+    6: Result := Vec(max.x, max.y, max.z);
+    7: Result := Vec(max.x, min.y, max.z);
+  end;
+end;
 
   { TRectI }
 
@@ -820,6 +865,12 @@ end;
 operator = (const v1, v2: TRectI): Boolean;
 begin
   Result := (v1.LeftTop = v2.LeftTop) and (v1.RightBottom = v2.RightBottom);
+end;
+
+operator + (const AABB: TAABB; v: TVec3): TAABB;
+begin
+  Result.min := min(AABB.min, v);
+  Result.max := max(AABB.max, v);
 end;
 
 operator * (const v: TVec2i; s: Single): TVec2;
