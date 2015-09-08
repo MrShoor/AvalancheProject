@@ -6,7 +6,7 @@ unit avContext_DX11;
 interface
 
 uses
-  Classes, SysUtils, avTypes, avPlatform, avContext, avContnrs, mutils, contnrs,
+  Classes, SysUtils, avTypes, avPlatform, avContext, avContnrs, mutils,
   D3D11_JSB, DXGI_JSB, DXTypes_JSB, D3DCommon_JSB;
 
 type
@@ -2415,7 +2415,7 @@ end;
 
 function TContext_DX11.GetActiveProgram: IctxProgram;
 begin
-
+  Result := Nil;
 end;
 
 procedure TContext_DX11.SetActiveProgram(AValue: IctxProgram);
@@ -2604,6 +2604,7 @@ procedure TContext_DX11.Clear(const color: TVec4; doColor: Boolean;
 var FBO: TFrameBuffer;
     i: Integer;
 begin
+  FBO := nil;
   if Assigned(FActiveFrameBuffer) then
     FBO := (FActiveFrameBuffer as IctxFrameBuffer_DX11).GetObj;
   if Assigned(FBO) then

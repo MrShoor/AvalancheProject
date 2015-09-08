@@ -43,9 +43,6 @@ type
     function GetIsDWord: Boolean;
     function GetLine(index: Integer): TVec2i;
     function GetTriangle(index: Integer): TVec3i;
-    function IndicesCount: Integer;
-    function PrimCount: Integer;
-    function PrimType: TPrimitiveType;
     procedure SetCapacity(const Value: Integer);
     procedure SetCount(const Value: Integer);
     procedure SetIndex(index: Integer; const Value: Integer);
