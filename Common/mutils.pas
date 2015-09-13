@@ -786,7 +786,7 @@ end;
 
 function GetMipsCount(Width, Height: Integer): Integer;
 begin
-  Result := Log2Int(Min(Width, Height) - 1) + 2;
+  Result := Log2Int(Min(Width, Height) - 1);
 end;
 
 function Bezier3(const pt1, pt2, pt3, pt4: TVec2; t: single): TVec2;

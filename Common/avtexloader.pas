@@ -136,8 +136,15 @@ type
   private
     FFormat: TImageFormat;
     FMips: array of array of TMip;
+    FWidth: Integer;
+    FHeight: Integer;
+    FMipsCount: Integer;
     procedure Clear;
   public
+    function Width: Integer;
+    function Height: Integer;
+    function MipsCount: Integer;
+
     function Format: TImageFormat;
     function ItemCount: Integer;
     function MipCount(const Index: Integer): Integer;
@@ -215,6 +222,21 @@ begin
     for j := 0 to Length(FMips[i]) - 1 do
       FreeAndNil(FMips[i][j]);
   FMips := nil;
+end;
+
+function TTextureData.Width: Integer;
+begin
+  Result := FWidth;
+end;
+
+function TTextureData.Height: Integer;
+begin
+  Result := FHeight;
+end;
+
+function TTextureData.MipsCount: Integer;
+begin
+  Result := FMipsCount;
 end;
 
 function TTextureData.Format: TImageFormat;
@@ -340,6 +362,10 @@ begin
   if targetHeight = SIZE_DEFAULT then targetHeight := ImgData[0].Height;
   if targetWidth = SIZE_NEXTPOW2 then targetWidth := NextPow2(ImgData[0].Width);
   if targetHeight = SIZE_NEXTPOW2 then targetHeight := NextPow2(ImgData[0].Height);
+
+  FWidth := targetWidth;
+  FHeight := targetHeight;
+
   if (TexType = ttMipLeveling) then
     if not (IsPow2(targetWidth) and IsPow2(targetHeight)) then
       TexType := ttSingleImage;
@@ -352,6 +378,7 @@ begin
     ttTextureArray:
         SetLength(FMips, Length(ImgData), 1);
   end;
+  FMipsCount := Length(FMips[0]);
 
   for i := 0 to Length(ImgData) - 1 do
   begin
@@ -381,17 +408,19 @@ begin
 end;
 
 constructor TTextureData.CreateEmpty(AWidth, AHeight: Integer; AFormat: TImageFormat; withMips: Boolean);
-var NewMipCount: Integer;
-    i: Integer;
+var i: Integer;
 begin
+  FWidth := AWidth;
+  FHeight := AHeight;
+
   FFormat := AFormat;
   withMips := withMips and IsPow2(Vec(AWidth, AHeight));
   if withMips then
-    NewMipCount := Log2Int(Min(AWidth, AHeight))
+    FMipsCount := Log2Int(Min(AWidth, AHeight))
   else
-    NewMipCount := 1;
-  SetLength(FMips, 1, NewMipCount);
-  for i := 0 to NewMipCount - 1 do
+    FMipsCount := 1;
+  SetLength(FMips, 1, FMipsCount);
+  for i := 0 to FMipsCount - 1 do
   begin
     FMips[0][i] := TMip.Create(i, AWidth, AHeight, Nil, 0);
     AWidth := AWidth shr 1;

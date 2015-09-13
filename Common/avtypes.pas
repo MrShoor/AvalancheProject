@@ -196,8 +196,14 @@ Type
     Data  : PByte;
   end;
 
+  { ITextureData }
+
   ITextureData = interface
   ['{3643BDFB-36C1-4A64-BEA6-04108FDB8F1E}']
+    function Width: Integer;
+    function Height: Integer;
+    function MipsCount: Integer;
+
     function Format: TImageFormat;
     function ItemCount: Integer;
     function MipCount(const Index: Integer): Integer;
@@ -332,6 +338,16 @@ const
       Anisotropy : 16;
       Wrap_X     : twRepeat;
       Wrap_Y     : twRepeat;
+      Border     : (x: 0; y: 0; z: 0; w: 0);
+    );
+
+    Sampler_LinearClamped : TSamplerInfo = (
+      MinFilter  : tfLinear;
+      MagFilter  : tfLinear;
+      MipFilter  : tfLinear;
+      Anisotropy : 16;
+      Wrap_X     : twClamp;
+      Wrap_Y     : twClamp;
       Border     : (x: 0; y: 0; z: 0; w: 0);
     );
 

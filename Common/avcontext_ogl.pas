@@ -715,6 +715,8 @@ type
 
   TTexture = class(THandle, IctxTexture)
   private const
+    GLTextureTarget: array [Boolean] of GLuint = (GL_TEXTURE_2D, GL_TEXTURE_2D_ARRAY);
+    GLTexBinding   : array [Boolean] of GLuint = (GL_TEXTURE_BINDING_2D, GL_TEXTURE_BINDING_2D_ARRAY);
     GLImagePixelFormat: array [TImageFormat] of Cardinal = ( {Unknown      }  GL_NONE,
                                                              {Gray8        }  GL_ALPHA,
                                                              {R3G3B2       }  GL_RGB,
@@ -803,12 +805,14 @@ type
     FFormat : TTextureFormat;
     FWidth  : Integer;
     FHeight : Integer;
+    FDeep   : Integer;
+    FIsArray : Boolean;
     FTargetFormat : TTextureFormat;
 
     function GetTargetFormat: TTextureFormat;
     procedure SetTargetFormat(Value: TTextureFormat);
 
-    procedure AllocMem(AWidth, AHeight: Integer; glFormat, exFormat, compFormat: Cardinal; Data: PByte; GenMipmaps: Boolean); overload;
+    procedure AllocMem(AWidth, AHeight, ADeep: Integer; glFormat, exFormat, compFormat: Cardinal; Data: PByte; GenMipmaps: Boolean); overload;
   public
     procedure AllocHandle; override;
     procedure FreeHandle; override;
@@ -817,14 +821,15 @@ type
 
     function Width : Integer;
     function Height: Integer;
+    function Deep  : Integer;
     function Format: TTextureFormat;
 
-    procedure AllocMem(AWidth, AHeight: Integer; WithMips: Boolean); overload;
-    procedure AllocMem(AWidth, AHeight: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte); overload;
-    procedure SetImage(ImageWidth, ImageHeight: Integer; DataFormat: TImageFormat; Data: PByte; GenMipmaps: Boolean); overload;
-    procedure SetImage(X, Y, ImageWidth, ImageHeight: Integer; DataFormat: TImageFormat; Data: PByte; GenMipmaps: Boolean); overload;
-    procedure SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel: Integer; DataFormat: TImageFormat; Data: PByte); overload;
-    procedure SetMipImage(DestRect: TRect; MipLevel: Integer; DataFormat: TImageFormat; Data: PByte); overload;
+    procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean); overload;
+    procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte); overload;
+    procedure SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
+    procedure SetMipImage(DestRect: TRect; MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
+
+    procedure GenerateMips;
   end;
 
   { TProgram }
@@ -869,8 +874,8 @@ type
       GLWrap : array [TTextureWrap] of Cardinal = (
         GL_REPEAT,          // twRepeat
         GL_MIRRORED_REPEAT, // twMirror
-        GL_CLAMP,           // twClamp}
-        GL_CLAMP_TO_EDGE    // twClampToEdge
+        GL_CLAMP_TO_EDGE,   // twClamp
+        GL_CLAMP_TO_BORDER  // twClampToEdge
       );
     type
       TVaoHash_func = specialize TMurmur2Hash<TVAOKey>;
@@ -1162,15 +1167,41 @@ begin
   FTargetFormat := Value;
 end;
 
-procedure TTexture.AllocMem(AWidth, AHeight: Integer; glFormat, exFormat, compFormat: Cardinal; Data: PByte; GenMipmaps: Boolean);
+procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; glFormat, exFormat, compFormat: Cardinal; Data: PByte; GenMipmaps: Boolean);
+var i, LevelsCount: Integer;
 begin
-  glBindTexture(GL_TEXTURE_2D, FHandle);
-  glTexImage2D(GL_TEXTURE_2D, 0, glFormat, AWidth, AHeight, 0, exFormat, compFormat, Data);
+  //todo: initialization with data
   FWidth := AWidth;
   FHeight := AHeight;
+  FDeep := ADeep;
   FFormat := FTargetFormat;
+
   if GenMipmaps then
-      glGenerateMipmap(GL_TEXTURE_2D);
+    LevelsCount := GetMipsCount(AWidth, AHeight)
+  else
+    LevelsCount := 1;
+
+  FIsArray := ADeep > 1;
+  if FIsArray then
+  begin
+    glBindTexture(GLTextureTarget[FIsArray], FHandle);
+    for i := 0 to LevelsCount - 1 do
+    begin
+      glTexImage3D(GLTextureTarget[FIsArray], i, glFormat, AWidth, AHeight, ADeep, 0, exFormat, compFormat, Data);
+      AWidth := AWidth div 2;
+      AHeight := AHeight div 2;
+    end;
+  end
+  else
+  begin
+    glBindTexture(GLTextureTarget[FIsArray], FHandle);
+    for i := 0 to LevelsCount - 1 do
+    begin
+      glTexImage2D(GLTextureTarget[FIsArray], i, glFormat, AWidth, AHeight, 0, exFormat, compFormat, Data);
+      AWidth := AWidth div 2;
+      AHeight := AHeight div 2;
+    end;
+  end;
 end;
 
 procedure TTexture.AllocHandle;
@@ -1194,12 +1225,17 @@ begin
   Result := FHeight;
 end;
 
+function TTexture.Deep: Integer;
+begin
+  Result := FDeep;
+end;
+
 function TTexture.Format: TTextureFormat;
 begin
   Result := FFormat;
 end;
 
-procedure TTexture.AllocMem(AWidth, AHeight: Integer; WithMips: Boolean);
+procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean);
 var exFormat: Cardinal;
     compType: Cardinal;
 begin
@@ -1214,45 +1250,36 @@ begin
   else
     exFormat:=GL_RGBA; compType:=GL_UNSIGNED_BYTE;
   end;
-  AllocMem(AWidth, AHeight, GLTextureFormat[FTargetFormat], exFormat, compType, nil, WithMips);
+  AllocMem(AWidth, AHeight, ADeep, GLTextureFormat[FTargetFormat], exFormat, compType, nil, WithMips);
 end;
 
-procedure TTexture.AllocMem(AWidth, AHeight: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte);
+procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte);
 begin
-  AllocMem(AWidth, AHeight, GLTextureFormat[FTargetFormat], GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data, WithMips);
+  AllocMem(AWidth, AHeight, ADeep, GLTextureFormat[FTargetFormat], GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data, WithMips);
 end;
 
-procedure TTexture.SetImage(ImageWidth, ImageHeight: Integer; DataFormat: TImageFormat; Data: PByte; GenMipmaps: Boolean);
+procedure TTexture.SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte);
 begin
-  SetImage(0, 0, ImageWidth, ImageHeight, DataFormat, Data, GenMipmaps);
+  if Data = nil then Exit;
+  glBindTexture(GLTextureTarget[FIsArray], FHandle);
+  if FIsArray then
+    glTexSubImage3D(GLTextureTarget[FIsArray], MipLevel, X, Y, ZSlice, ImageWidth, ImageHeight, 1, GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data)
+  else
+    glTexSubImage2D(GLTextureTarget[FIsArray], MipLevel, X, Y, ImageWidth, ImageHeight, GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data);
 end;
 
-procedure TTexture.SetImage(X, Y, ImageWidth, ImageHeight: Integer; DataFormat: TImageFormat; Data: PByte; GenMipmaps: Boolean);
-var W, H: Integer;
+procedure TTexture.SetMipImage(DestRect: TRect; MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte);
 begin
-  W := NextPow2(ImageWidth);
-  H := NextPow2(ImageHeight);
-  if (W <> Width) or (H <> Height) or (Format <> TargetFormat) then
-    AllocMem(W, H, False, DataFormat, nil);
-
-  if assigned(Data) then
-  begin
-    glBindTexture(GL_TEXTURE_2D, FHandle);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, X, Y, ImageWidth, ImageHeight, GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data);
-  end;
-  if GenMipmaps then
-    glGenerateMipmap(GL_TEXTURE_2D);
+  SetMipImage(DestRect.Left, DestRect.Top, DestRect.Right - DestRect.Left, DestRect.Bottom - DestRect.Top, MipLevel, ZSlice, DataFormat, Data);
 end;
 
-procedure TTexture.SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel: Integer; DataFormat: TImageFormat; Data: PByte);
+procedure TTexture.GenerateMips;
+var oldH: GLuint;
 begin
-  glBindTexture(GL_TEXTURE_2D, FHandle);
-  glTexSubImage2D(GL_TEXTURE_2D, MipLevel, X, Y, ImageWidth, ImageHeight, GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data);
-end;
-
-procedure TTexture.SetMipImage(DestRect: TRect; MipLevel: Integer; DataFormat: TImageFormat; Data: PByte);
-begin
-  SetMipImage(DestRect.Left, DestRect.Top, DestRect.Right - DestRect.Left, DestRect.Bottom - DestRect.Top, MipLevel, DataFormat, Data);
+  glGetIntegerv(GLTexBinding[FIsArray], @oldH);
+  glBindTexture(GLTextureTarget[FIsArray], FHandle);
+  glGenerateMipmap(GLTextureTarget[FIsArray]);
+  glBindTexture(GLTextureTarget[FIsArray], oldH);
 end;
 
 { TOGLStates }
@@ -2306,21 +2333,27 @@ end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo);
 var TexH: GLuint;
+    TexTarget: GLuint;
 begin
   if Field = nil then Exit;
   if Field.DataClass <> dcSampler then Exit;
   if tex = nil then Exit;
 
   TexH := (tex as IHandle).Handle;
+  if tex.Deep > 1 then
+    TexTarget := GL_TEXTURE_2D_ARRAY
+  else
+    TexTarget := GL_TEXTURE_2D;
+
   glActiveTexture(GL_TEXTURE0 + PInteger(Field.Data)^);
-  glBindTexture(GL_TEXTURE_2D, TexH);
+  glBindTexture(TexTarget, TexH);
 
   glUniform1i(TUniformField_OGL(Field).ID, PInteger(Field.Data)^);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GLMagTextureFilter[Sampler.MagFilter]);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GLMinTextureFilter[Sampler.MipFilter, Sampler.MinFilter]);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GLWrap[Sampler.Wrap_X]);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GLWrap[Sampler.Wrap_Y]);
-  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, Sampler.Anisotropy);
+  glTexParameteri(TexTarget, GL_TEXTURE_MAG_FILTER, GLMagTextureFilter[Sampler.MagFilter]);
+  glTexParameteri(TexTarget, GL_TEXTURE_MIN_FILTER, GLMinTextureFilter[Sampler.MipFilter, Sampler.MinFilter]);
+  glTexParameteri(TexTarget, GL_TEXTURE_WRAP_S, GLWrap[Sampler.Wrap_X]);
+  glTexParameteri(TexTarget, GL_TEXTURE_WRAP_T, GLWrap[Sampler.Wrap_Y]);
+  glTexParameterf(TexTarget, GL_TEXTURE_MAX_ANISOTROPY_EXT, Sampler.Anisotropy);
 end;
 
 procedure TProgram.Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode;

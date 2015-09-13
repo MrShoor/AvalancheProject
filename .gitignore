@@ -62,3 +62,4 @@ __history/
 /Demos/Src/Texturing/lib/i386-win32/*.or
 *.properties
 *.dbg
+*.lps

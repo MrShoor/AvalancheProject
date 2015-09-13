@@ -32,6 +32,7 @@ type
 
     function GetActiveProgram: TavProgram;
     function GetWindow: TWindow;
+    function GetWindowSize: TVec2i;
     procedure SetActiveProgram(AValue: TavProgram);
     procedure SetWindow(AValue: TWindow);
 
@@ -69,11 +70,23 @@ type
     procedure InvalidateWindow;
 
     property Window: TWindow read GetWindow write SetWindow;
+    property WindowSize: TVec2i read GetWindowSize;
     property ActiveProgram: TavProgram read GetActiveProgram write SetActiveProgram;
 
     procedure Dispatch(var message); override;
     constructor Create(AParent: TavObject); override;
     destructor Destroy; override;
+  end;
+
+  { TavMainRenderChild }
+
+  TavMainRenderChild = class (TavObject)
+  strict private
+    FMain : TavMainRender;
+  protected
+    function CanRegister(target: TavObject): boolean; override;
+    function Main: TavMainRender;
+  public
   end;
 
   { TavCamera }
@@ -217,18 +230,15 @@ type
 
   { TavRes }
 
-  TavRes = class(TavObject)
+  TavRes = class(TavMainRenderChild)
   strict private
     FDirty   : Boolean;
-    FMain    : TavMainRender;
   protected
     procedure AfterInit3D; virtual;
     procedure BeforeFree3D; virtual;
     procedure AfterFree3D; virtual;
-    function CanRegister(target: TavObject): boolean; override;
 
     function DoBuild: Boolean; virtual;
-    function Main: TavMainRender;
 
     procedure EM3DAfterFree(var msg: TavMessage); message EM_3D_AFTER_FREE;
     procedure EM3DBeforeFree(var msg: TavMessage); message EM_3D_BEFORE_FREE;
@@ -308,21 +318,19 @@ type
 
   TavTexture = class(TavRes)
   private
+    FForcedPOT: Boolean;
     FAutoGenerateMips: Boolean;
     FDropLocalAfterBuild: Boolean;
-    FImageIndex: Integer;
     FTargetFormat: TTextureFormat;
     FTexData: ITextureData;
     FImageSize: TVec2;
     procedure SetAutoGenerateMips(AValue: Boolean);
-    procedure SetImageIndex(AValue: Integer);
     procedure SetTexData(AValue: ITextureData);
   protected
     FTexH: IctxTexture;
     procedure BeforeFree3D; override;
     function DoBuild: Boolean; override;
   public
-    property ImageIndex: Integer read FImageIndex write SetImageIndex;
     property DropLocalAfterBuild: Boolean read FDropLocalAfterBuild write FDropLocalAfterBuild;
     property TexData: ITextureData read FTexData write SetTexData;
 
@@ -333,6 +341,7 @@ type
 
     property TargetFormat: TTextureFormat read FTargetFormat write FTargetFormat;
     property AutoGenerateMips: Boolean read FAutoGenerateMips write SetAutoGenerateMips;
+    property ForcedPOT: Boolean read FForcedPOT write FForcedPOT;
 
     procedure AfterConstruction; override;
   end;
@@ -492,6 +501,21 @@ begin
         Inc(colorIndex);
     end;
   end;
+end;
+
+{ TavMainRenderChild }
+
+function TavMainRenderChild.CanRegister(target: TavObject): boolean;
+begin
+  Result := inherited CanRegister(target);
+  if not Result then Exit;
+  FMain := TavMainRender(target.FindAtParents(TavMainRender));
+  Result := Assigned(FMain);
+end;
+
+function TavMainRenderChild.Main: TavMainRender;
+begin
+  Result := FMain;
 end;
 
 { TavFrameBuffer }
@@ -663,13 +687,6 @@ begin
   Invalidate;
 end;
 
-procedure TavTexture.SetImageIndex(AValue: Integer);
-begin
-  if FImageIndex = AValue then Exit;
-  FImageIndex := AValue;
-  Invalidate;
-end;
-
 procedure TavTexture.SetAutoGenerateMips(AValue: Boolean);
 begin
   if FAutoGenerateMips = AValue then Exit;
@@ -685,32 +702,56 @@ begin
 end;
 
 function TavTexture.DoBuild: Boolean;
-var MipCount: Integer;
-    MipInfo : TTextureMipInfo;
-    i: Integer;
+var MipInfo : TTextureMipInfo;
+    i, j, n: Integer;
 begin
-  if Assigned(FTexData) and (FTexData.ItemCount > FImageIndex) then
+  if Assigned(FTexData) then
   begin
-    MipCount := FTexData.MipCount(FImageIndex);
-    if MipCount > 0 then
+    if FTexH = nil then FTexH := Main.Context.CreateTexture;
+    FTexH.TargetFormat := FTargetFormat;
+    FImageSize.x := FTexData.Width;
+    FImageSize.y := FTexData.Height;
+
+    if FForcedPOT then
+      FTexH.AllocMem(NextPow2(FTexData.Width), NextPow2(FTexData.Height), FTexData.ItemCount, (FTexData.MipsCount>1) or FAutoGenerateMips)
+    else
+      FTexH.AllocMem(FTexData.Width, FTexData.Height, FTexData.ItemCount, (FTexData.MipsCount>1) or FAutoGenerateMips);
+
+    for i := 0 to FTexData.ItemCount - 1 do
     begin
-      if FTexH = nil then FTexH := Main.Context.CreateTexture;
-      FTexH.TargetFormat := FTargetFormat;
-      MipInfo := FTexData.Data(FImageIndex, 0);
-      FImageSize.x := MipInfo.Width;
-      FImageSize.y := MipInfo.Height;
-      if MipCount = 1 then
-        FTexH.SetImage(MipInfo.Width, MipInfo.Height, FTexData.Format, MipInfo.Data, FAutoGenerateMips)
-      else
+      n := FTexData.MipCount(i);
+      if FAutoGenerateMips then
+        n := 1;
+      for j := 0 to n - 1 do
       begin
-        FTexH.AllocMem(NextPow2(MipInfo.Width), NextPow2(MipInfo.Height), True);
-        for i := 0 to MipCount - 1 do
-        begin
-          MipInfo := FTexData.Data(FImageIndex, i);
-          FTexH.SetMipImage(0, 0, MipInfo.Width, MipInfo.Height, i, FTexData.Format, MipInfo.Data);
-        end;
+        MipInfo := FTexData.Data(i, j);
+        FTexH.SetMipImage(0, 0, MipInfo.Width, MipInfo.Height, j, i, FTexData.Format, MipInfo.Data);
       end;
     end;
+    if FAutoGenerateMips then
+      FTexH.GenerateMips;
+
+    //MipCount := FTexData.MipCount();
+    //if MipCount > 0 then
+    //begin
+    //  if FTexH = nil then FTexH := Main.Context.CreateTexture;
+    //  FTexH.TargetFormat := FTargetFormat;
+    //  MipInfo := FTexData.Data(FImageIndex, 0);
+    //  FImageSize.x := MipInfo.Width;
+    //  FImageSize.y := MipInfo.Height;
+    //
+    //  if MipCount = 1 then
+    //    FTexH.SetImage(MipInfo.Width, MipInfo.Height, FTexData.Format, MipInfo.Data, FAutoGenerateMips)
+    //  else
+    //  begin
+    //    FTexH.AllocMem(NextPow2(MipInfo.Width), NextPow2(MipInfo.Height), 1, True);
+    //    for i := 0 to MipCount - 1 do
+    //    begin
+    //      MipInfo := FTexData.Data(FImageIndex, i);
+    //      FTexH.SetMipImage(0, 0, MipInfo.Width, MipInfo.Height, i, FTexData.Format, MipInfo.Data);
+    //    end;
+    //  end;
+    //end;
   end;
   if FDropLocalAfterBuild then FTexData := nil;
   Result := True;
@@ -1306,6 +1347,18 @@ begin
   Result := FWindow;
 end;
 
+function TavMainRender.GetWindowSize: TVec2i;
+var rct: TRectI;
+begin
+  if IsValidWindow(FWindow) then
+  begin
+    avPlatform.GetRectOfWindow(FWindow, rct.Left, rct.Top, rct.Right, rct.Bottom);
+    Result := rct.Size;
+  end
+  else
+    Result := Vec(0,0);
+end;
+
 function TavMainRender.GetActiveProgram: TavProgram;
 begin
   Result := FActiveProgram;
@@ -1558,22 +1611,9 @@ begin
 
 end;
 
-function TavRes.CanRegister(target: TavObject): boolean;
-begin
-  Result := inherited CanRegister(target);
-  if not Result then Exit;
-  FMain := TavMainRender(target.FindAtParents(TavMainRender));
-  Result := Assigned(FMain);
-end;
-
 function TavRes.DoBuild: Boolean;
 begin
   Result := True;
-end;
-
-function TavRes.Main: TavMainRender;
-begin
-  Result := FMain;
 end;
 
 procedure TavRes.EM3DAfterFree(var msg: TavMessage);
@@ -1610,7 +1650,7 @@ end;
 procedure TavRes.AfterConstruction;
 begin
   inherited AfterConstruction;
-  if FMain.Inited3D then
+  if Main.Inited3D then
     AfterInit3D;
 end;
 

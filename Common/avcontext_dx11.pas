@@ -453,13 +453,14 @@ type
     FTargetFormat: TTextureFormat;
     FWidth: Integer;
     FHeight: Integer;
+    FDeep: Integer;
     FFormat: TTextureFormat;
     FWithMips: Boolean;
 
     FTexture: ID3D11Texture2D;
     FResView: ID3D11ShaderResourceView;
 
-    function BuildDesc(AWidth, AHeight: Integer; WithMips: Boolean): TD3D11_Texture2DDesc;
+    function BuildDesc(AWidth, AHeight, ADeep: Integer; WithMips: Boolean): TD3D11_Texture2DDesc;
 
     function GetHandle : ID3D11Texture2D;
     function GetResView: ID3D11ShaderResourceView;
@@ -472,16 +473,16 @@ type
 
     function Width : Integer;
     function Height: Integer;
+    function Deep  : Integer;
     function Format: TTextureFormat;
 
-    procedure AllocMem(AWidth, AHeight: Integer; WithMips: Boolean); overload;
-    procedure AllocMem(AWidth, AHeight: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte); overload;
+    procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean); overload;
+    procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte); overload;
 
-    procedure SetImage(ImageWidth, ImageHeight: Integer; DataFormat: TImageFormat; Data: PByte; GenMipmaps: Boolean); overload;
-    procedure SetImage(X, Y, ImageWidth, ImageHeight: Integer; DataFormat: TImageFormat; Data: PByte; GenMipmaps: Boolean); overload;
+    procedure SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
+    procedure SetMipImage(DestRect: TRect; MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
 
-    procedure SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel: Integer; DataFormat: TImageFormat; Data: PByte); overload;
-    procedure SetMipImage(DestRect: TRect; MipLevel: Integer; DataFormat: TImageFormat; Data: PByte); overload;
+    procedure GenerateMips;
   end;
 
   TFrameBuffer = class;
@@ -2110,10 +2111,10 @@ end;
 
 { TTexture }
 
-function TTexture.BuildDesc(AWidth, AHeight: Integer; WithMips: Boolean): TD3D11_Texture2DDesc;
+function TTexture.BuildDesc(AWidth, AHeight, ADeep: Integer; WithMips: Boolean): TD3D11_Texture2DDesc;
 begin
-  Result.Width  := NextPow2(AWidth);
-  Result.Height := NextPow2(AHeight);
+  Result.Width  := AWidth;
+  Result.Height := AHeight;
   FWithMips     := WithMips;
   if WithMips then
     Result.MipLevels := GetMipsCount(Result.Width, Result.Height)
@@ -2132,13 +2133,17 @@ begin
     Result.BindFlags := DWord(D3D11_BIND_SHADER_RESOURCE) or DWord(D3D11_BIND_RENDER_TARGET);
   end;
 
-  Result.ArraySize := 1;
+  Result.ArraySize := ADeep;
   Result.Format := D3D11TextureFormat[FTargetFormat];
   Result.SampleDesc.Count := 1;
   Result.SampleDesc.Quality := 0;
   Result.Usage := D3D11_USAGE_DEFAULT;
   Result.CPUAccessFlags := 0;
   Result.MiscFlags := 0;
+  if WithMips then
+    Result.MiscFlags := Result.MiscFlags or DWord(D3D11_RESOURCE_MISC_GENERATE_MIPS);
+  if ADeep = 6 then
+    Result.MiscFlags := Result.MiscFlags or DWord(D3D11_RESOURCE_MISC_TEXTURECUBE);
   FFormat := FTargetFormat;
 end;
 
@@ -2184,28 +2189,33 @@ begin
   Result := FHeight;
 end;
 
+function TTexture.Deep: Integer;
+begin
+  Result := FDeep;
+end;
+
 function TTexture.Format: TTextureFormat;
 begin
   Result := FFormat;
 end;
 
-procedure TTexture.AllocMem(AWidth, AHeight: Integer; WithMips: Boolean);
+procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean);
 var desc: TD3D11_Texture2DDesc;
 begin
   FResView := nil;
-  desc := BuildDesc(AWidth, AHeight, WithMips);
+  desc := BuildDesc(AWidth, AHeight, ADeep, WithMips);
   Check3DError(FContext.FDevice.CreateTexture2D(desc, nil, FTexture));
   FWithMips := WithMips;
   FWidth := desc.Width;
   FHeight := desc.Height;
 end;
 
-procedure TTexture.AllocMem(AWidth, AHeight: Integer; WithMips: Boolean;
+procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean;
   DataFormat: TImageFormat; Data: PByte);
 var desc: TD3D11_Texture2DDesc;
 begin
   FResView := nil;
-  desc := BuildDesc(AWidth, AHeight, WithMips);
+  desc := BuildDesc(AWidth, AHeight, ADeep, WithMips);
   //todo: initialization with data
   Check3DError(FContext.FDevice.CreateTexture2D(desc, nil, FTexture));
   FWithMips := WithMips;
@@ -2213,39 +2223,14 @@ begin
   FHeight := desc.Height;
 end;
 
-procedure TTexture.SetImage(ImageWidth, ImageHeight: Integer; DataFormat: TImageFormat; Data: PByte; GenMipmaps: Boolean);
-begin
-  SetImage(0, 0, ImageWidth, ImageHeight, DataFormat, Data, GenMipmaps);
-end;
-
-procedure TTexture.SetImage(X, Y, ImageWidth, ImageHeight: Integer;
-  DataFormat: TImageFormat; Data: PByte; GenMipmaps: Boolean);
-var desc: TD3D11_Texture2DDesc;
-begin
-  FResView := nil;
-  desc := BuildDesc(ImageWidth, ImageHeight, GenMipmaps);
-  If GenMipmaps Then
-    desc.MiscFlags := DWord(D3D11_RESOURCE_MISC_GENERATE_MIPS);
-
-  Check3DError(FContext.FDevice.CreateTexture2D(desc, nil, FTexture));
-  FWithMips := GenMipmaps;
-  FWidth := desc.Width;
-  FHeight := desc.Height;
-
-  SetMipImage(X, Y, ImageWidth, ImageHeight, 0, DataFormat, Data);
-
-  if GenMipmaps and Assigned(Data) then
-    FContext.FDeviceContext.GenerateMips(GetResView);
-end;
-
-procedure TTexture.SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel: Integer; DataFormat: TImageFormat; Data: PByte);
+procedure TTexture.SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte);
 var v: TVec4i;
 begin
   v := Vec(X, Y, X + ImageWidth, Y + ImageHeight);
-  SetMipImage(Rect(v), MipLevel, DataFormat, Data);
+  SetMipImage(Rect(v), MipLevel, ZSlice, DataFormat, Data);
 end;
 
-procedure TTexture.SetMipImage(DestRect: TRect; MipLevel: Integer; DataFormat: TImageFormat; Data: PByte);
+procedure TTexture.SetMipImage(DestRect: TRect; MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte);
 var tex  : PByte;
     imgWidth, imgHeight: Integer;
     texSize: Integer;
@@ -2263,8 +2248,8 @@ begin
     Box.top := DestRect.Top;
     Box.right := DestRect.Right;
     Box.bottom := DestRect.Bottom;
-    Box.front := 0;
-    Box.back := 1;
+    Box.front := ZSlice;
+    Box.back := ZSlice+1;
 
     texShouldFree := TColorSpaceConverter.Convert(Data, imgWidth * imgHeight * ImagePixelSize[DataFormat], DataFormat, TargetFormat, tex, texSize);
     try
@@ -2272,6 +2257,11 @@ begin
     finally
       if texShouldFree then FreeMem(tex);
     end;
+end;
+
+procedure TTexture.GenerateMips;
+begin
+  FContext.FDeviceContext.GenerateMips(GetResView);
 end;
 
 { TFrameBuffer }
@@ -2442,7 +2432,7 @@ begin
   Check3DError(FDevice.CreateRenderTargetView(FBackBuffer, nil, FRenderTarget));
 
   FDeviceContext.OMSetRenderTargets(1, @FRenderTarget, nil);
-  //FDeviceContext.IASetPrimitiveTopology(DXPrimitiveType[FPrimTopology]);
+  FDeviceContext.IASetPrimitiveTopology(DXPrimitiveType[FPrimTopology]);
   ViewPort.TopLeftX := 0;
   ViewPort.TopLeftY := 0;
   ViewPort.Width := AWidth;
