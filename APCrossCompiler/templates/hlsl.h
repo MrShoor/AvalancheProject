@@ -30,6 +30,10 @@ template<gentype> struct Texture2D{
     float4 Sample(SamplerState, gentype texcoord);
 };
 
+template<gentype> struct Texture2DArray{
+    float4 Sample(SamplerState, gentype texcoord);
+};
+
 void discard;
 float sin(float rad);
 float cos(float rad);

@@ -1973,7 +1973,7 @@ type
   var Name: string;
       TotalOffset, CharIndex: Integer;
       CompIndex, BitsCount: Integer;
-      i: Integer;
+      i, n: Integer;
   begin
       Name := GetEnumName(TypeInfo(TImageFormat), Ord(Format));
 
@@ -1982,6 +1982,8 @@ type
       Result.RGBA[1].CompType := ctBool;
       Result.RGBA[2].CompType := ctBool;
       Result.RGBA[3].CompType := ctBool;
+
+      n := Min(32, ImagePixelSize[Format] * 8);
 
       //standard RGBA decode
       TotalOffset := 0;
@@ -1995,8 +1997,8 @@ type
         BitsCount := DecodeBitsCount(Name, CharIndex);
         if BitsCount <= 0 then Break;
 
-        Result.RGBA[CompIndex].DWordOffset := TotalOffset div 32;
-        Result.RGBA[CompIndex].BitsOffset := 32 - (TotalOffset mod 32) - BitsCount;
+        Result.RGBA[CompIndex].DWordOffset := TotalOffset div n;
+        Result.RGBA[CompIndex].BitsOffset := n - (TotalOffset mod n) - BitsCount;
         Result.RGBA[CompIndex].BitsCount := BitsCount;
         Result.RGBA[CompIndex].CompType := ctInt;
         Inc(TotalOffset, BitsCount);
@@ -2158,12 +2160,26 @@ begin
   if FResView = nil then
   begin
     desc.Format := D3D11TextureFormat[FFormat];
-    desc.ViewDimension := D3D10_SRV_DIMENSION_TEXTURE2D;
-    desc.Texture2D.MostDetailedMip := 0;
-    if FWithMips then
-        desc.Texture2D.MipLevels := GetMipsCount(FWidth, FHeight)
+    if FDeep > 1 then
+    begin
+      desc.ViewDimension := D3D10_SRV_DIMENSION_TEXTURE2DARRAY;
+      desc.Texture2DArray.ArraySize := FDeep;
+      desc.Texture2DArray.FirstArraySlice := 0;
+      desc.Texture2DArray.MostDetailedMip := 0;
+      if FWithMips then
+          desc.Texture2DArray.MipLevels := GetMipsCount(FWidth, FHeight)
+      else
+          desc.Texture2DArray.MipLevels := 1;
+    end
     else
-        desc.Texture2D.MipLevels := 1;
+    begin
+      desc.ViewDimension := D3D10_SRV_DIMENSION_TEXTURE2D;
+      desc.Texture2D.MostDetailedMip := 0;
+      if FWithMips then
+          desc.Texture2D.MipLevels := GetMipsCount(FWidth, FHeight)
+      else
+          desc.Texture2D.MipLevels := 1;
+    end;
     Check3DError(FContext.FDevice.CreateShaderResourceView(FTexture, @desc, FResView));
   end;
   Result := FResView;
@@ -2208,6 +2224,7 @@ begin
   FWithMips := WithMips;
   FWidth := desc.Width;
   FHeight := desc.Height;
+  FDeep := ADeep;
 end;
 
 procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean;
@@ -2221,6 +2238,7 @@ begin
   FWithMips := WithMips;
   FWidth := desc.Width;
   FHeight := desc.Height;
+  FDeep := ADeep;
 end;
 
 procedure TTexture.SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte);
@@ -2248,12 +2266,12 @@ begin
     Box.top := DestRect.Top;
     Box.right := DestRect.Right;
     Box.bottom := DestRect.Bottom;
-    Box.front := ZSlice;
-    Box.back := ZSlice+1;
+    Box.front := 0;
+    Box.back := 1;
 
     texShouldFree := TColorSpaceConverter.Convert(Data, imgWidth * imgHeight * ImagePixelSize[DataFormat], DataFormat, TargetFormat, tex, texSize);
     try
-      FContext.FDeviceContext.UpdateSubresource(FTexture, MipLevel, @Box, tex, imgWidth * ImagePixelSize[DataFormat], 0);
+      FContext.FDeviceContext.UpdateSubresource(FTexture, D3D11CalcSubresource(MipLevel, ZSlice, 1), @Box, tex, imgWidth * TexturePixelSize[TargetFormat], 0);
     finally
       if texShouldFree then FreeMem(tex);
     end;

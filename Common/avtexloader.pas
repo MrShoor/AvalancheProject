@@ -31,6 +31,10 @@ function LoadTexture(const FileName    : string;
                      const targetWidth : Integer = SIZE_DEFAULT;
                      const targetHeight: Integer = SIZE_DEFAULT;
                      const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
+function LoadTextures(const Files       : array of string;
+                      const targetWidth : Integer = SIZE_DEFAULT;
+                      const targetHeight: Integer = SIZE_DEFAULT;
+                      const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
 
 implementation
 
@@ -43,7 +47,7 @@ BestImageFormat : array [TTextureFormat] of TImageFormat = (
     { RGBA16f } TImageFormat.A16B16G16R16F,
     { RGBA32  } TImageFormat.A32B32G32R32,
     { RGBA32f } TImageFormat.A32B32G32R32F,
-    { RGB     } TImageFormat.R8G8B8,
+    { RGB     } TImageFormat.B8G8R8,
     { RGB16   } TImageFormat.R16G16B16,
     { RGB16f  } TImageFormat.R16G16B16F,
     { RGB32   } TImageFormat.R32G32B32,
@@ -75,7 +79,7 @@ BestTextureFormat : array [TImageFormat] of TTextureFormat = (
     { R5G6B5        } TTextureFormat.RGB,
     { A1R5G5B5      } TTextureFormat.RGBA,
     { A4R4G4B4      } TTextureFormat.RGBA,
-    { R8G8B8        } TTextureFormat.RGB,
+    { B8G8R8        } TTextureFormat.RGB,
     { A8R8G8B8      } TTextureFormat.RGBA,
     { A8B8G8R8      } TTextureFormat.RGBA,
     { R16F          } TTextureFormat.R16f,
@@ -153,16 +157,81 @@ type
     {$IfDef VAMPYRE}
     constructor Create(ImgData: TDynImageDataArray;
                        targetWidth, targetHeight : Integer;
-                       targetFormat              : TImageFormat);
+                       targetFormat              : TImageFormat); overload;
+    constructor Create(ImgData: array of TDynImageDataArray;
+                       targetWidth, targetHeight : Integer;
+                       targetFormat              : TImageFormat); overload;
     {$EndIf}
     constructor CreateEmpty(AWidth, AHeight: Integer; AFormat: TImageFormat; withMips: Boolean = False);
     destructor Destroy; override;
   end;
 
+procedure RaiseUnsupported;
+begin
+  raise ETextureFormatError.Create('Unsupported format');
+end;
+
+
 function EmptyTexData(Width, Height: Integer; Format: TTextureFormat; withMips: Boolean): ITextureData;
 begin
   Result := TTextureData.CreateEmpty(Width, Height, BestImageFormat[Format], withMips);
 end;
+
+{$IfDef VAMPYRE}
+function VampToAv(srcFormat: ImagingTypes.TImageFormat): TImageFormat;
+begin
+   case srcFormat of
+     ifGray8        : Result := TImageFormat.Gray8;
+     ifA8Gray8      : Result := TImageFormat.R8G8;
+     ifGray16       : Result := TImageFormat.R16F;
+     ifGray32       : Result := TImageFormat.R32F;
+     ifA16Gray16    : Result := TImageFormat.R16G16F;
+     ifR5G6B5       : Result := TImageFormat.R5G6B5;
+     ifR8G8B8       : Result := TImageFormat.B8G8R8;
+     ifA8R8G8B8     : Result := TImageFormat.A8R8G8B8;
+     ifX8R8G8B8     : Result := TImageFormat.A8R8G8B8;
+     ifR32F         : Result := TImageFormat.R32F;
+     ifA32R32G32B32F: Result := TImageFormat.A32R32G32B32F;
+     ifA32B32G32R32F: Result := TImageFormat.A32B32G32R32F;
+     ifR16F         : Result := TImageFormat.R16F;
+     ifA16R16G16B16F: Result := TImageFormat.A16R16G16B16F;
+     ifA16B16G16R16F: Result := TImageFormat.A16B16G16R16F;
+     ifDXT1         : Result := TImageFormat.DXT1;
+     ifDXT3         : Result := TImageFormat.DXT3;
+     ifDXT5         : Result := TImageFormat.DXT5;
+     ifR3G3B2       : Result := TImageFormat.R3G3B2;
+     ifA1R5G5B5     : Result := TImageFormat.A1R5G5B5;
+     ifA4R4G4B4     : Result := TImageFormat.A4R4G4B4;
+   else
+     Result := TImageFormat.Unknown;
+   end;
+end;
+
+function AvToVamp(srcFormat: TImageFormat): ImagingTypes.TImageFormat;
+begin
+  case srcFormat of
+    TImageFormat.Unknown       : Result := ifDefault;
+    TImageFormat.Gray8         : Result := ifGray8;
+    TImageFormat.R3G3B2        : Result := ifR3G3B2;
+    TImageFormat.R5G6B5        : Result := ifR5G6B5;
+    TImageFormat.A1R5G5B5      : Result := ifA1R5G5B5;
+    TImageFormat.A4R4G4B4      : Result := ifA4R4G4B4;
+    TImageFormat.B8G8R8        : Result := ifR8G8B8;
+    TImageFormat.A8R8G8B8      : Result := ifA8R8G8B8;
+    TImageFormat.R16F           : Result := ifR16F;
+    TImageFormat.A16R16G16B16F  : Result := ifA16R16G16B16F;
+    TImageFormat.A16B16G16R16F : Result := ifA16B16G16R16F;
+    TImageFormat.R32F           : Result := ifR32F;
+    TImageFormat.A32R32G32B32F : Result := ifA32R32G32B32F;
+    TImageFormat.A32B32G32R32F : Result := ifA32B32G32R32F;
+    TImageFormat.DXT1          : Result := ifDXT1;
+    TImageFormat.DXT3          : Result := ifDXT3;
+    TImageFormat.DXT5          : Result := ifDXT5;
+  else
+    Result := ifUnknown;
+  end;
+end;
+{$EndIf}
 
 {$IfDef VAMPYRE}
 function LoadTexture(const data                      : TByteArr;
@@ -193,6 +262,23 @@ begin
     FreeImagesInArray(imgs);
   end;
 end;
+
+function LoadTextures(const Files: array of string; const targetWidth: Integer;
+  const targetHeight: Integer; const targetFormat: TImageFormat): ITextureData;
+var imgs: array of TDynImageDataArray;
+    i: Integer;
+begin
+  SetLength(imgs, Length(Files));
+  try
+    for i := 0 to Length(imgs) - 1 do
+      if not LoadMultiImageFromFile(Files[i], imgs[i]) then Exit(nil);
+    Result := TTextureData.Create(imgs, targetWidth, targetHeight, targetFormat);
+  finally
+    for i := 0 to Length(imgs) - 1 do
+      FreeImagesInArray(imgs[i]);
+  end;
+end;
+
 {$EndIf}
 
 { TTextureData.TMip }
@@ -269,65 +355,6 @@ constructor TTextureData.Create(ImgData: TDynImageDataArray;
   type
       TTextureType = (ttSingleImage, ttMipLeveling, ttTextureArray);
 
-  procedure RaiseUnsupported;
-  begin
-    raise ETextureFormatError.Create('Unsupported format');
-  end;
-
-  function VampToAv(srcFormat: ImagingTypes.TImageFormat): TImageFormat;
-  begin
-     case srcFormat of
-       ifGray8        : Result := TImageFormat.Gray8;
-       ifA8Gray8      : Result := TImageFormat.R8G8;
-       ifGray16       : Result := TImageFormat.R16F;
-       ifGray32       : Result := TImageFormat.R32F;
-       ifA16Gray16    : Result := TImageFormat.R16G16F;
-       ifR5G6B5       : Result := TImageFormat.R5G6B5;
-       ifR8G8B8       : Result := TImageFormat.R8G8B8;
-       ifA8R8G8B8     : Result := TImageFormat.A8R8G8B8;
-       ifX8R8G8B8     : Result := TImageFormat.A8R8G8B8;
-       ifR32F         : Result := TImageFormat.R32F;
-       ifA32R32G32B32F: Result := TImageFormat.A32R32G32B32F;
-       ifA32B32G32R32F: Result := TImageFormat.A32B32G32R32F;
-       ifR16F         : Result := TImageFormat.R16F;
-       ifA16R16G16B16F: Result := TImageFormat.A16R16G16B16F;
-       ifA16B16G16R16F: Result := TImageFormat.A16B16G16R16F;
-       ifDXT1         : Result := TImageFormat.DXT1;
-       ifDXT3         : Result := TImageFormat.DXT3;
-       ifDXT5         : Result := TImageFormat.DXT5;
-       ifR3G3B2       : Result := TImageFormat.R3G3B2;
-       ifA1R5G5B5     : Result := TImageFormat.A1R5G5B5;
-       ifA4R4G4B4     : Result := TImageFormat.A4R4G4B4;
-     else
-       Result := TImageFormat.Unknown;
-     end;
-  end;
-
-  function AvToVamp(srcFormat: TImageFormat): ImagingTypes.TImageFormat;
-  begin
-    case srcFormat of
-      TImageFormat.Unknown       : Result := ifDefault;
-      TImageFormat.Gray8         : Result := ifGray8;
-      TImageFormat.R3G3B2        : Result := ifR3G3B2;
-      TImageFormat.R5G6B5        : Result := ifR5G6B5;
-      TImageFormat.A1R5G5B5      : Result := ifA1R5G5B5;
-      TImageFormat.A4R4G4B4      : Result := ifA4R4G4B4;
-      TImageFormat.R8G8B8        : Result := ifR8G8B8;
-      TImageFormat.A8R8G8B8      : Result := ifA8R8G8B8;
-      TImageFormat.R16F           : Result := ifR16F;
-      TImageFormat.A16R16G16B16F  : Result := ifA16R16G16B16F;
-      TImageFormat.A16B16G16R16F : Result := ifA16B16G16R16F;
-      TImageFormat.R32F           : Result := ifR32F;
-      TImageFormat.A32R32G32B32F : Result := ifA32R32G32B32F;
-      TImageFormat.A32B32G32R32F : Result := ifA32B32G32R32F;
-      TImageFormat.DXT1          : Result := ifDXT1;
-      TImageFormat.DXT3          : Result := ifDXT3;
-      TImageFormat.DXT5          : Result := ifDXT5;
-    else
-      Result := ifUnknown;
-    end;
-  end;
-
 var NewVamp: ImagingTypes.TImageFormat;
     Img0: TImageData;
     i: Integer;
@@ -403,6 +430,61 @@ begin
           begin
             FMips[i][0] := TMip.Create(0, ImgData[i].Width, ImgData[i].Height, ImgData[i].Bits, ImgData[i].Size);
           end;
+    end;
+  end;
+end;
+
+constructor TTextureData.Create(ImgData: array of TDynImageDataArray;
+  targetWidth, targetHeight: Integer; targetFormat: TImageFormat);
+var NewVamp: ImagingTypes.TImageFormat;
+    PImg: PImageData;
+    j, i: Integer;
+    w,h: Integer;
+begin
+  Assert(Length(ImgData)>0);
+  Assert(Length(ImgData[0])>0);
+
+  if targetFormat = TImageFormat.Unknown then
+  begin
+    targetFormat := VampToAv(ImgData[0][0].Format);
+    if targetFormat = TImageFormat.Unknown then RaiseUnsupported;
+  end;
+  NewVamp := AvToVamp(targetFormat);
+  if NewVamp = ifUnknown then RaiseUnsupported;
+  FFormat := targetFormat;
+
+  if targetWidth = SIZE_DEFAULT then targetWidth := ImgData[0][0].Width;
+  if targetHeight = SIZE_DEFAULT then targetHeight := ImgData[0][0].Height;
+  if targetWidth = SIZE_NEXTPOW2 then targetWidth := NextPow2(ImgData[0][0].Width);
+  if targetHeight = SIZE_NEXTPOW2 then targetHeight := NextPow2(ImgData[0][0].Height);
+  FWidth := targetWidth;
+  FHeight := targetHeight;
+
+  FMipsCount := 1;
+  for j := 0 to Length(ImgData) - 1 do
+    if Length(ImgData[j])>1 then
+    begin
+      FMipsCount := GetMipsCount(FWidth, FHeight);
+      Break;
+    end;
+
+  SetLength(FMips, Length(ImgData), FMipsCount);
+  for j := 0 to Length(ImgData) - 1 do
+  begin
+    Assert(Length(ImgData[j]) > 0, 'No data for texture #'+IntToStr(j));
+    w := targetWidth;
+    h := targetHeight;
+    for i := 0 to FMipsCount - 1 do
+    begin
+      if i < Length(ImgData[j]) then
+        PImg := @ImgData[j][i];
+
+      if NewVamp <> PImg^.Format then ConvertImage(PImg^, NewVamp);
+      if (w <> PImg^.Width) or (h <> PImg^.Height) then
+        ResizeImage(PImg^, w, h, rfBicubic);
+      FMips[j][i] := TMip.Create(i, PImg^.Width, PImg^.Height, PImg^.Bits, PImg^.Size);
+      w := w shr 2;
+      h := h shr 2;
     end;
   end;
 end;

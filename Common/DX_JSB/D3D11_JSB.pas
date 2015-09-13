@@ -4306,6 +4306,8 @@ type
 // End "D3D11SDKLayers.h"
 ///////////////////////////////////////////////////////////////////////////////
 
+function D3D11CalcSubresource(MipSlice, ArraySlice, MipLevels: UINT): UINT;
+
 {$IFDEF UseRuntimeLinking}
 procedure Link;
 {$ENDIF}
@@ -4325,6 +4327,11 @@ end;
 function D3D11_SHVER_GET_MINOR(Version:LongWord):LongWord;
 begin
   Result:=(((Version) shr 0) and $f);
+end;
+
+function D3D11CalcSubresource(MipSlice, ArraySlice, MipLevels: UINT): UINT;
+begin
+  Result := MipSlice + ArraySlice*MipLevels;
 end;
 
 {$IFDEF UseJSBErrors}
