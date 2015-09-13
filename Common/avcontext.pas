@@ -68,6 +68,7 @@ type
     function Width : Integer;
     function Height: Integer;
     function Deep  : Integer;
+    function MipsCount: Integer;
 
     function Format: TTextureFormat;
 

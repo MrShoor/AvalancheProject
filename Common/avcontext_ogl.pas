@@ -724,7 +724,7 @@ type
                                                              {R5G6B5       }  GL_RGB,
                                                              {A1R5G5B5     }  GL_BGRA,
                                                              {A4R4G4B4     }  GL_BGRA,
-                                                             {B8G8R8       }  GL_BGR,
+                                                             {R8G8B8       }  GL_BGR,
                                                              {A8R8G8B8     }  GL_BGRA,
                                                              {A8B8G8R8     }  GL_RGBA,
                                                              {R16F         }  GL_RED,
@@ -766,7 +766,7 @@ type
                                                                  {R5G6B5       }  GL_UNSIGNED_SHORT_5_6_5,
                                                                  {A1R5G5B5     }  GL_UNSIGNED_SHORT_1_5_5_5_REV,
                                                                  {A4R4G4B4     }  GL_UNSIGNED_SHORT_4_4_4_4,
-                                                                 {B8G8R8       }  GL_UNSIGNED_BYTE,
+                                                                 {R8G8B8       }  GL_UNSIGNED_BYTE,
                                                                  {A8R8G8B8     }  GL_UNSIGNED_INT_8_8_8_8_REV,
                                                                  {A8B8G8R8     }  GL_UNSIGNED_BYTE,
                                                                  {R16F         }  GL_HALF_FLOAT,
@@ -807,6 +807,7 @@ type
     FHeight : Integer;
     FDeep   : Integer;
     FIsArray : Boolean;
+    FMipsCount: Integer;
     FTargetFormat : TTextureFormat;
 
     function GetTargetFormat: TTextureFormat;
@@ -822,6 +823,7 @@ type
     function Width : Integer;
     function Height: Integer;
     function Deep  : Integer;
+    function MipsCount: Integer;
     function Format: TTextureFormat;
 
     procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean); overload;
@@ -1168,7 +1170,7 @@ begin
 end;
 
 procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; glFormat, exFormat, compFormat: Cardinal; Data: PByte; GenMipmaps: Boolean);
-var i, LevelsCount: Integer;
+var i: Integer;
 begin
   //todo: initialization with data
   FWidth := AWidth;
@@ -1177,15 +1179,15 @@ begin
   FFormat := FTargetFormat;
 
   if GenMipmaps then
-    LevelsCount := GetMipsCount(AWidth, AHeight)
+    FMipsCount := GetMipsCount(AWidth, AHeight)
   else
-    LevelsCount := 1;
+    FMipsCount := 1;
 
   FIsArray := ADeep > 1;
   if FIsArray then
   begin
     glBindTexture(GLTextureTarget[FIsArray], FHandle);
-    for i := 0 to LevelsCount - 1 do
+    for i := 0 to FMipsCount - 1 do
     begin
       glTexImage3D(GLTextureTarget[FIsArray], i, glFormat, AWidth, AHeight, ADeep, 0, exFormat, compFormat, Data);
       AWidth := AWidth div 2;
@@ -1195,7 +1197,7 @@ begin
   else
   begin
     glBindTexture(GLTextureTarget[FIsArray], FHandle);
-    for i := 0 to LevelsCount - 1 do
+    for i := 0 to FMipsCount - 1 do
     begin
       glTexImage2D(GLTextureTarget[FIsArray], i, glFormat, AWidth, AHeight, 0, exFormat, compFormat, Data);
       AWidth := AWidth div 2;
@@ -1228,6 +1230,11 @@ end;
 function TTexture.Deep: Integer;
 begin
   Result := FDeep;
+end;
+
+function TTexture.MipsCount: Integer;
+begin
+  Result := FMipsCount;
 end;
 
 function TTexture.Format: TTextureFormat;
@@ -2334,6 +2341,7 @@ end;
 procedure TProgram.SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo);
 var TexH: GLuint;
     TexTarget: GLuint;
+    MipFilter: TTextureFilter;
 begin
   if Field = nil then Exit;
   if Field.DataClass <> dcSampler then Exit;
@@ -2348,9 +2356,14 @@ begin
   glActiveTexture(GL_TEXTURE0 + PInteger(Field.Data)^);
   glBindTexture(TexTarget, TexH);
 
+  if tex.MipsCount > 1 then
+    MipFilter := Sampler.MipFilter
+  else
+    MipFilter := tfNone;
+
   glUniform1i(TUniformField_OGL(Field).ID, PInteger(Field.Data)^);
   glTexParameteri(TexTarget, GL_TEXTURE_MAG_FILTER, GLMagTextureFilter[Sampler.MagFilter]);
-  glTexParameteri(TexTarget, GL_TEXTURE_MIN_FILTER, GLMinTextureFilter[Sampler.MipFilter, Sampler.MinFilter]);
+  glTexParameteri(TexTarget, GL_TEXTURE_MIN_FILTER, GLMinTextureFilter[MipFilter, Sampler.MinFilter]);
   glTexParameteri(TexTarget, GL_TEXTURE_WRAP_S, GLWrap[Sampler.Wrap_X]);
   glTexParameteri(TexTarget, GL_TEXTURE_WRAP_T, GLWrap[Sampler.Wrap_Y]);
   glTexParameterf(TexTarget, GL_TEXTURE_MAX_ANISOTROPY_EXT, Sampler.Anisotropy);

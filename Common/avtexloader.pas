@@ -47,7 +47,7 @@ BestImageFormat : array [TTextureFormat] of TImageFormat = (
     { RGBA16f } TImageFormat.A16B16G16R16F,
     { RGBA32  } TImageFormat.A32B32G32R32,
     { RGBA32f } TImageFormat.A32B32G32R32F,
-    { RGB     } TImageFormat.B8G8R8,
+    { RGB     } TImageFormat.R8G8B8,
     { RGB16   } TImageFormat.R16G16B16,
     { RGB16f  } TImageFormat.R16G16B16F,
     { RGB32   } TImageFormat.R32G32B32,
@@ -79,7 +79,7 @@ BestTextureFormat : array [TImageFormat] of TTextureFormat = (
     { R5G6B5        } TTextureFormat.RGB,
     { A1R5G5B5      } TTextureFormat.RGBA,
     { A4R4G4B4      } TTextureFormat.RGBA,
-    { B8G8R8        } TTextureFormat.RGB,
+    { R8G8B8        } TTextureFormat.RGB,
     { A8R8G8B8      } TTextureFormat.RGBA,
     { A8B8G8R8      } TTextureFormat.RGBA,
     { R16F          } TTextureFormat.R16f,
@@ -187,7 +187,7 @@ begin
      ifGray32       : Result := TImageFormat.R32F;
      ifA16Gray16    : Result := TImageFormat.R16G16F;
      ifR5G6B5       : Result := TImageFormat.R5G6B5;
-     ifR8G8B8       : Result := TImageFormat.B8G8R8;
+     ifR8G8B8       : Result := TImageFormat.R8G8B8;
      ifA8R8G8B8     : Result := TImageFormat.A8R8G8B8;
      ifX8R8G8B8     : Result := TImageFormat.A8R8G8B8;
      ifR32F         : Result := TImageFormat.R32F;
@@ -216,7 +216,7 @@ begin
     TImageFormat.R5G6B5        : Result := ifR5G6B5;
     TImageFormat.A1R5G5B5      : Result := ifA1R5G5B5;
     TImageFormat.A4R4G4B4      : Result := ifA4R4G4B4;
-    TImageFormat.B8G8R8        : Result := ifR8G8B8;
+    TImageFormat.R8G8B8        : Result := ifR8G8B8;
     TImageFormat.A8R8G8B8      : Result := ifA8R8G8B8;
     TImageFormat.R16F           : Result := ifR16F;
     TImageFormat.A16R16G16B16F  : Result := ifA16R16G16B16F;

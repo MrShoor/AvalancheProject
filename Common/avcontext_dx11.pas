@@ -455,7 +455,7 @@ type
     FHeight: Integer;
     FDeep: Integer;
     FFormat: TTextureFormat;
-    FWithMips: Boolean;
+    FMipsCount: Integer;
 
     FTexture: ID3D11Texture2D;
     FResView: ID3D11ShaderResourceView;
@@ -474,6 +474,7 @@ type
     function Width : Integer;
     function Height: Integer;
     function Deep  : Integer;
+    function MipsCount: Integer;
     function Format: TTextureFormat;
 
     procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean); overload;
@@ -2117,11 +2118,11 @@ function TTexture.BuildDesc(AWidth, AHeight, ADeep: Integer; WithMips: Boolean):
 begin
   Result.Width  := AWidth;
   Result.Height := AHeight;
-  FWithMips     := WithMips;
   if WithMips then
-    Result.MipLevels := GetMipsCount(Result.Width, Result.Height)
+    FMipsCount := GetMipsCount(Result.Width, Result.Height)
   else
-    Result.MipLevels := 1;
+    FMipsCount := 1;
+  Result.MipLevels := FMipsCount;
 
   case FTargetFormat of
     TTextureFormat.D24_S8,
@@ -2166,19 +2167,13 @@ begin
       desc.Texture2DArray.ArraySize := FDeep;
       desc.Texture2DArray.FirstArraySlice := 0;
       desc.Texture2DArray.MostDetailedMip := 0;
-      if FWithMips then
-          desc.Texture2DArray.MipLevels := GetMipsCount(FWidth, FHeight)
-      else
-          desc.Texture2DArray.MipLevels := 1;
+      desc.Texture2DArray.MipLevels := FMipsCount;
     end
     else
     begin
       desc.ViewDimension := D3D10_SRV_DIMENSION_TEXTURE2D;
       desc.Texture2D.MostDetailedMip := 0;
-      if FWithMips then
-          desc.Texture2D.MipLevels := GetMipsCount(FWidth, FHeight)
-      else
-          desc.Texture2D.MipLevels := 1;
+      desc.Texture2D.MipLevels := FMipsCount;
     end;
     Check3DError(FContext.FDevice.CreateShaderResourceView(FTexture, @desc, FResView));
   end;
@@ -2210,6 +2205,11 @@ begin
   Result := FDeep;
 end;
 
+function TTexture.MipsCount: Integer;
+begin
+  Result := FMipsCount;
+end;
+
 function TTexture.Format: TTextureFormat;
 begin
   Result := FFormat;
@@ -2221,7 +2221,6 @@ begin
   FResView := nil;
   desc := BuildDesc(AWidth, AHeight, ADeep, WithMips);
   Check3DError(FContext.FDevice.CreateTexture2D(desc, nil, FTexture));
-  FWithMips := WithMips;
   FWidth := desc.Width;
   FHeight := desc.Height;
   FDeep := ADeep;
@@ -2235,7 +2234,6 @@ begin
   desc := BuildDesc(AWidth, AHeight, ADeep, WithMips);
   //todo: initialization with data
   Check3DError(FContext.FDevice.CreateTexture2D(desc, nil, FTexture));
-  FWithMips := WithMips;
   FWidth := desc.Width;
   FHeight := desc.Height;
   FDeep := ADeep;
@@ -2271,7 +2269,7 @@ begin
 
     texShouldFree := TColorSpaceConverter.Convert(Data, imgWidth * imgHeight * ImagePixelSize[DataFormat], DataFormat, TargetFormat, tex, texSize);
     try
-      FContext.FDeviceContext.UpdateSubresource(FTexture, D3D11CalcSubresource(MipLevel, ZSlice, 1), @Box, tex, imgWidth * TexturePixelSize[TargetFormat], 0);
+      FContext.FDeviceContext.UpdateSubresource(FTexture, D3D11CalcSubresource(MipLevel, ZSlice, FMipsCount), @Box, tex, imgWidth * TexturePixelSize[TargetFormat], imgWidth * TexturePixelSize[TargetFormat] * imgHeight);
     finally
       if texShouldFree then FreeMem(tex);
     end;
