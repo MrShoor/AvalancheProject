@@ -1,5 +1,6 @@
 #include "hlsl.h"
 #include "matrices.h"
+#include "..\phong.h"
 
 struct VS_Input {
     float3 vsCoord   : vsCoord;
@@ -22,5 +23,17 @@ VS_Output VS(VS_Input In) {
     Out.Normal = mul((float3x3)V_Matrix, In.vsNormal);
     Out.ViewPos = mul(V_Matrix, crd).xyz;
     Out.Color = In.aiColor;
+    return Out;
+}
+
+struct PS_Output {
+    float4 Color : SV_Target;
+};
+
+PS_Output PS(VS_Output In) {
+    PS_Output Out;
+    float3 n = normalize(In.Normal);
+    Out.Color.xyz = Phong(0.0, 0.0, In.ViewPos, n, In.Color.xyz);
+    Out.Color.a = In.Color.a;
     return Out;
 }

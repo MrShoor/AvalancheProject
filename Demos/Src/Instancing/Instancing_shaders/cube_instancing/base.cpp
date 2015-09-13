@@ -24,3 +24,14 @@ VS_Output VS(VS_Input In) {
     Out.Color = In.aiColor;
     return Out;
 }
+
+struct PS_Output {
+    float4 Color : COLOR;
+};
+
+PS_Output PS(VS_Output In) {
+    PS_Output Out;
+    float3 n = normalize(In.Normal);
+    Out.Color = max(0.0, -dot(normalize(In.ViewPos), n)) * In.Color;
+    return Out;
+}

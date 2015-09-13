@@ -438,6 +438,7 @@ type
     FColors  : IColorsList;
     FDepth   : TAttachInfo;
     FFrameRect: TRectI;
+    FForcedPOT: Boolean;
     procedure SetFrameRect(AValue: TRectI);
   protected
     procedure BeforeFree3D; override;
@@ -446,6 +447,7 @@ type
     procedure Select(UpdateProjMatrix: Boolean = True);
 
     property FrameRect: TRectI read FFrameRect write SetFrameRect;
+    property ForcedPOT: Boolean read FForcedPOT write FForcedPOT;
 
     procedure ClearColorList;
 
@@ -615,7 +617,11 @@ function TavFrameBuffer.DoBuild: Boolean;
   procedure ResizeTex(tex: TavTexture; FrameSize: TVec2i; mipLevel: Integer); //inline;
   var NewTexSize: TVec2i;
   begin
-    NewTexSize := NextPow2(FrameSize) * (1 shl mipLevel);
+    if ForcedPOT then
+      NewTexSize := NextPow2(FrameSize) * (1 shl mipLevel)
+    else
+      NewTexSize := FrameSize * (1 shl mipLevel);
+
     if (tex.Size.x <> NewTexSize.x) or (tex.Size.y <> NewTexSize.y) then
       tex.TexData := EmptyTexData(NewTexSize.x, NewTexSize.y, tex.TargetFormat, mipLevel > 0);
     tex.Build;
@@ -730,28 +736,6 @@ begin
     end;
     if FAutoGenerateMips then
       FTexH.GenerateMips;
-
-    //MipCount := FTexData.MipCount();
-    //if MipCount > 0 then
-    //begin
-    //  if FTexH = nil then FTexH := Main.Context.CreateTexture;
-    //  FTexH.TargetFormat := FTargetFormat;
-    //  MipInfo := FTexData.Data(FImageIndex, 0);
-    //  FImageSize.x := MipInfo.Width;
-    //  FImageSize.y := MipInfo.Height;
-    //
-    //  if MipCount = 1 then
-    //    FTexH.SetImage(MipInfo.Width, MipInfo.Height, FTexData.Format, MipInfo.Data, FAutoGenerateMips)
-    //  else
-    //  begin
-    //    FTexH.AllocMem(NextPow2(MipInfo.Width), NextPow2(MipInfo.Height), 1, True);
-    //    for i := 0 to MipCount - 1 do
-    //    begin
-    //      MipInfo := FTexData.Data(FImageIndex, i);
-    //      FTexH.SetMipImage(0, 0, MipInfo.Width, MipInfo.Height, i, FTexData.Format, MipInfo.Data);
-    //    end;
-    //  end;
-    //end;
   end;
   if FDropLocalAfterBuild then FTexData := nil;
   Result := True;

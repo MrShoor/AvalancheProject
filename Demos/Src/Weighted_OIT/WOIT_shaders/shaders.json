@@ -6,8 +6,6 @@
                      "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],
     "OGLTranslate" : true,
     "OutDir" : "!Out",
-    "DXPrefix" : "DX_",
-    "OGLPrefix" : "OGL_",
     "VertexEntry" : "VS",
     "FragmentEntry" : "PS",
     "VertexTarget" : "vs_4_0",
@@ -15,8 +13,8 @@
     "Programs":[
         {
         "Name"     : "Classic",
-        "Vertex"   : "classic_v.cpp",
-        "Fragment" : "classic_f.cpp",
+        "Vertex"   : "classic.cpp",
+        "Fragment" : "classic.cpp",
         "Path"     :["Classic"]
         },
         {
@@ -27,8 +25,8 @@
         },
         {
         "Name"     : "WOIT_Resolve",
-        "Vertex"   : "resolve_v.cpp",
-        "Fragment" : "resolve_f.cpp",
+        "Vertex"   : "resolve.cpp",
+        "Fragment" : "resolve.cpp",
         "Path"     :["WOIT_Resolve"]
         }
     ]

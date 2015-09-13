@@ -133,7 +133,6 @@ var vert: IVerticesData;
     ind : IIndicesData;
 
     cc: TavCameraController;
-    USize, VSize: Single;
 begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
@@ -154,9 +153,7 @@ begin
   FTexture.AutoGenerateMips := True;
   FTexture.TexData := LoadTexture('..\Media\tig.jpg', SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.A8R8G8B8);
 
-  USize := FTexture.TexData.Data(0,0).Width/NextPow2(FTexture.TexData.Data(0,0).Width);
-  VSize := FTexture.TexData.Data(0,0).Height/NextPow2(FTexture.TexData.Data(0,0).Height);
-  GenCube(H, H, H, USize, VSize, vert, ind);
+  GenCube(H, H, H, 1, 1, vert, ind);
 
   FCubeVertices := TavVB.Create(FMain);
   FCubeVertices.Vertices := vert;
@@ -208,7 +205,7 @@ begin
 
     FProgram.Select;
     FProgram.SetAttributes(FCubeVertices, FCubeIndices, nil);
-    FProgram.SetUniform('Diffuse', FTexture, Sampler_Linear);
+    FProgram.SetUniform('Diffuse', FTexture, Sampler_LinearClamped);
     FProgram.Draw();
 
     FFrameBuffer.BlitToWindow;

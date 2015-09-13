@@ -22,3 +22,17 @@ VS_Output VS(VS_Input In) {
     Out.TexCrd = In.vsTexCrd;
     return Out;
 }
+
+struct PS_Output {
+    float4 Color : SV_Target;
+};
+
+Texture2D Diffuse; SamplerState DiffuseSampler;
+
+PS_Output PS(VS_Output In) {
+    PS_Output Out;
+    float3 n = normalize(In.Normal);
+    float4 diff = Diffuse.Sample(DiffuseSampler, In.TexCrd);
+    Out.Color = max(0.0, -dot(normalize(In.ViewPos), n)) * diff;
+    return Out;
+}

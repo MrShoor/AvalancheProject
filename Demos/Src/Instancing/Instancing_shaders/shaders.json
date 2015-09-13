@@ -6,8 +6,6 @@
                      "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],
     "OGLTranslate" : true,
     "OutDir" : "!Out",
-    "DXPrefix" : "DX_",
-    "OGLPrefix" : "OGL_",
     "VertexEntry" : "VS",
     "FragmentEntry" : "PS",
     "VertexTarget" : "vs_4_0",
@@ -15,8 +13,8 @@
     "Programs":[
         {
         "Name"     : "base",
-        "Vertex"   : "base_v.cpp",
-        "Fragment" : "base_f.cpp",
+        "Vertex"   : "base.cpp",
+        "Fragment" : "base.cpp",
         "Path"     :["cube_instancing"]
         }      
     ]

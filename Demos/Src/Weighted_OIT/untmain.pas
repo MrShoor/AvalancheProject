@@ -317,7 +317,6 @@ begin
 end;
 
 procedure TfrmMain.RenderScene;
-var FrameRct: TVec4;
 begin
   if FMain = nil then Exit;
   if cbSorted.Checked then FCubeInstances.Vertices := GenCubeInstances(cbSorted.Checked);
@@ -364,11 +363,8 @@ begin
       FClassic_FrameBuffer.Clear(0, Vec(0,0,0,0));
       FMain.States.SetBlendFunctions(bfSrcAlpha, bfInvSrcAlpha, 0);
 
-      FrameRct := FWOIT_FrameBuffer.FrameRect.v;
-      FrameRct.zw := FrameRct.zw / NextPow2(FWOIT_FrameBuffer.FrameRect.RightBottom);
       FWOIT_ResolveProgram.Select;
       FWOIT_ResolveProgram.SetAttributes(FQuad, nil, nil);
-      FWOIT_ResolveProgram.SetUniform('FrameTexRect', FrameRct);
       FWOIT_ResolveProgram.SetUniform('Accum', FWOIT_FrameBuffer.GetColor(0), Sampler_NoFilter);
       FWOIT_ResolveProgram.SetUniform('Product', FWOIT_FrameBuffer.GetColor(1), Sampler_NoFilter);
       FWOIT_ResolveProgram.Draw();
