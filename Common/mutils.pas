@@ -7,7 +7,7 @@ unit mutils;
   {$fputype sse2}
 {$endif}
 
-//{$define NoInline}
+{$define NoInline}
 
 interface {$define INTF}
 
@@ -16,6 +16,7 @@ uses
 
 const
   EPS = 0.000005;
+  HUGE = MaxInt;
 
 type
   TSingleArr = array of Single;
@@ -163,6 +164,10 @@ type
     0: (min, max: TVec3);
   end;
 
+const
+  EmptyAABB: TAABB = (min: (x: HUGE; y: HUGE; z: HUGE); max: (x: -HUGE; y: -HUGE; z: -HUGE));
+
+type
   { TPlane }
 
   TPlane = packed record
@@ -221,6 +226,9 @@ function Len(const v: TVec4): Single; overload; {$IFNDEF NoInline} inline; {$END
 function Normalize(const v: TVec2): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Normalize(const v: TVec3): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Normalize(const v: TVec4): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function NormalizeWeights(const v: TVec2): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function NormalizeWeights(const v: TVec3): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function NormalizeWeights(const v: TVec4): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function SetLen(const v: TVec2; newLen: Single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function SetLen(const v: TVec3; newLen: Single): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function SetLen(const v: TVec4; newLen: Single): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -600,6 +608,21 @@ end;
 function Normalize(const v: TVec4): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 begin
   Result := v / Len(v);
+end;
+
+function NormalizeWeights(const v: TVec2): TVec2;
+begin
+  Result := v * (1 / (v.x+v.y));
+end;
+
+function NormalizeWeights(const v: TVec3): TVec3;
+begin
+  Result := v * (1 / (v.x+v.y+v.z));
+end;
+
+function NormalizeWeights(const v: TVec4): TVec4;
+begin
+  Result := v * (1 / (v.x+v.y+v.z+v.w));
 end;
 
 function SetLen(const v: TVec2; newLen: Single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}

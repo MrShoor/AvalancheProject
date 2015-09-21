@@ -1,0 +1,11 @@
+object frmMain: TfrmMain
+  Left = 231
+  Height = 728
+  Top = 194
+  Width = 1044
+  Caption = 'frmMain'
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnPaint = FormPaint
+  LCLVersion = '1.4.2.0'
+end

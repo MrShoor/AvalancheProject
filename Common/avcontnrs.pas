@@ -263,6 +263,7 @@ end;
 
 function TMurmur2HashString.Hash(AKey: string): Cardinal;
 begin
+  if AKey = '' then Exit(1);
   Result := Murmur2(AKey[1], (Length(AKey)+1)*SizeOf(char));
   if Result = 0 then Result := 1;
 end;

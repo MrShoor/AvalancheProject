@@ -10,7 +10,7 @@ uses
   avBase, avCameraController, avCanvas, avContext, avContext_OGL, avContnrs, 
   avControls, avLog, avPlatform, avRes, avTess, avTimer, avTypes, dglOpenGL, 
   mutils, avTexLoader, D3D11_JSB, DXGI_JSB, DXTypes_JSB, D3DCommon_JSB, 
-  avContext_DX11, LazarusPackageIntf;
+  avContext_DX11, avMesh, LazarusPackageIntf;
 
 implementation
 

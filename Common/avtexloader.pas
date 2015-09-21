@@ -21,7 +21,7 @@ const
     SIZE_NEXTPOW2  = -2;
     FORMAT_DEFAULT = TImageFormat.Unknown;
 
-function EmptyTexData(Width, Height: Integer; Format: TTextureFormat; withMips: Boolean = False): ITextureData;
+function EmptyTexData(Width, Height: Integer; Format: TTextureFormat; withMips: Boolean = False; AllocateTextureMemory: Boolean = False): ITextureData;
 
 function LoadTexture(const data        : TByteArr;
                      const targetWidth : Integer = SIZE_DEFAULT;
@@ -46,7 +46,7 @@ BestImageFormat : array [TTextureFormat] of TImageFormat = (
     { RGBA16  } TImageFormat.A16B16G16R16,
     { RGBA16f } TImageFormat.A16B16G16R16F,
     { RGBA32  } TImageFormat.A32B32G32R32,
-    { RGBA32f } TImageFormat.A32B32G32R32F,
+    { RGBA32f } TImageFormat.R32G32B32A32F,
     { RGB     } TImageFormat.R8G8B8,
     { RGB16   } TImageFormat.R16G16B16,
     { RGB16f  } TImageFormat.R16G16B16F,
@@ -92,7 +92,7 @@ BestTextureFormat : array [TImageFormat] of TTextureFormat = (
     { R32G32F       } TTextureFormat.RG32f,
     { R32G32B32F    } TTextureFormat.RGB32f,
     { A32R32G32B32F } TTextureFormat.RGBA32f,
-    { A32B32G32R32F } TTextureFormat.RGBA32f,
+    { R32G32B32A32F } TTextureFormat.RGBA32f,
     { DXT1          } TTextureFormat.DXT1,
     { DXT3          } TTextureFormat.DXT3,
     { DXT5          } TTextureFormat.DXT5,
@@ -131,11 +131,11 @@ type
         FLevel : Integer;
     public
         function Replicate: TMip;
-        constructor Create(AMipLevel: Integer;
-                           AWidth   : Integer;
-                           AHeight  : Integer;
-                           AData    : PByte;
-                           ASize    : Integer);
+        constructor Create(AMipLevel     : Integer;
+                           AWidth        : Integer;
+                           AHeight       : Integer;
+                           AData         : PByte;
+                           ASize         : Integer);
     end;
   private
     FFormat: TImageFormat;
@@ -162,7 +162,7 @@ type
                        targetWidth, targetHeight : Integer;
                        targetFormat              : TImageFormat); overload;
     {$EndIf}
-    constructor CreateEmpty(AWidth, AHeight: Integer; AFormat: TImageFormat; withMips: Boolean = False);
+    constructor CreateEmpty(AWidth, AHeight: Integer; AFormat: TImageFormat; withMips: Boolean = False; AllocateTextureMemory: Boolean = False);
     destructor Destroy; override;
   end;
 
@@ -172,9 +172,9 @@ begin
 end;
 
 
-function EmptyTexData(Width, Height: Integer; Format: TTextureFormat; withMips: Boolean): ITextureData;
+function EmptyTexData(Width, Height: Integer; Format: TTextureFormat; withMips: Boolean; AllocateTextureMemory: Boolean): ITextureData;
 begin
-  Result := TTextureData.CreateEmpty(Width, Height, BestImageFormat[Format], withMips);
+  Result := TTextureData.CreateEmpty(Width, Height, BestImageFormat[Format], withMips, AllocateTextureMemory);
 end;
 
 {$IfDef VAMPYRE}
@@ -192,7 +192,7 @@ begin
      ifX8R8G8B8     : Result := TImageFormat.A8R8G8B8;
      ifR32F         : Result := TImageFormat.R32F;
      ifA32R32G32B32F: Result := TImageFormat.A32R32G32B32F;
-     ifA32B32G32R32F: Result := TImageFormat.A32B32G32R32F;
+     ifA32B32G32R32F: Result := TImageFormat.R32G32B32A32F;
      ifR16F         : Result := TImageFormat.R16F;
      ifA16R16G16B16F: Result := TImageFormat.A16R16G16B16F;
      ifA16B16G16R16F: Result := TImageFormat.A16B16G16R16F;
@@ -223,7 +223,7 @@ begin
     TImageFormat.A16B16G16R16F : Result := ifA16B16G16R16F;
     TImageFormat.R32F           : Result := ifR32F;
     TImageFormat.A32R32G32B32F : Result := ifA32R32G32B32F;
-    TImageFormat.A32B32G32R32F : Result := ifA32B32G32R32F;
+    TImageFormat.R32G32B32A32F : Result := ifA32B32G32R32F;
     TImageFormat.DXT1          : Result := ifDXT1;
     TImageFormat.DXT3          : Result := ifDXT3;
     TImageFormat.DXT5          : Result := ifDXT5;
@@ -296,7 +296,7 @@ begin
   FWidth := AWidth;
   FHeight := AHeight;
   SetLength(FData, ASize);
-  if ASize > 0 then Move(AData^, FData[0], ASize);
+  if Assigned(AData) and (ASize > 0) then Move(AData^, FData[0], ASize);
 end;
 
 { TTextureData }
@@ -346,6 +346,7 @@ begin
   Result.Height := FMips[Index][MipLevel].FHeight;
   Result.Width  := FMips[Index][MipLevel].FWidth;
   Result.Level  := FMips[Index][MipLevel].FLevel;
+  Result.PixelSize := ImagePixelSize[FFormat];
 end;
 
 {$IfDef VAMPYRE}
@@ -489,8 +490,9 @@ begin
   end;
 end;
 
-constructor TTextureData.CreateEmpty(AWidth, AHeight: Integer; AFormat: TImageFormat; withMips: Boolean);
+constructor TTextureData.CreateEmpty(AWidth, AHeight: Integer; AFormat: TImageFormat; withMips: Boolean; AllocateTextureMemory: Boolean);
 var i: Integer;
+    AllocSize: Integer;
 begin
   FWidth := AWidth;
   FHeight := AHeight;
@@ -504,7 +506,11 @@ begin
   SetLength(FMips, 1, FMipsCount);
   for i := 0 to FMipsCount - 1 do
   begin
-    FMips[0][i] := TMip.Create(i, AWidth, AHeight, Nil, 0);
+    if AllocateTextureMemory then
+      AllocSize := AWidth * AHeight * ImagePixelSize[FFormat]
+    else
+      AllocSize := 0;
+    FMips[0][i] := TMip.Create(i, AWidth, AHeight, Nil, AllocSize);
     AWidth := AWidth shr 1;
     AHeight := AHeight shr 1;
   end;

@@ -737,7 +737,7 @@ type
                                                              {R32G32F      }  GL_RG,
                                                              {R32G32B32F   }  GL_RGB,
                                                              {A32R32G32B32F}  GL_RGBA,
-                                                             {A32B32G32R32F}  GL_RGBA, //??
+                                                             {R32G32B32A32F}  GL_RGBA, //??
                                                              {DXT1         }  GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,
                                                              {DXT3         }  GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,
                                                              {DXT5         }  GL_COMPRESSED_RGBA_S3TC_DXT5_EXT,
@@ -779,7 +779,7 @@ type
                                                                  {R32G32F      }  GL_FLOAT,
                                                                  {R32G32B32F   }  GL_FLOAT,
                                                                  {A32R32G32B32F}  GL_FLOAT,
-                                                                 {A32B32G32R32F}  GL_FLOAT,
+                                                                 {R32G32B32A32F}  GL_FLOAT,
                                                                  {DXT1         }  GL_NONE,
                                                                  {DXT3         }  GL_NONE,
                                                                  {DXT5         }  GL_NONE,

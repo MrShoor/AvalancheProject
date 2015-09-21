@@ -1502,6 +1502,7 @@ procedure TavIB.SetIndices(const AValue: IIndicesData);
 begin
   if FInd = AValue then Exit;
   FInd := AValue;
+  PrimType := AValue.PrimType;
   Invalidate;
 end;
 

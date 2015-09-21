@@ -2,6 +2,7 @@ unit avTypes;
 
 {$ifdef fpc}
   {$mode objfpc}{$H+}
+  {$ModeSwitch advancedrecords}
 {$endif}
 
 interface
@@ -107,7 +108,7 @@ type
   TTextureFormat = (RGBA, RGBA16, RGBA16f, RGBA32, RGBA32f, RGB, RGB16, RGB16f, RGB32, RGB32f, RG, RG16, RG16f, RG32, RG32f, R, R16, R16f, R32,
                     R32f, DXT1, DXT3, DXT5, D24_S8, D32f_S8, D16, D24, D32, D32f);
   TImageFormat = (Unknown, Gray8, R3G3B2, R8G8, R5G6B5, A1R5G5B5, A4R4G4B4, R8G8B8, A8R8G8B8, A8B8G8R8, R16F, R16G16F, R16G16B16F, A16R16G16B16F, B16G16R16F,
-                  A16B16G16R16F, R32F, R32G32F, R32G32B32F, A32R32G32B32F, A32B32G32R32F, DXT1, DXT3, DXT5, D24_S8, D32f_S8, D16, D24, D32, D32f,
+                  A16B16G16R16F, R32F, R32G32F, R32G32B32F, A32R32G32B32F, R32G32B32A32F, DXT1, DXT3, DXT5, D24_S8, D32f_S8, D16, D24, D32, D32f,
                   R16, R16G16, R16G16B16, A16R16G16B16, B16G16R16, A16B16G16R16, R32, R32G32, R32G32B32, A32R32G32B32, A32B32G32R32);
   {$SCOPEDENUMS OFF}
   TTextureFilter = (tfNone, tfNearest, tfLinear);
@@ -189,11 +190,15 @@ Type
     function Data: TPointerData;
   end;
 
+  { TTextureMipInfo }
+
   TTextureMipInfo = packed record
-    Width : Integer;
-    Height: Integer;
-    Level : Integer;
-    Data  : PByte;
+    Width    : Integer;
+    Height   : Integer;
+    Level    : Integer;
+    Data     : PByte;
+    PixelSize: Integer;
+    function Pixel(const x,y: Integer): PByte; Inline;
   end;
 
   { ITextureData }
@@ -232,7 +237,7 @@ const
     { R32G32F       } 8,
     { R32G32B32F    } 12,
     { A32R32G32B32F } 16,
-    { A32B32G32R32F } 16,
+    { R32G32B32A32F } 16,
     { DXT1          } 8,
     { DXT3          } 16,
     { DXT5          } 16,
@@ -370,6 +375,8 @@ function MakeFourCC(ch0,ch1,ch2,ch3: AnsiChar): TFOURCC;
 procedure StreamWriteString(stream: TStream; const str: AnsiString);
 procedure StreamReadString(stream: TStream; out str: AnsiString);
 
+procedure ZeroClear(out data; const DataSize: Integer);
+
 implementation
 
 type
@@ -455,6 +462,21 @@ begin
   SetLength(str, n);
   if n > 0 then
       stream.ReadBuffer(str[1], n);
+end;
+
+procedure ZeroClear(out data; const DataSize: Integer);
+begin
+  {$Hints OFF}
+  FillChar(data, DataSize, 0);
+  {$Hints ON}
+end;
+
+{ TTextureMipInfo }
+
+function TTextureMipInfo.Pixel(const x, y: Integer): PByte;
+begin
+  Result := Data;
+  Inc(Result, (y*Width+x)*PixelSize);
 end;
 
 { TNoRefObject }

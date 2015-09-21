@@ -27,8 +27,13 @@
           <DebugInfoType Value="dsDwarf2Set"/>
         </Debugging>
       </Linking>
+      <Other>
+        <CompilerMessages>
+          <IgnoredMessages idx5026="True" idx5024="True" idx4081="True" idx4080="True" idx4079="True"/>
+        </CompilerMessages>
+      </Other>
     </CompilerOptions>
-    <Files Count="24">
+    <Files Count="25">
       <Item1>
         <Filename Value="Common\avbase.pas"/>
         <UnitName Value="avBase"/>
@@ -125,6 +130,10 @@
         <Filename Value="Common\avcontext_dx11.pas"/>
         <UnitName Value="avContext_DX11"/>
       </Item24>
+      <Item25>
+        <Filename Value="Common\avmesh.pas"/>
+        <UnitName Value="avMesh"/>
+      </Item25>
     </Files>
     <RequiredPkgs Count="2">
       <Item1>
