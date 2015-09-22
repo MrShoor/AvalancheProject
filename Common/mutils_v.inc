@@ -13,8 +13,9 @@ type
 
   TV3 = record
   case Byte of
-    0: (x, y, z: TCompType);
-    1: (xy: TV2);
+    0: (f: array [0..2] of Single);
+    1: (x, y, z: TCompType);
+    2: (xy: TV2);
   end;
   PV3 =^TV3;
 
@@ -22,9 +23,10 @@ type
 
   TV4 = record
   case Byte of
-    0: (x, y, z, w: TCompType);
-    1: (xy, zw: TV2);
-    2: (xyz: TV3);
+    0: (f: array [0..3] of Single);
+    1: (x, y, z, w: TCompType);
+    2: (xy, zw: TV2);
+    3: (xyz: TV3);
   end;
   PV4 =^TV4;
 

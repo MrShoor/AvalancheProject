@@ -77,7 +77,7 @@ type
     function GetAnimCount: Integer;
     function GetBone(index: Integer): IavBone;
     function GetBonesCount: Integer;
-    function GetName: AnsiString;
+    function GetName: String;
 
     property BonesCount: Integer read GetBonesCount;
     property Bone[index: Integer]: IavBone read GetBone;
@@ -85,7 +85,7 @@ type
     property AnimCount: Integer read GetAnimCount;
     property Anim[index: Integer]: IavAnimation read GetAnim;
 
-    property Name: AnsiString read GetName;
+    property Name: String read GetName;
 
     function FindBone(const AName: string): IavBone;
 
@@ -118,8 +118,8 @@ type
   { IavArmatureInternal }
 
   IavArmatureInternal = interface (IavArmature)
-    procedure SetName(const AValue: AnsiString);
-    property Name: AnsiString read GetName write SetName;
+    procedure SetName(const AValue: String);
+    property Name: String read GetName write SetName;
 
     procedure AddBone(const ABone: IavBoneInternal);
   end;
@@ -134,8 +134,6 @@ type
     property Name: String read GetName write SetName;
     property BBox: TAABB read GetBBox write SetBBox;
     property Armature: IavArmature read GetArmature write SetArmature;
-
-    procedure AddDefaultVertexGroup(const GroupName: String; const GroupIndex: Integer);
   end;
 
   { TavBone }
@@ -144,7 +142,7 @@ type
   private
     FParent   : Pointer;
     FChilds   : Array Of IavBone;
-    FName     : AnsiString;
+    FName     : String;
     FIndex    : Integer;
     FTransform: TMat4;
 
@@ -178,7 +176,7 @@ type
     IBoneHash = specialize IHashMap<string, Integer, TMurmur2HashString>;
     TBoneHash = specialize THashMap<string, Integer, TMurmur2HashString>;
   private
-    FName: AnsiString;
+    FName: String;
     FBones: array of IavBone;
     FBoneIndex: IBoneHash;
 
@@ -191,7 +189,7 @@ type
     function GetBone(index: Integer): IavBone;
     function GetBonesCount: Integer;
     function GetName: AnsiString;
-    procedure SetName(const AValue: AnsiString);
+    procedure SetName(const AValue: String);
   public
     property BonesCount: Integer read GetBonesCount;
     property Bone[index: Integer]: IavBone read GetBone;
@@ -199,7 +197,7 @@ type
     property AnimCount: Integer read GetAnimCount;
     property Anim[index: Integer]: IavAnimation read GetAnim;
 
-    property Name: AnsiString read GetName write SetName;
+    property Name: String read GetName write SetName;
 
     function FindBone(const AName: string): IavBone;
     procedure AddBone(const ABone: IavBoneInternal);
@@ -213,17 +211,12 @@ type
   { TavMesh }
 
   TavMesh = class (TInterfacedObjectEx, IavMesh, IavMeshInternal)
-  private type
-    IVGroupHash = specialize IHashMap<String, Integer, TMurmur2HashString>;
-    TVGroupHash = specialize THashMap<String, Integer, TMurmur2HashString>;
   private
     FVert: IMeshVertices;
     FInd : IIndices;
     FBBox: TAABB;
     FArm : IavArmature;
     FName: String;
-
-    FDefVGroups: IVGroupHash;
 
     function GetArmature: IavArmature;
     function GetBBox: TAABB;
@@ -240,8 +233,6 @@ type
     property Ind : IIndices read GetInd;
 
     property Armature: IavArmature read GetArmature write SetArmature;
-
-    procedure AddDefaultVertexGroup(const GroupName: String; const GroupIndex: Integer);
 
     procedure AfterConstruction; override;
   end;
@@ -272,17 +263,19 @@ const
   );
 
 procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
-  procedure LoadMeshFromStream(const stream: TStream; out mesh: IavMeshInternal);
+  procedure LoadMeshFromStream(const stream: TStream; out mesh: IavMeshInternal; out parent: String);
   type
     TWeightInfo = packed record
       index: Integer;
       weight: Single;
     end;
+    TWeightInfoArr = array of TWeightInfo;
+
   var defV: IPNWVertices;
       v: TPNWVertex;
       i, j, n: Integer;
-      wCount, wReadCount: Integer;
-      w: array [0..3] of TWeightInfo;
+      wCount: Integer;
+      w: TWeightInfoArr;
       s: AnsiString;
 
       mv: TMeshVertex;
@@ -308,13 +301,8 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
     StreamReadString(stream, s);
     mesh.Name := String(s);
 
-    stream.ReadBuffer(n, SizeOf(n));
-    for i := 0 to n - 1 do
-    begin
-      StreamReadString(stream, s);
-      stream.ReadBuffer(j, SizeOf(j));
-      mesh.AddDefaultVertexGroup(String(s), j);
-    end;
+    StreamReadString(stream, s);
+    parent := String(s);
 
     stream.ReadBuffer(n, SizeOf(n));
     defV := TPNWVertices.Create;
@@ -324,25 +312,16 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
       stream.ReadBuffer(v, SizeOf(v.vsCoord)+SizeOf(v.vsNormal));
 
       stream.ReadBuffer(wCount, SizeOf(wCount));
-      w[0].index := -1; w[0].weight := 0;
-      w[1].index := -1; w[0].weight := 0;
-      w[2].index := -1; w[0].weight := 0;
-      w[3].index := -1; w[0].weight := 0;
-      wReadCount := min(4, wCount);
-      stream.ReadBuffer(w[0], wReadCount*SizeOf(TWeightInfo));
-      stream.Position := stream.Position + (wCount-wReadCount)*SizeOf(TWeightInfo);
-      v.vsWIndex := Vec(w[0].index, w[1].index, w[2].index, w[3].index);
-      v.vsWeight := Vec(w[0].weight, w[1].weight, w[2].weight, w[3].weight);
-      case wReadCount of
-        0: ;
-        1: v.vsWeight.x   := 1;
-        2: v.vsWeight.xy  := NormalizeWeights(v.vsWeight.xy);
-        3: v.vsWeight.xyz := NormalizeWeights(v.vsWeight.xyz);
-        4: v.vsWeight     := NormalizeWeights(v.vsWeight);
-      else
-        Assert(False, 'wtf?');
+      SetLength(w, wCount);
+      stream.ReadBuffer(w[0], wCount*SizeOf(TWeightInfo));
+      v.vsWIndex := Vec(-1,-1,-1,-1);
+      v.vsWeight := Vec(0,0,0,0);
+      Assert(Length(w)<=4);
+      for j := 0 to Length(w) - 1 do
+      begin
+        v.vsWIndex.f[j] := w[j].index;
+        v.vsWeight.f[j] := w[j].weight;
       end;
-
       defV.Add(v);
     end;
 
@@ -379,13 +358,6 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
   end;
 
   procedure LoadArmatureFromStream(const stream: TStream; out arm: IavArmatureInternal);
-    procedure LinkArmToMesh(const arm: IavArmatureInternal; const MeshName: AnsiString);
-    var i: Integer;
-    begin
-      for i := 0 to Length(meshes) - 1 do
-        if meshes[i].name = MeshName then
-          IavMeshInternal(meshes[i]).Armature := arm;
-    end;
     procedure LinkBones(const child, parent: IavBoneInternal);
     begin
       if parent = nil then Exit;
@@ -396,6 +368,7 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
     procedure LoadBoneFromStream(const stream: TStream; out bone: IavBoneInternal; out parent: String);
     var s: AnsiString;
         m: TMat4;
+        n: Integer = 0;
     begin
       ZeroClear(m, SizeOf(m));
 
@@ -406,6 +379,9 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
 
       StreamReadString(stream, s);
       parent := String(s);
+
+      stream.ReadBuffer(n, SizeOf(n));
+      bone.Index := n;
 
       stream.ReadBuffer(m, SizeOf(m));
       bone.Transform := m;
@@ -421,41 +397,43 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
     arm := TavArmature.Create;
 
     StreamReadString(stream, s);
-    arm.Name := s;
+    arm.Name := String(s);
 
     stream.ReadBuffer(n, SizeOf(n));
+    SetLength(bones, n);
+    SetLength(boneParent, n);
     for i := 0 to n - 1 do
     begin
-      StreamReadString(stream, s);
-      LinkArmToMesh(arm, s);
+      LoadBoneFromStream(stream, bones[i], boneParent[i]);
+      arm.AddBone(bones[i]);
     end;
-
-     stream.ReadBuffer(n, SizeOf(n));
-     SetLength(bones, n);
-     SetLength(boneParent, n);
-     for i := 0 to n - 1 do
-     begin
-       LoadBoneFromStream(stream, bones[i], boneParent[i]);
-       arm.AddBone(bones[i]);
-     end;
-     for i := 0 to n - 1 do
-       LinkBones(bones[i], IavBoneInternal(arm.FindBone(boneParent[i])));
+    for i := 0 to n - 1 do
+      LinkBones(bones[i], IavBoneInternal(arm.FindBone(boneParent[i])));
   end;
 
-var i, n: Integer;
+var i, j, n: Integer;
     arm: array of IavArmatureInternal;
+    MeshParent: String;
 begin
   n := 0;
-
-  stream.ReadBuffer(n, SizeOf(n));
-  SetLength(meshes, n);
-  for i := 0 to n - 1 do
-    LoadMeshFromStream(stream, IavMeshInternal(meshes[i]));
 
   stream.ReadBuffer(n, SizeOf(n));
   SetLength(arm, n);
   for i := 0 to n - 1 do
     LoadArmatureFromStream(stream, arm[i]);
+
+  stream.ReadBuffer(n, SizeOf(n));
+  SetLength(meshes, n);
+  for i := 0 to n - 1 do
+  begin
+    LoadMeshFromStream(stream, IavMeshInternal(meshes[i]), MeshParent);
+    for j := 0 to Length(arm) - 1 do
+      if arm[j].Name = MeshParent then
+      begin
+        IavMeshInternal(meshes[i]).Armature := arm[j];
+        Break;
+      end;
+  end;
 end;
 
 procedure LoadFromFile(const FileName: string; out meshes: TavMeshes);
@@ -497,19 +475,8 @@ begin
 end;
 
 procedure TavMesh.SetArmature(const AValue: IavArmature);
-var b: IavBone;
-    wind: Integer;
-    i: Integer;
 begin
   FArm := AValue;
-
-  //todo remap weights indices in vertices
-  for i := 0 to AValue.BonesCount - 1 do
-  begin
-    b := AValue.Bone[i];
-    wind := FDefVGroups.Item[b.Name];
-    Assert(b.Index=wind, 'todo remap weights indices in vertices');
-  end;
 end;
 
 procedure TavMesh.SetBBox(const AValue: TAABB);
@@ -520,13 +487,6 @@ end;
 procedure TavMesh.SetName(const AValue: String);
 begin
   FName := AValue;
-end;
-
-procedure TavMesh.AddDefaultVertexGroup(const GroupName: String; const GroupIndex: Integer);
-begin
-  if FDefVGroups = nil then
-    FDefVGroups := TVGroupHash.Create;
-  FDefVGroups.Add(GroupName, GroupIndex);
 end;
 
 procedure TavMesh.AfterConstruction;
@@ -582,9 +542,10 @@ end;
 
 procedure TavArmature.AddBone(const ABone: IavBoneInternal);
 begin
-  ABone.Index := Length(FBones);
   FBoneIndex.Add(ABone.Name, ABone.Index);
-  SetLength(FBones, Length(FBones) + 1);
+  if ABone.Index >= 0 then
+  if Length(FBones) <= ABone.Index then
+    SetLength(FBones, ABone.Index+1);
   FBones[ABone.Index] := ABone;
 end;
 
@@ -597,7 +558,6 @@ begin
   for i := 0 to Length(FBones) - 1 do
   begin
     m := FBones[i].AbsTransform;
-    m := IdentityMat4;
     PVec4(mip.Pixel(0, i))^ := m.Row[0];
     PVec4(mip.Pixel(1, i))^ := m.Row[1];
     PVec4(mip.Pixel(2, i))^ := m.Row[2];

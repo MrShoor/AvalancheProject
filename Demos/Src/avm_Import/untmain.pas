@@ -48,6 +48,8 @@ begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
   FMain.Init3D(apiDX11);
+//  FMain.Projection.Ortho := True;
+  FMain.Projection.OrthoHeight := 20;
 
   FFBO := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
 
@@ -56,11 +58,15 @@ begin
   FMeshVB := TavVB.Create(FMain);
   FMeshIB := TavIB.Create(FMain);
   FMeshTransform := TavTexture.Create(FMain);
+  WriteLn(FMeshes[0].name);
   Caption := FMeshes[0].name;
   FMeshVB.Vertices := FMeshes[0].vert as IVerticesData;
   FMeshIB.Indices := FMeshes[0].ind as IIndicesData;
-  FMeshTransform.TargetFormat := TTextureFormat.RGBA32f;
-  FMeshTransform.TexData := FMeshes[0].Armature.BoneTransformData;
+  if Assigned(FMeshes[0].Armature) then
+  begin
+    FMeshTransform.TargetFormat := TTextureFormat.RGBA32f;
+    FMeshTransform.TexData := FMeshes[0].Armature.BoneTransformData;
+  end;
 
   FProg := TavProgram.Create(FMain);
   FProg.LoadFromJSON('avMesh', True);
@@ -99,8 +105,13 @@ begin
 
     FProg.Select;
     FProg.SetAttributes(FMeshVB, FMeshIB, nil);
-    FProg.SetUniform('BoneTransform', FMeshTransform, Sampler_NoFilter);
-    FProg.SetUniform('BonePixelHeight', 1/FMeshTransform.Height);
+    if Assigned(FMeshTransform) then
+    begin
+      FProg.SetUniform('BonePixelHeight', 1/FMeshTransform.Height);
+      FProg.SetUniform('BoneTransform', FMeshTransform, Sampler_NoFilter);
+    end
+    else
+      FProg.SetUniform('BonePixelHeight', 0.0);
     FProg.Draw();
 
     FFBO.BlitToWindow();

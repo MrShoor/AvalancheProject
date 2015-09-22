@@ -35,6 +35,7 @@ float4x4 GetBoneTransform(in float4 Indices, in float4 Weights) {
         0,0,1,0,
         0,0,0,1
     };
+    if (BonePixelHeight==0.0) return(m);    
     if (Indices.x>=0.0) m  = GetBoneTransform(Indices.x)*Weights.x;
     if (Indices.y>=0.0) m += GetBoneTransform(Indices.y)*Weights.y;
     if (Indices.z>=0.0) m += GetBoneTransform(Indices.z)*Weights.z;
@@ -60,7 +61,7 @@ PS_Output PS(VS_Output In) {
     PS_Output Out;
     float4 diff = {1,1,1,1};
     float4 spec = {0,0,0,0};
-    float4 amb = 0.1;
+    float4 amb = 0.3;
     float3 lightColor = {1,1,1};
     float3 n = normalize(In.vNorm);
     float3 viewDir = normalize(In.vCoord);
