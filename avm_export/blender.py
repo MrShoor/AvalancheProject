@@ -100,6 +100,9 @@ def Export(WFloat, WInt, WStr, WBool):
             bm.free()
             del bm
     
+    def GetPoseBoneTransform(bone):
+        return bone.matrix_channel*bone.id_data.matrix_world.inverted()    
+    
     def WriteBone(bone):
         WStr(bone.name)
         if bone.parent is None:
@@ -107,9 +110,9 @@ def Export(WFloat, WInt, WStr, WBool):
         else:
             WStr(bone.parent.name)
         WInt(GetPoseBoneIndex(bone.id_data, bone.name))
-        WriteMatrix(bone.matrix_channel*bone.id_data.matrix_world.inverted())
+        WriteMatrix(GetPoseBoneTransform(bone))
         #WriteMatrix(bone.matrix)
-        #WriteMatrix( bone.id_data.children[0].convert_space(bone, bone.matrix_channel, 'WORLD', 'WORLD') )
+        #WriteMatrix( bone.id_data.children[0].convert_space(bone, bone.matrix_channel, 'WORLD', 'WORLD') )        
     
     def WriteArmature(obj):
         obj.update_from_editmode()
@@ -120,10 +123,45 @@ def Export(WFloat, WInt, WStr, WBool):
         for b in obj.pose.bones:
             AddPoseBoneIndex(obj, b.name, i)
             i += 1
-
+            
+        #saving bone
         WInt(len(obj.pose.bones))
         for b in obj.pose.bones:
             WriteBone(b)
+            
+        #saving animations
+        def GetAffectedBones(action):
+            return [g.name for g in action.groups if GetPoseBoneIndex(obj, g.name)>=0]
+        
+        actionsCount = 0
+        for act in bpy.data.actions:
+            if len(GetAffectedBones(act)) > 0:
+                actionsCount += 1
+        WInt(actionsCount)
+        for act in bpy.data.actions:
+            WStr(act.name)
+            aBones = GetAffectedBones(act)
+            if len(aBones) == 0:
+                continue
+            WInt(len(aBones))
+            for bName in aBones:
+                WInt(GetPoseBoneIndex(obj, bName))
+            
+            oldAction = obj.animation_data.action
+            oldFrame = bpy.context.scene.frame_current
+            try:
+                obj.animation_data.action = act
+                frameStart = int(act.frame_range[0])
+                frameEnd = int(act.frame_range[1])
+                WInt(frameStart)
+                WInt(frameEnd)
+                for frame in range(frameStart, frameEnd):
+                    bpy.context.scene.frame_set(frame)
+                    for bName in aBones:
+                        WriteMatrix(GetPoseBoneTransform(obj.pose.bones[bName]))
+            finally:
+                bpy.context.scene.frame_set(oldFrame)
+                obj.animation_data.action = oldAction
         
     def WriteObject(obj):
         switch = {

@@ -8,4 +8,10 @@ object frmMain: TfrmMain
   OnDestroy = FormDestroy
   OnPaint = FormPaint
   LCLVersion = '1.4.2.0'
+  object AnimationTimer: TTimer
+    Interval = 10
+    OnTimer = AnimationTimerTimer
+    left = 32
+    top = 16
+  end
 end

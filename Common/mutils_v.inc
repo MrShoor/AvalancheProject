@@ -76,6 +76,10 @@ type
   end;
   PM4 = ^TM4;
 
+  TM2Arr = array of TM2;
+  TM3Arr = array of TM3;
+  TM4Arr = array of TM4;
+
   Operator = (const v1, v2: TV2): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator + (const v1, v2: TV2): TV2; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator - (const v1, v2: TV2): TV2; {$IFNDEF NoInline} inline; {$ENDIF}

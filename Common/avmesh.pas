@@ -67,7 +67,25 @@ type
     function AbsTransform: TMat4;
   end;
 
+  { IavAnimation }
+
   IavAnimation = interface
+    function GetArmature: IavArmature;
+    function GetName: String;
+    function GetEnabled: Boolean;
+    function GetFrame: Single;
+    function GetFrameCount: Integer;
+    procedure SetEnabled(AValue: Boolean);
+    procedure SetFrame(AValue: Single);
+
+    function BonesCount: Integer;
+    procedure GetBoneTransform(const index: Integer; out BoneIndex: Integer; out Transform: TMat4);
+
+    property Armature: IavArmature read GetArmature;
+    property Name: String read GetName;
+    property Enabled: Boolean read GetEnabled write SetEnabled;
+    property FrameCount: Integer read GetFrameCount;
+    property Frame: Single read GetFrame write SetFrame;
   end;
 
   { IavArmature }
@@ -84,11 +102,13 @@ type
 
     property AnimCount: Integer read GetAnimCount;
     property Anim[index: Integer]: IavAnimation read GetAnim;
+    function FindAnim(const AName: string): IavAnimation;
 
     property Name: String read GetName;
 
     function FindBone(const AName: string): IavBone;
 
+    procedure UpdateTransformData;
     function BoneTransformData: ITextureData;
   end;
 
@@ -115,6 +135,19 @@ type
     procedure AddChild(const Bone: IavBoneInternal);
   end;
 
+  { IavAnimationInternal }
+
+  IavAnimationInternal = interface (IavAnimation)
+    procedure SetArmature(const AValue: IavArmature);
+    procedure SetName(const AValue: String);
+
+    procedure SetBones(const indices: TIntArr);
+    procedure AddFrame(const transforms: TMat4Arr);
+
+    property Armature: IavArmature read GetArmature write SetArmature;
+    property Name: String read GetName write SetName;
+  end;
+
   { IavArmatureInternal }
 
   IavArmatureInternal = interface (IavArmature)
@@ -122,6 +155,7 @@ type
     property Name: String read GetName write SetName;
 
     procedure AddBone(const ABone: IavBoneInternal);
+    procedure AddAnimation(const AAnim: IavAnimationInternal);
   end;
 
   { IavMeshInternal }
@@ -167,6 +201,7 @@ type
     procedure AddChild(const Bone: IavBoneInternal);
 
     function AbsTransform: TMat4;
+    destructor Destroy; override;
   end;
 
   { TavArmature }
@@ -180,7 +215,7 @@ type
     FBones: array of IavBone;
     FBoneIndex: IBoneHash;
 
-    FAnim: array of IavAnimation;
+    FAnim: array of IavAnimationInternal;
 
     FTransfromData: ITextureData;
 
@@ -201,11 +236,14 @@ type
 
     function FindBone(const AName: string): IavBone;
     procedure AddBone(const ABone: IavBoneInternal);
+    procedure AddAnimation(const AAnim: IavAnimationInternal);
+    function FindAnim(const AName: string): IavAnimation;
 
     procedure UpdateTransformData;
     function BoneTransformData: ITextureData;
 
     procedure AfterConstruction; override;
+    destructor Destroy; override;
   end;
 
   { TavMesh }
@@ -235,6 +273,43 @@ type
     property Armature: IavArmature read GetArmature write SetArmature;
 
     procedure AfterConstruction; override;
+  end;
+
+  { TavAnimation }
+
+  TavAnimation = class (TInterfacedObjectEx, IavAnimation, IavAnimationInternal)
+  private
+    FName: String;
+    FEnabled: Boolean;
+    FFrame: Single;
+
+    FBones : TIntArr;
+    FFrames: array of TMat4Arr;
+
+    FArmature: Pointer;
+
+    function GetArmature: IavArmature;
+    function GetName: String;
+    function GetEnabled: Boolean;
+    function GetFrame: Single;
+    function GetFrameCount: Integer;
+    procedure SetArmature(const AValue: IavArmature);
+    procedure SetEnabled(AValue: Boolean);
+    procedure SetFrame(AValue: Single);
+
+    procedure SetName(const AValue: String);
+  public
+    procedure SetBones(const indices: TIntArr);
+    procedure AddFrame(const transforms: TMat4Arr);
+
+    function BonesCount: Integer;
+    procedure GetBoneTransform(const index: Integer; out BoneIndex: Integer; out Transform: TMat4);
+
+    property Armature: IavArmature read GetArmature write SetArmature;
+    property Name: String read GetName;
+    property Enabled: Boolean read GetEnabled write SetEnabled;
+    property FrameCount: Integer read GetFrameCount;
+    property Frame: Single read GetFrame write SetFrame;
   end;
 
   { TPNWVertex }
@@ -386,13 +461,42 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
       stream.ReadBuffer(m, SizeOf(m));
       bone.Transform := m;
     end;
+    procedure LoadAnimationFromStream(const stream: TStream; out anim: IavAnimationInternal);
+    var s: AnsiString;
+        i: Integer;
+        n: Integer = 0;
+        bones: TIntArr;
+        frame: TMat4Arr;
+        frameStart: Integer = 0;
+        frameEnd: Integer = 0;
+    begin
+      anim := TavAnimation.Create;
+      StreamReadString(stream, s);
+      anim.Name := String(s);
 
+      stream.ReadBuffer(n, SizeOf(n));
+      SetLength(bones, n);
+      if n > 0 then stream.ReadBuffer(bones[0], n*SizeOf(Integer));
+      anim.SetBones(bones);
+
+      stream.ReadBuffer(frameStart, SizeOf(frameStart));
+      stream.ReadBuffer(frameEnd, SizeOf(frameEnd));
+      if Length(bones) > 0 then
+        for i := frameStart to frameEnd - 1 do
+        begin
+          SetLength(frame, length(bones));
+          stream.ReadBuffer(frame[0], Length(frame)*SizeOf(TMat4));
+          anim.AddFrame(frame);
+          frame := nil;
+        end;
+    end;
   var s: AnsiString;
       i: Integer;
       n: Integer = 0;
 
       bones: array of IavBoneInternal;
       boneParent: array of String;
+      anim: IavAnimationInternal;
   begin
     arm := TavArmature.Create;
 
@@ -409,6 +513,14 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
     end;
     for i := 0 to n - 1 do
       LinkBones(bones[i], IavBoneInternal(arm.FindBone(boneParent[i])));
+
+    stream.ReadBuffer(n, SizeOf(n));
+    for i := 0 to n - 1 do
+    begin
+      LoadAnimationFromStream(stream, anim);
+      anim.Armature := arm;
+      arm.AddAnimation(anim);
+    end;
   end;
 
 var i, j, n: Integer;
@@ -445,6 +557,91 @@ begin
   finally
     FreeAndNil(fs);
   end;
+end;
+
+{ TavAnimation }
+
+function TavAnimation.GetName: String;
+begin
+  Result := FName;
+end;
+
+function TavAnimation.GetArmature: IavArmature;
+begin
+  Result := IavArmature(FArmature);
+end;
+
+function TavAnimation.GetEnabled: Boolean;
+begin
+  Result := FEnabled;
+end;
+
+function TavAnimation.GetFrame: Single;
+begin
+  Result := FFrame;
+end;
+
+function TavAnimation.GetFrameCount: Integer;
+begin
+  Result := Length(FFrames);
+end;
+
+procedure TavAnimation.SetArmature(const AValue: IavArmature);
+begin
+  FArmature := Pointer(AValue);
+end;
+
+procedure TavAnimation.SetEnabled(AValue: Boolean);
+begin
+  FEnabled := AValue;
+end;
+
+procedure TavAnimation.SetFrame(AValue: Single);
+begin
+  FFrame := AValue;
+end;
+
+procedure TavAnimation.SetName(const AValue: String);
+begin
+  FName := AValue;
+end;
+
+procedure TavAnimation.SetBones(const indices: TIntArr);
+begin
+  FBones := indices;
+  FFrames := nil;
+end;
+
+procedure TavAnimation.AddFrame(const transforms: TMat4Arr);
+var n: Integer;
+begin
+  n := Length(FFrames);
+  SetLength(FFrames, n+1);
+  FFrames[n] := transforms;
+end;
+
+function TavAnimation.BonesCount: Integer;
+begin
+  Result := Length(FBones);
+end;
+
+procedure TavAnimation.GetBoneTransform(const index: Integer; out BoneIndex: Integer; out Transform: TMat4);
+var Frame1, Frame2, FrameCnt: Integer;
+    FrameWeight: Single;
+begin
+  BoneIndex := FBones[index];
+
+  Frame1 := Floor(FFrame);
+  Frame2 := Ceil(FFrame);
+  FrameWeight := FFrame - Frame1;
+
+  FrameCnt := FrameCount;
+  Frame1 := Frame1 mod FrameCnt;
+  Frame2 := Frame2 mod FrameCnt;
+  if Frame1 < 0 then Inc(Frame1, FrameCnt);
+  if Frame2 < 0 then Inc(Frame2, FrameCnt);
+
+  Transform := Lerp(FFrames[Frame1][index], FFrames[Frame2][index], FrameWeight);
 end;
 
 { TavMesh }
@@ -526,7 +723,7 @@ begin
   Result := FName;
 end;
 
-procedure TavArmature.SetName(const AValue: AnsiString);
+procedure TavArmature.SetName(const AValue: String);
 begin
   FName := AValue;
 end;
@@ -549,11 +746,35 @@ begin
   FBones[ABone.Index] := ABone;
 end;
 
-procedure TavArmature.UpdateTransformData;
+procedure TavArmature.AddAnimation(const AAnim: IavAnimationInternal);
+var n: Integer;
+begin
+  n := Length(FAnim);
+  SetLength(FAnim, n+1);
+  FAnim[n] := AAnim;
+end;
+
+function TavArmature.FindAnim(const AName: string): IavAnimation;
 var i: Integer;
+begin
+  Result := nil;
+  for i := 0 to Length(FAnim) - 1 do
+    if FAnim[i].Name = AName then
+      Exit(FAnim[i]);
+end;
+
+procedure TavArmature.UpdateTransformData;
+var i, j, BoneInd: Integer;
     m: TMat4;
     mip: TTextureMipInfo;
+
+    boneCounter: TIntArr;
 begin
+  if Length(FBones) = 0 then Exit;
+
+  SetLength(boneCounter, Length(FBones));
+  ZeroClear(boneCounter[0], Length(boneCounter)*SizeOf(boneCounter[0]));
+
   mip := FTransfromData.Data(0,0);
   for i := 0 to Length(FBones) - 1 do
   begin
@@ -562,6 +783,43 @@ begin
     PVec4(mip.Pixel(1, i))^ := m.Row[1];
     PVec4(mip.Pixel(2, i))^ := m.Row[2];
     PVec4(mip.Pixel(3, i))^ := m.Row[3];
+  end;
+
+  for i := 0 to Length(FAnim) - 1 do
+  begin
+    if not FAnim[i].Enabled then Continue;
+    for j := 0 to FAnim[i].BonesCount - 1 do
+    begin
+      FAnim[i].GetBoneTransform(j, BoneInd, m);
+
+      if boneCounter[BoneInd] = 0 then
+      begin
+        PVec4(mip.Pixel(0, BoneInd))^ := m.Row[0];
+        PVec4(mip.Pixel(1, BoneInd))^ := m.Row[1];
+        PVec4(mip.Pixel(2, BoneInd))^ := m.Row[2];
+        PVec4(mip.Pixel(3, BoneInd))^ := m.Row[3];
+      end
+      else
+      begin
+        PVec4(mip.Pixel(0, BoneInd))^ := PVec4(mip.Pixel(0, BoneInd))^ + m.Row[0];
+        PVec4(mip.Pixel(1, BoneInd))^ := PVec4(mip.Pixel(0, BoneInd))^ + m.Row[1];
+        PVec4(mip.Pixel(2, BoneInd))^ := PVec4(mip.Pixel(0, BoneInd))^ + m.Row[2];
+        PVec4(mip.Pixel(3, BoneInd))^ := PVec4(mip.Pixel(0, BoneInd))^ + m.Row[3];
+      end;
+
+      Inc(boneCounter[BoneInd]);
+    end;
+  end;
+
+  for i := 0 to Length(FBones) - 1 do
+  begin
+    if boneCounter[i] > 1 then
+    begin
+      PVec4(mip.Pixel(0, i))^ := PVec4(mip.Pixel(0, i))^ / boneCounter[i];
+      PVec4(mip.Pixel(1, i))^ := PVec4(mip.Pixel(1, i))^ / boneCounter[i];
+      PVec4(mip.Pixel(2, i))^ := PVec4(mip.Pixel(2, i))^ / boneCounter[i];
+      PVec4(mip.Pixel(3, i))^ := PVec4(mip.Pixel(3, i))^ / boneCounter[i];
+    end;
   end;
 end;
 
@@ -579,6 +837,14 @@ procedure TavArmature.AfterConstruction;
 begin
   inherited AfterConstruction;
   FBoneIndex := TBoneHash.Create;
+end;
+
+destructor TavArmature.Destroy;
+var i: Integer;
+begin
+  for i := 0 to Length(FAnim) - 1 do
+    FAnim[i].Armature := nil;
+  inherited Destroy;
 end;
 
 { TavBone }
@@ -644,6 +910,14 @@ end;
 function TavBone.AbsTransform: TMat4;
 begin
   Result := FTransform;
+end;
+
+destructor TavBone.Destroy;
+var i: Integer;
+begin
+  for i := 0 to Length(FChilds) - 1 do
+    IavBoneInternal(FChilds[i]).Parent := nil;
+  inherited Destroy;
 end;
 
 { TPNWVertex }

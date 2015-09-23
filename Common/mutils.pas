@@ -37,6 +37,9 @@ type
 {$define PM2 := PMat2}
 {$define PM3 := PMat3}
 {$define PM4 := PMat4}
+{$define TM2Arr := TMat2Arr}
+{$define TM3Arr := TMat3Arr}
+{$define TM4Arr := TMat4Arr}
 {$Include mutils_v.inc}
 
 {$define TCompType := Integer}
@@ -55,6 +58,9 @@ type
 {$define PM2 := PMat2i}
 {$define PM3 := PMat3i}
 {$define PM4 := PMat4i}
+{$define TM2Arr := TMat2iArr}
+{$define TM3Arr := TMat3iArr}
+{$define TM4Arr := TMat4iArr}
 {$Include mutils_v.inc}
 
 {$define TCompType := ShortInt}
@@ -73,6 +79,9 @@ type
 {$define PM2 := PMat2s}
 {$define PM3 := PMat3s}
 {$define PM4 := PMat4s}
+{$define TM2Arr := TMat2sArr}
+{$define TM3Arr := TMat3sArr}
+{$define TM4Arr := TMat4sArr}
 {$Include mutils_v.inc}
 
 {$define TCompType := Byte}
@@ -91,6 +100,9 @@ type
 {$define PM2 := PMat2b}
 {$define PM3 := PMat3b}
 {$define PM4 := PMat4b}
+{$define TM2Arr := TMat2bArr}
+{$define TM3Arr := TMat3bArr}
+{$define TM4Arr := TMat4bArr}
 {$Include mutils_v.inc}
 
 type
@@ -236,6 +248,9 @@ function Lerp(const v1, v2: Single; s: Single): Single; overload; {$IFNDEF NoInl
 function Lerp(const v1, v2: TVec2; s: Single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Lerp(const v1, v2: TVec3; s: Single): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Lerp(const v1, v2: TVec4; s: Single): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Lerp(const m1, m2: TMat2; s: Single): TMat2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Lerp(const m1, m2: TMat3; s: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Lerp(const m1, m2: TMat4; s: Single): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
 function Intersect(const Line1, Line2: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const Seg: TSegment2D; const Line: TLine2D; out IntPoint: TVec2): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
@@ -664,6 +679,27 @@ begin
   Result.y := v1.y + s * (v2.y-v1.y);
   Result.z := v1.z + s * (v2.z-v1.z);
   Result.w := v1.w + s * (v2.w-v1.w);
+end;
+
+function Lerp(const m1, m2: TMat2; s: Single): TMat2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.Row[0] := Lerp(m1.Row[0], m2.Row[0], s);
+  Result.Row[1] := Lerp(m1.Row[1], m2.Row[1], s);
+end;
+
+function Lerp(const m1, m2: TMat3; s: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.Row[0] := Lerp(m1.Row[0], m2.Row[0], s);
+  Result.Row[1] := Lerp(m1.Row[1], m2.Row[1], s);
+  Result.Row[2] := Lerp(m1.Row[2], m2.Row[2], s);
+end;
+
+function Lerp(const m1, m2: TMat4; s: Single): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.Row[0] := Lerp(m1.Row[0], m2.Row[0], s);
+  Result.Row[1] := Lerp(m1.Row[1], m2.Row[1], s);
+  Result.Row[2] := Lerp(m1.Row[2], m2.Row[2], s);
+  Result.Row[3] := Lerp(m1.Row[3], m2.Row[3], s);
 end;
 
 function Trunc(const V: TVec2): TVec2i;

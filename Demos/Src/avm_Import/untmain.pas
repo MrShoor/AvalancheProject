@@ -7,13 +7,15 @@ interface
 
 uses
   LMessages, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
-  avRes, avTypes, mutils, avMesh, avCameraController;
+  ExtCtrls, avRes, avTypes, mutils, avMesh, avCameraController;
 
 type
 
   { TfrmMain }
 
   TfrmMain = class(TForm)
+    AnimationTimer: TTimer;
+    procedure AnimationTimerTimer(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormPaint(Sender: TObject);
@@ -26,6 +28,7 @@ type
     FFBO : TavFrameBuffer;
 
     FMeshes: TavMeshes;
+    FActiveAnimation: IavAnimation;
 
     FMeshVB: TavVB;
     FMeshIB: TavIB;
@@ -44,6 +47,8 @@ implementation
 { TfrmMain }
 
 procedure TfrmMain.FormCreate(Sender: TObject);
+const ObjInd = 0;
+      AnimInd = 0;
 begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
@@ -58,14 +63,20 @@ begin
   FMeshVB := TavVB.Create(FMain);
   FMeshIB := TavIB.Create(FMain);
   FMeshTransform := TavTexture.Create(FMain);
-  WriteLn(FMeshes[0].name);
-  Caption := FMeshes[0].name;
-  FMeshVB.Vertices := FMeshes[0].vert as IVerticesData;
-  FMeshIB.Indices := FMeshes[0].ind as IIndicesData;
-  if Assigned(FMeshes[0].Armature) then
+  WriteLn(FMeshes[ObjInd].name);
+  Caption := FMeshes[ObjInd].name;
+  FMeshVB.Vertices := FMeshes[ObjInd].vert as IVerticesData;
+  FMeshIB.Indices := FMeshes[ObjInd].ind as IIndicesData;
+  if Assigned(FMeshes[ObjInd].Armature) then
   begin
     FMeshTransform.TargetFormat := TTextureFormat.RGBA32f;
-    FMeshTransform.TexData := FMeshes[0].Armature.BoneTransformData;
+    FMeshTransform.TexData := FMeshes[ObjInd].Armature.BoneTransformData;
+
+    if FMeshes[ObjInd].Armature.AnimCount > AnimInd then
+    begin
+      FActiveAnimation := FMeshes[ObjInd].Armature.Anim[AnimInd];
+      FActiveAnimation.Enabled := True;
+    end;
   end;
 
   FProg := TavProgram.Create(FMain);
@@ -76,6 +87,20 @@ begin
     CanRotate := True;
     CanMove := True;
     MovePlane := Plane(0,0,1,0);
+  end;
+end;
+
+procedure TfrmMain.AnimationTimerTimer(Sender: TObject);
+begin
+  if Assigned(FActiveAnimation) then
+  begin
+    FActiveAnimation.Frame := FActiveAnimation.Frame + 0.4;
+    if Assigned(FActiveAnimation.Armature) then
+    begin
+      FActiveAnimation.Armature.UpdateTransformData;
+      FMeshTransform.Invalidate;
+      FMain.InvalidateWindow;
+    end;
   end;
 end;
 
