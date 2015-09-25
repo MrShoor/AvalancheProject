@@ -11,7 +11,7 @@ object frmMain: TfrmMain
   object AnimationTimer: TTimer
     Interval = 10
     OnTimer = AnimationTimerTimer
-    left = 32
-    top = 16
+    left = 24
+    top = 8
   end
 end

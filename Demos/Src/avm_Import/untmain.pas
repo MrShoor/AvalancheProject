@@ -9,6 +9,8 @@ uses
   LMessages, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
   ExtCtrls, avRes, avTypes, mutils, avMesh, avCameraController;
 
+const ObjInd = 0;
+
 type
 
   { TfrmMain }
@@ -28,7 +30,6 @@ type
     FFBO : TavFrameBuffer;
 
     FMeshes: TavMeshes;
-    FActiveAnimation: IavAnimation;
 
     FMeshVB: TavVB;
     FMeshIB: TavIB;
@@ -47,8 +48,6 @@ implementation
 { TfrmMain }
 
 procedure TfrmMain.FormCreate(Sender: TObject);
-const ObjInd = 0;
-      AnimInd = 0;
 begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
@@ -71,12 +70,6 @@ begin
   begin
     FMeshTransform.TargetFormat := TTextureFormat.RGBA32f;
     FMeshTransform.TexData := FMeshes[ObjInd].Armature.BoneTransformData;
-
-    if FMeshes[ObjInd].Armature.AnimCount > AnimInd then
-    begin
-      FActiveAnimation := FMeshes[ObjInd].Armature.Anim[AnimInd];
-      FActiveAnimation.Enabled := True;
-    end;
   end;
 
   FProg := TavProgram.Create(FMain);
@@ -91,16 +84,20 @@ begin
 end;
 
 procedure TfrmMain.AnimationTimerTimer(Sender: TObject);
+var anim: IavAnimation;
+  i: Integer;
 begin
-  if Assigned(FActiveAnimation) then
+//  Exit;
+  if Assigned(FMeshes[ObjInd].Armature) then
+  for i := 0 to FMeshes[ObjInd].Armature.AnimCount - 1 do
   begin
-    FActiveAnimation.Frame := FActiveAnimation.Frame + 0.4;
-    if Assigned(FActiveAnimation.Armature) then
-    begin
-      FActiveAnimation.Armature.UpdateTransformData;
-      FMeshTransform.Invalidate;
-      FMain.InvalidateWindow;
-    end;
+    anim := FMeshes[ObjInd].Armature.Anim[i];
+    anim.Frame := anim.Frame + 0.4;
+    anim.Enabled := True;
+
+    FMeshes[ObjInd].Armature.UpdateTransformData;
+    FMeshTransform.Invalidate;
+    FMain.InvalidateWindow;
   end;
 end;
 

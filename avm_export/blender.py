@@ -100,8 +100,15 @@ def Export(WFloat, WInt, WStr, WBool):
             bm.free()
             del bm
     
+    def GetPoseBoneAbsTransform(bone):
+        return bone.matrix_channel*bone.id_data.matrix_world.inverted()
+    
     def GetPoseBoneTransform(bone):
-        return bone.matrix_channel*bone.id_data.matrix_world.inverted()    
+        m = GetPoseBoneAbsTransform(bone)
+        if not (bone.parent is None):
+            m2 = GetPoseBoneAbsTransform(bone.parent)
+            m = m*m2.inverted()
+        return m
     
     def WriteBone(bone):
         WStr(bone.name)
@@ -139,10 +146,10 @@ def Export(WFloat, WInt, WStr, WBool):
                 actionsCount += 1
         WInt(actionsCount)
         for act in bpy.data.actions:
-            WStr(act.name)
             aBones = GetAffectedBones(act)
             if len(aBones) == 0:
                 continue
+            WStr(act.name)
             WInt(len(aBones))
             for bName in aBones:
                 WInt(GetPoseBoneIndex(obj, bName))
