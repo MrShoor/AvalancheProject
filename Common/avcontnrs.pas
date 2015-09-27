@@ -138,6 +138,7 @@ type
     function CmpUString(item1, item2: Pointer; dataSize: Integer): Boolean;
     function CmpAString(item1, item2: Pointer; dataSize: Integer): Boolean;
     function CmpRecord(item1, item2: Pointer; dataSize: Integer): Boolean;
+    function CmpArray(item1, item2: Pointer; dataSize: Integer): Boolean;
     function GetCompareMethod(tinfo: PTypeInfo): TCompareMethod;
 
     function PrevIndex(const index: Integer): Integer; inline;
@@ -175,7 +176,7 @@ type
   { TMurmur2Hash }
 
   generic TMurmur2Hash<TKey> = record
-    function Hash(AKey: TKey): Cardinal;
+    function Hash(const AKey: TKey): Cardinal;
   end;
 
   { TMurmur2HashString }
@@ -270,9 +271,15 @@ end;
 
 { TMurmur2Hash }
 
-function TMurmur2Hash.Hash(AKey: TKey): Cardinal;
+function TMurmur2Hash.Hash(const AKey: TKey): Cardinal;
+var p: PTypeInfo;
+    arr: TBytes absolute AKey;
 begin
-  Result := Murmur2(AKey, SizeOf(AKey));
+  p := TypeInfo(TKey);
+  if p^.Kind = tkDynArray then
+    Result := Murmur2(arr[0], Length(arr)*Integer(GetTypeData(p)^.elSize))
+  else
+    Result := Murmur2(AKey, SizeOf(AKey));
   if Result = 0 then Result := 1;
 end;
 
@@ -291,6 +298,18 @@ end;
 function THashMap.CmpRecord(item1, item2: Pointer; dataSize: Integer): Boolean;
 begin
   Result := CompareMem(item1, item2, dataSize);
+end;
+
+function THashMap.CmpArray(item1, item2: Pointer; dataSize: Integer): Boolean;
+var b1: TBytes absolute item1;
+    b2: TBytes absolute item2;
+begin
+  Result := False;
+  if item1 = item2 then Exit;
+  if Length(b1) <> Length(b2) then Exit;
+  dataSize := Length(b1)*Integer(GetTypeData(TypeInfo(TKey))^.elsize);
+  if dataSize = 0 then Exit(True);
+  Result := CompareMem(@b1[0], @b2[0], dataSize);
 end;
 
 function THashMap.GetCompareMethod(tinfo: PTypeInfo): TCompareMethod;
@@ -318,8 +337,8 @@ begin
   tkBool: Result := @CmpRecord;
   tkInt64: Result := @CmpRecord;
   tkQWord: Result := @CmpRecord;
-  tkDynArray: ;
-  tkInterfaceRaw: ;
+  tkDynArray: Result := @CmpArray;
+  tkInterfaceRaw: Result := @CmpRecord;
   tkProcVar: ;
   tkUString: Result := @CmpUString;
   tkUChar: ;

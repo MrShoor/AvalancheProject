@@ -2,6 +2,7 @@ import bpy
 import os
 import numpy as np
 import bmesh
+import shutil as sh
 
 OX = 0
 OY = 2
@@ -15,6 +16,7 @@ outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Src\\avm_Import\\test.txt'
         
 def Export(WFloat, WInt, WStr, WBool):
     poseBoneIndices = {}
+    imgToCopy = {}
     
     def GetPoseBoneIndex(arm, boneName):
         boneDic = poseBoneIndices.get(arm, None)
@@ -27,6 +29,19 @@ def Export(WFloat, WInt, WStr, WBool):
         if boneDic is None:
             poseBoneIndices[arm] = {}
         poseBoneIndices[arm][boneName] = index
+        
+    def AddImageToCopy(path, name):
+        if path in imgToCopy:
+            return imgToCopy[path]
+
+        ind = 0
+        tmpname = name
+        while tmpname in imgToCopy.values():
+            ind += 1
+            tmpname = name + '_' + str(ind)
+        imgToCopy[path] = tmpname
+        
+        return tmpname
                     
     def WriteMatrix(m):
         WFloat(m[OX][OX])
@@ -53,6 +68,16 @@ def Export(WFloat, WInt, WStr, WBool):
         WFloat(v[OX])
         WFloat(v[OY])
         WFloat(v[OZ])
+        
+    def WriteTexVec(v):
+        WFloat(v[0])
+        WFloat(1.0-v[1])
+        
+    def WriteColor(c):
+        WFloat(c[0])
+        WFloat(c[1])
+        WFloat(c[2])
+        WFloat(c[3])
                 
     def WriteMesh(obj):
         obj.update_from_editmode()
@@ -61,6 +86,44 @@ def Export(WFloat, WInt, WStr, WBool):
             WStr('')
         else:
             WStr(obj.parent.name)
+
+        #write materials
+        WInt(len(obj.material_slots))
+        for ms in obj.material_slots:
+            diffuseColor = [1,1,1,1]
+            specularColor = [1,1,1,1]
+            specularPower = 50
+            diffuseMap = ''
+            diffuseMapFactor = 0
+            normalMap = ''
+            if not ms.material is None:
+                mat = ms.material
+                diffuseColor = [c*mat.diffuse_intensity for c in mat.diffuse_color]
+                diffuseColor.append(mat.alpha)
+                specularColor = [c*mat.specular_intensity for c in mat.specular_color]
+                specularColor.append(mat.specular_alpha)
+                specularPower = mat.specular_hardness
+                for ts in mat.texture_slots:
+                    if (not ts is None) and (not ts.texture is None) and (not ts.texture.image is None):
+                        fpath = ts.texture.image.filepath
+                        if fpath.find(r'\\') == 0:
+                            fpath = '//'+fpath[2:]
+                        absTexPath = bpy.path.abspath(fpath)
+                        if os.path.isfile(absTexPath):                            
+                            if ts.use_map_color_diffuse:
+                                diffuseMapFactor = ts.diffuse_color_factor
+                                diffuseMap = AddImageToCopy(absTexPath, ts.texture.image.name)
+                            elif ts.use_map_normal:
+                                normalMap = AddImageToCopy(absTexPath, ts.texture.image.name)
+                        else:
+                            print('Warning! Texture "' + absTexPath + '" not found')
+            WriteColor(diffuseColor)
+            WInt(diffuseMapFactor)
+            WriteColor(specularColor)
+            WFloat(specularPower)
+            WStr(diffuseMap)
+            WStr(normalMap)
+        
         transform = obj.matrix_world
         #write vertices data
         m = obj.data
@@ -86,16 +149,23 @@ def Export(WFloat, WInt, WStr, WBool):
         try:
             bm.from_mesh(m)
             bmesh.ops.triangulate(bm, faces=bm.faces)
+            
+            uv_layer = bm.loops.layers.uv.active
+            #uv_tex = bm.faces.layers.tex.active
             WInt(len(bm.faces))
             for f in bm.faces:
+                #print(f[uv_tex].image.name)
                 WInt(f.material_index)
                 WBool(f.smooth)
                 WFloat(f.normal[OX])
                 WFloat(f.normal[OY])
                 WFloat(f.normal[OZ])
-                #for l, v in zip(f.loops, f.verts):
-                for v in f.verts:
+                for l, v in zip(f.loops, f.verts):
                     WInt(v.index)
+                    if uv_layer is None:
+                        WriteTexVec([0,0])
+                    else:
+                        WriteTexVec(l[uv_layer].uv)
         finally:
             bm.free()
             del bm
@@ -169,31 +239,24 @@ def Export(WFloat, WInt, WStr, WBool):
             finally:
                 bpy.context.scene.frame_set(oldFrame)
                 obj.animation_data.action = oldAction
-        
-    def WriteObject(obj):
-        switch = {
-            'MESH': WriteMesh,
-        }
-        delegate = switch.get(obj.type, None)
-        if not delegate is None:
-            delegate(obj)
 
-    WInt(len([a for a in bpy.data.objects if a.type=='ARMATURE']));
+    WInt(len([a for a in bpy.data.objects if a.type=='ARMATURE']))
     for a in bpy.data.objects:
         if a.type=='ARMATURE':
             WriteArmature(a)
 
-    WInt(len([m for m in bpy.data.objects if m.type=='MESH']));
+    WInt(len([m for m in bpy.data.objects if m.type=='MESH']))
     for m in bpy.data.objects:
         if m.type=='MESH':
             WriteMesh(m)
-            
-    #bpy.data.actions
+           
+    return imgToCopy
 
 def ExportToFile(fname):
     if os.path.isfile(fname):
-        os.remove(outfilename)
-    outfile = open(outfilename, 'wb')
+        os.remove(fname)
+    outfile = open(fname, 'wb')
+    ExportDone = False
     try:
         def WFloat(value):
             outfile.write(np.float32(value))
@@ -209,10 +272,18 @@ def ExportToFile(fname):
             else:
                 outfile.write(np.ubyte(0))
             
-        Export(WFloat, WInt, WStr, WBool)
+        images = Export(WFloat, WInt, WStr, WBool)
+        outdir = os.path.dirname(fname)
+        for path, outname in images.items():
+            sh.copyfile(path, os.path.join(outdir, outname))
+        ExportDone = True
     finally:
         outfile.close()
-        print('Done!')
+        if not ExportDone:
+            print('Failed!')
+            os.remove(fname)
+        else:
+            print('Done!')
         
 def ExportToConsole():    
     def WFloat(value):

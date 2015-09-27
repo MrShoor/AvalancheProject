@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils,
-  avRes, avTypes, avTess, avContnrs, mutils;
+  avTypes, avTess, avContnrs, mutils, avTexLoader;
 
 type
   IavArmature = interface;
@@ -17,6 +17,7 @@ type
   TMeshVertex = packed record
     vsCoord: TVec3;
     vsNormal: TVec3;
+    vsTex: TVec2;
     vsMatIndex: Single;
     vsWIndex: TVec4;
     vsWeight: TVec4;
@@ -26,14 +27,44 @@ type
   IMeshVertices = specialize IArray<TMeshVertex>;
   TMeshVertices = specialize TVerticesRec<TMeshVertex>;
 
+  { TMeshMaterial }
+
+  TMeshMaterial = packed record
+    matDiff: TVec4;
+    matSpec: TVec4;
+    matSpecPow: Single;
+    matDiffMapFactor: Single;
+  end;
+
+  { TMeshMaterialMaps }
+
+  TMeshMaterialMaps = packed record
+    matDiffMap : ITextureData;
+    matNormalMap: ITextureData;
+  end;
+
+  { TMeshAnimationState }
+
+  TMeshAnimationState = packed record
+    Index : Integer;
+    Frame : Single;
+    Weight: Single;
+  end;
+
   { IavMesh }
 
   IavMesh = interface
+    function GetMaterial(const AIndex: Integer): TMeshMaterial;
+    function GetMaterialMaps(const AIndex: Integer): TMeshMaterialMaps;
     function GetArmature: IavArmature;
     function GetBBox: TAABB;
     function GetInd: IIndices;
     function GetName: String;
     function GetVert: IMeshVertices;
+
+    function MaterialsCount: Integer;
+    property Material    [const AIndex: Integer]: TMeshMaterial read GetMaterial;
+    property MaterialMaps[const AIndex: Integer]: TMeshMaterialMaps read GetMaterialMaps;
 
     property Name: String read GetName;
     property BBox: TAABB read GetBBox;
@@ -79,7 +110,7 @@ type
     procedure SetFrame(AValue: Single);
 
     function BonesCount: Integer;
-    procedure GetBoneTransform(const index: Integer; out BoneIndex: Integer; out Transform: TMat4);
+    procedure GetBoneTransform(const index: Integer; const AFrame: Single; out BoneIndex: Integer; out Transform: TMat4);
 
     property Armature: IavArmature read GetArmature;
     property Name: String read GetName;
@@ -112,13 +143,13 @@ type
     function BoneTransformData: ITextureData;
   end;
 
-procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
-procedure LoadFromFile(const FileName: string; out meshes: TavMeshes);
+procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes; TexManager: ITextureManager = Nil);
+procedure LoadFromFile(const FileName: string; out meshes: TavMeshes; const TexManager: ITextureManager = Nil);
 
 implementation
 
 uses
-  Math, avTexLoader;
+  Math;
 
 type
   { IavBoneInternal }
@@ -168,6 +199,8 @@ type
     property Name: String read GetName write SetName;
     property BBox: TAABB read GetBBox write SetBBox;
     property Armature: IavArmature read GetArmature write SetArmature;
+
+    procedure AddMaterial(const AMat: TMeshMaterial; const AMatMap: TMeshMaterialMaps);
   end;
 
   { TavBone }
@@ -245,6 +278,9 @@ type
     procedure AddAnimation(const AAnim: IavAnimationInternal);
     function FindAnim(const AName: string): IavAnimation;
 
+    function AllocPoseData: ITextureData;
+    procedure UpdatePoseData(const ATexData: ITextureData; const AnimState: array of TMeshAnimationState);
+
     procedure UpdateTransformData;
     function BoneTransformData: ITextureData;
 
@@ -262,6 +298,11 @@ type
     FArm : IavArmature;
     FName: String;
 
+    FMat: array of TMeshMaterial;
+    FMatMaps: array of TMeshMaterialMaps;
+
+    function GetMaterial(const AIndex: Integer): TMeshMaterial;
+    function GetMaterialMaps(const AIndex: Integer): TMeshMaterialMaps;
     function GetArmature: IavArmature;
     function GetBBox: TAABB;
     function GetInd: IIndices;
@@ -271,12 +312,16 @@ type
     procedure SetBBox(const AValue: TAABB);
     procedure SetName(const AValue: String);
   public
+    function MaterialsCount: Integer;
+
     property Name: String read GetName write SetName;
     property BBox: TAABB read GetBBox write SetBBox;
     property Vert: IMeshVertices read GetVert;
     property Ind : IIndices read GetInd;
 
     property Armature: IavArmature read GetArmature write SetArmature;
+
+    procedure AddMaterial(const AMat: TMeshMaterial; const AMatMap: TMeshMaterialMaps);
 
     procedure AfterConstruction; override;
   end;
@@ -309,7 +354,7 @@ type
     procedure AddFrame(const transforms: TMat4Arr);
 
     function BonesCount: Integer;
-    procedure GetBoneTransform(const index: Integer; out BoneIndex: Integer; out Transform: TMat4);
+    procedure GetBoneTransform(const index: Integer; const AFrame: Single; out BoneIndex: Integer; out Transform: TMat4);
 
     property Armature: IavArmature read GetArmature write SetArmature;
     property Name: String read GetName;
@@ -343,7 +388,7 @@ const
     vsWeight: (x: 0; y: 0; z: 0; w: 0)
   );
 
-procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
+procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes; TexManager: ITextureManager = Nil);
   procedure LoadMeshFromStream(const stream: TStream; out mesh: IavMeshInternal; out parent: String);
   type
     TWeightInfo = packed record
@@ -365,6 +410,9 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
       faceMaterial: Integer;
       faceSmooth: Byte;
       ind: Integer;
+
+      mat: TMeshMaterial;
+      matMap: TMeshMaterialMaps;
   begin
     //prevent compile warning by initialization
     v := EmptyPNWVertex;
@@ -377,6 +425,8 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
     wCount := 0;
     ZeroClear(w, SizeOf(w));
     ZeroClear(faceNorm, SizeOf(faceNorm));
+    ZeroClear(mv, SizeOf(mv));
+    ZeroClear(mat, SizeOf(mat));
     //
     mesh := TavMesh.Create;
     StreamReadString(stream, s);
@@ -384,6 +434,29 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
 
     StreamReadString(stream, s);
     parent := String(s);
+
+    stream.ReadBuffer(n, SizeOf(n));
+    for i := 0 to n - 1 do
+    begin
+      stream.ReadBuffer(mat.matDiff, SizeOf(mat.matDiff));
+      stream.ReadBuffer(mat.matDiffMapFactor, SizeOf(mat.matDiffMapFactor));
+      stream.ReadBuffer(mat.matSpec, SizeOf(mat.matSpec));
+      stream.ReadBuffer(mat.matSpecPow, SizeOf(mat.matSpecPow));
+
+      StreamReadString(stream, s);
+      if s = '' then
+        matMap.matDiffMap := nil
+      else
+        matMap.matDiffMap := TexManager.LoadTexture(String(s), SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.A8R8G8B8);
+
+      StreamReadString(stream, s);
+      if s = '' then
+        matMap.matNormalMap := nil
+      else
+        matMap.matNormalMap := TexManager.LoadTexture(String(s), SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.A8R8G8B8);
+
+      mesh.AddMaterial(mat, matMap);
+    end;
 
     stream.ReadBuffer(n, SizeOf(n));
     defV := TPNWVertices.Create;
@@ -417,6 +490,7 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes);
       for j := 0 to 2 do
       begin
         stream.ReadBuffer(ind, SizeOf(ind));
+        stream.ReadBuffer(mv.vsTex, SizeOf(mv.vsTex));
         v := defV.Item[ind];
         mv.vsCoord := v.vsCoord;
         if faceSmooth <> 0 then
@@ -533,6 +607,8 @@ var i, j, n: Integer;
     arm: array of IavArmatureInternal;
     MeshParent: String;
 begin
+  if TexManager = nil then TexManager := Create_ITextureManager;
+
   n := 0;
 
   stream.ReadBuffer(n, SizeOf(n));
@@ -554,12 +630,12 @@ begin
   end;
 end;
 
-procedure LoadFromFile(const FileName: string; out meshes: TavMeshes);
+procedure LoadFromFile(const FileName: string; out meshes: TavMeshes; const TexManager: ITextureManager = Nil);
 var fs: TFileStream;
 begin
   fs := TFileStream.Create(FileName, fmOpenRead);
   try
-    LoadFromStream(fs, meshes);
+    LoadFromStream(fs, meshes, TexManager);
   finally
     FreeAndNil(fs);
   end;
@@ -631,15 +707,15 @@ begin
   Result := Length(FBones);
 end;
 
-procedure TavAnimation.GetBoneTransform(const index: Integer; out BoneIndex: Integer; out Transform: TMat4);
+procedure TavAnimation.GetBoneTransform(const index: Integer; const AFrame: Single; out BoneIndex: Integer; out Transform: TMat4);
 var Frame1, Frame2, FrameCnt: Integer;
     FrameWeight: Single;
 begin
   BoneIndex := FBones[index];
 
-  Frame1 := Floor(FFrame);
-  Frame2 := Ceil(FFrame);
-  FrameWeight := FFrame - Frame1;
+  Frame1 := Floor(AFrame);
+  Frame2 := Ceil(AFrame);
+  FrameWeight := AFrame - Frame1;
 
   FrameCnt := FrameCount;
   Frame1 := Frame1 mod FrameCnt;
@@ -651,6 +727,16 @@ begin
 end;
 
 { TavMesh }
+
+function TavMesh.GetMaterial(const AIndex: Integer): TMeshMaterial;
+begin
+  Result := FMat[AIndex];
+end;
+
+function TavMesh.GetMaterialMaps(const AIndex: Integer): TMeshMaterialMaps;
+begin
+  Result := FMatMaps[AIndex];
+end;
 
 function TavMesh.GetArmature: IavArmature;
 begin
@@ -690,6 +776,21 @@ end;
 procedure TavMesh.SetName(const AValue: String);
 begin
   FName := AValue;
+end;
+
+function TavMesh.MaterialsCount: Integer;
+begin
+  Result := Length(FMat);
+end;
+
+procedure TavMesh.AddMaterial(const AMat: TMeshMaterial; const AMatMap: TMeshMaterialMaps);
+var n: Integer;
+begin
+  n := MaterialsCount;
+  SetLength(FMat, n + 1);
+  FMat[n] := AMat;
+  SetLength(FMatMaps, n + 1);
+  FMatMaps[n] := AMatMap;
 end;
 
 procedure TavMesh.AfterConstruction;
@@ -785,6 +886,76 @@ begin
       Exit(FAnim[i]);
 end;
 
+function TavArmature.AllocPoseData: ITextureData;
+begin
+  Result := EmptyTexData(4, Length(FBones), TTextureFormat.RGBA32f, False, True);
+end;
+
+procedure TavArmature.UpdatePoseData(const ATexData: ITextureData; const AnimState: array of TMeshAnimationState);
+  procedure SetMatrix(const mip: TTextureMipInfo; const BoneIndex: Integer; const m: TMat4);
+  begin
+    PVec4(mip.Pixel(0, BoneIndex))^ := m.Row[0];
+    PVec4(mip.Pixel(1, BoneIndex))^ := m.Row[1];
+    PVec4(mip.Pixel(2, BoneIndex))^ := m.Row[2];
+    PVec4(mip.Pixel(3, BoneIndex))^ := m.Row[3];
+  end;
+
+  procedure FillMipData_Recursive(const mip: TTextureMipInfo; const animTransform: TMat4Arr; const bone: IavBone; const parentTransform: TMat4);
+  var m: TMat4;
+      i: Integer;
+  begin
+    m := animTransform[bone.Index]*parentTransform;
+    SetMatrix(mip, bone.Index, m);
+    for i := 0 to bone.ChildsCount - 1 do
+      FillMipData_Recursive(mip, animTransform, bone.Child[i], m);
+  end;
+
+var i, j, BoneInd: Integer;
+    m: TMat4;
+    mip: TTextureMipInfo;
+
+    boneWeight: TSingleArr;
+    boneTransform: TMat4Arr;
+
+    rBones: TavBoneArr;
+    currAnim: IavAnimation;
+begin
+  if Length(FBones) = 0 then Exit;
+
+  SetLength(boneWeight, Length(FBones));
+  ZeroClear(boneWeight[0], Length(boneWeight)*SizeOf(boneWeight[0]));
+  SetLength(boneTransform, Length(FBones));
+  ZeroClear(boneTransform[0], Length(boneTransform)*SizeOf(boneTransform[0]));
+
+  mip := FTransfromData.Data(0,0);
+  for i := 0 to Length(FBones) - 1 do
+    boneTransform[i] := FBones[i].Transform;
+
+  for i := 0 to Length(AnimState) - 1 do
+  begin
+    currAnim := FAnim[AnimState[i].Index];
+    for j := 0 to currAnim.BonesCount - 1 do
+    begin
+      currAnim.GetBoneTransform(j, AnimState[i].Frame, BoneInd, m);
+
+      if boneWeight[BoneInd] = 0 then
+        boneTransform[BoneInd] := m*AnimState[i].Weight
+      else
+        boneTransform[BoneInd] := boneTransform[BoneInd] + m*AnimState[i].Weight;
+
+      boneWeight[BoneInd] := boneWeight[BoneInd] + AnimState[i].Weight;
+    end;
+  end;
+
+  for i := 0 to Length(boneTransform) - 1 do
+    if (boneWeight[i] > 0) then
+      boneTransform[i] := boneTransform[i] * (1 / boneWeight[i]);
+
+  rBones := RootBones;
+  for i := 0 to Length(rBones) - 1 do
+    FillMipData_Recursive(mip, boneTransform, rBones[i], IdentityMat4);
+end;
+
 procedure TavArmature.UpdateTransformData;
   procedure SetMatrix(const mip: TTextureMipInfo; const BoneIndex: Integer; const m: TMat4);
   begin
@@ -843,7 +1014,7 @@ begin
     if not FAnim[i].Enabled then Continue;
     for j := 0 to FAnim[i].BonesCount - 1 do
     begin
-      FAnim[i].GetBoneTransform(j, BoneInd, m);
+      FAnim[i].GetBoneTransform(j, FAnim[i].Frame, BoneInd, m);
 
       if boneCounter[BoneInd] = 0 then
         boneTransform[BoneInd] := m
@@ -973,6 +1144,7 @@ class function TMeshVertex.Layout: IDataLayout;
 begin
   Result := LB.Add('vsCoord', ctFloat, 3).
                Add('vsNormal', ctFloat, 3).
+               Add('vsTex', ctFloat, 2).
                Add('vsMatIndex', ctFloat, 1).
                Add('vsWIndex', ctFloat, 4).
                Add('vsWeight', ctFloat, 4).Finish();

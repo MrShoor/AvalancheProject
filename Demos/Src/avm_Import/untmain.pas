@@ -7,7 +7,7 @@ interface
 
 uses
   LMessages, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, avRes, avTypes, mutils, avMesh, avCameraController;
+  ExtCtrls, avRes, avTypes, mutils, avMesh, avCameraController, avTexLoader;
 
 const ObjInd = 0;
 
@@ -30,6 +30,7 @@ type
     FFBO : TavFrameBuffer;
 
     FMeshes: TavMeshes;
+    FDiffuse: TavTexture;
 
     FMeshVB: TavVB;
     FMeshIB: TavIB;
@@ -53,6 +54,7 @@ begin
   FMain.Window := Handle;
   FMain.Init3D(apiDX11);
 //  FMain.Projection.Ortho := True;
+  FMain.Camera.Eye := Vec(0,10,-30);
   FMain.Projection.OrthoHeight := 20;
 
   FFBO := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
@@ -81,6 +83,12 @@ begin
     CanMove := True;
     MovePlane := Plane(0,0,1,0);
   end;
+
+  FDiffuse := TavTexture.Create(FMain);
+  FDiffuse.AutoGenerateMips := True;
+//  FDiffuse.TexData := LoadTexture('diffuse.png');
+//  FDiffuse.TexData := LoadTexture('UVTest.png');
+  FDiffuse.TexData := LoadTexture('BODY_DE_BD_N_00.dds', SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.A8R8G8B8);
 end;
 
 procedure TfrmMain.AnimationTimerTimer(Sender: TObject);
@@ -91,6 +99,7 @@ begin
   if Assigned(FMeshes[ObjInd].Armature) then
   for i := 0 to FMeshes[ObjInd].Armature.AnimCount - 1 do
   begin
+    if i <> 8 then continue;
     anim := FMeshes[ObjInd].Armature.Anim[i];
     anim.Frame := anim.Frame + 0.4;
     anim.Enabled := True;
@@ -134,6 +143,7 @@ begin
     end
     else
       FProg.SetUniform('BonePixelHeight', 0.0);
+    FProg.SetUniform('DiffuseMap', FDiffuse, Sampler_Linear);
     FProg.Draw();
 
     FFBO.BlitToWindow();

@@ -28,10 +28,16 @@ struct float4 {
 
 template<gentype> struct Texture2D{
     float4 Sample(SamplerState, gentype texcoord);
+    float4 SampleLevel(SamplerState, gentype texcoord, int mipLevel);
+    void GetDimensions(int mipLevel, out float Width, out float Height, out float NumberOfLevels);
+    void GetDimensions(out float Width, out float Height);
 };
 
 template<gentype> struct Texture2DArray{
     float4 Sample(SamplerState, gentype texcoord);
+    float4 SampleLevel(SamplerState, gentype texcoord, int mipLevel);
+    void GetDimensions(int mipLevel, out float Width, out float Height, out float Elements, out float NumberOfLevels);
+    void GetDimensions(out float Width, out float Height, out float Elements);    
 };
 
 void discard;

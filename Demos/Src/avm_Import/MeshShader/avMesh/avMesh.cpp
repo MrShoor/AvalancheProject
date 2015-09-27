@@ -3,24 +3,27 @@
 #include "..\lighting.h"
 
 struct VS_Input {
-    float3 vsCoord : vsCoord;
-    float3 vsNormal: vsNormal;
+    float3 vsCoord   : vsCoord;
+    float3 vsNormal  : vsNormal;
+    float2 vsTex     : vsTex;
     float  vsMatIndex: vsMatIndex;
-    float4 vsWIndex: vsWIndex;
-    float4 vsWeight: vsWeight;
+    float4 vsWIndex  : vsWIndex;
+    float4 vsWeight  : vsWeight;
 };
 
 struct VS_Output {
     float4 Pos    : SV_Position;
     float3 vCoord : vCoord;
     float3 vNorm  : vNorm;
+    float2 vTex   : vTex;
 };
 
 Texture2D BoneTransform; SamplerState BoneTransformSampler;
 float BonePixelHeight;
 float4x4 GetBoneTransform(in float BoneIndex) {
-    float4x4 m = 0;
+    float2 texSize;
     float ycrd = BonePixelHeight*(BoneIndex+0.5);
+    float4x4 m = 0;
     m[0] = BoneTransform.SampleLevel(BoneTransformSampler, float2(0.125, ycrd), 0);
     m[1] = BoneTransform.SampleLevel(BoneTransformSampler, float2(0.375, ycrd), 0);
     m[2] = BoneTransform.SampleLevel(BoneTransformSampler, float2(0.625, ycrd), 0);
@@ -49,9 +52,12 @@ VS_Output VS(VS_Input In) {
     //float3 crd = In.vsCoord;
     Out.vCoord = mul(V_Matrix, float4(crd, 1.0)).xyz;
     Out.vNorm = mul((float3x3)V_Matrix, normalize(In.vsNormal));
+    Out.vTex = In.vsTex;
     Out.Pos = mul(P_Matrix, float4(Out.vCoord, 1.0));
     return Out;
 }
+
+Texture2D DiffuseMap; SamplerState DiffuseMapSampler;
 
 struct PS_Output {
     float4 Color : SV_Target0;
@@ -59,7 +65,7 @@ struct PS_Output {
 
 PS_Output PS(VS_Output In) {
     PS_Output Out;
-    float4 diff = {1,1,1,1};
+    float4 diff = DiffuseMap.Sample(DiffuseMapSampler, In.vTex);
     float4 spec = {0,0,0,0};
     float4 amb = 0.3;
     float3 lightColor = {1,1,1};

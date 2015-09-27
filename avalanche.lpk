@@ -33,7 +33,7 @@
         </CompilerMessages>
       </Other>
     </CompilerOptions>
-    <Files Count="25">
+    <Files Count="26">
       <Item1>
         <Filename Value="Common\avbase.pas"/>
         <UnitName Value="avBase"/>
@@ -134,6 +134,10 @@
         <Filename Value="Common\avmesh.pas"/>
         <UnitName Value="avMesh"/>
       </Item25>
+      <Item26>
+        <Filename Value="Common\avmodel.pas"/>
+        <UnitName Value="avModel"/>
+      </Item26>
     </Files>
     <RequiredPkgs Count="2">
       <Item1>
