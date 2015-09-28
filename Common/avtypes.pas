@@ -216,6 +216,10 @@ Type
   end;
 
 const
+    IndexSizeInBytes: array [TIndexSize] of Integer = (
+      { TIndexSize.Word } 2,
+      { TIndexSize.DWord } 4
+    );
     ImagePixelSize : array [TImageFormat] of Integer = (
     { Unknown       } 0,
     { Gray8         } 1,

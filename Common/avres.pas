@@ -5,7 +5,7 @@ unit avRes;
 interface
 
 uses
-  Classes, SysUtils, avBase, avContext, mutils, avTypes, avPlatform, avContnrs;
+  Classes, SysUtils, avBase, avContext, mutils, avTypes, avTess, avPlatform, avContnrs;
 
 type
   TavProgram = class;
@@ -85,8 +85,8 @@ type
     FMain : TavMainRender;
   protected
     function CanRegister(target: TavObject): boolean; override;
-    function Main: TavMainRender;
   public
+    function Main: TavMainRender;
   end;
 
   { TavCamera }
@@ -314,6 +314,95 @@ type
     property Indices: IIndicesData read FInd write SetIndices;
   end;
 
+  { TNodeManager }
+  //TNode class should contain next fields:
+  //  TNode.DirtyIndex : Integer
+  //  TNode.Range      : IMemRange
+  //  TNode.Size       : Integer
+
+  generic TNodeManager<TNode> = class
+  strict private type
+    TGroupHashFunc = specialize TMurmur2Hash<TNode>;
+    IGroupHash = specialize IHashMap<TNode, Integer, TGroupHashFunc>;
+    TGroupHash = specialize THashMap<TNode, Integer, TGroupHashFunc>;
+    IGroupList = specialize IArray<TNode>;
+    TGroupList = specialize TArray<TNode>;
+  strict private
+    FRangeMan  : IRangeManager;
+    FNodes     : IGroupHash;
+
+    FDirtyNodes : IGroupList;
+    FDirtyAll   : Boolean;
+
+    FEnumIndex : Integer;
+  public
+    function RangeManSize: Integer;
+
+    procedure Add(const ANode: TNode);
+    function  Del(const ANode: TNode): Boolean;
+    function  Invalidate(const ANode: TNode): Boolean;
+    procedure InvalidateAll;
+    procedure Validate(const ANode: TNode);
+    procedure ValidateAll;
+
+    function DirtyCount: Integer;
+    procedure Reset;
+    function NextDirty(out ANode: TNode): Boolean;
+    function Next(out ANode: TNode): Boolean;
+
+    procedure AfterConstruction; override;
+  end;
+
+  TVBManagedHandle = Pointer;
+  { TavVBManaged }
+
+  TavVBManaged = class(TavVerticesBase)
+  private type
+    TVBNode = class
+      Range     : IMemRange;
+      Vert      : IVerticesData;
+      DirtyIndex: Integer;
+      function Size: Integer; Inline;
+    end;
+    TNodes = specialize TNodeManager<TVBNode>;
+  private
+    FNodes : TNodes;
+  protected
+    function DoBuild: Boolean; override;
+  public
+    function Add(const AVert: IVerticesData): TVBManagedHandle;
+    procedure Del(AHandle: TVBManagedHandle);
+    procedure DelAndNil(Var AHandle: TVBManagedHandle);
+
+    procedure AfterConstruction; override;
+    destructor Destroy; override;
+  end;
+
+  TIBManagedHandle = type Pointer;
+  { TavIBManaged }
+
+  TavIBManaged = class(TavIndicesBase)
+  private type
+    TIBNode = class
+      Range     : IMemRange;
+      Ind       : IIndicesData;
+      DirtyIndex: Integer;
+      function Size: Integer; Inline;
+    end;
+    TNodes = specialize TNodeManager<TIBNode>;
+  private
+    FNodes : TNodes;
+  protected
+    function DoBuild: Boolean; override;
+  public
+    function Add(const AInd: IIndicesData): TIBManagedHandle;
+    procedure Del(AHandle: TIBManagedHandle);
+    procedure DelAndNil(var AHandle: TIBManagedHandle);
+
+    procedure AfterConstruction; override;
+    destructor Destroy; override;
+  end;
+
   { TavTexture }
 
   TavTexture = class(TavRes)
@@ -468,6 +557,12 @@ type
 
 function Create_FrameBuffer(Parent: TavObject; textures: array of TTextureFormat): TavFrameBuffer;
 
+procedure DrawManaged(const AProg: TavProgram;
+                      const Vert: TVBManagedHandle; const Ind: TIBManagedHandle; const Inst: TVBManagedHandle); overload;
+procedure DrawManaged(const AProg: TavProgram;
+                      const Vert: TVBManagedHandle; const Ind: TIBManagedHandle; const Inst: TVBManagedHandle;
+                      PrimTopology: TPrimitiveType; CullMode: TCullingMode); overload;
+
 implementation
 
 uses
@@ -503,6 +598,382 @@ begin
         Inc(colorIndex);
     end;
   end;
+end;
+
+procedure DrawManaged(const AProg: TavProgram; const Vert: TVBManagedHandle;
+  const Ind: TIBManagedHandle; const Inst: TVBManagedHandle);
+begin
+  DrawManaged(AProg, Vert, Ind, Inst, AProg.FDefaultPrimType, AProg.FDefaultCullMode);
+end;
+
+procedure DrawManaged(const AProg: TavProgram; const Vert: TVBManagedHandle;
+  const Ind: TIBManagedHandle; const Inst: TVBManagedHandle;
+  PrimTopology: TPrimitiveType; CullMode: TCullingMode);
+var
+    VertNode : TavVBManaged.TVBNode absolute Vert;
+    IndNode  : TavIBManaged.TIBNode absolute Ind;
+    InstNode : TavVBManaged.TVBNode absolute Inst;
+
+    BaseInst, InstCount: Integer;
+    Start, Count, BaseVertex: Integer;
+begin
+  if Vert = nil then Exit;
+  Assert((TObject(Vert) is TavVBManaged.TVBNode));
+  if Assigned(Ind)  then Assert(TObject(Ind)  is TavIBManaged.TIBNode);
+  if Assigned(Inst) then Assert(TObject(Inst) is TavVBManaged.TVBNode);
+
+  if Assigned(Inst) then
+  begin
+    BaseInst  := InstNode.Range.Offset;
+    InstCount := InstNode.Range.Size;
+  end
+  else
+  begin
+    BaseInst := 0;
+    InstCount := 0;
+  end;
+
+  if Assigned(Ind) then
+  begin
+    Start := IndNode.Range.Offset;
+    Count := IndNode.Range.Size;
+    BaseVertex := VertNode.Range.Offset;
+  end
+  else
+  Begin
+    Start := VertNode.Range.Offset;
+    Count := VertNode.Range.Size;
+    BaseVertex := 0;
+  end;
+
+  AProg.Draw(PrimTopology, CullMode, Assigned(IndNode), InstCount, Start, Count, BaseVertex, BaseInst);
+end;
+
+{ TavIBManaged.TIBNode }
+
+function TavIBManaged.TIBNode.Size: Integer;
+begin
+  Result := Ind.IndicesCount;
+end;
+
+{ TavIBManaged }
+
+function TavIBManaged.DoBuild: Boolean;
+  function GetFirstIndexSize: Integer;
+  var node: TIBNode;
+  begin
+    Result := 0;
+    FNodes.Reset;
+    if FNodes.Next(node) then
+    begin
+      Result := node.Ind.IndexSize;
+      FPrimType := node.Ind.PrimType;
+    end;
+  end;
+  procedure SetNodeData(const node: TIBNode; const IndexSize: Integer);
+  begin
+    Assert(node.Ind.IndexSize = IndexSize);
+    Assert(node.Ind.Data.data <> nil);
+    Assert(node.Ind.Data.size = node.Range.Size*IndexSize);
+    FbufH.SetSubData(node.Range.Offset*IndexSize, node.Range.Size*IndexSize, node.Ind.Data.data);
+  end;
+var node  : TIBNode;
+    IndexSize: Integer;
+begin
+  Result := True;
+  if FNodes.DirtyCount = 0 then Exit;
+
+  if FbufH = nil then
+  begin
+    FbufH := Main.Context.CreateIndexBuffer;
+    case GetFirstIndexSize of
+      2: FbufH.IndexSize := TIndexSize.Word;
+      4: FbufH.IndexSize := TIndexSize.DWord;
+    else
+      Assert(False);
+    end;
+  end;
+  IndexSize := IndexSizeInBytes[FbufH.IndexSize];
+  if FbufH.Size <> FNodes.RangeManSize*IndexSize then
+  begin
+    FNodes.InvalidateAll;
+    FbufH.AllocMem(FNodes.RangeManSize*IndexSize, nil);
+  end;
+  FNodes.Reset;
+  while FNodes.Next(node) do
+    SetNodeData(node, IndexSize);
+  FNodes.ValidateAll;
+end;
+
+function TavIBManaged.Add(const AInd: IIndicesData): TIBManagedHandle;
+var node: TIBNode;
+begin
+  Result := nil;
+  if AInd = nil then Exit;
+  if AInd.IndicesCount = 0 then Exit;
+
+  node := TIBNode.Create;
+  node.Ind := AInd;
+  FNodes.Add(node);
+  if FNodes.DirtyCount > 0 then
+    Invalidate;
+
+  Result := Pointer(node);
+end;
+
+procedure TavIBManaged.Del(AHandle: TIBManagedHandle);
+begin
+  DelAndNil(AHandle);
+end;
+
+procedure TavIBManaged.DelAndNil(var AHandle: TIBManagedHandle);
+var node: TIBNode absolute AHandle;
+begin
+  if AHandle = nil then Exit;
+
+  if TObject(AHandle) is TIBNode then
+    if FNodes.Del(node) then
+    begin
+      node.Free;
+      node := nil;
+    end;
+end;
+
+procedure TavIBManaged.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FNodes := TNodes.Create;
+end;
+
+destructor TavIBManaged.Destroy;
+begin
+  FreeAndNil(FNodes);
+  inherited Destroy;
+end;
+
+{ TavVBManaged.TVBNode }
+
+function TavVBManaged.TVBNode.Size: Integer;
+begin
+  Result := Vert.VerticesCount;
+end;
+
+{ TNodeManager }
+
+function TNodeManager.RangeManSize: Integer;
+begin
+  Result := FRangeMan.Size;
+end;
+
+procedure TNodeManager.Add(const ANode: TNode);
+begin
+  if ANode = nil then Exit;
+
+  ANode.Range := FRangeMan.Alloc(ANode.Size);
+  ANode.DirtyIndex := -1;
+  if ANode.Range = nil then
+  begin
+      FRangeMan.AddSpace( Max(ANode.Size, Ceil(FRangeMan.Size*1.5)) );
+      FRangeMan.Defrag;
+      ANode.Range := FRangeMan.Alloc(ANode.Size);
+      FDirtyAll := True;
+  end
+  else
+    Invalidate(ANode);
+  Assert(ANode.Range <> nil);
+  FNodes.Add(ANode, 0);
+end;
+
+function TNodeManager.Del(const ANode: TNode): Boolean;
+begin
+  Result := False;
+  if ANode = nil then Exit;
+  Validate(ANode);
+  Result := FNodes.Contains(ANode);
+  if Result then
+    FNodes.Delete(ANode);
+end;
+
+function TNodeManager.Invalidate(const ANode: TNode): Boolean;
+begin
+  Result := False;
+  if ANode = nil then Exit;
+  if FDirtyAll then Exit;
+  if ANode.DirtyIndex >= 0 then Exit;
+  ANode.DirtyIndex := FDirtyNodes.Count;
+  FDirtyNodes.Add(ANode);
+  Result := True;
+end;
+
+procedure TNodeManager.InvalidateAll;
+var i: Integer;
+begin
+  if FDirtyAll then Exit;
+  FDirtyAll := True;
+  for i := 0 to FDirtyNodes.Count - 1 do
+    FDirtyNodes.Item[i].DirtyIndex := -1;
+  FDirtyNodes.Clear;
+end;
+
+procedure TNodeManager.Validate(const ANode: TNode);
+var LastIndex: Integer;
+begin
+  if ANode.DirtyIndex < 0 then Exit;
+  LastIndex := FDirtyNodes.Count - 1;
+  if ANode.DirtyIndex <> LastIndex then
+  begin
+    FDirtyNodes.Item[ANode.DirtyIndex] := FDirtyNodes.Item[LastIndex];
+    FDirtyNodes.Item[ANode.DirtyIndex].DirtyIndex := ANode.DirtyIndex;
+  end;
+  ANode.DirtyIndex := -1;
+  FDirtyNodes.Delete(LastIndex);
+end;
+
+procedure TNodeManager.ValidateAll;
+var
+  i: Integer;
+begin
+  if FDirtyAll then
+    FDirtyAll := False
+  else
+  begin
+    for i := 0 to FDirtyNodes.Count - 1 do
+      FDirtyNodes.Item[i].DirtyIndex := -1;
+    FDirtyNodes.Clear;
+  end;
+end;
+
+function TNodeManager.DirtyCount: Integer;
+begin
+  if FDirtyAll then
+    Result := FNodes.Count
+  else
+    Result := FDirtyNodes.Count;
+end;
+
+procedure TNodeManager.Reset;
+begin
+  FEnumIndex := 0;
+  FNodes.Reset;
+end;
+
+function TNodeManager.NextDirty(out ANode: TNode): Boolean;
+var Dummy: Integer;
+begin
+  if FDirtyAll then
+    Result := FNodes.Next(ANode, Dummy)
+  else
+  begin
+    Result := FEnumIndex < FDirtyNodes.Count;
+    if Result then
+    begin
+      ANode := FDirtyNodes[FEnumIndex];
+      Inc(FEnumIndex);
+    end;
+  end;
+end;
+
+function TNodeManager.Next(out ANode: TNode): Boolean;
+var Dummy: Integer;
+begin
+  Result := FNodes.Next(ANode, Dummy);
+end;
+
+procedure TNodeManager.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FNodes := TGroupHash.Create;
+  FDirtyNodes := TGroupList.Create;
+  FRangeMan := Create_IRangeManager();
+end;
+
+{ TavVBManaged }
+
+function TavVBManaged.DoBuild: Boolean;
+  function GetFirstLayout: IDataLayout;
+  var node: TVBNode;
+  begin
+    Result := nil;
+    FNodes.Reset;
+    if FNodes.Next(node) then
+      Result := node.Vert.Layout;
+  end;
+  procedure SetNodeData(const node: TVBNode; const StrideSize: Integer);
+  begin
+    Assert(node.Vert.Layout.Size = StrideSize);
+    Assert(node.Vert.Data.data <> nil);
+    Assert(node.Vert.Data.size = node.Range.Size*StrideSize);
+    FbufH.SetSubData(node.Range.Offset*StrideSize, node.Range.Size*StrideSize, node.Vert.Data.data);
+  end;
+var node  : TVBNode;
+    StrideSize: Integer;
+begin
+  Result := True;
+  if FNodes.DirtyCount = 0 then Exit;
+
+  if FbufH = nil then
+  begin
+    FbufH := Main.Context.CreateVertexBuffer;
+    FbufH.Layout := GetFirstLayout;
+  end;
+  StrideSize := FbufH.Layout.Size;
+  if FbufH.Size <> FNodes.RangeManSize*StrideSize then
+  begin
+    FNodes.InvalidateAll;
+    FbufH.AllocMem(FNodes.RangeManSize*StrideSize, nil);
+  end;
+
+  FNodes.Reset;
+  while FNodes.Next(node) do
+    SetNodeData(node, StrideSize);
+  FNodes.ValidateAll;
+end;
+
+function TavVBManaged.Add(const AVert: IVerticesData): TVBManagedHandle;
+var node: TVBNode;
+begin
+  Result := nil;
+  if AVert = nil then Exit;
+  if AVert.VerticesCount = 0 then Exit;
+  if AVert.Layout = nil then Exit;
+
+  node := TVBNode.Create;
+  node.Vert := AVert;
+  FNodes.Add(node);
+  if FNodes.DirtyCount > 0 then
+    Invalidate;
+
+  Result := Pointer(node);
+end;
+
+procedure TavVBManaged.Del(AHandle: TVBManagedHandle);
+begin
+  DelAndNil(AHandle);
+end;
+
+procedure TavVBManaged.DelAndNil(var AHandle: TVBManagedHandle);
+var node: TVBNode absolute AHandle;
+begin
+  if AHandle = nil then Exit;
+
+  if TObject(AHandle) is TVBNode then
+    if FNodes.Del(node) then
+    begin
+      node.Free;
+      node := nil;
+    end;
+end;
+
+procedure TavVBManaged.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FNodes := TNodes.Create;
+end;
+
+destructor TavVBManaged.Destroy;
+begin
+  FreeAndNil(FNodes);
+  inherited Destroy;
 end;
 
 { TavMainRenderChild }
@@ -908,7 +1379,7 @@ procedure TavProjection.UpdateMatrix;
     Q := 1.0/(NearPlane - FarPlane);
     DepthSize := DepthRange.y - DepthRange.x;
 
-    FillChar(Result, SizeOf(Result), 0);
+    ZeroClear(Result, SizeOf(Result));
     Result.f[0, 0] := w;
     Result.f[1, 1] := h;
     Result.f[2, 2] := DepthRange.x - DepthSize * FarPlane * Q;

@@ -293,7 +293,8 @@ end;
 function Create_IRangeManager(const InitialSpace: Integer): IRangeManager;
 begin
   Result := TRangeManager.Create;
-  Result.AddSpace(InitialSpace);
+  if InitialSpace > 0 then;
+    Result.AddSpace(InitialSpace);
 end;
 
 { TRangeManager.TAVLTreeInternal.TMyData }
@@ -311,7 +312,7 @@ var c: Integer;
 begin
   Result := FData.Root;
   if Result = nil then Exit;
-  c := FData.OnCompare(Result.Data, @data);
+  c := FData.OnCompare(Result.Data, data);
   while True do
   begin
       if c < 0 then
@@ -319,7 +320,7 @@ begin
         if Assigned(Result.Right) then
         begin
           Result := Result.Right;
-          c := FData.OnCompare(Result.Data, @data);
+          c := FData.OnCompare(Result.Data, data);
         end
         else
           Exit(nil); //max not found
@@ -328,7 +329,7 @@ begin
       begin
         if Assigned(Result.Left) then
         begin
-          c := FData.OnCompare(Result.Left.Data, @data);
+          c := FData.OnCompare(Result.Left.Data, data);
           if c >= 0 Then
             Result := Result.Left
           else
@@ -390,13 +391,28 @@ begin
 end;
 
 procedure TRangeManager.TAVLTreeInternal.Clear;
+  procedure FreeLists(ANode: TAVLTreeNode);
+  begin
+    if ANode=nil then exit;
+    FreeLists(ANode.Left);
+    FreeLists(ANode.Right);
+    if ANode.Data<>nil then
+    begin
+      TRangeManagerAVLData(ANode.Data).List.Free;
+      TRangeManagerAVLData(ANode.Data).Free;
+    end;
+    ANode.Data:=nil;
+  end;
 begin
-  FData.FreeAndClear;
+  FreeLists(FData.Root);
 end;
 
 function CompareRangeManagerAVLData(Data1, Data2: Pointer): Integer;
+var Size1, Size2: Integer;
 begin
-  Result := TRangeManager.TAVLTreeInternal.TRangeManagerAVLData(Data1).Size - TRangeManager.TAVLTreeInternal.TRangeManagerAVLData(Data2).Size;
+  Size1 := TRangeManager.TAVLTreeInternal.TRangeManagerAVLData(Data1).Size;
+  Size2 := TRangeManager.TAVLTreeInternal.TRangeManagerAVLData(Data2).Size;
+  Result := Size1 - Size2;
 end;
 
 constructor TRangeManager.TAVLTreeInternal.Create;
@@ -407,7 +423,9 @@ end;
 
 destructor TRangeManager.TAVLTreeInternal.Destroy;
 begin
+  Clear;
   FreeAndNil(FData);
+  FreeAndNil(FDummy);
   inherited Destroy;
 end;
 

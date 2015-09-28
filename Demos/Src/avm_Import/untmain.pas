@@ -7,7 +7,7 @@ interface
 
 uses
   LMessages, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, avRes, avTypes, mutils, avMesh, avCameraController, avTexLoader;
+  ExtCtrls, avRes, avTypes, mutils, avCameraController, avModel;
 
 const ObjInd = 0;
 
@@ -29,14 +29,12 @@ type
     FMain: TavMainRender;
     FFBO : TavFrameBuffer;
 
-    FMeshes: TavMeshes;
-    FDiffuse: TavTexture;
-
-    FMeshVB: TavVB;
-    FMeshIB: TavIB;
-    FMeshTransform: TavTexture;
+    FModels: TavModelCollection;
 
     FProg: TavProgram;
+
+    FInstances: array of IavModelInstance;
+//    FBody: IavModelInstance;
   end;
 
 var
@@ -59,20 +57,8 @@ begin
 
   FFBO := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
 
-  LoadFromFile('test.txt', FMeshes);
-
-  FMeshVB := TavVB.Create(FMain);
-  FMeshIB := TavIB.Create(FMain);
-  FMeshTransform := TavTexture.Create(FMain);
-  WriteLn(FMeshes[ObjInd].name);
-  Caption := FMeshes[ObjInd].name;
-  FMeshVB.Vertices := FMeshes[ObjInd].vert as IVerticesData;
-  FMeshIB.Indices := FMeshes[ObjInd].ind as IIndicesData;
-  if Assigned(FMeshes[ObjInd].Armature) then
-  begin
-    FMeshTransform.TargetFormat := TTextureFormat.RGBA32f;
-    FMeshTransform.TexData := FMeshes[ObjInd].Armature.BoneTransformData;
-  end;
+  FModels := TavModelCollection.Create(FMain);
+  FModels.AddFromFile('test.txt');
 
   FProg := TavProgram.Create(FMain);
   FProg.LoadFromJSON('avMesh', True);
@@ -83,31 +69,11 @@ begin
     CanMove := True;
     MovePlane := Plane(0,0,1,0);
   end;
-
-  FDiffuse := TavTexture.Create(FMain);
-  FDiffuse.AutoGenerateMips := True;
-//  FDiffuse.TexData := LoadTexture('diffuse.png');
-//  FDiffuse.TexData := LoadTexture('UVTest.png');
-  FDiffuse.TexData := LoadTexture('BODY_DE_BD_N_00.dds', SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.A8R8G8B8);
 end;
 
 procedure TfrmMain.AnimationTimerTimer(Sender: TObject);
-var anim: IavAnimation;
-  i: Integer;
 begin
-//  Exit;
-  if Assigned(FMeshes[ObjInd].Armature) then
-  for i := 0 to FMeshes[ObjInd].Armature.AnimCount - 1 do
-  begin
-    if i <> 8 then continue;
-    anim := FMeshes[ObjInd].Armature.Anim[i];
-    anim.Frame := anim.Frame + 0.4;
-    anim.Enabled := True;
-
-    FMeshes[ObjInd].Armature.UpdateTransformData;
-    FMeshTransform.Invalidate;
-    FMain.InvalidateWindow;
-  end;
+  FMain.InvalidateWindow;
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
@@ -121,6 +87,8 @@ begin
 end;
 
 procedure TfrmMain.RenderScene;
+var MName: String;
+    i: Integer;
 begin
   if FMain = Nil then Exit;
   if not FMain.Inited3D then Exit;
@@ -135,16 +103,28 @@ begin
     FFBO.ClearDS(1);
 
     FProg.Select;
-    FProg.SetAttributes(FMeshVB, FMeshIB, nil);
-    if Assigned(FMeshTransform) then
+
+    if FMain.FrameID > 1 then
     begin
-      FProg.SetUniform('BonePixelHeight', 1/FMeshTransform.Height);
-      FProg.SetUniform('BoneTransform', FMeshTransform, Sampler_NoFilter);
-    end
-    else
-      FProg.SetUniform('BonePixelHeight', 0.0);
-    FProg.SetUniform('DiffuseMap', FDiffuse, Sampler_Linear);
-    FProg.Draw();
+      FModels.Select;
+
+      if FInstances = nil then
+      begin
+        SetLength(FInstances, FModels.ModelsCount);
+        i := 0;
+        FModels.Reset;
+        while FModels.Next(MName) do
+        begin
+          FInstances[i] := FModels.CreateInstance(MName);
+          Inc(i);
+        end;
+      end;
+
+      for i := 0 to Length(FInstances) - 1 do
+        FInstances[i].AnimationStart('DE_CombatRun');
+      for i := 0 to Length(FInstances) - 1 do
+        FInstances[i].Draw;
+    end;
 
     FFBO.BlitToWindow();
     FMain.Present;
