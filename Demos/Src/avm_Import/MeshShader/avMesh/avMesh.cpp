@@ -48,10 +48,12 @@ float4x4 GetBoneTransform(in float4 Indices, in float4 Weights) {
 
 VS_Output VS(VS_Input In) {
     VS_Output Out;
-    float3 crd = mul(GetBoneTransform(In.vsWIndex, In.vsWeight), float4(In.vsCoord, 1.0)).xyz;
+    float4x4 mBone = GetBoneTransform(In.vsWIndex, In.vsWeight);
+    float3 crd = mul(mBone, float4(In.vsCoord, 1.0)).xyz;
+    float3 norm = mul( (float3x3) mBone, In.vsNormal);
     //float3 crd = In.vsCoord;
     Out.vCoord = mul(V_Matrix, float4(crd, 1.0)).xyz;
-    Out.vNorm = mul((float3x3)V_Matrix, normalize(In.vsNormal));
+    Out.vNorm = mul((float3x3)V_Matrix, normalize(norm));
     Out.vTex = In.vsTex;
     Out.Pos = mul(P_Matrix, float4(Out.vCoord, 1.0));
     return Out;

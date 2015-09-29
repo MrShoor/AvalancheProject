@@ -454,6 +454,7 @@ type
     FWidth: Integer;
     FHeight: Integer;
     FDeep: Integer;
+    FForcedArray: Boolean;
     FFormat: TTextureFormat;
     FMipsCount: Integer;
 
@@ -477,8 +478,8 @@ type
     function MipsCount: Integer;
     function Format: TTextureFormat;
 
-    procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean); overload;
-    procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte); overload;
+    procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; ForcedArray: Boolean); overload;
+    procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte; ForcedArray: Boolean); overload;
 
     procedure SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
     procedure SetMipImage(DestRect: TRect; MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
@@ -568,6 +569,7 @@ type
   TVertexBuffer = class(TBufferBase, IctxVetexBuffer, IctxVetexBuffer_DX)
   private
     FLayout: IDataLayout;
+  protected
     function GetBufferBindFlag: Cardinal; override;
   public
     //*******
@@ -592,6 +594,7 @@ type
   TIndexBuffer = class(TBufferBase, IctxIndexBuffer, IctxIndexBuffer_DX)
   private
     FIndexSize: TIndexSize;
+  protected
     function GetBufferBindFlag: Cardinal; override;
   public
     //*******
@@ -610,8 +613,9 @@ type
   private
     FData: array of Byte;
     FDirty: Boolean;
-    function GetBufferBindFlag: Cardinal; override;
     procedure SyncToGPU; {$IFNDEF NoInline} inline; {$ENDIF}
+  protected
+    function GetBufferBindFlag: Cardinal; override;
   public
     function Ptr: PByte;
     procedure AllocMem(ASize: Integer; Data: PByte); override; overload;
@@ -1173,7 +1177,6 @@ procedure TProgram.Load(const AProgram: string; FromResource: Boolean);
     end;
 
 var stream: TStream;
-    ShaderRef: array [TShaderType] of ID3D11ShaderReflection;
     st: TShaderType;
 
     vShader: ID3D11VertexShader;
@@ -2145,7 +2148,7 @@ begin
   Result.MiscFlags := 0;
   if WithMips then
     Result.MiscFlags := Result.MiscFlags or DWord(D3D11_RESOURCE_MISC_GENERATE_MIPS);
-  if ADeep = 6 then
+  if (ADeep = 6) and (AWidth = AHeight) then
     Result.MiscFlags := Result.MiscFlags or DWord(D3D11_RESOURCE_MISC_TEXTURECUBE);
   FFormat := FTargetFormat;
 end;
@@ -2161,7 +2164,7 @@ begin
   if FResView = nil then
   begin
     desc.Format := D3D11TextureFormat[FFormat];
-    if FDeep > 1 then
+    if (FDeep > 1) or FForcedArray then
     begin
       desc.ViewDimension := D3D10_SRV_DIMENSION_TEXTURE2DARRAY;
       desc.Texture2DArray.ArraySize := FDeep;
@@ -2215,7 +2218,7 @@ begin
   Result := FFormat;
 end;
 
-procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean);
+procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; ForcedArray: Boolean);
 var desc: TD3D11_Texture2DDesc;
 begin
   FResView := nil;
@@ -2224,10 +2227,11 @@ begin
   FWidth := desc.Width;
   FHeight := desc.Height;
   FDeep := ADeep;
+  FForcedArray := ForcedArray;
 end;
 
 procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean;
-  DataFormat: TImageFormat; Data: PByte);
+  DataFormat: TImageFormat; Data: PByte; ForcedArray: Boolean);
 var desc: TD3D11_Texture2DDesc;
 begin
   FResView := nil;
@@ -2237,6 +2241,7 @@ begin
   FWidth := desc.Width;
   FHeight := desc.Height;
   FDeep := ADeep;
+  FForcedArray := ForcedArray;
 end;
 
 procedure TTexture.SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte);

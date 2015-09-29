@@ -39,7 +39,9 @@ type
                          const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
   end;
 
-function EmptyTexData(Width, Height: Integer; Format: TTextureFormat; withMips: Boolean = False; AllocateTextureMemory: Boolean = False): ITextureData;
+function EmptyTexData(Width, Height: Integer; Format: TTextureFormat; withMips: Boolean = False; AllocateTextureMemory: Boolean = False): ITextureData; overload;
+function EmptyTexData(Width, Height: Integer; Format: TImageFormat; withMips: Boolean = False; AllocateTextureMemory: Boolean = False): ITextureData; overload;
+function EmptyTexData: ITextureData; overload;
 
 function LoadTexture(const data        : TByteArr;
                      const targetWidth : Integer = SIZE_DEFAULT;
@@ -163,30 +165,30 @@ type
     procedure AfterConstruction; override;
   end;
 
+  { TMipImage }
+
+  TMipImage = class (TInterfacedObjectEx, ITextureMip)
+  private
+    FData       : TByteArr;
+    FWidth      : Integer;
+    FHeight     : Integer;
+    FPixelFormat: TImageFormat;
+  public
+    function Width      : Integer;
+    function Height     : Integer;
+    function Data       : PByte;
+    function PixelFormat: TImageFormat;
+    function Replicate  : ITextureMip;
+    function Pixel(const x,y: Integer): PByte;
+    constructor Create(const AWidth, AHeight: Integer; const AData: PByte; const ADataSize: Integer; const APixelFormat: TImageFormat);
+  end;
+
   { TTextureData }
 
   TTextureData = class (TInterfacedObject, ITextureData)
-  private type
-
-    { TMip }
-
-    TMip = class
-    private
-        FData  : TByteArr;
-        FWidth : Integer;
-        FHeight: Integer;
-        FLevel : Integer;
-    public
-        function Replicate: TMip;
-        constructor Create(AMipLevel     : Integer;
-                           AWidth        : Integer;
-                           AHeight       : Integer;
-                           AData         : PByte;
-                           ASize         : Integer);
-    end;
   private
     FFormat: TImageFormat;
-    FMips: array of array of TMip;
+    FMips: array of array of ITextureMip;
     FWidth: Integer;
     FHeight: Integer;
     FMipsCount: Integer;
@@ -199,7 +201,9 @@ type
     function Format: TImageFormat;
     function ItemCount: Integer;
     function MipCount(const Index: Integer): Integer;
-    function Data(const Index, MipLevel: Integer): TTextureMipInfo;
+    function MipData(const Index, MipLevel: Integer): ITextureMip;
+
+    procedure Merge(const TexData: array of ITextureData);
 
     {$IfDef VAMPYRE}
     constructor Create(ImgData: TDynImageDataArray;
@@ -222,6 +226,16 @@ end;
 function EmptyTexData(Width, Height: Integer; Format: TTextureFormat; withMips: Boolean; AllocateTextureMemory: Boolean): ITextureData;
 begin
   Result := TTextureData.CreateEmpty(Width, Height, BestImageFormat[Format], withMips, AllocateTextureMemory);
+end;
+
+function EmptyTexData(Width, Height: Integer; Format: TImageFormat; withMips: Boolean; AllocateTextureMemory: Boolean): ITextureData;
+begin
+  Result := TTextureData.CreateEmpty(Width, Height, Format, withMips, AllocateTextureMemory);
+end;
+
+function EmptyTexData: ITextureData;
+begin
+  Result := TTextureData.Create;
 end;
 
 {$IfDef VAMPYRE}
@@ -265,10 +279,10 @@ begin
     TImageFormat.A4R4G4B4      : Result := ifA4R4G4B4;
     TImageFormat.R8G8B8        : Result := ifR8G8B8;
     TImageFormat.A8R8G8B8      : Result := ifA8R8G8B8;
-    TImageFormat.R16F           : Result := ifR16F;
-    TImageFormat.A16R16G16B16F  : Result := ifA16R16G16B16F;
+    TImageFormat.R16F          : Result := ifR16F;
+    TImageFormat.A16R16G16B16F : Result := ifA16R16G16B16F;
     TImageFormat.A16B16G16R16F : Result := ifA16B16G16R16F;
-    TImageFormat.R32F           : Result := ifR32F;
+    TImageFormat.R32F          : Result := ifR32F;
     TImageFormat.A32R32G32B32F : Result := ifA32R32G32B32F;
     TImageFormat.R32G32B32A32F : Result := ifA32B32G32R32F;
     TImageFormat.DXT1          : Result := ifDXT1;
@@ -329,6 +343,49 @@ end;
 function Create_ITextureManager: ITextureManager;
 begin
   Result := TTextureManager.Create;
+end;
+
+{ TMipImage }
+
+function TMipImage.Width: Integer;
+begin
+  Result := FWidth;
+end;
+
+function TMipImage.Height: Integer;
+begin
+  Result := FHeight;
+end;
+
+function TMipImage.Data: PByte;
+begin
+  Result := PByte(FData);
+end;
+
+function TMipImage.PixelFormat: TImageFormat;
+begin
+  Result := FPixelFormat;
+end;
+
+function TMipImage.Replicate: ITextureMip;
+begin
+  Result := TMipImage.Create(FWidth, FHeight, PByte(FData), Length(FData), FPixelFormat);
+end;
+
+function TMipImage.Pixel(const x, y: Integer): PByte;
+begin
+  Result := PByte(FData);
+  Inc(Result, (y*Width+x)*ImagePixelSize[PixelFormat]);
+end;
+
+constructor TMipImage.Create(const AWidth, AHeight: Integer; const AData: PByte; const ADataSize: Integer; const APixelFormat: TImageFormat);
+begin
+  Assert((ADataSize=AWidth*AHeight*ImagePixelSize[APixelFormat]) or (ADataSize=0));
+  FWidth := AWidth;
+  FHeight := AHeight;
+  FPixelFormat := APixelFormat;
+  SetLength(FData, ADataSize);
+  if Assigned(AData) and (ADataSize > 0) then Move(AData^, FData[0], ADataSize);
 end;
 
 { TTextureManager }
@@ -431,32 +488,10 @@ end;
 
 {$EndIf}
 
-{ TTextureData.TMip }
-
-function TTextureData.TMip.Replicate: TMip;
-begin
-  Result := TMip.Create(FLevel, FWidth, FHeight, nil, 0);
-  Result.FData := FData;
-end;
-
-constructor TTextureData.TMip.Create(AMipLevel: Integer; AWidth: Integer;
-  AHeight: Integer; AData: PByte; ASize: Integer);
-begin
-  FLevel := AMipLevel;
-  FWidth := AWidth;
-  FHeight := AHeight;
-  SetLength(FData, ASize);
-  if Assigned(AData) and (ASize > 0) then Move(AData^, FData[0], ASize);
-end;
-
 { TTextureData }
 
 procedure TTextureData.Clear;
-var i, j: Integer;
 begin
-  for i := 0 to Length(FMips) - 1 do
-    for j := 0 to Length(FMips[i]) - 1 do
-      FreeAndNil(FMips[i][j]);
   FMips := nil;
 end;
 
@@ -490,13 +525,76 @@ begin
   Result := Length(FMips[Index]);
 end;
 
-function TTextureData.Data(const Index, MipLevel: Integer): TTextureMipInfo;
+function TTextureData.MipData(const Index, MipLevel: Integer): ITextureMip;
 begin
-  Result.Data   := PByte(FMips[Index][MipLevel].FData);
-  Result.Height := FMips[Index][MipLevel].FHeight;
-  Result.Width  := FMips[Index][MipLevel].FWidth;
-  Result.Level  := FMips[Index][MipLevel].FLevel;
-  Result.PixelSize := ImagePixelSize[FFormat];
+  Result := FMips[Index][MipLevel];
+end;
+
+procedure TTextureData.Merge(const TexData: array of ITextureData);
+  {$IfDef VAMPYRE}
+  function ConvertMip(const srcMip: ITextureMip; const w, h: Integer; const format: TImageFormat): ITextureMip;
+  var img: TImageData;
+  begin
+    if (srcMip.Width = w) and (srcMip.Height=h) and (srcMip.PixelFormat = format) then
+      Exit(srcMip);
+
+    ZeroClear(img, SizeOf(img));
+    NewImage(srcMip.Width, srcMip.Height, AvToVamp(srcMip.PixelFormat), img);
+    img.Format := AvToVamp(format);
+    img.Height := h;
+    img.Width := w;
+    img.Palette := nil;
+    img.Size := srcMip.Width*srcMip.Height*ImagePixelSize[srcMip.PixelFormat];
+    img.Bits := srcMip.Data;
+    ResizeImage(img, w, h, rfBicubic);
+    ConvertImage(img, AvToVamp(format));
+    Result := TMipImage.Create(img.Width, img.Height, img.Bits, img.Size, format);
+  end;
+  {$EndIf}
+var i, j, k: Integer;
+    sliceStart, sliceOffset: Integer;
+    w, h: Integer;
+begin
+  if Length(TexData) = 0 then Exit;
+
+  if Length(FMips) = 0 then
+  begin
+    for i := Low(TexData) to High(TexData) do
+      if TexData[i].ItemCount > 0 then
+      begin
+        FWidth := TexData[i].Width;
+        FHeight := TexData[i].Height;
+        FFormat := TexData[i].Format;
+        FMipsCount := TexData[i].MipsCount;
+        Break;
+      end;
+    if FMipsCount = 0 then Exit;
+  end;
+
+  sliceOffset := 0;
+  for i := Low(TexData) to High(TexData) do
+    Inc(sliceOffset, TexData[i].ItemCount);
+
+  sliceStart := Length(FMips);
+  SetLength(FMips, sliceStart+sliceOffset, FMipsCount);
+
+  sliceOffset := sliceStart;
+  for i := Low(TexData) to High(TexData) do
+    for j := 0 to TexData[i].ItemCount - 1 do
+    begin
+      w := FWidth;
+      h := FHeight;
+      for k := 0 to FMipsCount - 1 do
+      begin
+        if k < TexData[i].MipsCount then
+          FMips[sliceOffset][k] := ConvertMip(TexData[i].MipData(j, k), w, h, FFormat)
+        else
+          FMips[sliceOffset][k] := ConvertMip(FMips[sliceOffset][k-1], w, h, FFormat);
+        w := w div 2;
+        h := h div 2;
+      end;
+      Inc(sliceOffset);
+    end;
 end;
 
 {$IfDef VAMPYRE}
@@ -568,18 +666,18 @@ begin
     case TexType of
       ttSingleImage:
           begin
-            FMips[0][0] := TMip.Create(0, ImgData[i].Width, ImgData[i].Height, ImgData[i].Bits, ImgData[i].Size);
+            FMips[0][0] := TMipImage.Create(targetWidth, targetHeight, ImgData[i].Bits, ImgData[i].Size, FFormat);
             Break;
           end;
       ttMipLeveling:
           begin
-            FMips[0][i] := TMip.Create(i, ImgData[i].Width, ImgData[i].Height, ImgData[i].Bits, ImgData[i].Size);
+            FMips[0][i] := TMipImage.Create(targetWidth, targetHeight, ImgData[i].Bits, ImgData[i].Size, FFormat);
             targetWidth := targetWidth shr 2;
             targetHeight := targetHeight shr 2;
           end;
       ttTextureArray:
           begin
-            FMips[i][0] := TMip.Create(0, ImgData[i].Width, ImgData[i].Height, ImgData[i].Bits, ImgData[i].Size);
+            FMips[i][0] := TMipImage.Create(targetWidth, targetHeight, ImgData[i].Bits, ImgData[i].Size, FFormat);
           end;
     end;
   end;
@@ -633,7 +731,7 @@ begin
       if NewVamp <> PImg^.Format then ConvertImage(PImg^, NewVamp);
       if (w <> PImg^.Width) or (h <> PImg^.Height) then
         ResizeImage(PImg^, w, h, rfBicubic);
-      FMips[j][i] := TMip.Create(i, PImg^.Width, PImg^.Height, PImg^.Bits, PImg^.Size);
+      FMips[j][i] := TMipImage.Create(PImg^.Width, PImg^.Height, PImg^.Bits, PImg^.Size, FFormat);
       w := w shr 2;
       h := h shr 2;
     end;
@@ -660,7 +758,7 @@ begin
       AllocSize := AWidth * AHeight * ImagePixelSize[FFormat]
     else
       AllocSize := 0;
-    FMips[0][i] := TMip.Create(i, AWidth, AHeight, Nil, AllocSize);
+    FMips[0][i] := TMipImage.Create(AWidth, AHeight, Nil, AllocSize, FFormat);
     AWidth := AWidth shr 1;
     AHeight := AHeight shr 1;
   end;

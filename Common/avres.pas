@@ -407,6 +407,7 @@ type
 
   TavTexture = class(TavRes)
   private
+    FForcedArray: Boolean;
     FForcedPOT: Boolean;
     FAutoGenerateMips: Boolean;
     FDropLocalAfterBuild: Boolean;
@@ -414,12 +415,14 @@ type
     FTexData: ITextureData;
     FImageSize: TVec2;
     procedure SetAutoGenerateMips(AValue: Boolean);
+    procedure SetForcedArray(AValue: Boolean);
     procedure SetTexData(AValue: ITextureData);
   protected
     FTexH: IctxTexture;
     procedure BeforeFree3D; override;
     function DoBuild: Boolean; override;
   public
+    property ForcedArray: Boolean read FForcedArray write SetForcedArray;
     property DropLocalAfterBuild: Boolean read FDropLocalAfterBuild write FDropLocalAfterBuild;
     property TexData: ITextureData read FTexData write SetTexData;
 
@@ -1171,6 +1174,13 @@ begin
   Invalidate;
 end;
 
+procedure TavTexture.SetForcedArray(AValue: Boolean);
+begin
+  if FForcedArray = AValue then Exit;
+  if Assigned(FTexH) then Invalidate;
+  FForcedArray := AValue;
+end;
+
 procedure TavTexture.BeforeFree3D;
 begin
   inherited BeforeFree3D;
@@ -1179,7 +1189,7 @@ begin
 end;
 
 function TavTexture.DoBuild: Boolean;
-var MipInfo : TTextureMipInfo;
+var MipInfo : ITextureMip;
     i, j, n: Integer;
 begin
   if Assigned(FTexData) then
@@ -1190,9 +1200,9 @@ begin
     FImageSize.y := FTexData.Height;
 
     if FForcedPOT then
-      FTexH.AllocMem(NextPow2(FTexData.Width), NextPow2(FTexData.Height), FTexData.ItemCount, (FTexData.MipsCount>1) or FAutoGenerateMips)
+      FTexH.AllocMem(NextPow2(FTexData.Width), NextPow2(FTexData.Height), FTexData.ItemCount, (FTexData.MipsCount>1) or FAutoGenerateMips, FForcedArray)
     else
-      FTexH.AllocMem(FTexData.Width, FTexData.Height, FTexData.ItemCount, (FTexData.MipsCount>1) or FAutoGenerateMips);
+      FTexH.AllocMem(FTexData.Width, FTexData.Height, FTexData.ItemCount, (FTexData.MipsCount>1) or FAutoGenerateMips, FForcedArray);
 
     for i := 0 to FTexData.ItemCount - 1 do
     begin
@@ -1201,7 +1211,7 @@ begin
         n := 1;
       for j := 0 to n - 1 do
       begin
-        MipInfo := FTexData.Data(i, j);
+        MipInfo := FTexData.MipData(i, j);
         FTexH.SetMipImage(0, 0, MipInfo.Width, MipInfo.Height, j, i, FTexData.Format, MipInfo.Data);
       end;
     end;

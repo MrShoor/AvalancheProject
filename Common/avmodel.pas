@@ -34,6 +34,9 @@ type
     IBHandle: TIBManagedHandle;
     FInstances: TList;
 
+    DiffuseOffset: Single;
+    NormalsOffset: Single;
+
     procedure UnlinkInstance(const Obj: TObject);
   public
     Mesh : IavMesh;
@@ -48,13 +51,33 @@ type
   private type
     IModelHash = specialize IHashMap<String, TModel, TMurmur2HashString>;
     TModelHash = specialize THashMap<String, TModel, TMurmur2HashString>;
+
+    TTextureKey = packed record
+      Width : Integer;
+      Height: Integer;
+      Mips  : Integer;
+    end;
+  private const
+    EmptyTexureKey: TTextureKey = (Width:0;Height:0;Mips:0);
+  private type
+    TTextureHashFunc = specialize TMurmur2Hash<TTextureKey>;
+    ITextureHash = specialize IHashMap<TTextureKey, TavTexture, TTextureHashFunc>;
+    TTextureHash = specialize THashMap<TTextureKey, TavTexture, TTextureHashFunc>;
+
+    IDummyTexDataHash = specialize IHashMap<TTextureKey, ITextureData, TTextureHashFunc>;
+    TDummyTexDataHash = specialize THashMap<TTextureKey, ITextureData, TTextureHashFunc>;
   private
     FVB: TavVBManaged;
     FIB: TavIBManaged;
+    FMaps: ITextureHash;
+    FDummyTexData: IDummyTexDataHash;
 
     FModels: IModelHash;
 
     procedure AddModel(const AModel: TModel);
+
+    function ObtainDummyTextureData(const Key: TTextureKey): ITextureData;
+    function ObtainMap(const Key: TTextureKey): TavTexture;
   public
     function ModelsCount: Integer;
     procedure Reset;
@@ -322,6 +345,8 @@ end;
 constructor TModel.Create;
 begin
   FInstances := TList.Create;
+  DiffuseOffset := -1;
+  NormalsOffset := -1;
 end;
 
 destructor TModel.Destroy;
@@ -339,6 +364,26 @@ end;
 procedure TavModelCollection.AddModel(const AModel: TModel);
 begin
   FModels.AddOrSet(AModel.Mesh.Name, AModel);
+end;
+
+function TavModelCollection.ObtainDummyTextureData(const Key: TTextureKey): ITextureData;
+begin
+  if not FDummyTexData.TryGetValue(Key, Result) then
+  begin
+    Result := EmptyTexData(Key.Width, Key.Height, TImageFormat.A8R8G8B8, Key.Mips > 1, False);
+    FDummyTexData.Add(Key, Result);
+  end;
+end;
+
+function TavModelCollection.ObtainMap(const Key: TTextureKey): TavTexture;
+begin
+  if not FMaps.TryGetValue(Key, Result) then
+  begin
+    Result := TavTexture.Create(Self);
+    Result.TargetFormat := TTextureFormat.RGBA;
+    Result.ForcedArray := True;
+    FMaps.Add(Key, Result);
+  end;
 end;
 
 function TavModelCollection.ModelsCount: Integer;
@@ -373,9 +418,29 @@ begin
 end;
 
 procedure TavModelCollection.AddFromFile(const FileName: String; const TexManager: ITextureManager);
+  procedure AddTexData(const TexKey: TTextureKey; TexData: ITextureData);
+  var Tex: TavTexture;
+  begin
+    if TexData = nil then TexData := ObtainDummyTextureData(TexKey);
+    Tex := ObtainMap(TexKey);
+    if Tex.TexData = nil then
+      Tex.TexData := EmptyTexData;
+    Tex.TexData.Merge([TexData]);
+    Tex.Invalidate;
+  end;
+  function GetMapOffset(const TexKey: TTextureKey): Single;
+  var Tex: TavTexture;
+  begin
+    Result := 0;
+    Tex := ObtainMap(TexKey);
+    if Assigned(Tex.TexData) then
+      Result := Tex.TexData.ItemCount;
+  end;
 var meshes: TavMeshes;
     model: TModel;
-    i: Integer;
+    i, j: Integer;
+    tKey: TTextureKey;
+    ContainDiffuseMap, ContainNormalMap: Boolean;
 begin
   LoadFromFile(FileName, meshes, TexManager);
   for i := 0 to Length(meshes) - 1 do
@@ -385,6 +450,50 @@ begin
     model.Mesh := meshes[i];
     model.VBHandle := FVB.Add(model.Mesh.Vert as IVerticesData);
     model.IBHandle := FIB.Add(model.Mesh.Ind as IIndicesData);
+
+    //prepare map size
+    tKey.Width := -1;
+    tKey.Height := -1;
+    tKey.Mips := -1;
+    ContainDiffuseMap := False;
+    ContainNormalMap := False;
+    for j := 0 to model.Mesh.MaterialsCount-1 do
+    begin
+      if Assigned(model.Mesh.MaterialMaps[j].matDiffMap) then
+      begin
+        tKey.Width  := model.Mesh.MaterialMaps[j].matDiffMap.Width;
+        tKey.Height := model.Mesh.MaterialMaps[j].matDiffMap.Height;
+        tKey.Mips   := model.Mesh.MaterialMaps[j].matDiffMap.MipsCount;
+        ContainDiffuseMap := True;
+      end;
+      if Assigned(model.Mesh.MaterialMaps[j].matNormalMap) then
+      begin
+        tKey.Width  := model.Mesh.MaterialMaps[j].matNormalMap.Width;
+        tKey.Height := model.Mesh.MaterialMaps[j].matNormalMap.Height;
+        tKey.Mips   := model.Mesh.MaterialMaps[j].matNormalMap.MipsCount;
+        ContainNormalMap := True;
+      end;
+    end;
+    if tKey.Width < 0 then
+    begin
+      tKey.Width := 1;
+      tKey.Height := 1;
+      tKey.Mips := 1;
+    end;
+
+    if ContainDiffuseMap then
+    begin
+      model.DiffuseOffset := GetMapOffset(tKey);
+      for j := 0 to model.Mesh.MaterialsCount-1 do
+        AddTexData(tKey, model.Mesh.MaterialMaps[j].matDiffMap);
+    end;
+    if ContainNormalMap then
+    begin
+      model.NormalsOffset := GetMapOffset(tKey);
+      for j := 0 to model.Mesh.MaterialsCount-1 do
+        AddTexData(tKey, model.Mesh.MaterialMaps[j].matNormalMap);
+    end;
+
     AddModel(model);
   end;
 end;
@@ -395,6 +504,8 @@ begin
   FModels := TModelHash.Create('', nil);
   FVB := TavVBManaged.Create(Self);
   FIB := TavIBManaged.Create(Self);
+  FMaps := TTextureHash.Create;
+  FDummyTexData := TDummyTexDataHash.Create(EmptyTexureKey, nil);
 end;
 
 destructor TavModelCollection.Destroy;

@@ -424,6 +424,8 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes; TexManage
 
       mat: TMeshMaterial;
       matMap: TMeshMaterialMaps;
+
+      texWidth, texHeight: Integer;
   begin
     //prevent compile warning by initialization
     v := EmptyPNWVertex;
@@ -446,6 +448,8 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes; TexManage
     StreamReadString(stream, s);
     parent := String(s);
 
+    texWidth := SIZE_DEFAULT;
+    texHeight := SIZE_DEFAULT;
     stream.ReadBuffer(n, SizeOf(n));
     for i := 0 to n - 1 do
     begin
@@ -458,13 +462,21 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes; TexManage
       if s = '' then
         matMap.matDiffMap := nil
       else
-        matMap.matDiffMap := TexManager.LoadTexture(String(s), SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.A8R8G8B8);
+      begin
+        matMap.matDiffMap := TexManager.LoadTexture(String(s), texWidth, texHeight, TImageFormat.A8R8G8B8);
+        texWidth := matMap.matDiffMap.Width;
+        texHeight := matMap.matDiffMap.Height;
+      end;
 
       StreamReadString(stream, s);
       if s = '' then
         matMap.matNormalMap := nil
       else
-        matMap.matNormalMap := TexManager.LoadTexture(String(s), SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.A8R8G8B8);
+      begin
+        matMap.matNormalMap := TexManager.LoadTexture(String(s), texWidth, texHeight, TImageFormat.A8R8G8B8);
+        texWidth := matMap.matNormalMap.Width;
+        texHeight := matMap.matNormalMap.Height;
+      end;
 
       mesh.AddMaterial(mat, matMap);
     end;
@@ -914,7 +926,7 @@ begin
 end;
 
 procedure TavArmature.UpdatePoseData(const ATexData: ITextureData; const AnimState: array of TMeshAnimationState);
-  procedure SetMatrix(const mip: TTextureMipInfo; const BoneIndex: Integer; const m: TMat4);
+  procedure SetMatrix(const mip: ITextureMip; const BoneIndex: Integer; const m: TMat4);
   begin
     PVec4(mip.Pixel(0, BoneIndex))^ := m.Row[0];
     PVec4(mip.Pixel(1, BoneIndex))^ := m.Row[1];
@@ -922,7 +934,7 @@ procedure TavArmature.UpdatePoseData(const ATexData: ITextureData; const AnimSta
     PVec4(mip.Pixel(3, BoneIndex))^ := m.Row[3];
   end;
 
-  procedure FillMipData_Recursive(const mip: TTextureMipInfo; const animTransform: TMat4Arr; const bone: IavBone; const parentTransform: TMat4);
+  procedure FillMipData_Recursive(const mip: ITextureMip; const animTransform: TMat4Arr; const bone: IavBone; const parentTransform: TMat4);
   var m: TMat4;
       i: Integer;
   begin
@@ -934,7 +946,7 @@ procedure TavArmature.UpdatePoseData(const ATexData: ITextureData; const AnimSta
 
 var i, j, BoneInd: Integer;
     m: TMat4;
-    mip: TTextureMipInfo;
+    mip: ITextureMip;
 
     boneWeight: TSingleArr;
     boneTransform: TMat4Arr;
@@ -949,7 +961,7 @@ begin
   SetLength(boneTransform, Length(FBones));
   ZeroClear(boneTransform[0], Length(boneTransform)*SizeOf(boneTransform[0]));
 
-  mip := FTransfromData.Data(0,0);
+  mip := FTransfromData.MipData(0,0);
   for i := 0 to Length(FBones) - 1 do
     boneTransform[i] := FBones[i].Transform;
 
@@ -979,21 +991,21 @@ begin
 end;
 
 procedure TavArmature.UpdateTransformData;
-  procedure SetMatrix(const mip: TTextureMipInfo; const BoneIndex: Integer; const m: TMat4);
+  procedure SetMatrix(const mip: ITextureMip; const BoneIndex: Integer; const m: TMat4);
   begin
     PVec4(mip.Pixel(0, BoneIndex))^ := m.Row[0];
     PVec4(mip.Pixel(1, BoneIndex))^ := m.Row[1];
     PVec4(mip.Pixel(2, BoneIndex))^ := m.Row[2];
     PVec4(mip.Pixel(3, BoneIndex))^ := m.Row[3];
   end;
-  procedure AddMatrix(const mip: TTextureMipInfo; const BoneIndex: Integer; const m: TMat4);
+  procedure AddMatrix(const mip: ITextureMip; const BoneIndex: Integer; const m: TMat4);
   begin
     PVec4(mip.Pixel(0, BoneIndex))^ := PVec4(mip.Pixel(0, BoneIndex))^ + m.Row[0];
     PVec4(mip.Pixel(1, BoneIndex))^ := PVec4(mip.Pixel(1, BoneIndex))^ + m.Row[1];
     PVec4(mip.Pixel(2, BoneIndex))^ := PVec4(mip.Pixel(2, BoneIndex))^ + m.Row[2];
     PVec4(mip.Pixel(3, BoneIndex))^ := PVec4(mip.Pixel(3, BoneIndex))^ + m.Row[3];
   end;
-  function GetMatrix(const mip: TTextureMipInfo; const BoneIndex: Integer): TMat4;
+  function GetMatrix(const mip: ITextureMip; const BoneIndex: Integer): TMat4;
   begin
     Result.Row[0] := PVec4(mip.Pixel(0, BoneIndex))^;
     Result.Row[1] := PVec4(mip.Pixel(1, BoneIndex))^;
@@ -1001,7 +1013,7 @@ procedure TavArmature.UpdateTransformData;
     Result.Row[3] := PVec4(mip.Pixel(3, BoneIndex))^;
   end;
 
-  procedure FillMipData_Recursive(const mip: TTextureMipInfo; const animTransform: TMat4Arr; const bone: IavBone; const parentTransform: TMat4);
+  procedure FillMipData_Recursive(const mip: ITextureMip; const animTransform: TMat4Arr; const bone: IavBone; const parentTransform: TMat4);
   var m: TMat4;
       i: Integer;
   begin
@@ -1013,7 +1025,7 @@ procedure TavArmature.UpdateTransformData;
 
 var i, j, BoneInd: Integer;
     m: TMat4;
-    mip: TTextureMipInfo;
+    mip: ITextureMip;
 
     boneCounter: TIntArr;
     boneTransform: TMat4Arr;
@@ -1027,7 +1039,7 @@ begin
   SetLength(boneTransform, Length(FBones));
   ZeroClear(boneTransform[0], Length(boneTransform)*SizeOf(boneTransform[0]));
 
-  mip := FTransfromData.Data(0,0);
+  mip := FTransfromData.MipData(0,0);
   for i := 0 to Length(FBones) - 1 do
     boneTransform[i] := FBones[i].Transform;
 

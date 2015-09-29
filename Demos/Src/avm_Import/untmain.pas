@@ -121,7 +121,8 @@ begin
       end;
 
       for i := 0 to Length(FInstances) - 1 do
-        FInstances[i].AnimationStart('DE_CombatRun');
+        FInstances[i].AnimationStart('DE_Provoke');
+//        FInstances[i].AnimationStart('DE_CombatRun');
       for i := 0 to Length(FInstances) - 1 do
         FInstances[i].Draw;
     end;

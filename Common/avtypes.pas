@@ -190,15 +190,15 @@ Type
     function Data: TPointerData;
   end;
 
-  { TTextureMipInfo }
+  { ITextureMip }
 
-  TTextureMipInfo = packed record
-    Width    : Integer;
-    Height   : Integer;
-    Level    : Integer;
-    Data     : PByte;
-    PixelSize: Integer;
-    function Pixel(const x,y: Integer): PByte; Inline;
+  ITextureMip = interface
+    function Width      : Integer;
+    function Height     : Integer;
+    function Data       : PByte;
+    function PixelFormat: TImageFormat;
+    function Replicate  : ITextureMip;
+    function Pixel(const x,y: Integer): PByte;
   end;
 
   { ITextureData }
@@ -212,7 +212,9 @@ Type
     function Format: TImageFormat;
     function ItemCount: Integer;
     function MipCount(const Index: Integer): Integer;
-    function Data(const Index, MipLevel: Integer): TTextureMipInfo;
+    function MipData(const Index, MipLevel: Integer): ITextureMip;
+
+    procedure Merge(const TexData: array of ITextureData);
   end;
 
 const
@@ -473,14 +475,6 @@ begin
   {$Hints OFF}
   FillChar(data, DataSize, 0);
   {$Hints ON}
-end;
-
-{ TTextureMipInfo }
-
-function TTextureMipInfo.Pixel(const x, y: Integer): PByte;
-begin
-  Result := Data;
-  Inc(Result, (y*Width+x)*PixelSize);
 end;
 
 { TNoRefObject }

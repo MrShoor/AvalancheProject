@@ -813,7 +813,7 @@ type
     function GetTargetFormat: TTextureFormat;
     procedure SetTargetFormat(Value: TTextureFormat);
 
-    procedure AllocMem(AWidth, AHeight, ADeep: Integer; glFormat, exFormat, compFormat: Cardinal; Data: PByte; GenMipmaps: Boolean); overload;
+    procedure AllocMem(AWidth, AHeight, ADeep: Integer; glFormat, exFormat, compFormat: Cardinal; Data: PByte; GenMipmaps: Boolean; ForcedArray: Boolean); overload;
   public
     procedure AllocHandle; override;
     procedure FreeHandle; override;
@@ -826,8 +826,8 @@ type
     function MipsCount: Integer;
     function Format: TTextureFormat;
 
-    procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean); overload;
-    procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte); overload;
+    procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; ForcedArray: Boolean); overload;
+    procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte; ForcedArray: Boolean); overload;
     procedure SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
     procedure SetMipImage(DestRect: TRect; MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
 
@@ -1169,7 +1169,7 @@ begin
   FTargetFormat := Value;
 end;
 
-procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; glFormat, exFormat, compFormat: Cardinal; Data: PByte; GenMipmaps: Boolean);
+procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; glFormat, exFormat, compFormat: Cardinal; Data: PByte; GenMipmaps: Boolean; ForcedArray: Boolean);
 var i: Integer;
 begin
   //todo: initialization with data
@@ -1183,7 +1183,7 @@ begin
   else
     FMipsCount := 1;
 
-  FIsArray := ADeep > 1;
+  FIsArray := (ADeep > 1) Or ForcedArray;
   if FIsArray then
   begin
     glBindTexture(GLTextureTarget[FIsArray], FHandle);
@@ -1242,7 +1242,7 @@ begin
   Result := FFormat;
 end;
 
-procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean);
+procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; ForcedArray: Boolean);
 var exFormat: Cardinal;
     compType: Cardinal;
 begin
@@ -1257,12 +1257,12 @@ begin
   else
     exFormat:=GL_RGBA; compType:=GL_UNSIGNED_BYTE;
   end;
-  AllocMem(AWidth, AHeight, ADeep, GLTextureFormat[FTargetFormat], exFormat, compType, nil, WithMips);
+  AllocMem(AWidth, AHeight, ADeep, GLTextureFormat[FTargetFormat], exFormat, compType, nil, WithMips, ForcedArray);
 end;
 
-procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte);
+procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte; ForcedArray: Boolean);
 begin
-  AllocMem(AWidth, AHeight, ADeep, GLTextureFormat[FTargetFormat], GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data, WithMips);
+  AllocMem(AWidth, AHeight, ADeep, GLTextureFormat[FTargetFormat], GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data, WithMips, ForcedArray);
 end;
 
 procedure TTexture.SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte);
