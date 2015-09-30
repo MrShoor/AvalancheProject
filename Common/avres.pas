@@ -370,6 +370,8 @@ type
   protected
     function DoBuild: Boolean; override;
   public
+    function HasData: Boolean;
+
     function Add(const AVert: IVerticesData): TVBManagedHandle;
     procedure Del(AHandle: TVBManagedHandle);
     procedure DelAndNil(Var AHandle: TVBManagedHandle);
@@ -395,6 +397,8 @@ type
   protected
     function DoBuild: Boolean; override;
   public
+    function HasData: Boolean;
+
     function Add(const AInd: IIndicesData): TIBManagedHandle;
     procedure Del(AHandle: TIBManagedHandle);
     procedure DelAndNil(var AHandle: TIBManagedHandle);
@@ -708,6 +712,11 @@ begin
   FNodes.ValidateAll;
 end;
 
+function TavIBManaged.HasData: Boolean;
+begin
+  Result := FNodes.RangeManSize > 0;
+end;
+
 function TavIBManaged.Add(const AInd: IIndicesData): TIBManagedHandle;
 var node: TIBNode;
 begin
@@ -930,6 +939,11 @@ begin
   while FNodes.Next(node) do
     SetNodeData(node, StrideSize);
   FNodes.ValidateAll;
+end;
+
+function TavVBManaged.HasData: Boolean;
+begin
+  Result := FNodes.RangeManSize > 0;
 end;
 
 function TavVBManaged.Add(const AVert: IVerticesData): TVBManagedHandle;

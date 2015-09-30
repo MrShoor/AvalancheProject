@@ -7,7 +7,8 @@ interface
 
 uses
   Classes, SysUtils,
-  avBase, avRes, avTypes, avContnrs, avMesh, avTexLoader;
+  mutils,
+  avBase, avRes, avTess, avTypes, avContnrs, avMesh, avTexLoader;
 
 const
   KeyFramePerMSec = 1/40;
@@ -17,6 +18,31 @@ const
 type
   TavModelCollection = class;
 
+  { TModelInstanceGPUData_Base }
+
+  TModelInstanceGPUData_Base = class (TInterfacedObjectEx, IVerticesData)
+  protected
+    function GetBasicPtr: Pointer;
+    function GetOffset(const FieldPtr: Pointer): Integer;
+
+    function AddLayoutFields(const LBuilder: ILayoutBuilder): ILayoutBuilder; virtual; abstract;
+  public
+    function VerticesCount: Integer;
+    function Layout: IDataLayout; virtual; abstract;
+    function Data: TPointerData;
+  end;
+
+  { TModelInstanceGPUData }
+
+  TModelInstanceGPUData = class (TModelInstanceGPUData_Base)
+  protected
+    class var Layout_ModelInstanceGPUData: IDataLayout;
+    function AddLayoutFields(const LBuilder: ILayoutBuilder): ILayoutBuilder; override;
+  public
+    aiBoneMatDifNormOffset: TVec4;
+    function Layout: IDataLayout; override;
+  end;
+
   IavModelInstance = interface
     procedure AnimationStart(const AnimationName: string; GrowSpeed: Single = Default_GrowSpeed);
     procedure AnimationStop (const AnimationName: string; FadeSpeed: Single = Default_FadeSpeed);
@@ -25,30 +51,76 @@ type
     procedure Draw;
   end;
 
-  { TModel }
-
-  TModel = class
-  private
-    Owner: TavModelCollection;
-    VBHandle: TVBManagedHandle;
-    IBHandle: TIBManagedHandle;
-    FInstances: TList;
-
-    DiffuseOffset: Single;
-    NormalsOffset: Single;
-
-    procedure UnlinkInstance(const Obj: TObject);
-  public
-    Mesh : IavMesh;
-    function CreateInstance: IavModelInstance;
-    constructor Create;
-    destructor Destroy; override;
-  end;
+  TBoneTransformLayerIndex = Integer;
 
   { TavModelCollection }
 
   TavModelCollection = class (TavMainRenderChild)
   private type
+    { TModel }
+
+    TModel = class
+    private
+      Owner: TavModelCollection;
+      VBHandle: TVBManagedHandle;
+      IBHandle: TIBManagedHandle;
+      FMapTex : TavTexture;
+      FInstances: TList;
+
+      MaterialOffset: Single;
+      DiffuseOffset : Single;
+      NormalsOffset : Single;
+
+      procedure UnlinkInstance(const Obj: TObject);
+    public
+      Mesh : IavMesh;
+      function CreateInstance: IavModelInstance;
+      constructor Create;
+      destructor Destroy; override;
+    end;
+
+    { TavMaterialMap }
+
+    TavMaterialMap = class(TavTexture)
+    private type
+      TMaterialRow = packed record
+        Material: TMeshMaterial;
+        Dummy   : TVec2;         //align to whole pixels count
+      end;
+    private
+      FMaterials: array of TMaterialRow;
+    protected
+      function DoBuild: Boolean; override;
+    public
+      procedure AddMaterial(const AMaterial: TMeshMaterial);
+      function GetMaterialCount: Integer;
+    end;
+
+    { TavBoneTransformMap }
+
+    TavBoneTransformMap = class(TavTexture)
+    private type
+      TIndicesHashFunc = specialize TMurmur2Hash<Integer>;
+      IIndicesHash = specialize IHashMap<Integer, Integer, TIndicesHashFunc>;
+      TIndicesHash = specialize THashMap<Integer, Integer, TIndicesHashFunc>;
+    private
+      FMatrices: array of TMat4Arr;
+      FMaxLength: Integer;
+
+      FFreeIndices: TIntArr;
+      FDirtyIndices: IIndicesHash;
+
+      procedure InvalidateLayer(const AIndex: TBoneTransformLayerIndex);
+    protected
+      function DoBuild: Boolean; override;
+    public
+      function  AddMatrices(const m: TMat4Arr): TBoneTransformLayerIndex;
+      procedure DeleteMatrices(const AIndex: TBoneTransformLayerIndex);
+      procedure UpdateMatrices(const AIndex: TBoneTransformLayerIndex; const m: TMat4Arr);
+
+      procedure AfterConstruction; override;
+    end;
+
     IModelHash = specialize IHashMap<String, TModel, TMurmur2HashString>;
     TModelHash = specialize THashMap<String, TModel, TMurmur2HashString>;
 
@@ -69,8 +141,12 @@ type
   private
     FVB: TavVBManaged;
     FIB: TavIBManaged;
+    FInstVB: TavVBManaged;
+    FMaterials: TavMaterialMap;
     FMaps: ITextureHash;
-    FDummyTexData: IDummyTexDataHash;
+    FBoneTransform: TavBoneTransformMap;
+
+    FDummyTexData: IDummyTexDataHash; //empty tex data for not completed materials
 
     FModels: IModelHash;
 
@@ -99,40 +175,198 @@ uses
   Math;
 
 type
-    { TavModelInstance }
+  { TavModelInstance }
 
-    TavModelInstance = class(TInterfacedObject, IavModelInstance)
-    private type
-      TAnimationPlayState = packed record
-        StartTime: Int64;
-        StopTime : Int64;
-        GrowSpeed: Single;
-        FadeSpeed: Single;
-        procedure Calc(const ATime: Int64; out AFrame: Single; out AWeight: Single; out AComplete: Boolean);
-      end;
-    private
-      FModel: TModel;
-      FInstanceIndex: Integer;
-
-      FPose: TavTexture;
-      FDiffuse: TavTexture;
-
-      FAnimationStates   : array of TMeshAnimationState;
-      FAnimationPlayState: array of TAnimationPlayState;
-
-      procedure OnUnlink;
-      procedure OnLink;
-
-      procedure UpdateAnimationStates;
-    public
-      procedure AnimationStart(const AnimationName: string; GrowSpeed: Single);
-      procedure AnimationStop (const AnimationName: string; FadeSpeed: Single);
-
-      function Collection: TavModelCollection;
-      procedure Draw;
-
-      destructor Destroy; override;
+  TavModelInstance = class(TInterfacedObject, IavModelInstance)
+  private type
+    TAnimationPlayState = packed record
+      StartTime: Int64;
+      StopTime : Int64;
+      GrowSpeed: Single;
+      FadeSpeed: Single;
+      procedure Calc(const ATime: Int64; out AFrame: Single; out AWeight: Single; out AComplete: Boolean);
     end;
+  private
+    FModel: TavModelCollection.TModel;
+    FInstanceIndex: Integer;
+    FInstGPUData: TVBManagedHandle;
+
+    FBoneTransformIndex: TBoneTransformLayerIndex;
+    FBoneTransform: TMat4Arr;
+
+    FDiffuse: TavTexture;
+
+    FAnimationStates   : array of TMeshAnimationState;
+    FAnimationPlayState: array of TAnimationPlayState;
+
+    procedure OnUnlink;
+    procedure OnLink;
+
+    procedure UpdateAnimationStates;
+    procedure UpdateBoneTransform;
+  public
+    procedure AnimationStart(const AnimationName: string; GrowSpeed: Single);
+    procedure AnimationStop (const AnimationName: string; FadeSpeed: Single);
+
+    function Collection: TavModelCollection;
+    procedure Draw;
+
+    destructor Destroy; override;
+  end;
+
+{ TavModelCollection.TavBoneTransformMap }
+
+procedure TavModelCollection.TavBoneTransformMap.InvalidateLayer(const AIndex: TBoneTransformLayerIndex);
+begin
+  FDirtyIndices.AddOrSet(AIndex, AIndex);
+  Invalidate;
+end;
+
+function TavModelCollection.TavBoneTransformMap.DoBuild: Boolean;
+var InvalidateAll: Boolean;
+    i: Integer;
+begin
+  if FTexH = nil then
+  begin
+    FTexH := Main.Context.CreateTexture;
+    FTexH.TargetFormat := TTextureFormat.RGBA32f;
+  end;
+
+  InvalidateAll := False;
+  if (FTexH.Height < FMaxLength) or (FTexH.Deep < Length(FMatrices)) then
+  begin
+    FTexH.AllocMem(4, FMaxLength, Length(FMatrices), True);
+    InvalidateAll := True;
+  end;
+
+  for i := 0 to Length(FMatrices) - 1 do
+  begin
+    if InvalidateAll or FDirtyIndices.Contains(i) then
+      FTexH.SetMipImage(0, 0, 4, Length(FMatrices[i]), 0, i, TImageFormat.R32G32B32A32F, @FMatrices[i][0]);
+  end;
+  FDirtyIndices.Clear;
+
+  Result := True;
+end;
+
+function TavModelCollection.TavBoneTransformMap.AddMatrices(const m: TMat4Arr): TBoneTransformLayerIndex;
+begin
+  if Length(FFreeIndices) > 0 then
+  begin
+    Result := FFreeIndices[Length(FFreeIndices) - 1];
+    SetLength(FFreeIndices, Length(FFreeIndices) - 1);
+    FMatrices[Result] := m;
+    FMaxLength := Max(FMaxLength, Length(m));
+  end
+  else
+  begin
+    Result := Length(FMatrices);
+    SetLength(FMatrices, Length(FMatrices) + 1);
+    FMatrices[Result] := m;
+    FMaxLength := Max(FMaxLength, Length(m));
+  end;
+  InvalidateLayer(Result);
+end;
+
+procedure TavModelCollection.TavBoneTransformMap.DeleteMatrices(const AIndex: TBoneTransformLayerIndex);
+  function AlreadyInFree: Boolean;
+  var i : Integer;
+  begin
+    for i := 0 to Length(FFreeIndices) - 1 do
+      if FFreeIndices[i] = AIndex then Exit(True);
+    Result := False;
+  end;
+var n: Integer;
+begin
+  Assert(AIndex >= 0);
+  Assert(AIndex < Length(FMatrices));
+  Assert(Not AlreadyInFree);
+
+  n := Length(FFreeIndices);
+  SetLength(FFreeIndices, n+1);
+  FFreeIndices[n] := AIndex;
+  FDirtyIndices.Delete(AIndex);
+end;
+
+procedure TavModelCollection.TavBoneTransformMap.UpdateMatrices(const AIndex: TBoneTransformLayerIndex; const m: TMat4Arr);
+begin
+  Assert(AIndex >= 0);
+  Assert(AIndex < Length(FMatrices));
+  FMatrices[AIndex] := m;
+  FMaxLength := Max(FMaxLength, Length(m));
+  InvalidateLayer(AIndex);
+end;
+
+procedure TavModelCollection.TavBoneTransformMap.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FDirtyIndices := TIndicesHash.Create;
+end;
+
+{ TavModelCollection.TavMaterialMap }
+
+function TavModelCollection.TavMaterialMap.DoBuild: Boolean;
+begin
+  if FTexH = nil then FTexH := Main.Context.CreateTexture;
+  FTexH.TargetFormat := TTextureFormat.RGBA32f;
+  FTexH.AllocMem(3, Length(FMaterials), 1, False);
+  FTexH.SetMipImage(0, 0, 3, Length(FMaterials), 0, 0, TImageFormat.R32G32B32A32F, @FMaterials[0]);
+  Result := True;
+end;
+
+procedure TavModelCollection.TavMaterialMap.AddMaterial(const AMaterial: TMeshMaterial);
+var n : Integer;
+begin
+  n := Length(FMaterials);
+  SetLength(FMaterials, Length(FMaterials)+1);
+  FMaterials[n].Material := AMaterial;
+  Invalidate;
+end;
+
+function TavModelCollection.TavMaterialMap.GetMaterialCount: Integer;
+begin
+  Result := Length(FMaterials);
+end;
+
+{ TModelInstanceGPUData_Base }
+
+function TModelInstanceGPUData_Base.GetBasicPtr: Pointer;
+begin
+  Result := Pointer(Self);
+  Inc(PByte(Result), ClassParent.InstanceSize);
+end;
+
+function TModelInstanceGPUData_Base.GetOffset(const FieldPtr: Pointer): Integer;
+begin
+  {$Hints Off}
+  {$Warnings Off}
+  Result := NativeInt(FieldPtr) - NativeInt(GetBasicPtr);
+  {$Warnings On}
+  {$Hints On}
+end;
+
+function TModelInstanceGPUData_Base.VerticesCount: Integer;
+begin
+  Result := 1;
+end;
+
+function TModelInstanceGPUData_Base.Data: TPointerData;
+begin
+  Result.data := GetBasicPtr;
+  Result.size := Layout.Size;
+end;
+
+function TModelInstanceGPUData.AddLayoutFields(const LBuilder: ILayoutBuilder): ILayoutBuilder;
+begin
+  Result := LBuilder.Add('aiBoneMatDifNormOffset', ctFloat, 4, False, GetOffset(@aiBoneMatDifNormOffset));
+end;
+
+function TModelInstanceGPUData.Layout: IDataLayout;
+begin
+  if not Assigned(Layout_ModelInstanceGPUData) then
+    Layout_ModelInstanceGPUData := AddLayoutFields(LB).Finish();
+  Result := Layout_ModelInstanceGPUData;
+end;
 
 { TavModelInstance.TAnimationPlayState }
 
@@ -166,16 +400,14 @@ end;
 
 procedure TavModelInstance.OnUnlink;
 begin
-  FreeAndNil(FPose);
-  FreeAndNil(FDiffuse);
+
 end;
 
 procedure TavModelInstance.OnLink;
 begin
-  FPose := TavTexture.Create(Collection);
-  FPose.TargetFormat := TTextureFormat.RGBA32f;
-  if Assigned(FModel.Mesh.Armature) then
-    FPose.TexData := FModel.Mesh.Armature.BoneTransformData;
+  //if Assigned(FModel.Mesh.Armature) then
+  //  UpdateBoneTransform;
+//    FPose.TexData := FModel.Mesh.Armature.BoneTransformData;
 
   FDiffuse := TavTexture.Create(Collection);
   FDiffuse.AutoGenerateMips := True;
@@ -219,6 +451,12 @@ begin
     SetLength(FAnimationPlayState, Length(FAnimationPlayState) - n);
     SetLength(FAnimationStates, Length(FAnimationStates) - n);
   end;
+end;
+
+procedure TavModelInstance.UpdateBoneTransform;
+begin
+  FModel.Mesh.GetPoseData(FBoneTransform, FAnimationStates);
+  Collection.FBoneTransform.UpdateMatrices(FBoneTransformIndex, FBoneTransform);
 end;
 
 procedure TavModelInstance.AnimationStart(const AnimationName: string; GrowSpeed: Single);
@@ -284,23 +522,20 @@ begin
 
   UpdateAnimationStates;
   if Assigned(FModel.Mesh.Armature) and (Length(FAnimationStates)>0) then
-  begin
-    FModel.Mesh.Armature.UpdatePoseData(FPose.TexData, FAnimationStates);
-    FPose.Invalidate;
-  end;
+    UpdateBoneTransform;
 
-  if Assigned(FPose.TexData) then
-  begin
-    prog.SetUniform('BonePixelHeight', 1/FPose.Height);
-    prog.SetUniform('BoneTransform', FPose, Sampler_NoFilter);
-  end
-  else
-    prog.SetUniform('BonePixelHeight', 0.0);
+  //if Assigned(FPose.TexData) then
+  //begin
+  //  prog.SetUniform('BonePixelHeight', 1/FPose.Height);
+  //  prog.SetUniform('BoneTransform', FPose, Sampler_NoFilter);
+  //end
+  //else
+  //  prog.SetUniform('BonePixelHeight', 0.0);
 
-  if Assigned(FDiffuse.TexData) then
-    prog.SetUniform('DiffuseMap', FDiffuse, Sampler_Linear);
+  if Assigned(FDiffuse) then
+    prog.SetUniform('Maps', FModel.FMapTex, Sampler_Linear);
 
-  DrawManaged(prog, FModel.VBHandle, FModel.IBHandle, nil);
+  DrawManaged(prog, FModel.VBHandle, FModel.IBHandle, FInstGPUData);
 end;
 
 destructor TavModelInstance.Destroy;
@@ -312,7 +547,7 @@ end;
 
 { TModel }
 
-procedure TModel.UnlinkInstance(const Obj: TObject);
+procedure TavModelCollection.TModel.UnlinkInstance(const Obj: TObject);
 var inst: TavModelInstance absolute Obj;
     n: Integer;
 begin
@@ -325,31 +560,44 @@ begin
     FInstances[inst.FInstanceIndex] := FInstances[n];
     TavModelInstance(FInstances[inst.FInstanceIndex]).FInstanceIndex := inst.FInstanceIndex;
   end;
+  Owner.FBoneTransform.DeleteMatrices(inst.FBoneTransformIndex);
+  Owner.FInstVB.Del(inst.FInstGPUData);
   inst.OnUnlink;
   inst.FInstanceIndex := -1;
   inst.FModel := nil;
+  inst.FInstGPUData := nil;
   FInstances.Delete(n);
 end;
 
-function TModel.CreateInstance: IavModelInstance;
+function TavModelCollection.TModel.CreateInstance: IavModelInstance;
 var inst: TavModelInstance;
+    instGPU: TModelInstanceGPUData;
 begin
   inst := TavModelInstance.Create;
+
+  Mesh.GetPoseData(inst.FBoneTransform, []);
+  inst.FBoneTransformIndex := Owner.FBoneTransform.AddMatrices(inst.FBoneTransform);
+
+  instGPU := TModelInstanceGPUData.Create;
+  instGPU.aiBoneMatDifNormOffset := Vec(inst.FBoneTransformIndex, MaterialOffset, DiffuseOffset, NormalsOffset);
+
   inst.FModel := Self;
+  inst.FInstGPUData := Owner.FInstVB.Add(instGPU as IVerticesData);
   inst.FInstanceIndex := FInstances.Count;
   FInstances.Add(inst);
   inst.OnLink;
   Result := inst;
 end;
 
-constructor TModel.Create;
+constructor TavModelCollection.TModel.Create;
 begin
   FInstances := TList.Create;
-  DiffuseOffset := -1;
-  NormalsOffset := -1;
+  MaterialOffset := -1000000;
+  DiffuseOffset  := -1000000;
+  NormalsOffset  := -1000000;
 end;
 
-destructor TModel.Destroy;
+destructor TavModelCollection.TModel.Destroy;
 var
   i: Integer;
 begin
@@ -414,7 +662,9 @@ end;
 procedure TavModelCollection.Select;
 begin
   Assert(Main.ActiveProgram <> Nil);
-  Main.ActiveProgram.SetAttributes(FVB, FIB, nil);
+  Main.ActiveProgram.SetAttributes(FVB, FIB, FInstVB);
+  Main.ActiveProgram.SetUniform('Materials', FMaterials, Sampler_NoFilter);
+  Main.ActiveProgram.SetUniform('BoneTransform', FBoneTransform, Sampler_NoFilter);
 end;
 
 procedure TavModelCollection.AddFromFile(const FileName: String; const TexManager: ITextureManager);
@@ -437,6 +687,7 @@ procedure TavModelCollection.AddFromFile(const FileName: String; const TexManage
       Result := Tex.TexData.ItemCount;
   end;
 var meshes: TavMeshes;
+    material: TMeshMaterial;
     model: TModel;
     i, j: Integer;
     tKey: TTextureKey;
@@ -494,6 +745,16 @@ begin
         AddTexData(tKey, model.Mesh.MaterialMaps[j].matNormalMap);
     end;
 
+    model.MaterialOffset := FMaterials.GetMaterialCount;
+    for j := 0 to model.Mesh.MaterialsCount - 1 do
+    begin
+      material := model.Mesh.Material[j];
+      if model.Mesh.MaterialMaps[j].matDiffMap = nil then material.matDiffMapFactor := 0;
+      FMaterials.AddMaterial(material);
+    end;
+
+    model.FMapTex := ObtainMap(tKey);
+
     AddModel(model);
   end;
 end;
@@ -502,9 +763,14 @@ constructor TavModelCollection.Create(AParent: TavObject);
 begin
   inherited;
   FModels := TModelHash.Create('', nil);
+
   FVB := TavVBManaged.Create(Self);
   FIB := TavIBManaged.Create(Self);
+  FInstVB := TavVBManaged.Create(Self);
+  FMaterials := TavMaterialMap.Create(Self);
+  FBoneTransform := TavBoneTransformMap.Create(Self);
   FMaps := TTextureHash.Create;
+
   FDummyTexData := TDummyTexDataHash.Create(EmptyTexureKey, nil);
 end;
 

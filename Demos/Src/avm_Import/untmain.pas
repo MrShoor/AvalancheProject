@@ -106,19 +106,22 @@ begin
 
     if FMain.FrameID > 1 then
     begin
-      FModels.Select;
-
       if FInstances = nil then
       begin
+        //SetLength(FInstances, 1);
+        //FInstances[0] := FModels.CreateInstance('DE_Lingerie00_Hands');
         SetLength(FInstances, FModels.ModelsCount);
         i := 0;
         FModels.Reset;
         while FModels.Next(MName) do
         begin
           FInstances[i] := FModels.CreateInstance(MName);
+          WriteLn(MName);
           Inc(i);
         end;
       end;
+
+      FModels.Select;
 
       for i := 0 to Length(FInstances) - 1 do
         FInstances[i].AnimationStart('DE_Provoke');

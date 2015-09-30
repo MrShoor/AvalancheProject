@@ -118,7 +118,7 @@ def Export(WFloat, WInt, WStr, WBool):
                         else:
                             print('Warning! Texture "' + absTexPath + '" not found')
             WriteColor(diffuseColor)
-            WInt(diffuseMapFactor)
+            WFloat(diffuseMapFactor)
             WriteColor(specularColor)
             WFloat(specularPower)
             WStr(diffuseMap)
