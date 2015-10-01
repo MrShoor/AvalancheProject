@@ -72,7 +72,7 @@ type
     property Ind : IIndices read GetInd;
 
     property Armature: IavArmature read GetArmature;
-    procedure GetPoseData(var Matrices: TMat4Arr; const AnimState: array of TMeshAnimationState);
+    procedure GetPoseData(var Matrices: TMat4Arr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
   end;
 
   TavMeshes = array of IavMesh;
@@ -142,7 +142,7 @@ type
 
     function FindBone(const AName: string): IavBone;
 
-    procedure GetPoseData(var Matrices: TMat4Arr; const AnimState: array of TMeshAnimationState);
+    procedure GetPoseData(var Matrices: TMat4Arr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
   end;
 
 procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes; TexManager: ITextureManager = Nil);
@@ -280,7 +280,7 @@ type
     procedure AddAnimation(const AAnim: IavAnimationInternal);
     function FindAnim(const AName: string): IavAnimation;
 
-    procedure GetPoseData(var Matrices: TMat4Arr; const AnimState: array of TMeshAnimationState);
+    procedure GetPoseData(var Matrices: TMat4Arr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
 
     procedure AfterConstruction; override;
     destructor Destroy; override;
@@ -318,7 +318,7 @@ type
     property Ind : IIndices read GetInd;
 
     property Armature: IavArmature read GetArmature write SetArmature;
-    procedure GetPoseData(var Matrices: TMat4Arr; const AnimState: array of TMeshAnimationState);
+    procedure GetPoseData(var Matrices: TMat4Arr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
 
     procedure AddMaterial(const AMat: TMeshMaterial; const AMatMap: TMeshMaterialMaps);
 
@@ -808,10 +808,10 @@ begin
   Result := Length(FMat);
 end;
 
-procedure TavMesh.GetPoseData(var Matrices: TMat4Arr; const AnimState: array of TMeshAnimationState);
+procedure TavMesh.GetPoseData(var Matrices: TMat4Arr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
 begin
   if Assigned(FArm) then
-    FArm.GetPoseData(Matrices, AnimState)
+    FArm.GetPoseData(Matrices, MeshTransform, AnimState)
   else
   begin
     SetLength(Matrices, 1);
@@ -923,7 +923,7 @@ begin
       Exit(FAnim[i]);
 end;
 
-procedure TavArmature.GetPoseData(var Matrices: TMat4Arr; const AnimState: array of TMeshAnimationState);
+procedure TavArmature.GetPoseData(var Matrices: TMat4Arr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
   procedure FillMipData_Recursive(var AbsTransform: TMat4Arr; const animTransform: TMat4Arr; const bone: IavBone; const parentTransform: TMat4);
   var i: Integer;
   begin
@@ -977,6 +977,9 @@ begin
   rBones := RootBones;
   for i := 0 to Length(rBones) - 1 do
     FillMipData_Recursive(Matrices, boneTransform, rBones[i], IdentityMat4);
+
+  for i := 0 to Length(Matrices) - 1 do
+    Matrices[i] := MeshTransform*Matrices[i];
 end;
 
 procedure TavArmature.AfterConstruction;

@@ -226,6 +226,10 @@ function Mat(const newX, newY, newPos: TVec2): TMat3; overload; {$IFNDEF NoInlin
 function Mat(const Rotate: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Mat(const Rotate: Single; newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
+function Mat(const newX, newY, newZ: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Mat(const newX, newY, newZ, newPos: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function MatTranslate(const newPos: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+
 function RectF(Left, Top, Right, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
 function RectI(Left, Top, Right, Bottom: Integer): TRectI; {$IFNDEF NoInline} inline; {$ENDIF}
 function Plane(const normal, point: TVec3): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -532,16 +536,16 @@ end;
 
 function Mat(const newX, newY: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 begin
-  Result.Col[0] := Vec(newX, 0);
-  Result.Col[1] := Vec(newY, 0);
-  Result.Col[2] := Vec(0, 0, 1.0);
+  Result.Row[0] := Vec(newX, 0);
+  Result.Row[1] := Vec(newY, 0);
+  Result.Row[2] := Vec(0, 0, 1.0);
 end;
 
 function Mat(const newX, newY, newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 begin
-  Result.Col[0] := Vec(newX, 0);
-  Result.Col[1] := Vec(newY, 0);
-  Result.Col[2] := Vec(newPos, 1);
+  Result.Row[0] := Vec(newX, newPos.x);
+  Result.Row[1] := Vec(newY, newPos.y);
+  Result.Row[2] := Vec(0, 0, 1);
 end;
 
 function Mat(const Rotate: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -558,6 +562,26 @@ begin
   Result := Mat( Vec(cs,  sn),
                  Vec(sn, -cs),
                  newPos        );
+end;
+
+function Mat(const newX, newY, newZ: TVec3): TMat4; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result := Mat(NewX, NewY, NewZ, Vec(0,0,0));
+end;
+
+function Mat(const newX, newY, newZ, newPos: TVec3): TMat4; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result := IdentityMat4;
+  Result.Row[0] := Vec(newX, newPos.x);
+  Result.Row[1] := Vec(newY, newPos.y);
+  Result.Row[2] := Vec(newZ, newPos.z);
+  Result.Row[3] := Vec(0, 0, 0, 1.0);
+end;
+
+function MatTranslate(const newPos: TVec3): TMat4;
+begin
+  Result := IdentityMat4;
+  Result.Col[3] := Vec(newPos, 1);
 end;
 
 function RectF(Left, Top, Right, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}

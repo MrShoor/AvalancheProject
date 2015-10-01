@@ -115,7 +115,7 @@ begin
         FModels.Reset;
         while FModels.Next(MName) do
         begin
-          FInstances[i] := FModels.CreateInstance(MName);
+          FInstances[i] := FModels.CreateInstance( MName, MatTranslate(Vec(-10,0,0)) );
           WriteLn(MName);
           Inc(i);
         end;

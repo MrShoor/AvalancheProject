@@ -185,11 +185,11 @@ type
     function Hash(AKey: string): Cardinal;
   end;
 
-{$DEFINE DIM := 2}
-{$DEFINE TCompType := Single}
-{$DEFINE TBox := TBox2f}
-{$DEFINE TLooseTree := TLooseQuadTree_f}
-{$INCLUDE LooseTree.inc}
+//{$DEFINE DIM := 2}
+//{$DEFINE TCompType := Single}
+//{$DEFINE TBox := TBox2f}
+//{$DEFINE TLooseTree := TLooseQuadTree_f}
+//{$INCLUDE LooseTree.inc}
 
 function Murmur2(const SrcData; len: LongWord; const Seed: LongWord=$9747b28c): Cardinal;
 
@@ -756,10 +756,10 @@ begin
   FItemComparer := GetCompareMethod(TypeInfo(TValue));
 end;
 
-{$DEFINE DIM := 2}
-{$DEFINE TCompType := Single}
-{$DEFINE TBox := TBox2f}
-{$DEFINE TLooseTree := TLooseQuadTree_f}
-{$INCLUDE LooseTree.inc}
+//{$DEFINE DIM := 2}
+//{$DEFINE TCompType := Single}
+//{$DEFINE TBox := TBox2f}
+//{$DEFINE TLooseTree := TLooseQuadTree_f}
+//{$INCLUDE LooseTree.inc}
 
 end. {$UNDEF IMPLEMENTATION}
