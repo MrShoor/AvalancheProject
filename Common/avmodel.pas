@@ -12,8 +12,8 @@ uses
 
 const
   KeyFramePerMSec = 1/40;
-  Default_GrowSpeed = 10000;
-  Default_FadeSpeed = 10000;
+  Default_GrowSpeed = 1;
+  Default_FadeSpeed = 1;
 
 type
   TavModelCollection = class;
@@ -44,20 +44,30 @@ type
   end;
 
 
+  { IavModelInstance }
+
   IavModelInstance = interface
+    function GetAutoUpdateAnimation: Boolean;
     function GetTransform: TMat4;
+    procedure SetAutoUpdateAnimation(AValue: Boolean);
     procedure SetTransform(const AValue: TMat4);
 
-    procedure UpdateAnimationStates;
+    procedure UpdateAnimationStates(const ATime: Int64);
 
-    procedure AnimationStart(const AnimationName: string; GrowSpeed: Single = Default_GrowSpeed);
-    procedure AnimationStop (const AnimationName: string; FadeSpeed: Single = Default_FadeSpeed);
+    function AnimationCount: Integer;
+    function AnimationName(const AIndex: Integer): string;
+    procedure AnimationStart(const AAnimationName: string; GrowSpeed: Single = Default_GrowSpeed);
+    procedure AnimationStop (const AAnimationName: string; FadeSpeed: Single = Default_FadeSpeed);
 
     function Collection: TavModelCollection;
-    procedure Draw;
+    function ModelName: String;
 
     property Transform: TMat4 read GetTransform write SetTransform;
+    property AutoUpdateAnimation: Boolean read GetAutoUpdateAnimation write SetAutoUpdateAnimation;
   end;
+
+  IModelInstanceArr = specialize IArray<IavModelInstance>;
+  TModelInstanceArr = specialize TArray<IavModelInstance>;
 
   TBoneTransformLayerIndex = Integer;
 
@@ -162,6 +172,8 @@ type
 
     function ObtainDummyTextureData(const Key: TTextureKey): ITextureData;
     function ObtainMap(const Key: TTextureKey): TavTexture;
+
+    procedure Draw(const Intances: IObjArr; SortByMaterial: Boolean); overload;
   public
     function ModelsCount: Integer;
     procedure Reset;
@@ -170,9 +182,11 @@ type
     function CreateInstance(const ModelName: String; const ModelTransform: TMat4): IavModelInstance;
 
     procedure Select;
-    procedure Draw(const Instances: array of IavModelInstance; SortByMaterial: Boolean = True);
+    procedure Draw(const Instances: array of IavModelInstance; SortByMaterial: Boolean = True); overload;
+    procedure Draw(const Instances: array of IModelInstanceArr; SortByMaterial: Boolean = True); overload;
 
     procedure AddFromFile(const FileName: String; const TexManager: ITextureManager = nil);
+    procedure AddFromMeshes(const AMeshes: TavMeshes);
 
     constructor Create(AParent: TavObject); override;
     destructor Destroy; override;
@@ -212,9 +226,8 @@ type
     FBoneTransform: TMat4Arr;
     FBoneTransformDirty: Boolean;
 
-    FDiffuse: TavTexture;
-
     FTransform: TMat4;
+    FAutoUpdateAnimation: Boolean;
 
     FAnimationStates   : array of TMeshAnimationState;
     FAnimationPlayState: array of TAnimationPlayState;
@@ -222,19 +235,26 @@ type
     procedure OnUnlink;
     procedure OnLink;
 
-    procedure UpdateAnimationStates;
     procedure UpdateBoneTransform;
   public
+    function GetTexMap: TavTexture;
+
     function GetObj: TavModelInstance;
 
+    function GetAutoUpdateAnimation: Boolean;
     function GetTransform: TMat4;
+    procedure SetAutoUpdateAnimation(AValue: Boolean);
     procedure SetTransform(const AValue: TMat4);
 
-    procedure AnimationStart(const AnimationName: string; GrowSpeed: Single);
-    procedure AnimationStop (const AnimationName: string; FadeSpeed: Single);
+    procedure UpdateAnimationStates(const ATime: Int64);
+
+    function AnimationCount: Integer;
+    function AnimationName(const AIndex: Integer): string;
+    procedure AnimationStart(const AAnimationName: string; GrowSpeed: Single);
+    procedure AnimationStop (const AAnimationName: string; FadeSpeed: Single);
 
     function Collection: TavModelCollection;
-    procedure Draw;
+    function ModelName: String;
 
     procedure AfterConstruction; override;
     destructor Destroy; override;
@@ -413,7 +433,7 @@ begin
   if StopTime > 0 then
   begin
     if ATime > StopTime then
-      FadeValue := 0
+      FadeValue := 1
     else
       FadeValue := Min(1, (ATime - StopTime) / FadeSpeed);
     AWeight := Max(0, AWeight - FadeValue);
@@ -431,17 +451,10 @@ end;
 
 procedure TavModelInstance.OnLink;
 begin
-  //if Assigned(FModel.Mesh.Armature) then
-  //  UpdateBoneTransform;
-//    FPose.TexData := FModel.Mesh.Armature.BoneTransformData;
 
-  FDiffuse := TavTexture.Create(Collection);
-  FDiffuse.AutoGenerateMips := True;
-  if FModel.Mesh.MaterialsCount > 0 then
-    FDiffuse.TexData := FModel.Mesh.GetMaterialMaps(0).matDiffMap;
 end;
 
-procedure TavModelInstance.UpdateAnimationStates;
+procedure TavModelInstance.UpdateAnimationStates(const ATime: Int64);
 var i, n: Integer;
     currTime: Int64;
     Complete: Boolean;
@@ -450,7 +463,7 @@ begin
   FBoneTransformDirty := True;
 
   //update
-  currTime := Collection.Main.Time64;
+  currTime := ATime;
   for i := 0 to Length(FAnimationStates) - 1 do
   begin
     FAnimationPlayState[i].Calc(currTime, FAnimationStates[i].Frame, FAnimationStates[i].Weight, Complete);
@@ -480,8 +493,23 @@ begin
   end;
 end;
 
+function TavModelInstance.AnimationCount: Integer;
+begin
+  Result := 0;
+  if Assigned(FModel) and Assigned(FModel.Mesh) and Assigned(FModel.Mesh.Armature) then
+    Result := FModel.Mesh.Armature.AnimCount;
+end;
+
+function TavModelInstance.AnimationName(const AIndex: Integer): string;
+begin
+  Result := FModel.Mesh.Armature.Anim[AIndex].Name;
+end;
+
 procedure TavModelInstance.UpdateBoneTransform;
 begin
+  if FAutoUpdateAnimation then
+    UpdateAnimationStates(Collection.Main.BindTime64);
+
   if FBoneTransformDirty then
   begin
     FBoneTransformDirty := False;
@@ -490,14 +518,31 @@ begin
   end;
 end;
 
+function TavModelInstance.GetTexMap: TavTexture;
+begin
+  Result := nil;
+  if FModel = nil then Exit;
+  Result := FModel.FMapTex;
+end;
+
 function TavModelInstance.GetObj: TavModelInstance;
 begin
   Result := Self;
 end;
 
+function TavModelInstance.GetAutoUpdateAnimation: Boolean;
+begin
+  Result := FAutoUpdateAnimation;
+end;
+
 function TavModelInstance.GetTransform: TMat4;
 begin
   Result := FTransform;
+end;
+
+procedure TavModelInstance.SetAutoUpdateAnimation(AValue: Boolean);
+begin
+  FAutoUpdateAnimation := AValue;
 end;
 
 procedure TavModelInstance.SetTransform(const AValue: TMat4);
@@ -507,7 +552,7 @@ begin
   FBoneTransformDirty := True;
 end;
 
-procedure TavModelInstance.AnimationStart(const AnimationName: string; GrowSpeed: Single);
+procedure TavModelInstance.AnimationStart(const AAnimationName: string; GrowSpeed: Single);
 var anim: IavAnimation;
     animIndex: Integer;
     n: Integer;
@@ -515,7 +560,7 @@ var anim: IavAnimation;
 begin
   if FModel = nil then Exit;
   if FModel.Mesh.Armature = nil then Exit;
-  anim := FModel.Mesh.Armature.FindAnim(AnimationName);
+  anim := FModel.Mesh.Armature.FindAnim(AAnimationName);
   animIndex := anim.Index;
 
   for i := 0 to Length(FAnimationStates) - 1 do
@@ -535,14 +580,14 @@ begin
   FAnimationPlayState[n].FadeSpeed := Default_FadeSpeed;
 end;
 
-procedure TavModelInstance.AnimationStop(const AnimationName: string; FadeSpeed: Single);
+procedure TavModelInstance.AnimationStop(const AAnimationName: string; FadeSpeed: Single);
 var anim: IavAnimation;
     animIndex: Integer;
     i: Integer;
 begin
   if FModel = nil then Exit;
   if FModel.Mesh.Armature = nil then Exit;
-  anim := FModel.Mesh.Armature.FindAnim(AnimationName);
+  anim := FModel.Mesh.Armature.FindAnim(AAnimationName);
   animIndex := anim.Index;
 
   for i := 0 to Length(FAnimationStates) - 1 do
@@ -561,26 +606,19 @@ begin
   Result := FModel.Owner;
 end;
 
-procedure TavModelInstance.Draw;
-var prog: TavProgram;
+function TavModelInstance.ModelName: String;
 begin
-  if FModel = nil then Exit;
-  prog := Collection.Main.ActiveProgram;
-  if prog = nil then Exit;
-
-  UpdateAnimationStates;
-  UpdateBoneTransform;
-
-  if Assigned(FDiffuse) then
-    prog.SetUniform('Maps', FModel.FMapTex, Sampler_Linear);
-
-  DrawManaged(prog, FModel.VBHandle, FModel.IBHandle, FInstGPUData);
+  if (FModel = nil) or (FModel.Mesh = nil) then
+    Result := ''
+  else
+    Result := FModel.Mesh.Name;
 end;
 
 procedure TavModelInstance.AfterConstruction;
 begin
   inherited AfterConstruction;
   FTransform := IdentityMat4;
+  FAutoUpdateAnimation := True;
 end;
 
 destructor TavModelInstance.Destroy;
@@ -664,7 +702,7 @@ function TavModelCollection.ObtainDummyTextureData(const Key: TTextureKey): ITex
 begin
   if not FDummyTexData.TryGetValue(Key, Result) then
   begin
-    Result := EmptyTexData(Key.Width, Key.Height, TImageFormat.A8R8G8B8, Key.Mips > 1, False);
+    Result := EmptyTexData(Key.Width, Key.Height, TImageFormat.A8R8G8B8, Key.Mips > 1, True);
     FDummyTexData.Add(Key, Result);
   end;
 end;
@@ -677,6 +715,41 @@ begin
     Result.TargetFormat := TTextureFormat.RGBA;
     Result.ForcedArray := True;
     FMaps.Add(Key, Result);
+  end;
+end;
+
+function SortByTexture(item1, item2: Pointer; dataSize: Integer; userData: Pointer): Integer;
+var m1: ^TavModelInstance absolute item1;
+    m2: ^TavModelInstance absolute item2;
+begin
+  Assert(m1^ <> nil);
+  Assert(m2^ <> nil);
+  Result := NativeInt(m1^.GetTexMap) - NativeInt(m2^.GetTexMap);
+end;
+
+procedure TavModelCollection.Draw(const Intances: IObjArr; SortByMaterial: Boolean);
+var mInst: TavModelInstance;
+    lastDiffuse: TavTexture;
+    prog: TavProgram;
+    i: Integer;
+begin
+  prog := Main.ActiveProgram;
+  if prog = nil then Exit;
+
+  if SortByMaterial then
+    Intances.Sort(@SortByTexture, nil);
+
+  lastDiffuse := nil;
+  for i := 0 to Intances.Count - 1 do
+  begin
+    mInst := TavModelInstance(Intances[i]);
+    mInst.UpdateBoneTransform;
+    if lastDiffuse <> mInst.GetTexMap then
+    begin
+      lastDiffuse := mInst.GetTexMap;
+      prog.SetUniform('Maps', lastDiffuse, Sampler_Linear);
+    end;
+    DrawManaged(prog, mInst.FModel.VBHandle, mInst.FModel.IBHandle, mInst.FInstGPUData);
   end;
 end;
 
@@ -714,18 +787,60 @@ begin
 end;
 
 procedure TavModelCollection.Draw(const Instances: array of IavModelInstance; SortByMaterial: Boolean);
-type TInstArr = array of TavModelInstance;
-var inst: specialize IArray<TavModelInstance>;// TInstArr;
+var inst: IObjArr;
     i: Integer;
+    obj: TavModelInstance;
 begin
-//  inst := specialize TArray<TavModelInstance>.Create;
+  if Length(Instances) = 0 then Exit;
 
-  //SetLength(inst, Length(Instances));
-  //for i := 0 to Length(Instances) - 1 do
-  //  inst[i] := IavModelInstanceInternal(Instances[i]).GetObj;
+  inst := TObjArr.Create;
+  inst.Capacity := Length(Instances);
+  for i := 0 to Length(Instances) - 1 do
+  begin
+    obj := IavModelInstanceInternal(Instances[i]).GetObj;
+    Assert(obj.Collection = Self);
+    inst.Add(obj);
+  end;
+
+  Draw(inst, SortByMaterial);
+end;
+
+procedure TavModelCollection.Draw(const Instances: array of IModelInstanceArr; SortByMaterial: Boolean);
+var inst: IObjArr;
+    i, j, cap: Integer;
+    obj: TavModelInstance;
+begin
+  if Length(Instances) = 0 then Exit;
+
+  cap := 0;
+  for i := 0 to Length(Instances) - 1 do
+    Inc(cap, Instances[i].Count);
+  if cap = 0 then Exit;
+
+  inst := TObjArr.Create;
+  inst.Capacity := cap;
+
+  for i := 0 to Length(Instances) - 1 do
+  begin
+    for j := 0 to Instances[i].Count - 1 do
+    begin
+      obj := IavModelInstanceInternal(Instances[i][j]).GetObj;
+      Assert(obj.Collection = Self);
+      inst.Add(obj);
+    end;
+  end;
+
+  Draw(inst, SortByMaterial);
 end;
 
 procedure TavModelCollection.AddFromFile(const FileName: String; const TexManager: ITextureManager);
+var meshes: TavMeshes;
+begin
+  LoadFromFile(FileName, meshes, TexManager);
+  AddFromMeshes(meshes);
+end;
+
+procedure TavModelCollection.AddFromMeshes(const AMeshes: TavMeshes);
   procedure AddTexData(const TexKey: TTextureKey; TexData: ITextureData);
   var Tex: TavTexture;
   begin
@@ -744,19 +859,18 @@ procedure TavModelCollection.AddFromFile(const FileName: String; const TexManage
     if Assigned(Tex.TexData) then
       Result := Tex.TexData.ItemCount;
   end;
-var meshes: TavMeshes;
-    material: TMeshMaterial;
-    model: TModel;
-    i, j: Integer;
-    tKey: TTextureKey;
-    ContainDiffuseMap, ContainNormalMap: Boolean;
+var
+  material: TMeshMaterial;
+  model: TModel;
+  i, j: Integer;
+  tKey: TTextureKey;
+  ContainDiffuseMap, ContainNormalMap: Boolean;
 begin
-  LoadFromFile(FileName, meshes, TexManager);
-  for i := 0 to Length(meshes) - 1 do
+  for i := 0 to Length(AMeshes) - 1 do
   begin
     model := TModel.Create;
     model.Owner := Self;
-    model.Mesh := meshes[i];
+    model.Mesh := AMeshes[i];
     model.VBHandle := FVB.Add(model.Mesh.Vert as IVerticesData);
     model.IBHandle := FIB.Add(model.Mesh.Ind as IIndicesData);
 

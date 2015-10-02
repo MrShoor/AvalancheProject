@@ -7,24 +7,44 @@ interface
 
 uses
   LMessages, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, avRes, avTypes, mutils, avCameraController, avModel;
+  ExtCtrls, StdCtrls, avRes, avTypes, mutils, avCameraController, avModel;
 
 const ObjInd = 0;
 
 type
 
+  { TPanel }
+
+  TPanel = class (ExtCtrls.TPanel)
+  private
+    FOnRepaint: TNotifyEvent;
+  protected
+    procedure WMEraseBkgnd(var Message: TLMEraseBkgnd); message LM_ERASEBKGND;
+    procedure Paint; override;
+  public
+    property OnRepaint: TNotifyEvent read FOnRepaint write FOnRepaint;
+  end;
+
   { TfrmMain }
 
   TfrmMain = class(TForm)
-    AnimationTimer: TTimer;
-    procedure AnimationTimerTimer(Sender: TObject);
+    ApplicationProperties1: TApplicationProperties;
+    cbDirectX11: TRadioButton;
+    cbOGL: TRadioButton;
+    cbWireframe: TCheckBox;
+    Label1: TLabel;
+    Label2: TLabel;
+    lbAnimations: TListBox;
+    lbNames: TListBox;
+    Panel1: TPanel;
+    RenderPanel: TPanel;
+    procedure ApplicationProperties1Idle(Sender: TObject; var Done: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure FormPaint(Sender: TObject);
   private
+    procedure Sync3DApi;
     procedure RenderScene;
-  protected
-    procedure WMEraseBkgnd(var Message: TLMEraseBkgnd); message LM_ERASEBKGND;
+    procedure RenderPanelRepaint(Sender: TObject);
   public
     FMain: TavMainRender;
     FFBO : TavFrameBuffer;
@@ -33,8 +53,9 @@ type
 
     FProg: TavProgram;
 
-    FInstances: array of IavModelInstance;
-//    FBody: IavModelInstance;
+    FInstances: IModelInstanceArr;
+
+    procedure LoadModels;
   end;
 
 var
@@ -42,15 +63,37 @@ var
 
 implementation
 
+uses
+  Math;
+
 {$R *.lfm}
+
+{ TPanel }
+
+procedure TPanel.WMEraseBkgnd(var Message: TLMEraseBkgnd);
+begin
+  if Assigned(FOnRepaint) then
+    Message.Result := 1
+  else
+    inherited;
+end;
+
+procedure TPanel.Paint;
+begin
+  if Assigned(FOnRepaint) then
+    FOnRepaint(Self)
+  else
+    inherited;
+end;
 
 { TfrmMain }
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
+  RenderPanel.OnRepaint := @RenderPanelRepaint;
+
   FMain := TavMainRender.Create(Nil);
-  FMain.Window := Handle;
-  FMain.Init3D(apiDX11);
+  FMain.Window := RenderPanel.Handle;
 //  FMain.Projection.Ortho := True;
   FMain.Camera.Eye := Vec(0,10,-30);
   FMain.Projection.OrthoHeight := 20;
@@ -58,7 +101,6 @@ begin
   FFBO := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
 
   FModels := TavModelCollection.Create(FMain);
-  FModels.AddFromFile('test.txt');
 
   FProg := TavProgram.Create(FMain);
   FProg.LoadFromJSON('avMesh', True);
@@ -69,11 +111,15 @@ begin
     CanMove := True;
     MovePlane := Plane(0,0,1,0);
   end;
+
+  LoadModels;
 end;
 
-procedure TfrmMain.AnimationTimerTimer(Sender: TObject);
+procedure TfrmMain.ApplicationProperties1Idle(Sender: TObject; var Done: Boolean);
 begin
-  FMain.InvalidateWindow;
+  if Assigned(FMain) then
+    FMain.InvalidateWindow;
+  Done := False;
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
@@ -81,53 +127,72 @@ begin
   FreeAndNil(FMain);
 end;
 
-procedure TfrmMain.FormPaint(Sender: TObject);
+procedure TfrmMain.Sync3DApi;
+var selectedAPI: T3DAPI;
 begin
-  RenderScene;
+  if cbDirectX11.Checked then
+    selectedAPI := apiDX11
+  else
+    selectedAPI := apiOGL;
+  if Assigned(FMain) then
+  begin
+    if FMain.Inited3D then
+      if FMain.ActiveApi <> selectedAPI then
+        FMain.Free3D;
+
+    if not FMain.Inited3D then
+      FMain.Init3D(selectedAPI);
+  end;
 end;
 
 procedure TfrmMain.RenderScene;
-var MName: String;
-    i: Integer;
+  function GetVisibleInstances(const AllInstances: IModelInstanceArr): IModelInstanceArr;
+  var i: Integer;
+  begin
+    Result := TModelInstanceArr.Create(nil);
+    for i := 0 to min(AllInstances.Count, lbNames.Count) - 1 do
+      if lbNames.Selected[i] then
+        Result.Add(AllInstances[i]);
+  end;
+  procedure SyncAnimations(const Instances: IModelInstanceArr);
+  var i, j: Integer;
+  begin
+    for i := 0 to Instances.Count - 1 do
+      for j := 0 to lbAnimations.Count - 1 do
+      begin
+        if lbAnimations.Selected[j] then
+          Instances[i].AnimationStart(lbAnimations.Items[j])
+        else
+          Instances[i].AnimationStop(lbAnimations.Items[j]);
+      end;
+  end;
+
+var visInst: IModelInstanceArr;
 begin
+  Sync3DApi;
+
   if FMain = Nil then Exit;
   if not FMain.Inited3D then Exit;
+
   if FMain.Bind then
   try
-    FMain.States.DepthTest := True;
-//    FMain.States.Wireframe := True;
+    SyncAnimations(FInstances);
+    visInst := GetVisibleInstances(FInstances);
 
-    FFBO.FrameRect := RectI(0,0,ClientWidth, ClientHeight);
+    FMain.States.DepthTest := True;
+    FMain.States.Wireframe := cbWireframe.Checked;
+
+    FFBO.FrameRect := RectI(0,0,FMain.WindowSize.x, FMain.WindowSize.y);
     FFBO.Select();
     FFBO.Clear(0, Vec(0,0,0,0));
     FFBO.ClearDS(1);
 
     FProg.Select;
 
-    if FMain.FrameID > 1 then
+    if visInst.Count > 0 then
     begin
-      if FInstances = nil then
-      begin
-        //SetLength(FInstances, 1);
-        //FInstances[0] := FModels.CreateInstance('DE_Lingerie00_Hands');
-        SetLength(FInstances, FModels.ModelsCount);
-        i := 0;
-        FModels.Reset;
-        while FModels.Next(MName) do
-        begin
-          FInstances[i] := FModels.CreateInstance( MName, MatTranslate(Vec(-10,0,0)) );
-          WriteLn(MName);
-          Inc(i);
-        end;
-      end;
-
       FModels.Select;
-
-      for i := 0 to Length(FInstances) - 1 do
-        FInstances[i].AnimationStart('DE_Provoke');
-//        FInstances[i].AnimationStart('DE_CombatRun');
-      for i := 0 to Length(FInstances) - 1 do
-        FInstances[i].Draw;
+      FModels.Draw(visInst);
     end;
 
     FFBO.BlitToWindow();
@@ -137,9 +202,41 @@ begin
   end;
 end;
 
-procedure TfrmMain.WMEraseBkgnd(var Message: TLMEraseBkgnd);
+procedure TfrmMain.RenderPanelRepaint(Sender: TObject);
 begin
-  Message.Result := 1;
+  RenderScene;
+end;
+
+procedure TfrmMain.LoadModels;
+var MName: String;
+    newInst: IavModelInstance;
+    animations: TStringList;
+    i: Integer;
+begin
+  FModels.AddFromFile('test.txt');
+  FInstances := TModelInstanceArr.Create(nil);
+  lbNames.Clear;
+  lbAnimations.Clear;
+
+  animations := TStringList.Create;
+  animations.Sorted := True;
+  animations.Duplicates := dupIgnore;
+  try
+    FModels.Reset;
+    while FModels.Next(MName) do
+    begin
+      newInst := FModels.CreateInstance( MName, IdentityMat4 );
+      FInstances.Add(newInst);
+      lbNames.Items.Add(MName);
+      for i := 0 to newInst.AnimationCount - 1 do
+        animations.Add(newInst.AnimationName(i));
+    end;
+    lbNames.SelectAll;
+
+    lbAnimations.Items.AddStrings(animations);
+  finally
+    animations.Free;
+  end;
 end;
 
 end.

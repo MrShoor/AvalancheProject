@@ -79,6 +79,9 @@ type
     constructor Create(const AEmptyValue: TValue); overload;
   end;
 
+  IObjArr = specialize IArray<TObject>;
+  TObjArr = specialize TArray<TObject>;
+
   { IHashMap }
 
   //THash must contain Hash method like this:

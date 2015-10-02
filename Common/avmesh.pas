@@ -483,8 +483,8 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes; TexManage
       stream.ReadBuffer(wCount, SizeOf(wCount));
       SetLength(w, wCount);
       stream.ReadBuffer(w[0], wCount*SizeOf(TWeightInfo));
-      v.vsWIndex := Vec(-1,-1,-1,-1);
-      v.vsWeight := Vec(0,0,0,0);
+      v.vsWIndex := Vec(0,-1,-1,-1);
+      v.vsWeight := Vec(1,0,0,0);
       Assert(Length(w)<=4);
       for j := 0 to Length(w) - 1 do
       begin
@@ -815,7 +815,7 @@ begin
   else
   begin
     SetLength(Matrices, 1);
-    Matrices[0] := IdentityMat4;
+    Matrices[0] := MeshTransform;
   end;
 end;
 

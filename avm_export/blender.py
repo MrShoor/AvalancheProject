@@ -88,15 +88,18 @@ def Export(WFloat, WInt, WStr, WBool):
             WStr(obj.parent.name)
 
         #write materials
-        WInt(len(obj.material_slots))
-        for ms in obj.material_slots:
+        mslots = obj.material_slots;
+        if len(mslots) == 0:
+            mslots = [None] #allocate minum one material
+        WInt(len(mslots))
+        for ms in mslots:
             diffuseColor = [1,1,1,1]
             specularColor = [1,1,1,1]
             specularPower = 50
             diffuseMap = ''
             diffuseMapFactor = 0
             normalMap = ''
-            if not ms.material is None:
+            if (not ms is None) and (not ms.material is None):
                 mat = ms.material
                 diffuseColor = [c*mat.diffuse_intensity for c in mat.diffuse_color]
                 diffuseColor.append(mat.alpha)
@@ -240,15 +243,15 @@ def Export(WFloat, WInt, WStr, WBool):
                 bpy.context.scene.frame_set(oldFrame)
                 obj.animation_data.action = oldAction
 
-    WInt(len([a for a in bpy.data.objects if a.type=='ARMATURE']))
-    for a in bpy.data.objects:
-        if a.type=='ARMATURE':
-            WriteArmature(a)
+    armatures = [a for a in bpy.data.objects if (a.type=='ARMATURE') and (len(a.users_scene)>0)]
+    WInt(len(armatures))
+    for a in armatures:
+        WriteArmature(a)
 
-    WInt(len([m for m in bpy.data.objects if m.type=='MESH']))
-    for m in bpy.data.objects:
-        if m.type=='MESH':
-            WriteMesh(m)
+    meshes = [m for m in bpy.data.objects if (m.type=='MESH') and (len(m.users_scene)>0)];
+    WInt(len(meshes))
+    for m in meshes:
+        WriteMesh(m)
            
     return imgToCopy
 

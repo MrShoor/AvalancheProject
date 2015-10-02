@@ -28,6 +28,7 @@ type
     FCursor: TavCursor;
 
     FUPS: Integer;
+    FBindTime: Int64;
     FLastTime: Int64;
 
     function GetActiveProgram: TavProgram;
@@ -46,6 +47,7 @@ type
     property UpdateStatesInterval: Integer read FUPS write FUPS;
     function Time64: Int64;
     function Time: Double;
+    function BindTime64: Int64;
 
     property FrameID: Int64 read FFrameID;
     property Camera: TavCamera read FCamera;
@@ -688,7 +690,7 @@ var node  : TIBNode;
     IndexSize: Integer;
 begin
   Result := True;
-  if FNodes.DirtyCount = 0 then Exit;
+  if Assigned(FbufH) and (FNodes.DirtyCount = 0) then Exit;
 
   if FbufH = nil then
   begin
@@ -921,7 +923,7 @@ var node  : TVBNode;
     StrideSize: Integer;
 begin
   Result := True;
-  if FNodes.DirtyCount = 0 then Exit;
+  if Assigned(FbufH) and (FNodes.DirtyCount = 0) then Exit;
 
   if FbufH = nil then
   begin
@@ -1821,6 +1823,11 @@ begin
   Result := GetTime;
 end;
 
+function TavMainRender.BindTime64: Int64;
+begin
+  Result := FBindTime;
+end;
+
 function TavMainRender.GetWindow: TWindow;
 begin
   Result := FWindow;
@@ -1937,6 +1944,7 @@ begin
   Result := FContext.Bind;
   FCursor.UpdateCursor;
   ProcessTimerEvents;
+  FBindTime := Time64;
 end;
 
 function TavMainRender.Binded: boolean;
