@@ -647,11 +647,15 @@ end;
 
 procedure LoadFromFile(const FileName: string; out meshes: TavMeshes; const TexManager: ITextureManager = Nil);
 var fs: TFileStream;
+    oldDir: string;
 begin
   fs := TFileStream.Create(FileName, fmOpenRead);
+  oldDir := GetCurrentDir;
   try
+    SetCurrentDir(ExtractFilePath(FileName));
     LoadFromStream(fs, meshes, TexManager);
   finally
+    SetCurrentDir(oldDir);
     FreeAndNil(fs);
   end;
 end;

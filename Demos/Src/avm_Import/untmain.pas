@@ -95,7 +95,8 @@ begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := RenderPanel.Handle;
 //  FMain.Projection.Ortho := True;
-  FMain.Camera.Eye := Vec(0,10,-30);
+  FMain.Camera.At := Vec(0,5,0);
+  FMain.Camera.Eye := Vec(0,5,-15);
   FMain.Projection.OrthoHeight := 20;
 
   FFBO := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
@@ -213,7 +214,7 @@ var MName: String;
     animations: TStringList;
     i: Integer;
 begin
-  FModels.AddFromFile('test.txt');
+  FModels.AddFromFile('..\Media\WhipperNude\model.dat');
   FInstances := TModelInstanceArr.Create(nil);
   lbNames.Clear;
   lbAnimations.Clear;
