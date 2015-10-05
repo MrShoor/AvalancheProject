@@ -148,8 +148,9 @@ type
   case Byte of
     0: (Left, Top, Right, Bottom: Single);
     1: (LeftTop, RightBottom: TVec2);
-    2: (f: array [0..4] of Single);
-    3: (v: TVec4);
+    2: (min, max: TVec2);
+    3: (f: array [0..4] of Single);
+    4: (v: TVec4);
   end;
 
   { TRectI }
@@ -255,6 +256,8 @@ function Lerp(const v1, v2: TVec4; s: Single): TVec4; overload; {$IFNDEF NoInlin
 function Lerp(const m1, m2: TMat2; s: Single): TMat2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Lerp(const m1, m2: TMat3; s: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Lerp(const m1, m2: TMat4; s: Single): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+
+function Rotate(const v: TVec2; const Angle: Single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
 function Intersect(const Line1, Line2: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const Seg: TSegment2D; const Line: TLine2D; out IntPoint: TVec2): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
@@ -960,6 +963,14 @@ operator * (const v: TVec2i; s: Single): TVec2;
 begin
   Result.x := v.x * s;
   Result.y := v.y * s;
+end;
+
+function Rotate(const v: TVec2; const Angle: Single): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+var sn, cs: Extended;
+begin
+  sincos(Angle, sn, cs);
+  Result.x := cs * v.x - sn * v.y;
+  Result.y := cs * v.y + sn * v.x;
 end;
 
 function Intersect(const Line1, Line2: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}

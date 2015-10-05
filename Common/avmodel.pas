@@ -56,6 +56,7 @@ type
 
     function AnimationCount: Integer;
     function AnimationName(const AIndex: Integer): string;
+    procedure AnimationStartStop(const AAnimationName: string; DoStart: Boolean; GrowSpeed: Single = Default_GrowSpeed);
     procedure AnimationStart(const AAnimationName: string; GrowSpeed: Single = Default_GrowSpeed);
     procedure AnimationStop (const AAnimationName: string; FadeSpeed: Single = Default_FadeSpeed);
 
@@ -250,6 +251,7 @@ type
 
     function AnimationCount: Integer;
     function AnimationName(const AIndex: Integer): string;
+    procedure AnimationStartStop(const AAnimationName: string; DoStart: Boolean; GrowSpeed: Single = Default_GrowSpeed);
     procedure AnimationStart(const AAnimationName: string; GrowSpeed: Single);
     procedure AnimationStop (const AAnimationName: string; FadeSpeed: Single);
 
@@ -503,6 +505,15 @@ end;
 function TavModelInstance.AnimationName(const AIndex: Integer): string;
 begin
   Result := FModel.Mesh.Armature.Anim[AIndex].Name;
+end;
+
+procedure TavModelInstance.AnimationStartStop(const AAnimationName: string;
+  DoStart: Boolean; GrowSpeed: Single);
+begin
+  if DoStart then
+    AnimationStart(AAnimationName, GrowSpeed)
+  else
+    AnimationStop(AAnimationName, GrowSpeed);
 end;
 
 procedure TavModelInstance.UpdateBoneTransform;
