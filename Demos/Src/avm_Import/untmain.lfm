@@ -87,10 +87,33 @@ object frmMain: TfrmMain
       ItemHeight = 0
       TabOrder = 4
     end
+    object btnLoad: TButton
+      Left = 88
+      Height = 25
+      Top = 2
+      Width = 96
+      Caption = 'Add from file'
+      OnClick = btnLoadClick
+      TabOrder = 5
+    end
+    object btnClear: TButton
+      Left = 88
+      Height = 25
+      Top = 32
+      Width = 96
+      Caption = 'Clear'
+      OnClick = btnClearClick
+      TabOrder = 6
+    end
   end
   object ApplicationProperties1: TApplicationProperties
     OnIdle = ApplicationProperties1Idle
-    left = 128
-    top = 16
+    left = 72
+    top = 184
+  end
+  object OpenDialog: TOpenDialog
+    Filter = '*.dat;*.avm|*.dat;*.avm'
+    left = 64
+    top = 128
   end
 end

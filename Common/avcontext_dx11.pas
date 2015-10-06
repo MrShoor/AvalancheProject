@@ -1318,11 +1318,17 @@ procedure TProgram.SetAttributes(const AModel, AInstances: IctxVetexBuffer;
 var ILKey: TILKey;
 begin
   if assigned(AModel) then
+  begin
+    Assert(AModel.Size > 0);
     ILKey.ModelRI := AModel.Layout
+  end
   else
     ILKey.ModelRI := nil;
   if assigned(AInstances) then
+  begin
+    Assert(AInstances.Size > 0);
     ILKey.InstanceRI := AInstances.Layout
+  end
   else
     ILKey.InstanceRI := nil;
   SetIL(ILKey);
@@ -1330,7 +1336,10 @@ begin
   if assigned(AInstances) then IctxVetexBuffer_DX(AInstances).Select(1);
   if assigned(AModel) then IctxVetexBuffer_DX(AModel).Select;
   if assigned(AModelIndices) then
+  begin
+    Assert(AModelIndices.Size > 0);
     IctxIndexBuffer_DX(AModelIndices).Select
+  end
   else
     FContext.FDeviceContext.IASetIndexBuffer(nil, DXGI_FORMAT_UNKNOWN, 0);
 end;

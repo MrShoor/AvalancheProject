@@ -70,7 +70,7 @@ type
   IModelInstanceArr = specialize IArray<IavModelInstance>;
   TModelInstanceArr = specialize TArray<IavModelInstance>;
 
-  TBoneTransformLayerIndex = Integer;
+  TBoneTransformHandle = Pointer;
 
   { TavModelCollection }
 
@@ -119,25 +119,27 @@ type
 
     TavBoneTransformMap = class(TavTexture)
     private type
-      TIndicesHashFunc = specialize TMurmur2Hash<Integer>;
-      IIndicesHash = specialize IHashMap<Integer, Integer, TIndicesHashFunc>;
-      TIndicesHash = specialize THashMap<Integer, Integer, TIndicesHashFunc>;
+      TTransformNode = class
+        Range     : IMemRange;
+        Mat       : TMat4Arr;
+        DirtyIndex: Integer;
+        function Size: Integer; Inline;
+      end;
+      TNodes = specialize TNodeManager<TTransformNode>;
     private
-      FMatrices: array of TMat4Arr;
-      FMaxLength: Integer;
-
-      FFreeIndices: TIntArr;
-      FDirtyIndices: IIndicesHash;
-
-      procedure InvalidateLayer(const AIndex: TBoneTransformLayerIndex);
+      FNodes : TNodes;
     protected
+      function TexWidth: Integer;
+
       function DoBuild: Boolean; override;
     public
-      function  AddMatrices(const m: TMat4Arr): TBoneTransformLayerIndex;
-      procedure DeleteMatrices(const AIndex: TBoneTransformLayerIndex);
-      procedure UpdateMatrices(const AIndex: TBoneTransformLayerIndex; const m: TMat4Arr);
+      function  AddMatrices(const m: TMat4Arr): TBoneTransformHandle;
+      procedure DeleteMatrices(var AHandle: TBoneTransformHandle);
+      procedure UpdateMatrices(const AHandle: TBoneTransformHandle; const m: TMat4Arr);
+      function  GetOffset(const AHandle: TBoneTransformHandle): Integer;
 
       procedure AfterConstruction; override;
+      destructor Destroy; override;
     end;
 
     IModelHash = specialize IHashMap<String, TModel, TMurmur2HashString>;
@@ -223,7 +225,7 @@ type
     FInstanceIndex: Integer;
     FInstGPUData: TVBManagedHandle;
 
-    FBoneTransformIndex: TBoneTransformLayerIndex;
+    FBoneTransformIndex: TBoneTransformHandle;
     FBoneTransform: TMat4Arr;
     FBoneTransformDirty: Boolean;
 
@@ -262,17 +264,39 @@ type
     destructor Destroy; override;
   end;
 
+{ TavModelCollection.TavBoneTransformMap.TTransformNode }
+
+function TavModelCollection.TavBoneTransformMap.TTransformNode.Size: Integer;
+begin
+  Result := Length(Mat);
+end;
+
 { TavModelCollection.TavBoneTransformMap }
 
-procedure TavModelCollection.TavBoneTransformMap.InvalidateLayer(const AIndex: TBoneTransformLayerIndex);
+function TavModelCollection.TavBoneTransformMap.TexWidth: Integer;
 begin
-  FDirtyIndices.AddOrSet(AIndex, AIndex);
-  Invalidate;
+  Result := 512;
 end;
 
 function TavModelCollection.TavBoneTransformMap.DoBuild: Boolean;
-var InvalidateAll: Boolean;
-    i: Integer;
+  procedure SetNodeData(const ANode: TTransformNode);
+  var start, size, rowsize, stop: Integer;
+      x, y: Integer;
+  begin
+    start := ANode.Range.Offset;
+    size  := ANode.Range.Size;
+    stop  := start + size;
+    while start < stop do
+    begin
+      y := start div TexWidth;
+      x := (start mod TexWidth);
+      rowsize := min(stop - start, TexWidth - x);
+      FTexH.SetMipImage(x*4, y, rowsize*4, 1, 0, 0, TImageFormat.R32G32B32A32F, @ANode.Mat[0]);
+      Inc(start, rowsize);
+    end;
+  end;
+var NewW, NewH: Integer;
+    node: TTransformNode;
 begin
   if FTexH = nil then
   begin
@@ -280,75 +304,75 @@ begin
     FTexH.TargetFormat := TTextureFormat.RGBA32f;
   end;
 
-  InvalidateAll := False;
-  if (FTexH.Height < FMaxLength) or (FTexH.Deep < Length(FMatrices)) then
+  NewW := TexWidth * 4;
+  NewH := (FNodes.RangeManSize + TexWidth - 1) div TexWidth;
+  if (FTexH.Width <> NewW) or (FTexH.Height <> NewH) then
   begin
-    FTexH.AllocMem(4, FMaxLength, Length(FMatrices), True);
-    InvalidateAll := True;
+    FTexH.AllocMem(NewW, NewH, 1, False);
+    FNodes.InvalidateAll;
   end;
 
-  for i := 0 to Length(FMatrices) - 1 do
-  begin
-    if InvalidateAll or FDirtyIndices.Contains(i) then
-      FTexH.SetMipImage(0, 0, 4, Length(FMatrices[i]), 0, i, TImageFormat.R32G32B32A32F, @FMatrices[i][0]);
-  end;
-  FDirtyIndices.Clear;
+  FNodes.Reset;
+  while FNodes.NextDirty(node) do
+    SetNodeData(node);
+  FNodes.ValidateAll;
 
   Result := True;
 end;
 
-function TavModelCollection.TavBoneTransformMap.AddMatrices(const m: TMat4Arr): TBoneTransformLayerIndex;
+function TavModelCollection.TavBoneTransformMap.AddMatrices(const m: TMat4Arr): TBoneTransformHandle;
+var node: TTransformNode;
 begin
-  if Length(FFreeIndices) > 0 then
-  begin
-    Result := FFreeIndices[Length(FFreeIndices) - 1];
-    SetLength(FFreeIndices, Length(FFreeIndices) - 1);
-    FMatrices[Result] := m;
-    FMaxLength := Max(FMaxLength, Length(m));
-  end
-  else
-  begin
-    Result := Length(FMatrices);
-    SetLength(FMatrices, Length(FMatrices) + 1);
-    FMatrices[Result] := m;
-    FMaxLength := Max(FMaxLength, Length(m));
-  end;
-  InvalidateLayer(Result);
+  Result := nil;
+  node := TTransformNode.Create;
+  node.Mat := m;
+  FNodes.Add(node);
+  if FNodes.DirtyCount > 0 then
+    Invalidate;
+  Result := Pointer(node);
 end;
 
-procedure TavModelCollection.TavBoneTransformMap.DeleteMatrices(const AIndex: TBoneTransformLayerIndex);
-  function AlreadyInFree: Boolean;
-  var i : Integer;
-  begin
-    for i := 0 to Length(FFreeIndices) - 1 do
-      if FFreeIndices[i] = AIndex then Exit(True);
-    Result := False;
-  end;
-var n: Integer;
+procedure TavModelCollection.TavBoneTransformMap.DeleteMatrices(var AHandle: TBoneTransformHandle);
+var node: TTransformNode absolute AHandle;
 begin
-  Assert(AIndex >= 0);
-  Assert(AIndex < Length(FMatrices));
-  Assert(Not AlreadyInFree);
+  if AHandle = nil then Exit;
 
-  n := Length(FFreeIndices);
-  SetLength(FFreeIndices, n+1);
-  FFreeIndices[n] := AIndex;
-  FDirtyIndices.Delete(AIndex);
+  if TObject(AHandle) is TTransformNode then
+    if FNodes.Del(node) then
+    begin
+      node.Free;
+      node := nil;
+      AHandle := nil;
+    end;
 end;
 
-procedure TavModelCollection.TavBoneTransformMap.UpdateMatrices(const AIndex: TBoneTransformLayerIndex; const m: TMat4Arr);
+procedure TavModelCollection.TavBoneTransformMap.UpdateMatrices(const AHandle: TBoneTransformHandle; const m: TMat4Arr);
+var node: TTransformNode absolute AHandle;
 begin
-  Assert(AIndex >= 0);
-  Assert(AIndex < Length(FMatrices));
-  FMatrices[AIndex] := m;
-  FMaxLength := Max(FMaxLength, Length(m));
-  InvalidateLayer(AIndex);
+  if AHandle = nil then Exit;
+  node.Mat := m;
+  FNodes.Invalidate(node);
+  Invalidate;
+end;
+
+function TavModelCollection.TavBoneTransformMap.GetOffset(const AHandle: TBoneTransformHandle): Integer;
+var node: TTransformNode absolute AHandle;
+begin
+  if AHandle = nil then Exit(0);
+  if node.Range = nil then Exit(0);
+  Result := node.Range.Offset;
 end;
 
 procedure TavModelCollection.TavBoneTransformMap.AfterConstruction;
 begin
   inherited AfterConstruction;
-  FDirtyIndices := TIndicesHash.Create;
+  FNodes := TNodes.Create;
+end;
+
+destructor TavModelCollection.TavBoneTransformMap.Destroy;
+begin
+  inherited Destroy;
+  FreeAndNil(FNodes);
 end;
 
 { TavModelCollection.TavMaterialMap }
@@ -674,8 +698,11 @@ begin
   inst.FBoneTransformIndex := Owner.FBoneTransform.AddMatrices(inst.FBoneTransform);
 
   instGPU := TModelInstanceGPUData.Create;
-  instGPU.aiBoneMatDifNormOffset := Vec(inst.FBoneTransformIndex, MaterialOffset, DiffuseOffset, NormalsOffset);
 
+  instGPU.aiBoneMatDifNormOffset := Vec(Owner.FBoneTransform.GetOffset(inst.FBoneTransformIndex),
+                                        MaterialOffset,
+                                        DiffuseOffset,
+                                        NormalsOffset);
   inst.FModel := Self;
   inst.FInstGPUData := Owner.FInstVB.Add(instGPU as IVerticesData);
   inst.FInstanceIndex := FInstances.Count;
@@ -792,6 +819,9 @@ end;
 procedure TavModelCollection.Select;
 begin
   Assert(Main.ActiveProgram <> Nil);
+  if not FVB.HasData then Exit;
+  if not FIB.HasData then Exit;
+  if not FInstVB.HasData then Exit;
   Main.ActiveProgram.SetAttributes(FVB, FIB, FInstVB);
   Main.ActiveProgram.SetUniform('Materials', FMaterials, Sampler_NoFilter);
   Main.ActiveProgram.SetUniform('BoneTransform', FBoneTransform, Sampler_NoFilter);

@@ -11,7 +11,8 @@ OW = 3
 MaxWeightsCount = 4;
 
 #outfilename = 'E:\\Projects\\AvalancheProject\\avm_export\\test.txt'
-outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Src\\avm_Import\\test.txt'
+#outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Src\\avm_Import\\test.txt'
+outfilename = 'E:\Projects\TGame\Bin\Models\Player\mesh.avm';
 #outfilename = 'C:\\MyProj\\AvalancheProject\\Demos\\Src\\avm_Import\\test.txt'
         
 def Export(WFloat, WInt, WStr, WBool):
@@ -174,7 +175,7 @@ def Export(WFloat, WInt, WStr, WBool):
             del bm
     
     def GetPoseBoneAbsTransform(bone):
-        return bone.matrix_channel*bone.id_data.matrix_world.inverted()
+        return bone.id_data.matrix_world*bone.matrix_channel*bone.id_data.matrix_world.inverted()
     
     def GetPoseBoneTransform(bone):
         m = GetPoseBoneAbsTransform(bone)

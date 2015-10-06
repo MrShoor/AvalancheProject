@@ -22,33 +22,40 @@ struct VS_Output {
     float4 DiffK_SpecPow_MapInd: DiffK_SpecPow_MapInd;
 };
 
-Texture2DArray BoneTransform; SamplerState BoneTransformSampler;
+Texture2D BoneTransform; SamplerState BoneTransformSampler;
 Texture2D Materials; SamplerState MaterialsSampler;
 
-float BonePixelHeight;
-float4x4 GetBoneTransform(in float ArraySlice, in float BoneCoord) {
+float4x4 GetBoneTransform(in float BoneCoord) {
+    float2 TexSize;
+    BoneTransform.GetDimensions(TexSize.x, TexSize.y);
+    float2 PixSize = 1.0 / TexSize;
+    
+    float2 TexCoord;
+    TexCoord.x = frac(BoneCoord / TexSize.x);
+    TexCoord.y = trunc(BoneCoord / TexSize.x) / TexSize.y;
+    TexCoord += 0.5 * PixSize;
+    
+    
     float4x4 m;
-    m[0] = BoneTransform.SampleLevel(BoneTransformSampler, float3(0.125, BoneCoord, ArraySlice), 0);
-    m[1] = BoneTransform.SampleLevel(BoneTransformSampler, float3(0.375, BoneCoord, ArraySlice), 0);
-    m[2] = BoneTransform.SampleLevel(BoneTransformSampler, float3(0.625, BoneCoord, ArraySlice), 0);
-    m[3] = BoneTransform.SampleLevel(BoneTransformSampler, float3(0.875, BoneCoord, ArraySlice), 0);
+    m[0] = BoneTransform.SampleLevel(BoneTransformSampler, float2(TexCoord.x,                 TexCoord.y), 0);
+    m[1] = BoneTransform.SampleLevel(BoneTransformSampler, float2(TexCoord.x +     PixSize.x, TexCoord.y), 0);
+    m[2] = BoneTransform.SampleLevel(BoneTransformSampler, float2(TexCoord.x + 2.0*PixSize.x, TexCoord.y), 0);
+    m[3] = BoneTransform.SampleLevel(BoneTransformSampler, float2(TexCoord.x + 3.0*PixSize.x, TexCoord.y), 0);
     return m;
 }
 
-float4x4 GetBoneTransform(in float ArraySlice, in float4 Indices, in float4 Weights) {
-    float3 TexSize;
-    BoneTransform.GetDimensions(TexSize.x, TexSize.y, TexSize.z);
-    float4 IndicesNorm = (Indices+0.5) / TexSize.y;
+float4x4 GetBoneTransform(in float4 Indices, in float4 Weights) {
     float4x4 m = {
         1, 0, 0, 0,
         0, 1, 0, 0,
         0, 0, 1, 0,
         0, 0, 0, 1
     };
-    if (Indices.x>=0.0) m  = GetBoneTransform(ArraySlice, IndicesNorm.x)*Weights.x;
-    if (Indices.y>=0.0) m += GetBoneTransform(ArraySlice, IndicesNorm.y)*Weights.y;
-    if (Indices.z>=0.0) m += GetBoneTransform(ArraySlice, IndicesNorm.z)*Weights.z;
-    if (Indices.w>=0.0) m += GetBoneTransform(ArraySlice, IndicesNorm.w)*Weights.w;
+    float4 ind = Indices*4.0;
+    if (Indices.x>=0.0) m  = GetBoneTransform(ind.x)*Weights.x;
+    if (Indices.y>=0.0) m += GetBoneTransform(ind.y)*Weights.y;
+    if (Indices.z>=0.0) m += GetBoneTransform(ind.z)*Weights.z;
+    if (Indices.w>=0.0) m += GetBoneTransform(ind.w)*Weights.w;
     return m;
 }
 
@@ -64,7 +71,7 @@ void GetMaterial(in float MatIndex, out float4 Diff, out float4 Spec, out float2
 
 VS_Output VS(VS_Input In) {
     VS_Output Out;
-    float4x4 mBone = GetBoneTransform(In.aiBoneMatDifNormOffset.x, In.vsWIndex, In.vsWeight);
+    float4x4 mBone = GetBoneTransform(In.vsWIndex+In.aiBoneMatDifNormOffset.x, In.vsWeight);
     float3 crd = mul(mBone, float4(In.vsCoord, 1.0)).xyz;
     float3 norm = mul( (float3x3) mBone, In.vsNormal);
     //float3 crd = In.vsCoord;
@@ -91,6 +98,7 @@ struct PS_Output {
 PS_Output PS(VS_Output In) {
     PS_Output Out;
     float4 diff = lerp(In.Diffuse, Maps.Sample(MapsSampler, float3(In.vTex, In.DiffK_SpecPow_MapInd.z)), In.DiffK_SpecPow_MapInd.x);
+    //float4 diff = In.Diffuse;
     float4 spec = {0,0,0,0};
     float4 amb = 0.3;
     float3 lightColor = {1,1,1};

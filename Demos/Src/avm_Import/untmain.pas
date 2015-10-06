@@ -29,6 +29,8 @@ type
 
   TfrmMain = class(TForm)
     ApplicationProperties1: TApplicationProperties;
+    btnLoad: TButton;
+    btnClear: TButton;
     cbDirectX11: TRadioButton;
     cbOGL: TRadioButton;
     cbWireframe: TCheckBox;
@@ -36,9 +38,12 @@ type
     Label2: TLabel;
     lbAnimations: TListBox;
     lbNames: TListBox;
+    OpenDialog: TOpenDialog;
     Panel1: TPanel;
     RenderPanel: TPanel;
     procedure ApplicationProperties1Idle(Sender: TObject; var Done: Boolean);
+    procedure btnClearClick(Sender: TObject);
+    procedure btnLoadClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
   private
@@ -55,7 +60,7 @@ type
 
     FInstances: IModelInstanceArr;
 
-    procedure LoadModels;
+    procedure LoadModels(const AFileName: string);
   end;
 
 var
@@ -113,7 +118,7 @@ begin
     MovePlane := Plane(0,0,1,0);
   end;
 
-  LoadModels;
+  LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\WhipperNude\model.dat');
 end;
 
 procedure TfrmMain.ApplicationProperties1Idle(Sender: TObject; var Done: Boolean);
@@ -121,6 +126,21 @@ begin
   if Assigned(FMain) then
     FMain.InvalidateWindow;
   Done := False;
+end;
+
+procedure TfrmMain.btnClearClick(Sender: TObject);
+begin
+  lbNames.Clear;
+  lbAnimations.Clear;
+  FInstances.Clear();
+  FreeAndNil(FModels);
+  FModels := TavModelCollection.Create(FMain);
+end;
+
+procedure TfrmMain.btnLoadClick(Sender: TObject);
+begin
+  if OpenDialog.Execute then
+    LoadModels(OpenDialog.FileName);
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
@@ -208,13 +228,13 @@ begin
   RenderScene;
 end;
 
-procedure TfrmMain.LoadModels;
+procedure TfrmMain.LoadModels(const AFileName: string);
 var MName: String;
     newInst: IavModelInstance;
     animations: TStringList;
     i: Integer;
 begin
-  FModels.AddFromFile('..\Media\WhipperNude\model.dat');
+  FModels.AddFromFile(AFileName);
   FInstances := TModelInstanceArr.Create(nil);
   lbNames.Clear;
   lbAnimations.Clear;

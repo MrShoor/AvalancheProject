@@ -709,7 +709,7 @@ begin
     FbufH.AllocMem(FNodes.RangeManSize*IndexSize, nil);
   end;
   FNodes.Reset;
-  while FNodes.Next(node) do
+  while FNodes.NextDirty(node) do
     SetNodeData(node, IndexSize);
   FNodes.ValidateAll;
 end;
@@ -938,7 +938,7 @@ begin
   end;
 
   FNodes.Reset;
-  while FNodes.Next(node) do
+  while FNodes.NextDirty(node) do
     SetNodeData(node, StrideSize);
   FNodes.ValidateAll;
 end;

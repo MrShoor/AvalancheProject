@@ -1186,6 +1186,7 @@ begin
   FIsArray := (ADeep > 1) Or ForcedArray;
   if FIsArray then
   begin
+    glActiveTexture(GL_TEXTURE31);
     glBindTexture(GLTextureTarget[FIsArray], FHandle);
     for i := 0 to FMipsCount - 1 do
     begin
@@ -1196,6 +1197,7 @@ begin
   end
   else
   begin
+    glActiveTexture(GL_TEXTURE31);
     glBindTexture(GLTextureTarget[FIsArray], FHandle);
     for i := 0 to FMipsCount - 1 do
     begin
@@ -1268,6 +1270,7 @@ end;
 procedure TTexture.SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte);
 begin
   if Data = nil then Exit;
+  glActiveTexture(GL_TEXTURE31);
   glBindTexture(GLTextureTarget[FIsArray], FHandle);
   if FIsArray then
     glTexSubImage3D(GLTextureTarget[FIsArray], MipLevel, X, Y, ZSlice, ImageWidth, ImageHeight, 1, GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data)
