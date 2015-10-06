@@ -752,6 +752,7 @@ begin
     Result := TavTexture.Create(Self);
     Result.TargetFormat := TTextureFormat.RGBA;
     Result.ForcedArray := True;
+    Result.AutoGenerateMips := True;
     FMaps.Add(Key, Result);
   end;
 end;
