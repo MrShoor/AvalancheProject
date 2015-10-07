@@ -944,6 +944,7 @@ var i, j, BoneInd: Integer;
 
     rBones: TavBoneArr;
     currAnim: IavAnimation;
+    w: Single;
 begin
   if Length(FBones) = 0 then Exit;
 
@@ -961,18 +962,20 @@ begin
     for j := 0 to currAnim.BonesCount - 1 do
     begin
       currAnim.GetBoneTransform(j, AnimState[i].Frame, BoneInd, m);
+      w := AnimState[i].Weight;
+      if w < 0.01 then Continue;
 
       if boneWeight[BoneInd] = 0 then
         boneTransform[BoneInd] := m*AnimState[i].Weight
       else
-        boneTransform[BoneInd] := boneTransform[BoneInd] + m*AnimState[i].Weight;
+        boneTransform[BoneInd] := boneTransform[BoneInd] + m*w;
 
-      boneWeight[BoneInd] := boneWeight[BoneInd] + AnimState[i].Weight;
+      boneWeight[BoneInd] := boneWeight[BoneInd] + w;
     end;
   end;
 
   for i := 0 to Length(boneTransform) - 1 do
-    if (boneWeight[i] > 0) then
+    if (boneWeight[i] > 0.001) then
       boneTransform[i] := boneTransform[i] * (1 / boneWeight[i]);
 
   if Length(Matrices) <> Length(boneTransform) then
