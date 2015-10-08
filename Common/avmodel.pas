@@ -12,8 +12,8 @@ uses
 
 const
   KeyFramePerMSec = 1/40;
-  Default_GrowSpeed = 1;
-  Default_FadeSpeed = 1;
+  Default_GrowSpeed = 150;
+  Default_FadeSpeed = 150;
 
 type
   TavModelCollection = class;
@@ -629,7 +629,7 @@ begin
     if FAnimationStates[i].Index = animIndex then
     begin
       if FAnimationPlayState[i].StopTime >= 0 then Exit;
-      FAnimationPlayState[i].StopTime := Collection.Main.Time64;
+      FAnimationPlayState[i].StopTime := Collection.Main.Time64 + Ceil(FadeSpeed);
       FAnimationPlayState[i].FadeSpeed := FadeSpeed;
       Break;
     end;
@@ -788,7 +788,7 @@ begin
       lastDiffuse := mInst.GetTexMap;
       prog.SetUniform('Maps', lastDiffuse, Sampler_Linear);
     end;
-    DrawManaged(prog, mInst.FModel.VBHandle, mInst.FModel.IBHandle, mInst.FInstGPUData);
+    DrawManaged(prog, mInst.FModel.VBHandle, mInst.FModel.IBHandle, mInst.FInstGPUData, ptTriangles, cmBack);
   end;
 end;
 
@@ -979,6 +979,7 @@ begin
   FModels := TModelHash.Create('', nil);
 
   FVB := TavVBManaged.Create(Self);
+  FVB.CullMode := cmBack;
   FIB := TavIBManaged.Create(Self);
   FInstVB := TavVBManaged.Create(Self);
   FMaterials := TavMaterialMap.Create(Self);
