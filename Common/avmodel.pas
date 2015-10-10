@@ -11,9 +11,9 @@ uses
   avBase, avRes, avTess, avTypes, avContnrs, avMesh, avTexLoader;
 
 const
-  KeyFramePerMSec = 1/40;
-  Default_GrowSpeed = 150;
-  Default_FadeSpeed = 150;
+  KeyFramePerMSec = 1/30;
+  Default_GrowSpeed = 70;
+  Default_FadeSpeed = 70;
 
 type
   TavModelCollection = class;
@@ -59,6 +59,7 @@ type
     procedure AnimationStartStop(const AAnimationName: string; DoStart: Boolean; GrowSpeed: Single = Default_GrowSpeed);
     procedure AnimationStart(const AAnimationName: string; GrowSpeed: Single = Default_GrowSpeed);
     procedure AnimationStop (const AAnimationName: string; FadeSpeed: Single = Default_FadeSpeed);
+    procedure AnimationStartOnly(const AAnimationNames: array of string; GrowFadeSpeed: Single = Default_FadeSpeed);
 
     function Collection: TavModelCollection;
     function ModelName: String;
@@ -256,6 +257,7 @@ type
     procedure AnimationStartStop(const AAnimationName: string; DoStart: Boolean; GrowSpeed: Single = Default_GrowSpeed);
     procedure AnimationStart(const AAnimationName: string; GrowSpeed: Single);
     procedure AnimationStop (const AAnimationName: string; FadeSpeed: Single);
+    procedure AnimationStartOnly(const AAnimationNames: array of string; GrowFadeSpeed: Single = Default_FadeSpeed);
 
     function Collection: TavModelCollection;
     function ModelName: String;
@@ -623,6 +625,7 @@ begin
   if FModel = nil then Exit;
   if FModel.Mesh.Armature = nil then Exit;
   anim := FModel.Mesh.Armature.FindAnim(AAnimationName);
+  Assert(Assigned(anim), 'Animation with name ' + AAnimationName + ' not found');
   animIndex := anim.Index;
 
   for i := 0 to Length(FAnimationStates) - 1 do
@@ -633,6 +636,28 @@ begin
       FAnimationPlayState[i].FadeSpeed := FadeSpeed;
       Break;
     end;
+end;
+
+procedure TavModelInstance.AnimationStartOnly(const AAnimationNames: array of string; GrowFadeSpeed: Single);
+  function InCurrentAnimations(const AAnimName: string): Boolean;
+  var i: Integer;
+  begin
+    Result := False;
+    for i := 0 to Length(AAnimationNames) - 1 do
+      if AAnimationNames[i] = AAnimName then Exit(True);
+  end;
+var i: Integer;
+    s: String;
+begin
+  for i := 0 to Length(FAnimationStates) - 1 do
+  begin
+    s := AnimationName(FAnimationStates[i].Index);
+    if not InCurrentAnimations(s) then
+      AnimationStop(s, GrowFadeSpeed);
+  end;
+
+  for i := 0 to Length(AAnimationNames) - 1 do
+    AnimationStart(AAnimationNames[i], GrowFadeSpeed);
 end;
 
 function TavModelInstance.Collection: TavModelCollection;
