@@ -169,6 +169,13 @@ type
   function Equal (const m1, m2: TM2; const AEPS: Single = EPS): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
   function Equal (const m1, m2: TM3; const AEPS: Single = EPS): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
   function Equal (const m1, m2: TM4; const AEPS: Single = EPS): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
+
+  procedure Swap(var v1, v2: TV2); overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  procedure Swap(var v1, v2: TV3); overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  procedure Swap(var v1, v2: TV4); overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  procedure Swap(var v1, v2: TM2); overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  procedure Swap(var v1, v2: TM3); overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  procedure Swap(var v1, v2: TM4); overload; {$IFNDEF NoInline} inline; {$ENDIF}
 {$ENDIF}
 
 {$IFDEF IMPL}
@@ -698,6 +705,54 @@ type
               Equal(m1.Row[1], m2.Row[1], AEPS) and
               Equal(m1.Row[2], m2.Row[2], AEPS) and
               Equal(m1.Row[3], m2.Row[3], AEPS);
+  end;
+
+  procedure Swap(var v1, v2: TV2);
+  var tmp: TV2;
+  begin
+    tmp := v2;
+    v2 := v1;
+    v1 := tmp;
+  end;
+
+  procedure Swap(var v1, v2: TV3);
+  var tmp: TV3;
+  begin
+    tmp := v2;
+    v2 := v1;
+    v1 := tmp;
+  end;
+
+  procedure Swap(var v1, v2: TV4);
+  var tmp: TV4;
+  begin
+    tmp := v2;
+    v2 := v1;
+    v1 := tmp;
+  end;
+
+  procedure Swap(var v1, v2: TM2);
+  var tmp: TM2;
+  begin
+    tmp := v2;
+    v2 := v1;
+    v1 := tmp;
+  end;
+
+  procedure Swap(var v1, v2: TM3);
+  var tmp: TM3;
+  begin
+    tmp := v2;
+    v2 := v1;
+    v1 := tmp;
+  end;
+
+  procedure Swap(var v1, v2: TM4);
+  var tmp: TM4;
+  begin
+    tmp := v2;
+    v2 := v1;
+    v1 := tmp;
   end;
 
   function Transpose(const m: TM2): TM2; overload;{$IFNDEF NoInline} inline; {$ENDIF}

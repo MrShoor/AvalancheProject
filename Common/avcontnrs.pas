@@ -53,6 +53,7 @@ type
     function CmpUString(item1, item2: Pointer; dataSize: Integer): Boolean;
     function CmpAString(item1, item2: Pointer; dataSize: Integer): Boolean;
     function CmpRecord(item1, item2: Pointer; dataSize: Integer): Boolean;
+    function CmpArray(item1, item2: Pointer; dataSize: Integer): Boolean;
     function GetCompareMethod(tinfo: PTypeInfo): TCompareMethod;
   private
     procedure QuickSort(L, R : Longint; Compare: TCompareMethodStatic; userData: Pointer);
@@ -592,6 +593,18 @@ begin
   Result := CompareMem(item1, item2, dataSize);
 end;
 
+function TArray.CmpArray(item1, item2: Pointer; dataSize: Integer): Boolean;
+var b1: TBytes absolute item1;
+    b2: TBytes absolute item2;
+begin
+  Result := False;
+  if item1 = item2 then Exit;
+  if Length(b1) <> Length(b2) then Exit;
+  dataSize := Length(b1)*Integer(GetTypeData(TypeInfo(TValue))^.elsize);
+  if dataSize = 0 then Exit(True);
+  Result := CompareMem(@b1[0], @b2[0], dataSize);
+end;
+
 function TArray.GetCompareMethod(tinfo: PTypeInfo): TCompareMethod;
 begin
   case tinfo^.Kind of
@@ -604,20 +617,20 @@ begin
   tkMethod: Assert(False, 'Not implemented yet');
   tkSString: Result := @CmpRecord;
   tkLString: ;
-  tkAString: ;
+  tkAString: Result := @CmpAString;
   tkWString: ;
   tkVariant: ;
   tkArray: ;
-  tkRecord: ;
-  tkInterface: ;
-  tkClass: ;
-  tkObject: ;
-  tkWChar: ;
-  tkBool: ;
-  tkInt64: ;
-  tkQWord: ;
-  tkDynArray: ;
-  tkInterfaceRaw: ;
+  tkRecord: Result := @CmpRecord;
+  tkInterface: Result := @CmpRecord;
+  tkClass: Result := @CmpRecord;
+  tkObject: Result := @CmpRecord;
+  tkWChar: Result := @CmpRecord;
+  tkBool: Result := @CmpRecord;
+  tkInt64: Result := @CmpRecord;
+  tkQWord: Result := @CmpRecord;
+  tkDynArray: Result := @CmpArray;
+  tkInterfaceRaw: Result := @CmpRecord;
   tkProcVar: ;
   tkUString: Result := @CmpUString;
   tkUChar: ;
