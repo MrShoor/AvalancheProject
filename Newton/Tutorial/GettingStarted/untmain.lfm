@@ -1,8 +1,16 @@
-object Form1: TForm1
-  Left = 637
-  Height = 240
-  Top = 215
-  Width = 320
-  Caption = 'Form1'
+object frmMain: TfrmMain
+  Left = 58
+  Height = 623
+  Top = 52
+  Width = 1051
+  Caption = 'frmMain'
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnPaint = FormPaint
   LCLVersion = '1.4.2.0'
+  object ApplicationProperties: TApplicationProperties
+    OnIdle = ApplicationPropertiesIdle
+    left = 54
+    top = 16
+  end
 end

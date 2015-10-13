@@ -236,6 +236,7 @@ function RectI(Left, Top, Right, Bottom: Integer): TRectI; {$IFNDEF NoInline} in
 function Plane(const normal, point: TVec3): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Plane(A,B,C,D: single): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Plane(const pt1, pt2, pt3: TVec3): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function AABB(const AMin, AMax: TVec3): TAABB; overload;
 
 function Len(const v: TVec2): Single; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Len(const v: TVec3): Single; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -620,6 +621,12 @@ end;
 function Plane(const pt1, pt2, pt3: TVec3): TPlane; {$IFNDEF NoInline} inline; {$ENDIF}
 begin
   Result := Plane(Cross(pt2 - pt1, pt3 - pt1), pt1);
+end;
+
+function AABB(const AMin, AMax: TVec3): TAABB;
+begin
+  Result.min := AMin;
+  Result.max := AMax;
 end;
 
 function Len(const v: TVec2): Single; overload; {$IFNDEF NoInline} inline; {$ENDIF}

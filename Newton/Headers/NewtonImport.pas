@@ -235,7 +235,6 @@ type
   //PNewtonRagDoll = ^Pointer;
   //PNewtonRagDollBone = ^Pointer;
 {$ELSE}
-
   PNewtonMesh = Pointer;
   PNewtonBody = Pointer;
   PNewtonWorld = Pointer;

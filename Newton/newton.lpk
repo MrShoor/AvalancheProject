@@ -12,6 +12,11 @@
         <OtherUnitFiles Value=".;Headers"/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
+      <Linking>
+        <Debugging>
+          <DebugInfoType Value="dsDwarf2Set"/>
+        </Debugging>
+      </Linking>
     </CompilerOptions>
     <Version Major="2" Minor="33"/>
     <Files Count="5">
