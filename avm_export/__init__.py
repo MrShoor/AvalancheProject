@@ -15,7 +15,7 @@ bl_info = {
 import bpy
 from bpy.props import StringProperty
 
-import avm_export
+from . import avm_export_impl
 
 class Export_avModel(bpy.types.Operator):
     """Export selection to avModel"""
@@ -34,7 +34,7 @@ class Export_avModel(bpy.types.Operator):
     
     def execute(self, context):
         self.filepath = bpy.path.ensure_ext(self.filepath, ".avm")
-        avm_export.ExportToFile(self.filepath)
+        avm_export_impl.ExportToFile(self.filepath)
         #from . import export_avm_impl
         #Exporter = export_avm_impl.avModelExporter(self, context)
         #self.Export()

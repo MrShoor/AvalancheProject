@@ -279,7 +279,8 @@ def ExportToFile(fname):
         images = Export(WFloat, WInt, WStr, WBool)
         outdir = os.path.dirname(fname)
         for path, outname in images.items():
-            sh.copyfile(path, os.path.join(outdir, outname))
+            if path != os.path.join(outdir, outname):
+                sh.copyfile(path, os.path.join(outdir, outname))
         ExportDone = True
     finally:
         outfile.close()
