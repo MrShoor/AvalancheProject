@@ -33,7 +33,7 @@
         </CompilerMessages>
       </Other>
     </CompilerOptions>
-    <Files Count="25">
+    <Files Count="22">
       <Item1>
         <Filename Value="Common\avbase.pas"/>
         <UnitName Value="avBase"/>
@@ -55,93 +55,84 @@
         <UnitName Value="avContext_OGL"/>
       </Item5>
       <Item6>
-        <Filename Value="Common\avcontnrs.pas"/>
-        <UnitName Value="avContnrs"/>
-      </Item6>
-      <Item7>
         <Filename Value="Common\avcontrols.pas"/>
         <UnitName Value="avControls"/>
-      </Item7>
-      <Item8>
+      </Item6>
+      <Item7>
         <Filename Value="Common\avlog.pas"/>
         <UnitName Value="avLog"/>
-      </Item8>
-      <Item9>
+      </Item7>
+      <Item8>
         <Filename Value="Common\avplatform.pas"/>
         <UnitName Value="avPlatform"/>
-      </Item9>
-      <Item10>
+      </Item8>
+      <Item9>
         <Filename Value="Common\avres.pas"/>
         <UnitName Value="avRes"/>
-      </Item10>
-      <Item11>
+      </Item9>
+      <Item10>
         <Filename Value="Common\avtess.pas"/>
         <UnitName Value="avTess"/>
-      </Item11>
-      <Item12>
+      </Item10>
+      <Item11>
         <Filename Value="Common\avtimer.pas"/>
         <UnitName Value="avTimer"/>
-      </Item12>
-      <Item13>
+      </Item11>
+      <Item12>
         <Filename Value="Common\avtypes.pas"/>
         <UnitName Value="avTypes"/>
-      </Item13>
-      <Item14>
+      </Item12>
+      <Item13>
         <Filename Value="Common\dglOpenGL.pas"/>
         <UnitName Value="dglOpenGL"/>
-      </Item14>
-      <Item15>
-        <Filename Value="Common\mutils.pas"/>
-        <UnitName Value="mutils"/>
-      </Item15>
-      <Item16>
-        <Filename Value="Common\mutils_v.inc"/>
-        <Type Value="Include"/>
-      </Item16>
-      <Item17>
+      </Item13>
+      <Item14>
         <Filename Value="Common\avtexloader.pas"/>
         <UnitName Value="avTexLoader"/>
-      </Item17>
-      <Item18>
+      </Item14>
+      <Item15>
         <Filename Value="Canvas_Shaders\Canvas_Shaders.RES"/>
         <Type Value="Binary"/>
-      </Item18>
-      <Item19>
+      </Item15>
+      <Item16>
         <Filename Value="Common\DX_JSB\D3D11_JSB.pas"/>
         <UnitName Value="D3D11_JSB"/>
-      </Item19>
-      <Item20>
+      </Item16>
+      <Item17>
         <Filename Value="Common\DX_JSB\DXGI_JSB.pas"/>
         <UnitName Value="DXGI_JSB"/>
-      </Item20>
-      <Item21>
+      </Item17>
+      <Item18>
         <Filename Value="Common\DX_JSB\DXTypes_JSB.pas"/>
         <UnitName Value="DXTypes_JSB"/>
-      </Item21>
-      <Item22>
+      </Item18>
+      <Item19>
         <Filename Value="Common\DX_JSB\D3DCommon_JSB.pas"/>
         <UnitName Value="D3DCommon_JSB"/>
-      </Item22>
-      <Item23>
+      </Item19>
+      <Item20>
         <Filename Value="Common\avcontext_dx11.pas"/>
         <UnitName Value="avContext_DX11"/>
-      </Item23>
-      <Item24>
+      </Item20>
+      <Item21>
         <Filename Value="Common\avmesh.pas"/>
         <UnitName Value="avMesh"/>
-      </Item24>
-      <Item25>
+      </Item21>
+      <Item22>
         <Filename Value="Common\avmodel.pas"/>
         <UnitName Value="avModel"/>
-      </Item25>
+      </Item22>
     </Files>
-    <RequiredPkgs Count="2">
+    <RequiredPkgs Count="3">
       <Item1>
-        <PackageName Value="VampyreImagingPackage"/>
+        <PackageName Value="AvalancheUtils"/>
       </Item1>
       <Item2>
-        <PackageName Value="FCL"/>
+        <PackageName Value="VampyreImagingPackage"/>
       </Item2>
+      <Item3>
+        <PackageName Value="FCL"/>
+      </Item3>
     </RequiredPkgs>
     <UsageOptions>
       <UnitPath Value="$(PkgOutDir)"/>

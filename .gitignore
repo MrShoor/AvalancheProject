@@ -80,3 +80,6 @@ __history/
 /Demos/Src/Weighted_OIT/lib/i386-win32
 /Demos/Src/avm_Import/lib/i386-win32
 /Demos/Src/avm_Import/MeshShader/nbproject
+/MathUtils/lib/i386-win32/*.compiled
+*.ppu
+*.compiled
