@@ -12,7 +12,7 @@ MaxWeightsCount = 4;
 
 #outfilename = 'E:\\Projects\\AvalancheProject\\avm_export\\test.txt'
 #outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Src\\avm_Import\\test.txt'
-outfilename = 'E:\Projects\TGame\Bin\Models\Player\mesh.avm';
+#outfilename = 'E:\Projects\TGame\Bin\Models\Player\mesh.avm';
 #outfilename = 'C:\\MyProj\\AvalancheProject\\Demos\\Src\\avm_Import\\test.txt'
         
 def Export(WFloat, WInt, WStr, WBool):
@@ -304,5 +304,5 @@ def ExportToConsole():
     print('---------')
     Export(WFloat, WInt, WStr, WBool)
             
-ExportToFile(outfilename)
+#ExportToFile(outfilename)
 #ExportToConsole()
