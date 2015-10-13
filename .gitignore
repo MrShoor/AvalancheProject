@@ -83,3 +83,7 @@ __history/
 /MathUtils/lib/i386-win32/*.compiled
 *.ppu
 *.compiled
+/Newton/backup
+/Newton/lib
+/Newton/newton-dynamics-2.33
+/Newton/Tutorial/GettingStarted/lib/i386-win32
