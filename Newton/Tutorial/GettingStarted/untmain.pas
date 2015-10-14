@@ -99,6 +99,7 @@ begin
 end;
 
 procedure TfrmMain.RenderScene;
+var i: Integer;
 begin
   if FMain = nil then Exit;
   if not FMain.Inited3D then Exit;
@@ -116,6 +117,9 @@ begin
     FModels.Select;
     FModels.Draw(FCubes);
 
+    for i := 0 to Length(FBodies) - 1 do
+      FCubes[i].Transform := FBodies[i].Matrix;
+
     FFBO.BlitToWindow(0);
     FMain.Present;
   finally
@@ -128,19 +132,21 @@ var CubeCollision: INewtonCollision;
     FloorTrasform: TMat4;
 begin
   FNWorld := Create_NewtonWorld(AABB(Vec(-1.0,-1.0,-1.0)*1000.0, Vec(1.0,1.0,1.0)*1000.0));
+  FNWorld.OnDefaultApplyForce := @GravityForce;
+  FNWorld.OnDefaultTransform := @BodyTransform;
 
   CubeCollision := FNWorld.CreateBox(Vec(1,1,1), IdentityMat4);
 
-  FloorTrasform := Mat(Vec(1.0,0,0)*1000.0, Vec(0,1.0,0), Vec(0,0,1.0)*1000.0, Vec(0,-20,0));
+  FloorTrasform := Mat(Vec(1.0,0,0)*1000.0, Vec(0,1.0,0), Vec(0,0,1.0)*1000.0, Vec(0,-5,0));
   FCubes[0] := FModels.CreateInstance('Cube', FloorTrasform);
   FBodies[0] := FNWorld.CreateBody(CubeCollision, FloorTrasform);
 
-  FCubes[1] := FModels.CreateInstance('Cube', IdentityMat4);
-  FBodies[1] := FNWorld.CreateBody(CubeCollision, IdentityMat4);
-  FBodies[1].CalcDefaultInertia(10.0);
-
-  FBodies[1].OnApplyForce := @GravityForce;
-  FBodies[1].OnTransform := @BodyTransform;
+  for i := 1 to Length(FBodies) - 1 do
+  begin
+    FCubes[1] := FModels.CreateInstance('Cube', IdentityMat4);
+    FBodies[1] := FNWorld.CreateBody(CubeCollision, IdentityMat4);
+    FBodies[1].CalcDefaultInertia(10.0);
+  end;
 end;
 
 procedure TfrmMain.UpdatePhysics;
