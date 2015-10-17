@@ -8,6 +8,9 @@ uses
   LMessages, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
   avRes, avModel, avTypes, mutils, NewtonIntf, avCameraController, avPlatform;
 
+const
+  BODIES_COUNT = 25;
+
 type
 
   { TfrmMain }
@@ -26,8 +29,8 @@ type
 
     FNWorld: INewtonWorld;
 
-    FCubes: array [0..1] of IavModelInstance;
-    FBodies: array [0..1] of INewtonBody;
+    FCubes: array [0..BODIES_COUNT] of IavModelInstance;    //first item - floor
+    FBodies: array [0..BODIES_COUNT] of INewtonBody;        //first item - floor
 
     FLastPhysicsTime: Int64;
   protected
@@ -57,6 +60,7 @@ begin
   FMain := TavMainRender.Create(nil);
   FMain.Window := Handle;
   FMain.Init3D(apiDX11);
+  FMain.Camera.Eye := Vec(5,10,-10);
 
   FFBO := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
 
@@ -69,6 +73,8 @@ begin
   with TavCameraController.Create(FMain) do
   begin
     CanRotate := True;
+    CanMove := True;
+    MovePlane := Plane(0,1,0,5);
   end;
 
   InitWorld;
@@ -130,6 +136,7 @@ end;
 procedure TfrmMain.InitWorld;
 var CubeCollision: INewtonCollision;
     FloorTrasform: TMat4;
+    i: Integer;
 begin
   FNWorld := Create_NewtonWorld(AABB(Vec(-1.0,-1.0,-1.0)*1000.0, Vec(1.0,1.0,1.0)*1000.0));
   FNWorld.OnDefaultApplyForce := @GravityForce;
@@ -141,11 +148,13 @@ begin
   FCubes[0] := FModels.CreateInstance('Cube', FloorTrasform);
   FBodies[0] := FNWorld.CreateBody(CubeCollision, FloorTrasform);
 
+  Randomize;
   for i := 1 to Length(FBodies) - 1 do
   begin
-    FCubes[1] := FModels.CreateInstance('Cube', IdentityMat4);
-    FBodies[1] := FNWorld.CreateBody(CubeCollision, IdentityMat4);
-    FBodies[1].CalcDefaultInertia(10.0);
+    FCubes[i] := FModels.CreateInstance('Cube', IdentityMat4);
+    FBodies[i] := FNWorld.CreateBody(CubeCollision, IdentityMat4);
+    FBodies[i].CalcDefaultInertia(10.0);
+    FBodies[i].Matrix := MatTranslate(Vec(Random*4, i*1.1+1, Random*4));
   end;
 end;
 
