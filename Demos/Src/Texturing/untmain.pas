@@ -50,6 +50,8 @@ var
 
 implementation
 
+uses Math;
+
 {$R *.lfm}
 
 {$R 'Texturing_shaders\shaders.res'}
@@ -160,7 +162,7 @@ begin
   FCubeIndices := TavIB.Create(FMain);
   FCubeIndices.PrimType := ptTriangles;
   FCubeIndices.Indices := ind;
-  FCubeIndices.CullMode := cmBack;
+  FCubeIndices.CullMode := cmNone;
 
   cc := TavCameraController.Create(FMain);
   cc.CanRotate := True;
@@ -192,6 +194,9 @@ begin
 end;
 
 procedure TfrmMain.RenderScene;
+var m: TMat4;
+    v: TVec4;
+    i, j, k: Integer;
 begin
   if FMain = nil then Exit;
   if FMain.Bind then

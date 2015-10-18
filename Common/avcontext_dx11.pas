@@ -1424,10 +1424,8 @@ end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const m: TMat4);
 var DXField: TUniformField_DX absolute Field;
-    mt: TMat4;
 begin
-  mt := Transpose(m);
-  SetUniform(DXField, mt, SizeOf(m));
+  SetUniform(DXField, m, SizeOf(m));
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo);

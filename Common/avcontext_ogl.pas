@@ -2329,15 +2329,13 @@ begin
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const m: TMat4);
-var mt: TMat4;
 begin
   if Field = nil then Exit;
   if Field.DataClass = dcSampler then Exit;
-  mt := Transpose(m);
-  if not CompareMem(@mt, Field.Data, SizeOf(mt)) then
+  if not CompareMem(@m, Field.Data, SizeOf(m)) then
   begin
-    Move(mt, Field.Data^, SizeOf(mt));
-    glUniformMatrix4fv(TUniformField_OGL(Field).ID, 1, false, @mt);
+    Move(m, Field.Data^, SizeOf(m));
+    glUniformMatrix4fv(TUniformField_OGL(Field).ID, 1, false, @m);
   end;
 end;
 

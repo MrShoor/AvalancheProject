@@ -48,8 +48,10 @@ type
 
   IavModelInstance = interface
     function GetAutoUpdateAnimation: Boolean;
+    function GetBoneTransform(const AName: string): TMat4;
     function GetTransform: TMat4;
     procedure SetAutoUpdateAnimation(AValue: Boolean);
+    procedure SetBoneTransform(const AName: string; const AValue: TMat4);
     procedure SetTransform(const AValue: TMat4);
 
     procedure UpdateAnimationStates(const ATime: Int64);
@@ -65,6 +67,8 @@ type
     function ModelName: String;
 
     property Transform: TMat4 read GetTransform write SetTransform;
+    property BoneTransform[const AName: string]: TMat4 read GetBoneTransform write SetBoneTransform;
+
     property AutoUpdateAnimation: Boolean read GetAutoUpdateAnimation write SetAutoUpdateAnimation;
   end;
 
@@ -246,8 +250,10 @@ type
     function GetObj: TavModelInstance;
 
     function GetAutoUpdateAnimation: Boolean;
+    function GetBoneTransform(const AName: string): TMat4;
     function GetTransform: TMat4;
     procedure SetAutoUpdateAnimation(AValue: Boolean);
+    procedure SetBoneTransform(const AName: string; const AValue: TMat4);
     procedure SetTransform(const AValue: TMat4);
 
     procedure UpdateAnimationStates(const ATime: Int64);
@@ -550,7 +556,8 @@ begin
   if FBoneTransformDirty then
   begin
     FBoneTransformDirty := False;
-    FModel.Mesh.GetPoseData(FBoneTransform, FTransform, FAnimationStates);
+    if Length(FAnimationStates) > 0 then
+      FModel.Mesh.GetPoseData(FBoneTransform, FTransform, FAnimationStates);
     Collection.FBoneTransform.UpdateMatrices(FBoneTransformIndex, FBoneTransform);
   end;
 end;
@@ -572,6 +579,17 @@ begin
   Result := FAutoUpdateAnimation;
 end;
 
+function TavModelInstance.GetBoneTransform(const AName: string): TMat4;
+var n: Integer;
+begin
+  if FModel = nil then Exit(IdentityMat4);
+  if FModel.Mesh = nil then Exit(IdentityMat4);
+  if FModel.Mesh.Armature = nil then Exit(IdentityMat4);
+  n := FModel.Mesh.Armature.IndexOfBone(AName);
+  if n < 0 then Exit(IdentityMat4);
+  Result := FBoneTransform[n];
+end;
+
 function TavModelInstance.GetTransform: TMat4;
 begin
   Result := FTransform;
@@ -580,6 +598,18 @@ end;
 procedure TavModelInstance.SetAutoUpdateAnimation(AValue: Boolean);
 begin
   FAutoUpdateAnimation := AValue;
+end;
+
+procedure TavModelInstance.SetBoneTransform(const AName: string; const AValue: TMat4);
+var n: Integer;
+begin
+  if FModel = nil then Exit;
+  if FModel.Mesh = nil then Exit;
+  if FModel.Mesh.Armature = nil then Exit;
+  n := FModel.Mesh.Armature.IndexOfBone(AName);
+  if n < 0 then Exit;
+  FBoneTransform[n] := AValue;
+  FBoneTransformDirty := True;
 end;
 
 procedure TavModelInstance.SetTransform(const AValue: TMat4);

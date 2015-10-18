@@ -276,7 +276,7 @@ var v1: PCubeInstance absolute item1;
     v2: PCubeInstance absolute item2;
     m: PMat4 absolute userData;
 begin
-  Result := -Sign( (m^ * v1^.aiPosition).z - (m^ * v2^.aiPosition).z );
+  Result := -Sign( (v1^.aiPosition * m^).z - (v2^.aiPosition * m^).z );
 end;
 
 function TfrmMain.GenCubeInstances(const RangeMin, RangeMax: TVec3I; ZSorted: Boolean = False): IVerticesData;

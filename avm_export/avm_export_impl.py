@@ -46,23 +46,23 @@ def Export(WFloat, WInt, WStr, WBool):
                     
     def WriteMatrix(m):
         WFloat(m[OX][OX])
-        WFloat(m[OX][OY])
-        WFloat(m[OX][OZ])
-        WFloat(m[OX][OW])
-        
         WFloat(m[OY][OX])
-        WFloat(m[OY][OY])
-        WFloat(m[OY][OZ])
-        WFloat(m[OY][OW])
-        
         WFloat(m[OZ][OX])
-        WFloat(m[OZ][OY])
-        WFloat(m[OZ][OZ])
-        WFloat(m[OZ][OW])
-        
         WFloat(m[OW][OX])
+        
+        WFloat(m[OX][OY])
+        WFloat(m[OY][OY])
+        WFloat(m[OZ][OY])
         WFloat(m[OW][OY])
+        
+        WFloat(m[OX][OZ])
+        WFloat(m[OY][OZ])
+        WFloat(m[OZ][OZ])
         WFloat(m[OW][OZ])
+        
+        WFloat(m[OX][OW])
+        WFloat(m[OY][OW])
+        WFloat(m[OZ][OW])
         WFloat(m[OW][OW])
         
     def WriteVec(v):
@@ -161,9 +161,7 @@ def Export(WFloat, WInt, WStr, WBool):
                 #print(f[uv_tex].image.name)
                 WInt(f.material_index)
                 WBool(f.smooth)
-                WFloat(f.normal[OX])
-                WFloat(f.normal[OY])
-                WFloat(f.normal[OZ])
+                WriteVec(transform.to_3x3()*f.normal)
                 for l, v in zip(f.loops, f.verts):
                     WInt(v.index)
                     if uv_layer is None:

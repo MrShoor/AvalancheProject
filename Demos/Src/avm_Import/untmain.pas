@@ -100,9 +100,9 @@ begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := RenderPanel.Handle;
 //  FMain.Projection.Ortho := True;
-  FMain.Camera.At := Vec(0,5,0);
-  FMain.Camera.Eye := Vec(0,5,-15);
-  FMain.Projection.OrthoHeight := 20;
+  FMain.Camera.At := Vec(0,2.5,0);
+  FMain.Camera.Eye := Vec(0,2.5,-4);
+  FMain.Projection.OrthoHeight := 4;
 
   FFBO := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
 
@@ -118,7 +118,7 @@ begin
     MovePlane := Plane(0,0,1,0);
   end;
 
-  LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\WhipperNude\model.dat');
+  LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\WhipperNude\WhipperNude.avm');
 end;
 
 procedure TfrmMain.ApplicationProperties1Idle(Sender: TObject; var Done: Boolean);
@@ -179,6 +179,7 @@ procedure TfrmMain.RenderScene;
   var i, j: Integer;
   begin
     for i := 0 to Instances.Count - 1 do
+    begin
       for j := 0 to lbAnimations.Count - 1 do
       begin
         if lbAnimations.Selected[j] then
@@ -186,6 +187,7 @@ procedure TfrmMain.RenderScene;
         else
           Instances[i].AnimationStop(lbAnimations.Items[j]);
       end;
+    end;
   end;
 
 var visInst: IModelInstanceArr;
@@ -244,6 +246,7 @@ begin
   animations.Duplicates := dupIgnore;
   try
     FModels.Reset;
+
     while FModels.Next(MName) do
     begin
       newInst := FModels.CreateInstance( MName, IdentityMat4 );

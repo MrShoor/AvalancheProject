@@ -53,9 +53,18 @@ type
   TM3 = record
   private
     function GetCol(index: Integer): TV3;               {$IFNDEF NoInline} inline; {$ENDIF}
+    function GetOX: TV2;  {$IFNDEF NoInline} inline; {$ENDIF}
+    function GetOY: TV2;  {$IFNDEF NoInline} inline; {$ENDIF}
+    function GetPos: TV2;  {$IFNDEF NoInline} inline; {$ENDIF}
     procedure SetCol(index: Integer; const Value: TV3); {$IFNDEF NoInline} inline; {$ENDIF}
+    procedure SetOX(const AValue: TV2); {$IFNDEF NoInline} inline; {$ENDIF}
+    procedure SetOY(const AValue: TV2); {$IFNDEF NoInline} inline; {$ENDIF}
+    procedure SetPos(const AValue: TV2); {$IFNDEF NoInline} inline; {$ENDIF}
   public
     property Col[index: Integer]: TV3 read GetCol write SetCol;
+    property OX: TV2 read GetOX write SetOX;
+    property OY: TV2 read GetOY write SetOY;
+    property Pos: TV2 read GetPos write SetPos;
   case Byte of
     0: (f: array [0..2,0..2] of TCompType);
     1: (Row: array [0..2] of TV3);
@@ -66,10 +75,23 @@ type
 
   TM4 = record
   private
-    function GetCol(index: Integer): TV4;               {$IFNDEF NoInline} inline; {$ENDIF}
+    function GetCol(index: Integer): TV4; {$IFNDEF NoInline} inline; {$ENDIF}
+    function GetOX: TV3;  {$IFNDEF NoInline} inline; {$ENDIF}
+    function GetOY: TV3;  {$IFNDEF NoInline} inline; {$ENDIF}
+    function GetOZ: TV3;  {$IFNDEF NoInline} inline; {$ENDIF}
+    function GetPos: TV3;  {$IFNDEF NoInline} inline; {$ENDIF}
+
     procedure SetCol(index: Integer; const Value: TV4); {$IFNDEF NoInline} inline; {$ENDIF}
+    procedure SetOX(const AValue: TV3); {$IFNDEF NoInline} inline; {$ENDIF}
+    procedure SetOY(const AValue: TV3); {$IFNDEF NoInline} inline; {$ENDIF}
+    procedure SetOZ(const AValue: TV3); {$IFNDEF NoInline} inline; {$ENDIF}
+    procedure SetPos(const AValue: TV3); {$IFNDEF NoInline} inline; {$ENDIF}
   public
     property Col[index: Integer]: TV4 read GetCol write SetCol;
+    property OX: TV3 read GetOX write SetOX;
+    property OY: TV3 read GetOY write SetOY;
+    property OZ: TV3 read GetOZ write SetOZ;
+    property Pos: TV3 read GetPos write SetPos;
   case Byte of
     0: (f: array [0..3,0..3] of TCompType);
     1: (Row: array [0..3] of TV4);
@@ -113,8 +135,8 @@ type
   Operator + (const m1, m2: TM3): TM3; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator - (const m1, m2: TM3): TM3; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator * (const m1, m2: TM3): TM3; {$IFNDEF NoInline} inline; {$ENDIF}
-  Operator * (const m: TM3; v: TV3): TV3; {$IFNDEF NoInline} inline; {$ENDIF}
-  Operator * (const m: TM3; v: TV2): TV2; {$IFNDEF NoInline} inline; {$ENDIF}
+  Operator * (const v: TV3; const m: TM3): TV3; {$IFNDEF NoInline} inline; {$ENDIF}
+  Operator * (const v: TV2; const m: TM3): TV2; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator * (const m: TM3; s: TCompType): TM3; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator - (const m: TM3): TM3; {$IFNDEF NoInline} inline; {$ENDIF}
 
@@ -122,8 +144,8 @@ type
   Operator + (const m1, m2: TM4): TM4; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator - (const m1, m2: TM4): TM4; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator * (const m1, m2: TM4): TM4; {$IFNDEF NoInline} inline; {$ENDIF}
-  Operator * (const m: TM4; v: TV4): TV4; {$IFNDEF NoInline} inline; {$ENDIF}
-  Operator * (const m: TM4; v: TV3): TV3; {$IFNDEF NoInline} inline; {$ENDIF}
+  Operator * (const v: TV4; const m: TM4): TV4; {$IFNDEF NoInline} inline; {$ENDIF}
+  Operator * (const v: TV3; const m: TM4): TV3; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator * (const m: TM4; s: TCompType): TM4; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator - (const m: TM4): TM4; {$IFNDEF NoInline} inline; {$ENDIF}
 
@@ -210,11 +232,41 @@ type
     Result.z := f[2, index];
   end;
 
+  function TM3.GetOX: TV2;
+  begin
+    Result := Row[0].xy;
+  end;
+
+  function TM3.GetOY: TV2;
+  begin
+    Result := Row[1].xy;
+  end;
+
+  function TM3.GetPos: TV2;
+  begin
+    Result := Row[2].xy;
+  end;
+
   procedure TM3.SetCol(index: Integer; const Value: TV3);
   begin
     f[0, index] := Value.x;
     f[1, index] := Value.y;
     f[2, index] := Value.z;
+  end;
+
+  procedure TM3.SetOX(const AValue: TV2);
+  begin
+    Row[0].xy := AValue;
+  end;
+
+  procedure TM3.SetOY(const AValue: TV2);
+  begin
+    Row[1].xy := AValue;
+  end;
+
+  procedure TM3.SetPos(const AValue: TV2);
+  begin
+    Row[2].xy := AValue;
   end;
 
   { TM4 }
@@ -227,12 +279,52 @@ type
     Result.w := f[3, index];
   end;
 
+  function TM4.GetOX: TV3;
+  begin
+    Result := Col[0].xyz;
+  end;
+
+  function TM4.GetOY: TV3;
+  begin
+    Result := Col[1].xyz;
+  end;
+
+  function TM4.GetOZ: TV3;
+  begin
+    Result := Col[2].xyz;
+  end;
+
+  function TM4.GetPos: TV3;
+  begin
+    Result := Col[3].xyz;
+  end;
+
   procedure TM4.SetCol(index: Integer; const Value: TV4);
   begin
     f[0, index] := Value.x;
     f[1, index] := Value.y;
     f[2, index] := Value.z;
     f[3, index] := Value.w;
+  end;
+
+  procedure TM4.SetOX(const AValue: TV3);
+  begin
+    Row[0].xyz := AValue;
+  end;
+
+  procedure TM4.SetOY(const AValue: TV3);
+  begin
+    Row[1].xyz := AValue;
+  end;
+
+  procedure TM4.SetOZ(const AValue: TV3);
+  begin
+    Row[2].xyz := AValue;
+  end;
+
+  procedure TM4.SetPos(const AValue: TV3);
+  begin
+    Row[3].xyz := AValue;
   end;
 
   Operator = (const v1, v2: TV2): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -420,23 +512,23 @@ type
   Operator * (const m1, m2: TM3): TM3; {$IFNDEF NoInline} inline; {$ENDIF}
   var i, j: Integer;
   begin
-    for j := 0 to 2 do
-      for i := 0 to 2 do
+    for i := 0 to 2 do
+      for j := 0 to 2 do
         Result.f[i, j] := Dot(m1.Row[i], m2.Col[j]);
   end;
 
-  Operator * (const m: TM3; v: TV3): TV3; {$IFNDEF NoInline} inline; {$ENDIF}
+  Operator * (const v: TV3; const m: TM3): TV3; {$IFNDEF NoInline} inline; {$ENDIF}
   begin
-    Result.x := Dot(m.Row[0], v);
-    Result.y := Dot(m.Row[1], v);
-    Result.z := Dot(m.Row[2], v);
+    Result := m.Row[0]*v.x+
+              m.Row[1]*v.y+
+              m.Row[2]*v.z;
   end;
 
-  Operator * (const m: TM3; v: TV2): TV2; {$IFNDEF NoInline} inline; {$ENDIF}
+  Operator * (const v: TV2; const m: TM3): TV2; {$IFNDEF NoInline} inline; {$ENDIF}
   begin
-    Result.x := Dot(m.Row[0].xy, v);
-    Result.y := Dot(m.Row[1].xy, v);
-    Result := Result + m.Col[2].xy;
+    Result := m.Row[0].xy*v.x+
+              m.Row[1].xy*v.y+
+              m.Row[2].xy;
   end;
 
   Operator * (const m: TM3; s: TCompType): TM3; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -477,25 +569,25 @@ type
   Operator * (const m1, m2: TM4): TM4; {$IFNDEF NoInline} inline; {$ENDIF}
   var i, j: Integer;
   begin
-    for j := 0 to 3 do
-      for i := 0 to 3 do
+    for i := 0 to 3 do
+      for j := 0 to 3 do
         Result.f[i, j] := Dot(m1.Row[i], m2.Col[j]);
   end;
 
-  Operator * (const m: TM4; v: TV4): TV4; {$IFNDEF NoInline} inline; {$ENDIF}
+  Operator * (const v: TV4; const m: TM4): TV4; {$IFNDEF NoInline} inline; {$ENDIF}
   begin
-    Result.x := Dot(m.Row[0], v);
-    Result.y := Dot(m.Row[1], v);
-    Result.z := Dot(m.Row[2], v);
-    Result.w := Dot(m.Row[3], v);
+    Result := m.Row[0]*v.x +
+              m.Row[1]*v.y +
+              m.Row[2]*v.z +
+              m.Row[3]*v.w;
   end;
 
-  Operator * (const m: TM4; v: TV3): TV3; {$IFNDEF NoInline} inline; {$ENDIF}
+  Operator * (const v: TV3; const m: TM4): TV3; {$IFNDEF NoInline} inline; {$ENDIF}
   begin
-    Result.x := Dot(m.Row[0].xyz, v);
-    Result.y := Dot(m.Row[1].xyz, v);
-    Result.z := Dot(m.Row[2].xyz, v);
-    Result := Result + m.Col[3].xyz;
+    Result := m.Row[0].xyz*v.x +
+              m.Row[1].xyz*v.y +
+              m.Row[2].xyz*v.z +
+              m.Row[3].xyz;
   end;
 
   Operator * (const m: TM4; s: TCompType): TM4; {$IFNDEF NoInline} inline; {$ENDIF}

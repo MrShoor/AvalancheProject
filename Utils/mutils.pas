@@ -222,13 +222,10 @@ Operator * (const a: TVec3I; s: Single): TVec3; {$IFNDEF NoInline} inline; {$END
 
 function Quat(const Dir: TVec3; Angle: Single): TQuat; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
-function Mat(const newX, newY: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-function Mat(const newX, newY, newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-function Mat(const Rotate: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-function Mat(const Rotate: Single; newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-
-function Mat(const newX, newY, newZ: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-function Mat(const newX, newY, newZ, newPos: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Mat3(const Angle: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Mat3(const Angle: Single; newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Mat4(const Q: TQuat): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Mat4(const Q: TQuat; newPos: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function MatTranslate(const newPos: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
 function RectF(Left, Top, Right, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -538,54 +535,56 @@ begin
   Result.a := cos(0.5 * angle);
 end;
 
-function Mat(const newX, newY: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-begin
-  Result.Row[0] := Vec(newX, 0);
-  Result.Row[1] := Vec(newY, 0);
-  Result.Row[2] := Vec(0, 0, 1.0);
-end;
-
-function Mat(const newX, newY, newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-begin
-  Result.Row[0] := Vec(newX, newPos.x);
-  Result.Row[1] := Vec(newY, newPos.y);
-  Result.Row[2] := Vec(0, 0, 1);
-end;
-
-function Mat(const Rotate: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Mat3(const Angle: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 var sn, cs: float;
 begin
-  sincos(Rotate, sn, cs);
-  Result := Mat(Vec(cs,  sn), Vec(sn, -cs));
+  sincos(Angle, sn, cs);
+  Result.OX := Vec(cs,  sn);
+  Result.OY := Vec(cs,  sn);
+  Result.Pos := Vec(0, 0);
+  Result.f[2,2] := 1;
 end;
 
-function Mat(const Rotate: Single; newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Mat3(const Angle: Single; newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 var sn, cs: float;
 begin
-  sincos(Rotate, sn, cs);
-  Result := Mat( Vec(cs,  sn),
-                 Vec(sn, -cs),
-                 newPos        );
+  sincos(Angle, sn, cs);
+  Result.OX := Vec(cs,  sn);
+  Result.OY := Vec(cs,  sn);
+  Result.Pos := Vec(newPos.x, newPos.y);
+  Result.f[2,2] := 1;
 end;
 
-function Mat(const newX, newY, newZ: TVec3): TMat4; {$IFNDEF NoInline} inline; {$ENDIF}
+function Mat4(const Q: TQuat): TMat4;
 begin
-  Result := Mat(NewX, NewY, NewZ, Vec(0,0,0));
+  Result := Mat4(Q, Vec(0,0,0));
 end;
 
-function Mat(const newX, newY, newZ, newPos: TVec3): TMat4; {$IFNDEF NoInline} inline; {$ENDIF}
+function Mat4(const Q: TQuat; newPos: TVec3): TMat4;
 begin
-  Result := IdentityMat4;
-  Result.Row[0] := Vec(newX, newPos.x);
-  Result.Row[1] := Vec(newY, newPos.y);
-  Result.Row[2] := Vec(newZ, newPos.z);
-  Result.Row[3] := Vec(0, 0, 0, 1.0);
+  Result.f[0][0] := 1 - 2*Q.y*Q.y - 2*Q.z*Q.z;
+  Result.f[0][1] :=     2*Q.x*Q.y - 2*Q.z*Q.w;
+  Result.f[0][2] :=     2*Q.x*Q.z + 2*Q.y*Q.w;
+  Result.f[0][3] := 0;
+
+  Result.f[1][0] :=     2*Q.x*Q.y + 2*Q.z*Q.w;
+  Result.f[1][1] := 1 - 2*Q.x*Q.x - 2*Q.z*Q.z;
+  Result.f[1][2] :=     2*Q.y*Q.z - 2*Q.x*Q.w;
+  Result.f[1][3] := 0;
+
+  Result.f[2][0] :=     2*Q.x*Q.z - 2*Q.y*Q.w;
+  Result.f[2][1] :=     2*Q.y*Q.z + 2*Q.x*Q.w;
+  Result.f[2][2] := 1 - 2*Q.x*Q.x - 2*Q.y*Q.y;
+  Result.f[2][3] := 0;
+
+  Result.Row[3].xyz := newPos;
+  Result.Row[3].w := 1;
 end;
 
 function MatTranslate(const newPos: TVec3): TMat4;
 begin
   Result := IdentityMat4;
-  Result.Col[3] := Vec(newPos, 1);
+  Result.Pos := newPos
 end;
 
 function RectF(Left, Top, Right, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -938,15 +937,17 @@ begin
   if leftHanded then Right := Cross(Up, View) else Right := Cross(View, Up);
   // Start building the matrix. The first three rows contains the basis
   // vectors used to rotate the view to point at the lookat point
-  MatrixView.f[0, 0] := Right.x;  MatrixView.f[1, 0] := Up.x;  MatrixView.f[2, 0] := View.x;  MatrixView.f[3, 0] := 0;
-  MatrixView.f[0, 1] := Right.y;  MatrixView.f[1, 1] := Up.y;  MatrixView.f[2, 1] := View.y;  MatrixView.f[3, 1] := 0;
-  MatrixView.f[0, 2] := Right.z;  MatrixView.f[1, 2] := Up.z;  MatrixView.f[2, 2] := View.z;  MatrixView.f[3, 2] := 0;
+  MatrixView.f[0, 0] := Right.x;  MatrixView.f[0, 1] := Up.x;  MatrixView.f[0, 2] := View.x;  MatrixView.f[0, 3] := 0;
+  MatrixView.f[1, 0] := Right.y;  MatrixView.f[1, 1] := Up.y;  MatrixView.f[1, 2] := View.y;  MatrixView.f[1, 3] := 0;
+  MatrixView.f[2, 0] := Right.z;  MatrixView.f[2, 1] := Up.z;  MatrixView.f[2, 2] := View.z;  MatrixView.f[2, 3] := 0;
 
   // Do the translation values (rotations are still about the eyepoint)
-  MatrixView.f[0, 3] := - Dot(From,Right );
-  MatrixView.f[1, 3] := - Dot(From,Up );
-  MatrixView.f[2, 3] := - Dot(From,View );
+  MatrixView.f[3, 0] := - Dot(From,Right );
+  MatrixView.f[3, 1] := - Dot(From,Up );
+  MatrixView.f[3, 2] := - Dot(From,View );
   MatrixView.f[3, 3] := 1;
+
+  MatrixView := MatrixView;
   Result := S_OK;
 end;
 

@@ -72,13 +72,13 @@ void GetMaterial(in float MatIndex, out float4 Diff, out float4 Spec, out float2
 VS_Output VS(VS_Input In) {
     VS_Output Out;
     float4x4 mBone = GetBoneTransform(In.vsWIndex+In.aiBoneMatDifNormOffset.x, In.vsWeight);
-    float3 crd = mul(mBone, float4(In.vsCoord, 1.0)).xyz;
-    float3 norm = mul( (float3x3) mBone, In.vsNormal);
+    float3 crd = mul(float4(In.vsCoord, 1.0), mBone).xyz;
+    float3 norm = mul( In.vsNormal, (float3x3) mBone );
     //float3 crd = In.vsCoord;
-    Out.vCoord = mul(V_Matrix, float4(crd, 1.0)).xyz;
-    Out.vNorm = mul((float3x3)V_Matrix, normalize(norm));
+    Out.vCoord = mul(float4(crd, 1.0), V_Matrix).xyz;
+    Out.vNorm = mul(normalize(norm), (float3x3)V_Matrix);
     Out.vTex = In.vsTex;
-    Out.Pos = mul(P_Matrix, float4(Out.vCoord, 1.0));    
+    Out.Pos = mul(float4(Out.vCoord, 1.0), P_Matrix);
     GetMaterial(In.aiBoneMatDifNormOffset.y + In.vsMatIndex, 
                 Out.Diffuse, 
                 Out.Specular, 

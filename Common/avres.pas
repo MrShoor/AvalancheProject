@@ -1297,10 +1297,10 @@ begin
 
   m := FMain.Camera.uMatrix * FMain.Projection.uMatrix;
   v := Vec(vCur.x, vCur.y, FMain.Projection.DepthRange.x, 1);
-  v := m * v;
+  v := v * m;
   FFrom := v.xyz / v.w;
   v := Vec(vCur.x, vCur.y, FMain.Projection.DepthRange.y, 1);
-  v := m * v;
+  v := v * m;
   FAt := v.xyz / v.w;
 
   FRay.Pnt := FFrom;
@@ -1409,8 +1409,8 @@ procedure TavProjection.UpdateMatrix;
     Result.f[0, 0] := w;
     Result.f[1, 1] := h;
     Result.f[2, 2] := DepthRange.x - DepthSize * FarPlane * Q;
-    Result.f[3, 2] := 1.0;
-    Result.f[2, 3] := DepthSize * fNearPlane * fFarPlane * Q;
+    Result.f[2, 3] := 1.0;
+    Result.f[3, 2] := DepthSize * fNearPlane * fFarPlane * Q;
   end;
 
   function CalcOrthoMatrix: TMat4;
@@ -1424,8 +1424,8 @@ procedure TavProjection.UpdateMatrix;
     Result := IdentityMat4;
     Result.f[0, 0] := w;
     Result.f[1, 1] := h;
-    Result.f[2, 2] := DepthSize * Q;
-    Result.f[2, 3] := DepthRange.x - DepthSize * NearPlane * Q;
+    Result.f[2, 3] := DepthSize * Q;
+    Result.f[2, 2] := DepthRange.x - DepthSize * NearPlane * Q;
   end;
 
 begin
@@ -1433,7 +1433,6 @@ begin
     FMatrix := CalcOrthoMatrix
   else
     FMatrix := CalcPerspectiveMatrix;
-
   FuMatrix := Inv(FMatrix);
   Inc(FUpdateID);
 end;
@@ -2197,7 +2196,7 @@ begin
   for i := Low(TUniformMatrices) to High(TUniformMatrices) do
     if (not MValid[i]) and Assigned(FUniformsMatrices[i]) then
     case i of
-      VP_Matrix       : SetUniform(FUniformsMatrices[i], Main.Projection.Matrix  * Main.Camera.Matrix);
+      VP_Matrix       : SetUniform(FUniformsMatrices[i], Main.Camera.Matrix * Main.Projection.Matrix);
       VP_InverseMatrix: SetUniform(FUniformsMatrices[i], Main.Projection.uMatrix * Main.Camera.uMatrix);
       V_Matrix        : SetUniform(FUniformsMatrices[i], Main.Camera.Matrix);
       V_InverseMatrix : SetUniform(FUniformsMatrices[i], Main.Camera.uMatrix);

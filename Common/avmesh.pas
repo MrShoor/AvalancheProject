@@ -140,6 +140,7 @@ type
 
     property Name: String read GetName;
 
+    function IndexOfBone(const AName: string): Integer;
     function FindBone(const AName: string): IavBone;
 
     procedure GetPoseData(var Matrices: TMat4Arr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
@@ -275,6 +276,7 @@ type
 
     property Name: String read GetName write SetName;
 
+    function IndexOfBone(const AName: string): Integer;
     function FindBone(const AName: string): IavBone;
     procedure AddBone(const ABone: IavBoneInternal);
     procedure AddAnimation(const AAnim: IavAnimationInternal);
@@ -891,6 +893,12 @@ begin
   Result := FRootBones;
 end;
 
+function TavArmature.IndexOfBone(const AName: string): Integer;
+begin
+  if not FBoneIndex.TryGetValue(AName, Result) then
+    Result := -1;
+end;
+
 function TavArmature.FindBone(const AName: string): IavBone;
 var i: Integer;
 begin
@@ -931,7 +939,7 @@ procedure TavArmature.GetPoseData(var Matrices: TMat4Arr; const MeshTransform: T
   procedure FillMipData_Recursive(var AbsTransform: TMat4Arr; const animTransform: TMat4Arr; const bone: IavBone; const parentTransform: TMat4);
   var i: Integer;
   begin
-    AbsTransform[bone.Index] := animTransform[bone.Index]*parentTransform;
+    AbsTransform[bone.Index] := parentTransform*animTransform[bone.Index];
     for i := 0 to bone.ChildsCount - 1 do
       FillMipData_Recursive(AbsTransform, animTransform, bone.Child[i], AbsTransform[bone.Index]);
   end;
@@ -986,7 +994,7 @@ begin
     FillMipData_Recursive(Matrices, boneTransform, rBones[i], IdentityMat4);
 
   for i := 0 to Length(Matrices) - 1 do
-    Matrices[i] := MeshTransform*Matrices[i];
+    Matrices[i] := Matrices[i]*MeshTransform;
 end;
 
 procedure TavArmature.AfterConstruction;
@@ -1065,7 +1073,10 @@ end;
 
 function TavBone.AbsTransform: TMat4;
 begin
-  Result := FTransform;
+  if Assigned(FParent) then
+    Result := FTransform * Parent.AbsTransform
+  else
+    Result := FTransform;
 end;
 
 destructor TavBone.Destroy;

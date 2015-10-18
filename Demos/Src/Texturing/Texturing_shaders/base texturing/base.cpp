@@ -16,9 +16,9 @@ struct VS_Output {
 
 VS_Output VS(VS_Input In) {
     VS_Output Out;
-    Out.Pos = mul(VP_Matrix, float4(In.vsCoord, 1.0));
-    Out.Normal = mul(V_Matrix, float4(In.vsNormal, 0.0)).xyz;
-    Out.ViewPos = mul(V_Matrix, float4(In.vsCoord, 1.0)).xyz;
+    Out.Pos = mul(float4(In.vsCoord, 1.0), VP_Matrix);
+    Out.Normal = mul(float4(In.vsNormal, 0.0), V_Matrix).xyz;
+    Out.ViewPos = mul(float4(In.vsCoord, 1.0), V_Matrix).xyz;
     Out.TexCrd = In.vsTexCrd;
     return Out;
 }

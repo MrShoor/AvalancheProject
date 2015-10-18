@@ -11,6 +11,6 @@ struct VS_Output {
 
 VS_Output VS(VS_Input In) {
     VS_Output Out;
-    Out.Pos = mul(MVP_Matrix, float4(In.vsCoord, 1.0));
+    Out.Pos = mul(float4(In.vsCoord, 1.0), MVP_Matrix);
     return Out;
 }

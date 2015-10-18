@@ -19,9 +19,9 @@ struct VS_Output {
 VS_Output VS(VS_Input In) {
     VS_Output Out;
     float4 crd = float4(In.vsCoord + In.aiPosition, 1.0);
-    Out.Pos = mul(VP_Matrix, crd);
-    Out.Normal = mul((float3x3)V_Matrix, In.vsNormal);
-    Out.ViewPos = mul(V_Matrix, crd).xyz;
+    Out.Pos = mul(crd, VP_Matrix);
+    Out.Normal = mul(In.vsNormal, (float3x3)V_Matrix);
+    Out.ViewPos = mul(crd, V_Matrix).xyz;
     Out.Color = In.aiColor;
     return Out;
 }
