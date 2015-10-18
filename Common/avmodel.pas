@@ -556,8 +556,8 @@ begin
   if FBoneTransformDirty then
   begin
     FBoneTransformDirty := False;
-    if Length(FAnimationStates) > 0 then
-      FModel.Mesh.GetPoseData(FBoneTransform, FTransform, FAnimationStates);
+//    if Length(FAnimationStates) > 0 then
+    FModel.Mesh.GetPoseData(FBoneTransform, FTransform, FAnimationStates);
     Collection.FBoneTransform.UpdateMatrices(FBoneTransformIndex, FBoneTransform);
   end;
 end;

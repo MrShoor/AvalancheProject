@@ -584,7 +584,7 @@ end;
 function MatTranslate(const newPos: TVec3): TMat4;
 begin
   Result := IdentityMat4;
-  Result.Pos := newPos
+  Result.Pos := newPos;
 end;
 
 function RectF(Left, Top, Right, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}

@@ -144,7 +144,12 @@ begin
 
   CubeCollision := FNWorld.CreateBox(Vec(1,1,1), IdentityMat4);
 
-  FloorTrasform := Mat(Vec(1.0,0,0)*1000.0, Vec(0,1.0,0), Vec(0,0,1.0)*1000.0, Vec(0,-5,0));
+  FloorTrasform := IdentityMat4;
+  FloorTrasform.OX := Vec(1.0,0,0)*1000.0;
+  FloorTrasform.OY := Vec(0,1.0,0);
+  FloorTrasform.OZ := Vec(0,0,1.0)*1000.0;
+  FloorTrasform.Pos:= Vec(0,-5,0);
+
   FCubes[0] := FModels.CreateInstance('Cube', FloorTrasform);
   FBodies[0] := FNWorld.CreateBody(CubeCollision, FloorTrasform);
 

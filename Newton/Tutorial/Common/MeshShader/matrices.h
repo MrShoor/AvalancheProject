@@ -1,5 +1,6 @@
 #ifndef MATRICES_H
 #define	MATRICES_H
+#pragma pack_matrix( row_major )
 float4x4 M_Matrix;
 float4x4 MVP_Matrix;
 float4x4 MV_Matrix;

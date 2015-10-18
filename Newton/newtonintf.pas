@@ -191,10 +191,7 @@ begin
   if FObject = nil then
     Result := IdentityMat4
   else
-  begin
     NewtonBodyGetMatrix(FObject, @Result);
-    Result := Transpose(Result);
-  end;
 end;
 
 function TNBody.GetOnApplyForce: TOnApplyForceAndTorque;
@@ -208,11 +205,9 @@ begin
 end;
 
 procedure TNBody.SetMatrix(const AValue: TMat4);
-var m: TMat4;
 begin
   if FObject = nil then Exit;
-  m := Transpose(AValue);
-  NewtonBodySetMatrix(FObject, @m);
+  NewtonBodySetMatrix(FObject, @AValue);
 end;
 
 procedure TNBody.SetOnApplyForce(const AValue: TOnApplyForceAndTorque);
@@ -264,10 +259,10 @@ end;
 procedure TNBody.DoTransformCallback(const AMatrix: TMat4; threadIndex: Integer);
 begin
   if Assigned(FOnTransform) then
-    FOnTransform(Self, Transpose(AMatrix), threadIndex)
+    FOnTransform(Self, AMatrix, threadIndex)
   else
     if Assigned(FWorld.FOnDefaultTransform) then
-      FWorld.FOnDefaultTransform(Self, Transpose(AMatrix), threadIndex);
+      FWorld.FOnDefaultTransform(Self, AMatrix, threadIndex);
 end;
 
 procedure TNBody.CleanLinks;
@@ -389,17 +384,13 @@ begin
 end;
 
 function TNWorld.CreateBox(const ASize: TVec3; const ATransform: TMat4): INewtonCollision;
-var m: TMat4;
 begin
-  m := Transpose(ATransform);
-  Result := TNCollision.Create(Self, NewtonCreateBox(FWorld, ASize.x, ASize.y, ASize.z, 0, @m));
+  Result := TNCollision.Create(Self, NewtonCreateBox(FWorld, ASize.x, ASize.y, ASize.z, 0, @ATransform));
 end;
 
 function TNWorld.CreateBody(const ACollision: INewtonCollision; const ATransform: TMat4): INewtonBody;
-var m: TMat4;
 begin
-  m := Transpose(ATransform);
-  Result := TNBody.Create(Self, NewtonCreateBody(FWorld, ACollision.NewtonObject, @m));
+  Result := TNBody.Create(Self, NewtonCreateBody(FWorld, ACollision.NewtonObject, @ATransform));
 end;
 
 procedure TNWorld.UpdateWorld(const ADeltaTime: Single);
