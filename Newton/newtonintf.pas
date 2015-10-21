@@ -5,7 +5,7 @@ unit NewtonIntf;
 interface
 
 uses
-  Classes, SysUtils, NewtonImport, mutils;
+  Classes, SysUtils, NewtonImport, mutils, avContnrs;
 
 type
   INewtonWorld = interface;
@@ -26,6 +26,8 @@ type
 
   INewtonCollision = interface (INewtonWorldChild)
   end;
+  INewtonCollisionArr = specialize IArray<INewtonCollision>;
+  TNewtonCollisionArr = specialize TArray<INewtonCollision>;
 
   { INewtonBody }
 
@@ -46,6 +48,8 @@ type
     property OnApplyForce: TOnApplyForceAndTorque read GetOnApplyForce write SetOnApplyForce;
     property OnTransform: TOnTransformCallback read GetOnTransform write SetOnTransform;
   end;
+  INewtonBodyArr = specialize IArray<INewtonBody>;
+  TNewtonBodyArr = specialize TArray<INewtonBody>;
 
   { INewtonWorld }
 
@@ -56,6 +60,7 @@ type
     procedure SetOnDefaultTransform(const AValue: TOnTransformCallback);
 
     function CreateBox(const ASize: TVec3; const ATransform: TMat4): INewtonCollision;
+    function CreateCylinder(const ARadius: Single; const AHeight: Single; const ATransform: TMat4): INewtonCollision;
     function CreateBody(const ACollision: INewtonCollision; const ATransform: TMat4): INewtonBody;
 
     procedure SetWorldSize(const AValue: TAABB);
@@ -92,6 +97,7 @@ type
     procedure SetOnDefaultTransform(const AValue: TOnTransformCallback);
 
     function CreateBox(const ASize: TVec3; const ATransform: TMat4): INewtonCollision;
+    function CreateCylinder(const ARadius: Single; const AHeight: Single; const ATransform: TMat4): INewtonCollision;
     function CreateBody(const ACollision: INewtonCollision; const ATransform: TMat4): INewtonBody;
 
     procedure SetWorldSize(const AValue: TAABB);
@@ -386,6 +392,11 @@ end;
 function TNWorld.CreateBox(const ASize: TVec3; const ATransform: TMat4): INewtonCollision;
 begin
   Result := TNCollision.Create(Self, NewtonCreateBox(FWorld, ASize.x, ASize.y, ASize.z, 0, @ATransform));
+end;
+
+function TNWorld.CreateCylinder(const ARadius: Single; const AHeight: Single; const ATransform: TMat4): INewtonCollision;
+begin
+  Result := TNCollision.Create(Self, NewtonCreateCylinder(FWorld, ARadius, AHeight, 0, @ATransform));
 end;
 
 function TNWorld.CreateBody(const ACollision: INewtonCollision; const ATransform: TMat4): INewtonBody;

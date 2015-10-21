@@ -281,22 +281,22 @@ type
 
   function TM4.GetOX: TV3;
   begin
-    Result := Col[0].xyz;
+    Result := Row[0].xyz;
   end;
 
   function TM4.GetOY: TV3;
   begin
-    Result := Col[1].xyz;
+    Result := Row[1].xyz;
   end;
 
   function TM4.GetOZ: TV3;
   begin
-    Result := Col[2].xyz;
+    Result := Row[2].xyz;
   end;
 
   function TM4.GetPos: TV3;
   begin
-    Result := Col[3].xyz;
+    Result := Row[3].xyz;
   end;
 
   procedure TM4.SetCol(index: Integer; const Value: TV4);

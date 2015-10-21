@@ -11,6 +11,7 @@ uses
 
 type
   IavArmature = interface;
+  IavMeshInstance = interface;
 
   { TMeshVertex }
 
@@ -56,7 +57,6 @@ type
   IavMesh = interface
     function GetMaterial(const AIndex: Integer): TMeshMaterial;
     function GetMaterialMaps(const AIndex: Integer): TMeshMaterialMaps;
-    function GetArmature: IavArmature;
     function GetBBox: TAABB;
     function GetInd: IIndices;
     function GetName: String;
@@ -71,11 +71,42 @@ type
     property Vert: IMeshVertices read GetVert;
     property Ind : IIndices read GetInd;
 
-    property Armature: IavArmature read GetArmature;
-    procedure GetPoseData(var Matrices: TMat4Arr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
+    function CreateInstance(const AInstanceName: string): IavMeshInstance;
   end;
 
-  TavMeshes = array of IavMesh;
+  IavMeshes = specialize IHashMap<string, IavMesh, TMurmur2HashString>;
+  TavMeshes = specialize THashMap<string, IavMesh, TMurmur2HashString>;
+
+  { IavMeshInstance }
+
+  IavMeshInstance = interface
+    function GetArmature: IavArmature;
+    function GetChild(const AIndex: Integer): IavMeshInstance;
+    function GetMesh: IavMesh;
+    function GetName: String;
+    function GetParent: IavMeshInstance;
+    function GetTransform: TMat4;
+    procedure SetTransform(const AValue: TMat4);
+    //--------------------------
+
+    property Name     : string      read GetName;
+    property Transform: TMat4       read GetTransform write SetTransform;
+    property Mesh     : IavMesh     read GetMesh;
+    property Armature : IavArmature read GetArmature;
+
+    property Parent: IavMeshInstance read GetParent;
+
+    function ChildsCount: Integer;
+    property Child[const AIndex: Integer]: IavMeshInstance read GetChild;
+    procedure DelChild(const AIndex: Integer);
+    procedure AddChild(const AChild: IavMeshInstance);
+    function IndexOf(const AChild: IavMeshInstance): Integer;
+
+    procedure GetPoseData(var Matrices: TMat4Arr; const AnimState: array of TMeshAnimationState);
+  end;
+
+  IavMeshInstances = specialize IHashMap<string, IavMeshInstance, TMurmur2HashString>;
+  TavMeshInstances = specialize THashMap<string, IavMeshInstance, TMurmur2HashString>;
 
   { IavBone }
 
@@ -143,11 +174,14 @@ type
     function IndexOfBone(const AName: string): Integer;
     function FindBone(const AName: string): IavBone;
 
-    procedure GetPoseData(var Matrices: TMat4Arr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
+    procedure GetPoseData(var Matrices: TMat4Arr; const RemapIndices: TIntArr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
   end;
 
-procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes; TexManager: ITextureManager = Nil);
-procedure LoadFromFile(const FileName: string; out meshes: TavMeshes; const TexManager: ITextureManager = Nil);
+  IavArmatures = specialize IHashMap<string, IavArmature, TMurmur2HashString>;
+  TavArmatures = specialize THashMap<string, IavArmature, TMurmur2HashString>;
+
+procedure LoadFromStream(const stream: TStream; out meshes: IavMeshes; out meshInst: IavMeshInstances; TexManager: ITextureManager = Nil);
+procedure LoadFromFile(const FileName: string; out meshes: IavMeshes; out meshInst: IavMeshInstances; const TexManager: ITextureManager = Nil);
 
 implementation
 
@@ -197,15 +231,27 @@ type
   { IavMeshInternal }
 
   IavMeshInternal = interface (IavMesh)
-    procedure SetArmature(const AValue: IavArmature);
     procedure SetBBox(const AValue: TAABB);
     procedure SetName(const AValue: String);
 
     property Name: String read GetName write SetName;
     property BBox: TAABB read GetBBox write SetBBox;
-    property Armature: IavArmature read GetArmature write SetArmature;
 
     procedure AddMaterial(const AMat: TMeshMaterial; const AMatMap: TMeshMaterialMaps);
+  end;
+
+  { IavMeshInstanceInternal }
+
+  IavMeshInstanceInternal = interface (IavMeshInstance)
+    procedure SetParent(const AValue: IavMeshInstance);
+    procedure SetMesh(const AValue: IavMesh);
+    procedure SetName(const AValue: string);
+    //--------------------------
+    procedure SetArmature(const AValue: IavArmature; const AGroupNames: array of string);
+
+    property Parent   : IavMeshInstance read GetParent   write SetParent;
+    property Name     : string          read GetName     write SetName;
+    property Mesh     : IavMesh         read GetMesh     write SetMesh;
   end;
 
   { TavBone }
@@ -282,7 +328,7 @@ type
     procedure AddAnimation(const AAnim: IavAnimationInternal);
     function FindAnim(const AName: string): IavAnimation;
 
-    procedure GetPoseData(var Matrices: TMat4Arr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
+    procedure GetPoseData(var Matrices: TMat4Arr; const RemapIndices: TIntArr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
 
     procedure AfterConstruction; override;
     destructor Destroy; override;
@@ -295,7 +341,6 @@ type
     FVert: IMeshVertices;
     FInd : IIndices;
     FBBox: TAABB;
-    FArm : IavArmature;
     FName: String;
 
     FMat: array of TMeshMaterial;
@@ -303,12 +348,10 @@ type
 
     function GetMaterial(const AIndex: Integer): TMeshMaterial;
     function GetMaterialMaps(const AIndex: Integer): TMeshMaterialMaps;
-    function GetArmature: IavArmature;
     function GetBBox: TAABB;
     function GetInd: IIndices;
     function GetName: String;
     function GetVert: IMeshVertices;
-    procedure SetArmature(const AValue: IavArmature);
     procedure SetBBox(const AValue: TAABB);
     procedure SetName(const AValue: String);
   public
@@ -319,11 +362,58 @@ type
     property Vert: IMeshVertices read GetVert;
     property Ind : IIndices read GetInd;
 
-    property Armature: IavArmature read GetArmature write SetArmature;
-    procedure GetPoseData(var Matrices: TMat4Arr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
+    function CreateInstance(const AInstanceName: string): IavMeshInstance;
 
     procedure AddMaterial(const AMat: TMeshMaterial; const AMatMap: TMeshMaterialMaps);
 
+    procedure AfterConstruction; override;
+  end;
+
+  { TavMeshInstance }
+
+  TavMeshInstance = class (TInterfacedObjectEx, IavMeshInstance, IavMeshInstanceInternal)
+  private type
+    IChildList = specialize IArray<IavMeshInstance>;
+    TChildList = specialize TArray<IavMeshInstance>;
+  private
+    FParent: Pointer;
+    FArm: IavArmature;
+    FBoneRemap: TIntArr;
+    FMesh: IavMesh;
+
+    FChilds: IChildList;
+
+    FName: string;
+    FLocalTransform: TMat4;
+  public
+    function GetArmature: IavArmature;
+    function GetChild(const AIndex: Integer): IavMeshInstance;
+    function GetMesh: IavMesh;
+    function GetName: String;
+    function GetParent: IavMeshInstance;
+    function GetTransform: TMat4;
+    procedure SetMesh(const AValue: IavMesh);
+    procedure SetName(const AValue: string);
+    procedure SetParent(const AValue: IavMeshInstance);
+    procedure SetTransform(const AValue: TMat4);
+    //--------------------------
+    procedure SetArmature(const AValue: IavArmature; const AGroupNames: array of string);
+
+    property Name     : string      read GetName;
+    property Transform: TMat4       read GetTransform write SetTransform;
+    property Mesh     : IavMesh     read GetMesh;
+    property Armature : IavArmature read GetArmature;
+
+    property Parent: IavMeshInstance read GetParent write SetParent;
+
+    function ChildsCount: Integer;
+    property Child[const AIndex: Integer]: IavMeshInstance read GetChild;
+    procedure DelChild(const AIndex: Integer);
+    procedure AddChild(const AChild: IavMeshInstance);
+    function IndexOf(const AChild: IavMeshInstance): Integer;
+
+    procedure GetPoseData(var Matrices: TMat4Arr; const AnimState: array of TMeshAnimationState);
+  public
     procedure AfterConstruction; override;
   end;
 
@@ -393,8 +483,16 @@ const
     vsWeight: (x: 0; y: 0; z: 0; w: 0)
   );
 
-procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes; TexManager: ITextureManager = Nil);
-  procedure LoadMeshFromStream(const stream: TStream; out mesh: IavMeshInternal; out parent: String);
+procedure LoadFromStream(const stream: TStream; out meshes: IavMeshes; out meshInst: IavMeshInstances; TexManager: ITextureManager);
+type
+  TMeshInstInfo = packed record
+    Inst: IavMeshInstanceInternal;
+    Parent: string;
+    Mesh: string;
+    GroupNames: array of string;
+  end;
+
+  procedure LoadMeshFromStream(const stream: TStream; out mesh: IavMeshInternal);
   type
     TWeightInfo = packed record
       index: Integer;
@@ -435,12 +533,10 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes; TexManage
     ZeroClear(mv, SizeOf(mv));
     ZeroClear(mat, SizeOf(mat));
     //
+
     mesh := TavMesh.Create;
     StreamReadString(stream, s);
     mesh.Name := String(s);
-
-    StreamReadString(stream, s);
-    parent := String(s);
 
     texWidth := SIZE_DEFAULT;
     texHeight := SIZE_DEFAULT;
@@ -526,6 +622,34 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes; TexManage
         end;
         mesh.ind.Add(ind);
       end;
+    end;
+  end;
+
+  procedure LoadMeshInstanceFromStream(const stream: TStream; out instInfo: TMeshInstInfo);
+  var s: AnsiString;
+      m: TMat4;
+      i, n: Integer;
+  begin
+    //prevent warnings
+    m := IdentityMat4;
+    n := 0;
+    //
+
+    instInfo.Inst := TavMeshInstance.Create;
+    StreamReadString(stream, s);
+    instInfo.Inst.Name := s;
+    StreamReadString(stream, s);
+    instInfo.Parent := s;
+    stream.ReadBuffer(m, SizeOf(m));
+    instInfo.Inst.Transform := m;
+    StreamReadString(stream, s);
+    instInfo.Mesh := s;
+    stream.ReadBuffer(n, SizeOf(n));
+    SetLength(instInfo.GroupNames, n);
+    for i := 0 to n - 1 do
+    begin
+      StreamReadString(stream, s);
+      instInfo.GroupNames[i] := s;
     end;
   end;
 
@@ -620,34 +744,66 @@ procedure LoadFromStream(const stream: TStream; out meshes: TavMeshes; TexManage
     end;
   end;
 
-var i, j, n: Integer;
-    arm: array of IavArmatureInternal;
-    MeshParent: String;
+var i, n: Integer;
+
+    armatures: IavArmatures;
+
+    arm: IavArmatureInternal;
+    mesh: IavMeshInternal;
+    inst: IavMeshInstance;
+    instArr: array of TMeshInstInfo;
 begin
   if TexManager = nil then TexManager := Create_ITextureManager;
 
   n := 0;
 
+  armatures := TavArmatures.Create('', nil);
   stream.ReadBuffer(n, SizeOf(n));
-  SetLength(arm, n);
-  for i := 0 to n - 1 do
-    LoadArmatureFromStream(stream, arm[i]);
-
-  stream.ReadBuffer(n, SizeOf(n));
-  SetLength(meshes, n);
   for i := 0 to n - 1 do
   begin
-    LoadMeshFromStream(stream, IavMeshInternal(meshes[i]), MeshParent);
-    for j := 0 to Length(arm) - 1 do
-      if arm[j].Name = MeshParent then
-      begin
-        IavMeshInternal(meshes[i]).Armature := arm[j];
-        Break;
-      end;
+    LoadArmatureFromStream(stream, arm);
+    armatures.Add(arm.Name, arm);
+  end;
+
+  meshes := TavMeshes.Create('',nil);
+  stream.ReadBuffer(n, SizeOf(n));
+  for i := 0 to n - 1 do
+  begin
+    LoadMeshFromStream(stream, mesh);
+    meshes.Add(mesh.Name, mesh);
+  end;
+
+  meshInst := TavMeshInstances.Create('',nil);
+  stream.ReadBuffer(n, SizeOf(n));
+  SetLength(instArr, n);
+  for i := 0 to n - 1 do
+  begin
+    LoadMeshInstanceFromStream(stream, instArr[i]);
+    meshInst.Add(instArr[i].Inst.Name, instArr[i].Inst);
+  end;
+
+  for i := 0 to Length(instArr) - 1 do
+  begin
+    if instArr[i].Parent <> '' then
+    begin
+      if meshInst.TryGetValue(instArr[i].Parent, inst) then
+        inst.AddChild(instArr[i].Inst)
+      else
+        if armatures.TryGetValue(instArr[i].Parent, IavArmature(arm)) then
+          instArr[i].Inst.SetArmature(arm, instArr[i].GroupNames)
+        else
+          Assert(False, 'Parent "'+instArr[i].Parent+'" not found for object "'+instArr[i].Inst.Name+'"');
+    end;
+
+    if meshes.TryGetValue(instArr[i].Mesh, IavMesh(mesh)) then
+      instArr[i].Inst.Mesh := mesh
+    else
+      Assert(False, 'Mesh "'+instArr[i].Mesh+'" not found for object "'+instArr[i].Inst.Name+'"');
   end;
 end;
 
-procedure LoadFromFile(const FileName: string; out meshes: TavMeshes; const TexManager: ITextureManager = Nil);
+procedure LoadFromFile(const FileName: string; out meshes: IavMeshes; out
+  meshInst: IavMeshInstances; const TexManager: ITextureManager);
 var fs: TFileStream;
     oldDir: string;
 begin
@@ -655,11 +811,115 @@ begin
   oldDir := GetCurrentDir;
   try
     SetCurrentDir(ExtractFilePath(FileName));
-    LoadFromStream(fs, meshes, TexManager);
+    LoadFromStream(fs, meshes, meshInst, TexManager);
   finally
     SetCurrentDir(oldDir);
     FreeAndNil(fs);
   end;
+end;
+
+{ TavMeshInstance }
+
+function TavMeshInstance.GetArmature: IavArmature;
+begin
+  Result := FArm;
+end;
+
+function TavMeshInstance.GetChild(const AIndex: Integer): IavMeshInstance;
+begin
+  Result := FChilds[AIndex];
+end;
+
+function TavMeshInstance.GetMesh: IavMesh;
+begin
+  Result := FMesh;
+end;
+
+function TavMeshInstance.GetName: String;
+begin
+  Result := FName;
+end;
+
+function TavMeshInstance.GetParent: IavMeshInstance;
+begin
+  Result := IavMeshInstance(FParent);
+end;
+
+function TavMeshInstance.GetTransform: TMat4;
+begin
+  Result := FLocalTransform;
+end;
+
+procedure TavMeshInstance.SetArmature(const AValue: IavArmature; const AGroupNames: array of string);
+var
+  i: Integer;
+begin
+  FArm := AValue;
+  SetLength(FBoneRemap, Length(AGroupNames));
+  for i := 0 to Length(FBoneRemap) - 1 do
+    FBoneRemap[i] := FArm.IndexOfBone(AGroupNames[i]);
+end;
+
+procedure TavMeshInstance.SetMesh(const AValue: IavMesh);
+begin
+  FMesh := AValue;
+end;
+
+procedure TavMeshInstance.SetName(const AValue: string);
+begin
+  FName := AValue;
+end;
+
+procedure TavMeshInstance.SetParent(const AValue: IavMeshInstance);
+begin
+  FParent := Pointer(AValue);
+end;
+
+procedure TavMeshInstance.SetTransform(const AValue: TMat4);
+begin
+  FLocalTransform := AValue;
+end;
+
+function TavMeshInstance.ChildsCount: Integer;
+begin
+  Result := FChilds.Count;
+end;
+
+procedure TavMeshInstance.DelChild(const AIndex: Integer);
+var n: Integer;
+begin
+  n := FChilds.Count-1;
+  FChilds[AIndex] := FChilds[n];
+  FChilds.Delete(n);
+end;
+
+procedure TavMeshInstance.AddChild(const AChild: IavMeshInstance);
+begin
+  if AChild = nil then Exit;
+  FChilds.Add(AChild);
+  IavMeshInstanceInternal(AChild).Parent := Self;
+end;
+
+function TavMeshInstance.IndexOf(const AChild: IavMeshInstance): Integer;
+begin
+  Result := FChilds.IndexOf(AChild);
+end;
+
+procedure TavMeshInstance.GetPoseData(var Matrices: TMat4Arr; const AnimState: array of TMeshAnimationState);
+begin
+  if Assigned(FArm) then
+    FArm.GetPoseData(Matrices, FBoneRemap, FLocalTransform, AnimState)
+  else
+  begin
+    SetLength(Matrices, 1);
+    Matrices[0] := FLocalTransform;
+  end;
+end;
+
+procedure TavMeshInstance.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FChilds := TChildList.Create(nil);
 end;
 
 { TavAnimation }
@@ -769,11 +1029,6 @@ begin
   Result := FMatMaps[AIndex];
 end;
 
-function TavMesh.GetArmature: IavArmature;
-begin
-  Result := FArm;
-end;
-
 function TavMesh.GetBBox: TAABB;
 begin
   Result := FBBox;
@@ -794,11 +1049,6 @@ begin
   Result := FVert;
 end;
 
-procedure TavMesh.SetArmature(const AValue: IavArmature);
-begin
-  FArm := AValue;
-end;
-
 procedure TavMesh.SetBBox(const AValue: TAABB);
 begin
   FBBox := AValue;
@@ -814,15 +1064,13 @@ begin
   Result := Length(FMat);
 end;
 
-procedure TavMesh.GetPoseData(var Matrices: TMat4Arr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
+function TavMesh.CreateInstance(const AInstanceName: string): IavMeshInstance;
+var instInt: IavMeshInstanceInternal;
 begin
-  if Assigned(FArm) then
-    FArm.GetPoseData(Matrices, MeshTransform, AnimState)
-  else
-  begin
-    SetLength(Matrices, 1);
-    Matrices[0] := MeshTransform;
-  end;
+  instInt := TavMeshInstance.Create;
+  instInt.Mesh := self;
+  instInt.Name := AInstanceName;
+  Result := instInt;
 end;
 
 procedure TavMesh.AddMaterial(const AMat: TMeshMaterial; const AMatMap: TMeshMaterialMaps);
@@ -935,13 +1183,13 @@ begin
       Exit(FAnim[i]);
 end;
 
-procedure TavArmature.GetPoseData(var Matrices: TMat4Arr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
-  procedure FillMipData_Recursive(var AbsTransform: TMat4Arr; const animTransform: TMat4Arr; const bone: IavBone; const parentTransform: TMat4);
+procedure TavArmature.GetPoseData(var Matrices: TMat4Arr; const RemapIndices: TIntArr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
+  procedure FillBoneData_Recursive(var AbsTransform: TMat4Arr; const animTransform: TMat4Arr; const bone: IavBone; const parentTransform: TMat4);
   var i: Integer;
   begin
     AbsTransform[bone.Index] := parentTransform*animTransform[bone.Index];
     for i := 0 to bone.ChildsCount - 1 do
-      FillMipData_Recursive(AbsTransform, animTransform, bone.Child[i], AbsTransform[bone.Index]);
+      FillBoneData_Recursive(AbsTransform, animTransform, bone.Child[i], AbsTransform[bone.Index]);
   end;
 
 var i, j, BoneInd: Integer;
@@ -986,15 +1234,27 @@ begin
     if (boneWeight[i] > 0.001) then
       boneTransform[i] := boneTransform[i] * (1 / boneWeight[i]);
 
+  rBones := RootBones;
+  for i := 0 to Length(rBones) - 1 do
+    FillBoneData_Recursive(boneTransform, boneTransform, rBones[i], IdentityMat4);
+
+  if Length(Matrices) <> Length(RemapIndices) then
+    SetLength(Matrices, Length(RemapIndices));
+  for i := 0 to Length(Matrices) - 1 do
+  begin
+    j := RemapIndices[i];
+    if j < 0 then
+      Matrices[i] := MeshTransform
+    else
+      Matrices[i] := boneTransform[j]*MeshTransform;
+  end;
+{
   if Length(Matrices) <> Length(boneTransform) then
     SetLength(Matrices, Length(boneTransform));
 
-  rBones := RootBones;
-  for i := 0 to Length(rBones) - 1 do
-    FillMipData_Recursive(Matrices, boneTransform, rBones[i], IdentityMat4);
-
   for i := 0 to Length(Matrices) - 1 do
     Matrices[i] := Matrices[i]*MeshTransform;
+}
 end;
 
 procedure TavArmature.AfterConstruction;

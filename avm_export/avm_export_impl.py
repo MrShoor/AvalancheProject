@@ -11,8 +11,8 @@ OW = 3
 MaxWeightsCount = 4;
 
 #outfilename = 'E:\\Projects\\AvalancheProject\\avm_export\\test.txt'
-#outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Src\\avm_Import\\test.txt'
-#outfilename = 'E:\Projects\TGame\Bin\Models\Player\mesh.avm';
+outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Media\\WhipperNude\\WhipperNude.avm'
+#outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Media\\NewI\\mesh.avm'
 #outfilename = 'C:\\MyProj\\AvalancheProject\\Demos\\Src\\avm_Import\\test.txt'
         
 def Export(WFloat, WInt, WStr, WBool):
@@ -79,29 +79,23 @@ def Export(WFloat, WInt, WStr, WBool):
         WFloat(c[1])
         WFloat(c[2])
         WFloat(c[3])
-                
-    def WriteMesh(obj):
-        obj.update_from_editmode()
-        WStr(obj.name)
-        if obj.parent is None:
-            WStr('')
-        else:
-            WStr(obj.parent.name)
 
+    def WriteMesh(mesh):
+        WStr(mesh.name)
+        
         #write materials
-        mslots = obj.material_slots;
-        if len(mslots) == 0:
-            mslots = [None] #allocate minum one material
-        WInt(len(mslots))
-        for ms in mslots:
+        materials = mesh.materials;
+        if len(materials) == 0:
+            materials = [None] #allocate minum one material
+        WInt(len(materials))
+        for mat in materials:
             diffuseColor = [1,1,1,1]
             specularColor = [1,1,1,1]
             specularPower = 50
             diffuseMap = ''
             diffuseMapFactor = 0
             normalMap = ''
-            if (not ms is None) and (not ms.material is None):
-                mat = ms.material
+            if (not mat is None):
                 diffuseColor = [c*mat.diffuse_intensity for c in mat.diffuse_color]
                 diffuseColor.append(mat.alpha)
                 specularColor = [c*mat.specular_intensity for c in mat.specular_color]
@@ -127,18 +121,14 @@ def Export(WFloat, WInt, WStr, WBool):
             WFloat(specularPower)
             WStr(diffuseMap)
             WStr(normalMap)
-        
-        transform = obj.matrix_world
+
         #write vertices data
-        m = obj.data
-        WInt(len(m.vertices))
-        for v in m.vertices:
-            WriteVec(transform*v.co.to_4d())
-            WriteVec(transform.to_3x3()*v.normal)
-            def RemapG(group):
-                return GetPoseBoneIndex(obj.parent, obj.vertex_groups[group.group].name);
-            
-            gr = [(RemapG(g), g.weight) for g in v.groups if RemapG(g) >= 0]
+        WInt(len(mesh.vertices))
+        for v in mesh.vertices:
+            WriteVec(v.co.to_4d())
+            WriteVec(v.normal)
+
+            gr = [(g.group, g.weight) for g in v.groups if g.group >= 0]
             gr.sort(key=lambda w: w[1], reverse=True)
             gr = gr[0:MaxWeightsCount]
             WInt(len(gr))
@@ -161,7 +151,7 @@ def Export(WFloat, WInt, WStr, WBool):
                 #print(f[uv_tex].image.name)
                 WInt(f.material_index)
                 WBool(f.smooth)
-                WriteVec(transform.to_3x3()*f.normal)
+                WriteVec(f.normal)
                 for l, v in zip(f.loops, f.verts):
                     WInt(v.index)
                     if uv_layer is None:
@@ -171,6 +161,19 @@ def Export(WFloat, WInt, WStr, WBool):
         finally:
             bm.free()
             del bm
+
+    def WriteMeshInstance(obj):
+        obj.update_from_editmode()
+        WStr(obj.name)
+        if obj.parent is None:
+            WStr('')
+        else:
+            WStr(obj.parent.name)
+        WriteMatrix(obj.matrix_local)
+        WStr(obj.data.name)
+        WInt(len(obj.vertex_groups))
+        for vg in obj.vertex_groups:
+            WStr(vg.name)
     
     def GetPoseBoneAbsTransform(bone):
         return bone.id_data.matrix_world*bone.matrix_channel*bone.id_data.matrix_world.inverted()
@@ -247,10 +250,15 @@ def Export(WFloat, WInt, WStr, WBool):
     for a in armatures:
         WriteArmature(a)
 
-    meshes = [m for m in bpy.data.objects if (m.type=='MESH') and (len(m.users_scene)>0)];
+    meshes = bpy.data.meshes
     WInt(len(meshes))
     for m in meshes:
-        WriteMesh(m)
+        WriteMesh(m);
+        
+    inst = [m for m in bpy.data.objects if (m.type=='MESH') and (len(m.users_scene)>0)]    
+    WInt(len(inst))
+    for obj in inst:
+        WriteMeshInstance(obj)
            
     return imgToCopy
 
@@ -287,8 +295,8 @@ def ExportToFile(fname):
             os.remove(fname)
         else:
             print('Done!')
-        
-def ExportToConsole():    
+
+def ExportToConsole():
     def WFloat(value):
         print('f32: '+str(value))
     def WInt(value):
@@ -296,12 +304,12 @@ def ExportToConsole():
     def WStr(value):
         print('s  : '+value)
     def WBool(value):
-        if value:            
+        if value:
             print('b  : True')
         else:
             print('b  : False')
     print('---------')
     Export(WFloat, WInt, WStr, WBool)
             
-#ExportToFile(outfilename)
+ExportToFile(outfilename)
 #ExportToConsole()

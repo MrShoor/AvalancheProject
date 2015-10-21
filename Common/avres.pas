@@ -355,16 +355,23 @@ type
     procedure AfterConstruction; override;
   end;
 
-  TVBManagedHandle = Pointer;
+  IManagedHandle = interface (IUnknown)
+    function HandleData: Pointer;
+  end;
+
+  IVBManagedHandle = IManagedHandle;
   { TavVBManaged }
 
   TavVBManaged = class(TavVerticesBase)
   private type
-    TVBNode = class
+    TVBNode = class (TInterfacedObject, IManagedHandle)
+      Owner     : TavVBManaged;
       Range     : IMemRange;
       Vert      : IVerticesData;
       DirtyIndex: Integer;
+      function HandleData: Pointer;
       function Size: Integer; Inline;
+      destructor Destroy; override;
     end;
     TNodes = specialize TNodeManager<TVBNode>;
   private
@@ -374,24 +381,25 @@ type
   public
     function HasData: Boolean;
 
-    function Add(const AVert: IVerticesData): TVBManagedHandle;
-    procedure Del(AHandle: TVBManagedHandle);
-    procedure DelAndNil(Var AHandle: TVBManagedHandle);
+    function Add(const AVert: IVerticesData): IVBManagedHandle;
 
     procedure AfterConstruction; override;
     destructor Destroy; override;
   end;
 
-  TIBManagedHandle = type Pointer;
+  IIBManagedHandle = IManagedHandle;
   { TavIBManaged }
 
   TavIBManaged = class(TavIndicesBase)
   private type
-    TIBNode = class
+    TIBNode = class (TInterfacedObject, IManagedHandle)
+      Owner     : TavIBManaged;
       Range     : IMemRange;
       Ind       : IIndicesData;
       DirtyIndex: Integer;
+      function HandleData: Pointer;
       function Size: Integer; Inline;
+      destructor Destroy; override;
     end;
     TNodes = specialize TNodeManager<TIBNode>;
   private
@@ -400,11 +408,7 @@ type
     function DoBuild: Boolean; override;
   public
     function HasData: Boolean;
-
-    function Add(const AInd: IIndicesData): TIBManagedHandle;
-    procedure Del(AHandle: TIBManagedHandle);
-    procedure DelAndNil(var AHandle: TIBManagedHandle);
-
+    function Add(const AInd: IIndicesData): IIBManagedHandle;
     procedure AfterConstruction; override;
     destructor Destroy; override;
   end;
@@ -567,9 +571,9 @@ type
 function Create_FrameBuffer(Parent: TavObject; textures: array of TTextureFormat): TavFrameBuffer;
 
 procedure DrawManaged(const AProg: TavProgram;
-                      const Vert: TVBManagedHandle; const Ind: TIBManagedHandle; const Inst: TVBManagedHandle); overload;
+                      const Vert: IVBManagedHandle; const Ind: IIBManagedHandle; const Inst: IVBManagedHandle); overload;
 procedure DrawManaged(const AProg: TavProgram;
-                      const Vert: TVBManagedHandle; const Ind: TIBManagedHandle; const Inst: TVBManagedHandle;
+                      const Vert: IVBManagedHandle; const Ind: IIBManagedHandle; const Inst: IVBManagedHandle;
                       PrimTopology: TPrimitiveType; CullMode: TCullingMode); overload;
 
 implementation
@@ -609,29 +613,30 @@ begin
   end;
 end;
 
-procedure DrawManaged(const AProg: TavProgram; const Vert: TVBManagedHandle;
-  const Ind: TIBManagedHandle; const Inst: TVBManagedHandle);
+procedure DrawManaged(const AProg: TavProgram; const Vert: IVBManagedHandle;
+  const Ind: IIBManagedHandle; const Inst: IVBManagedHandle);
 begin
   DrawManaged(AProg, Vert, Ind, Inst, AProg.FDefaultPrimType, AProg.FDefaultCullMode);
 end;
 
-procedure DrawManaged(const AProg: TavProgram; const Vert: TVBManagedHandle;
-  const Ind: TIBManagedHandle; const Inst: TVBManagedHandle;
+procedure DrawManaged(const AProg: TavProgram; const Vert: IVBManagedHandle;
+  const Ind: IIBManagedHandle; const Inst: IVBManagedHandle;
   PrimTopology: TPrimitiveType; CullMode: TCullingMode);
 var
-    VertNode : TavVBManaged.TVBNode absolute Vert;
-    IndNode  : TavIBManaged.TIBNode absolute Ind;
-    InstNode : TavVBManaged.TVBNode absolute Inst;
+    VertNode : TavVBManaged.TVBNode;
+    IndNode  : TavIBManaged.TIBNode;
+    InstNode : TavVBManaged.TVBNode;
 
     BaseInst, InstCount: Integer;
     Start, Count, BaseVertex: Integer;
 begin
   if Vert = nil then Exit;
-  Assert((TObject(Vert) is TavVBManaged.TVBNode));
-  if Assigned(Ind)  then Assert(TObject(Ind)  is TavIBManaged.TIBNode);
-  if Assigned(Inst) then Assert(TObject(Inst) is TavVBManaged.TVBNode);
+  VertNode := TavVBManaged.TVBNode(Vert.HandleData);
+  Assert(Assigned(VertNode));
+  if Assigned(Ind)  then IndNode := TavIBManaged.TIBNode(Ind.HandleData);
+  if Assigned(Inst) then InstNode := TavVBManaged.TVBNode(Inst.HandleData);
 
-  if Assigned(Inst) then
+  if Assigned(InstNode) then
   begin
     BaseInst  := InstNode.Range.Offset;
     InstCount := InstNode.Range.Size;
@@ -642,7 +647,7 @@ begin
     InstCount := 0;
   end;
 
-  if Assigned(Ind) then
+  if Assigned(IndNode) then
   begin
     Start := IndNode.Range.Offset;
     Count := IndNode.Range.Size;
@@ -660,9 +665,20 @@ end;
 
 { TavIBManaged.TIBNode }
 
+function TavIBManaged.TIBNode.HandleData: Pointer;
+begin
+  Result := Self;
+end;
+
 function TavIBManaged.TIBNode.Size: Integer;
 begin
   Result := Ind.IndicesCount;
+end;
+
+destructor TavIBManaged.TIBNode.Destroy;
+begin
+  inherited Destroy;
+  Owner.FNodes.Del(Self);
 end;
 
 { TavIBManaged }
@@ -719,7 +735,7 @@ begin
   Result := FNodes.RangeManSize > 0;
 end;
 
-function TavIBManaged.Add(const AInd: IIndicesData): TIBManagedHandle;
+function TavIBManaged.Add(const AInd: IIndicesData): IIBManagedHandle;
 var node: TIBNode;
 begin
   Result := nil;
@@ -727,30 +743,13 @@ begin
   if AInd.IndicesCount = 0 then Exit;
 
   node := TIBNode.Create;
+  node.Owner := Self;
   node.Ind := AInd;
   FNodes.Add(node);
   if FNodes.DirtyCount > 0 then
     Invalidate;
 
-  Result := Pointer(node);
-end;
-
-procedure TavIBManaged.Del(AHandle: TIBManagedHandle);
-begin
-  DelAndNil(AHandle);
-end;
-
-procedure TavIBManaged.DelAndNil(var AHandle: TIBManagedHandle);
-var node: TIBNode absolute AHandle;
-begin
-  if AHandle = nil then Exit;
-
-  if TObject(AHandle) is TIBNode then
-    if FNodes.Del(node) then
-    begin
-      node.Free;
-      node := nil;
-    end;
+  Result := node;
 end;
 
 procedure TavIBManaged.AfterConstruction;
@@ -767,9 +766,20 @@ end;
 
 { TavVBManaged.TVBNode }
 
+function TavVBManaged.TVBNode.HandleData: Pointer;
+begin
+  Result := Self;
+end;
+
 function TavVBManaged.TVBNode.Size: Integer;
 begin
   Result := Vert.VerticesCount;
+end;
+
+destructor TavVBManaged.TVBNode.Destroy;
+begin
+  inherited Destroy;
+  Owner.FNodes.Del(Self);
 end;
 
 { TNodeManager }
@@ -948,7 +958,7 @@ begin
   Result := FNodes.RangeManSize > 0;
 end;
 
-function TavVBManaged.Add(const AVert: IVerticesData): TVBManagedHandle;
+function TavVBManaged.Add(const AVert: IVerticesData): IVBManagedHandle;
 var node: TVBNode;
 begin
   Result := nil;
@@ -957,30 +967,13 @@ begin
   if AVert.Layout = nil then Exit;
 
   node := TVBNode.Create;
+  node.Owner := Self;
   node.Vert := AVert;
   FNodes.Add(node);
   if FNodes.DirtyCount > 0 then
     Invalidate;
 
-  Result := Pointer(node);
-end;
-
-procedure TavVBManaged.Del(AHandle: TVBManagedHandle);
-begin
-  DelAndNil(AHandle);
-end;
-
-procedure TavVBManaged.DelAndNil(var AHandle: TVBManagedHandle);
-var node: TVBNode absolute AHandle;
-begin
-  if AHandle = nil then Exit;
-
-  if TObject(AHandle) is TVBNode then
-    if FNodes.Del(node) then
-    begin
-      node.Free;
-      node := nil;
-    end;
+  Result := node;
 end;
 
 procedure TavVBManaged.AfterConstruction;

@@ -119,6 +119,7 @@ begin
   end;
 
   LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\WhipperNude\WhipperNude.avm');
+//  LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\NewI\mesh.avm');
 end;
 
 procedure TfrmMain.ApplicationProperties1Idle(Sender: TObject; var Done: Boolean);
@@ -231,8 +232,7 @@ begin
 end;
 
 procedure TfrmMain.LoadModels(const AFileName: string);
-var MName: String;
-    newInst: IavModelInstance;
+var newInst: IavModelInstance;
     animations: TStringList;
     i: Integer;
 begin
@@ -247,11 +247,10 @@ begin
   try
     FModels.Reset;
 
-    while FModels.Next(MName) do
+    while FModels.NextInstance(newInst) do
     begin
-      newInst := FModels.CreateInstance( MName, IdentityMat4 );
       FInstances.Add(newInst);
-      lbNames.Items.Add(MName);
+      lbNames.Items.Add(newInst.Name);
       for i := 0 to newInst.AnimationCount - 1 do
         animations.Add(newInst.AnimationName(i));
     end;

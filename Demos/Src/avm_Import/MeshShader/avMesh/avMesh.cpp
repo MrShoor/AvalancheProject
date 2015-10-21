@@ -74,7 +74,6 @@ VS_Output VS(VS_Input In) {
     float4x4 mBone = GetBoneTransform(In.vsWIndex+In.aiBoneMatDifNormOffset.x, In.vsWeight);
     float3 crd = mul(float4(In.vsCoord, 1.0), mBone).xyz;
     float3 norm = mul( In.vsNormal, (float3x3) mBone );
-    //float3 crd = In.vsCoord;
     Out.vCoord = mul(float4(crd, 1.0), V_Matrix).xyz;
     Out.vNorm = mul(normalize(norm), (float3x3)V_Matrix);
     Out.vTex = In.vsTex;
@@ -98,7 +97,6 @@ struct PS_Output {
 PS_Output PS(VS_Output In) {
     PS_Output Out;
     float4 diff = lerp(In.Diffuse, Maps.Sample(MapsSampler, float3(In.vTex, In.DiffK_SpecPow_MapInd.z)), In.DiffK_SpecPow_MapInd.x);
-    //float4 diff = In.Diffuse;
     float4 spec = {0,0,0,0};
     float4 amb = 0.3;
     float3 lightColor = {1,1,1};

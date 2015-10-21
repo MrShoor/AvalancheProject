@@ -107,6 +107,8 @@ type
 
     procedure Reset;
     function Next(out AKey: TKey; out AValue: TValue): Boolean;
+    function NextKey(out AKey: TKey): Boolean;
+    function NextValue(out AValue: TValue): Boolean;
 
     property Capacity: Integer read GetCapacity write SetCapacity;
     property Item[AKey: TKey]: TValue read GetItem write SetItem;
@@ -170,6 +172,8 @@ type
 
     procedure Reset;
     function Next(out AKey: TKey; out AValue: TValue): Boolean;
+    function NextKey(out AKey: TKey): Boolean;
+    function NextValue(out AValue: TValue): Boolean;
 
     property Capacity: Integer read GetCapacity write SetCapacity;
   public
@@ -558,6 +562,36 @@ begin
     Inc(FEnumIndex);
   end;
   Result := False;
+end;
+
+function THashMap.NextKey(out AKey: TKey): Boolean;
+begin
+ Inc(FEnumIndex);
+ while FEnumIndex < Length(FData) do
+ begin
+   if FData[FEnumIndex].Hash <> 0 then
+   begin
+     AKey   := FData[FEnumIndex].Key;
+     Exit(True);
+   end;
+   Inc(FEnumIndex);
+ end;
+ Result := False;
+end;
+
+function THashMap.NextValue(out AValue: TValue): Boolean;
+begin
+ Inc(FEnumIndex);
+ while FEnumIndex < Length(FData) do
+ begin
+   if FData[FEnumIndex].Hash <> 0 then
+   begin
+     AValue := FData[FEnumIndex].Value;
+     Exit(True);
+   end;
+   Inc(FEnumIndex);
+ end;
+ Result := False;
 end;
 
 constructor THashMap.Create;

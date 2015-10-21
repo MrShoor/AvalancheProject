@@ -181,9 +181,9 @@ begin
     if not CanRegister(Value) then
     begin
       {$ifdef AssertOnRegFailed}
-      Assert(False, 'error('+FName+'): can''t register at this parent');
+      Assert(False, 'error('+FName+'): can''t register at this parent('+Value.Name+')');
       {$endif}
-      LogLn('error('+FName+'): can''t register at this parent');
+      LogLn('error('+FName+'): can''t register at this parent('+Value.Name+')');
       exit;
     end;
     if assigned(Value) then
