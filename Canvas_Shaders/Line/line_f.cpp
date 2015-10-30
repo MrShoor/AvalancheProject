@@ -12,7 +12,7 @@ struct PS_Output {
 
 PS_Output PS(PS_Input In) {
     PS_Output Out;
-    Out.Color = In.Color1;    
+    Out.Color = 1.0;//In.Color1;
     //float l = clamp(abs(length(In.quadCoord) - 0.6), 0.0, 1.0);
     //Out.Color.a = pow(abs(1.1-l), 10.0);
     return Out;

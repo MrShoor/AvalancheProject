@@ -99,8 +99,8 @@ type
   { TLinePointVertex }
 
   TLinePointVertex = packed record
-    Coords      : TVec4;
-    Normals     : TVec4;
+    Coords      : TVec4; //xy - start point, zw - end point
+    Normals     : TVec4; //xy - normal at start point, zw - normal at end point
     Width       : TVec2; //x - real width, y - minimal width in pixels
     HintingAlign: TVec3;
     class function Layout: IDataLayout; static;
@@ -159,13 +159,11 @@ type
 
   { TavCanvas }
 
-  TavCanvas = class(TavObject)
+  TavCanvas = class(TavMainRenderChild)
   private
     FCommonData: IWeakRef;
-    FMain: TavMainRender;
     function GetCommonData: TavCanvasCommonData;
     property CommonData: TavCanvasCommonData read GetCommonData;
-    property Main: TavMainRender read FMain;
   private
     FPen: TPenStyle;
 
@@ -178,8 +176,6 @@ type
     procedure FillSegmentByPen(var Seg: TLinePointVertex);
 
     procedure SetValid(AValue: Boolean);
-  protected
-    function CanRegister(target: TavObject): boolean; override;
   public
     property Pen: TPenStyle read FPen write SetPen;
     property Valid: Boolean read FValid write SetValid;
@@ -187,7 +183,7 @@ type
     procedure Clear;
     procedure Rectangle(Left, Top, Right, Bottom: Single); overload;
     procedure Rectangle(LeftTop, RightBottom: TVec2); overload;
-    procedure Draw;
+    procedure Draw(const ATransform: TMat4; const APixelToUnit: Single);
 
     constructor Create(AParent: TavObject); overload; override;
     destructor Destroy; override;
@@ -263,24 +259,9 @@ end;
 
 procedure TavCanvasCommonData.ReloadShaders;
 const LOADFROMRES = False;
-      DIR = 'C:\MyProj\DKontrol\code\Canvas_Shaders\!Out\';
-  procedure LoadProgram(prog: TavProgram; name: string);
-  begin
-    if LOADFROMRES then
-    begin
-      case Main.ActiveApi of
-        apiOGL: prog.LoadFromJSON('OGL_'+name, LOADFROMRES);
-      end;
-    end
-    else
-    begin
-      case Main.ActiveApi of
-        apiOGL: prog.LoadFromJSON(DIR+'OGL_'+name+'.glsl', LOADFROMRES);
-      end;
-    end;
-  end;
+      DIR = 'C:\MyProj\AvalancheProject\Canvas_Shaders\!Out\';
 begin
-  LoadProgram(FLineProg, 'CanvasLine');
+  FLineProg.LoadFromJSON('CanvasLine', LOADFROMRES, DIR);
 end;
 
 constructor TavCanvasCommonData.Create(AParent: TavObject);
@@ -351,17 +332,6 @@ begin
   FValid := AValue;
 end;
 
-function TavCanvas.CanRegister(target: TavObject): boolean;
-begin
-  Result := inherited CanRegister(target);
-  if target.Parent <> nil then target := target.RootObject;
-  Result := target is TavMainRender;
-  if Result then
-    FMain := TavMainRender(target)
-  else
-    FMain := nil;
-end;
-
 procedure TavCanvas.Clear;
 begin
   FLineData.Clear();
@@ -375,26 +345,26 @@ begin
 
   Seg.Coords.xy := Vec(Left, Top);
   Seg.Coords.zw := Vec(Right, Top);
-  Seg.Normals.xy := Normalize(Vec(1.0, 1.0));
-  Seg.Normals.zw := Normalize(Vec(-1.0, 1.0));
+  Seg.Normals.xy := (Vec(1.0, 1.0));
+  Seg.Normals.zw := (Vec(-1.0, 1.0));
   FLineData.Add(Seg);
 
   Seg.Coords.xy := Seg.Coords.zw;
   Seg.Normals.xy := Seg.Normals.zw;
   Seg.Coords.zw := Vec(Right, Bottom);
-  Seg.Normals.zw := Normalize(Vec(-1.0, -1.0));
+  Seg.Normals.zw := (Vec(-1.0, -1.0));
   FLineData.Add(Seg);
 
   Seg.Coords.xy := Seg.Coords.zw;
   Seg.Normals.xy := Seg.Normals.zw;
   Seg.Coords.zw := Vec(Left, Bottom);
-  Seg.Normals.zw := Normalize(Vec(1.0, -1.0));
+  Seg.Normals.zw := (Vec(1.0, -1.0));
   FLineData.Add(Seg);
 
   Seg.Coords.xy := Seg.Coords.zw;
   Seg.Normals.xy := Seg.Normals.zw;
   Seg.Coords.zw := Vec(Left, Top);
-  Seg.Normals.zw := Normalize(Vec(1.0, 1.0));
+  Seg.Normals.zw := (Vec(1.0, 1.0));
   FLineData.Add(Seg);
 
   FVBLines.Invalidate;
@@ -405,13 +375,14 @@ begin
   Rectangle(LeftTop.x, LeftTop.y, RightBottom.x, RightBottom.y);
 end;
 
-procedure TavCanvas.Draw;
+procedure TavCanvas.Draw(const ATransform: TMat4; const APixelToUnit: Single);
 var prog: TavProgram;
 begin
   prog := CommonData.LineProg;
   prog.Select;
   prog.SetAttributes(CommonData.LineQuad, nil, FVBLines);
-  prog.SetUniform('WndMatrix', CommonData.WndMatrix);
+  prog.SetUniform('UIMatrix', ATransform);
+  prog.SetUniform('PixelToUnit', APixelToUnit);
   prog.Draw(FVBLines.Vertices.VerticesCount);
 end;
 

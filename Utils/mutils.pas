@@ -289,6 +289,7 @@ function GetMipsCount(Width, Height: Integer): Integer;
 function Bezier3(const pt1, pt2, pt3, pt4: TVec2; t: single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
 function SetViewMatrix(var MatrixView: TMat4; const From, At, Worldup: TVec3; leftHanded: boolean = true): HResult;
+function GetUIMatrix(const AWidth, AHeight: Single; const ADepth: Single = 10000): TMat4;
 
 operator = (const v1, v2: TRectF): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 operator = (const v1, v2: TRectI): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -949,6 +950,15 @@ begin
 
   MatrixView := MatrixView;
   Result := S_OK;
+end;
+
+function GetUIMatrix(const AWidth, AHeight: Single; const ADepth: Single): TMat4;
+begin
+  Result := IdentityMat4;
+  Result.OX := Vec(2/AWidth, 0, 0);
+  Result.OY := Vec(0, -2/AHeight, 0);
+  Result.OZ := Vec(0, 0, 1/ADepth);
+  Result.Pos := Vec(-1.0, 1.0, 0);
 end;
 
 operator = (const v1, v2: TRectF): Boolean;

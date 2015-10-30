@@ -208,7 +208,7 @@ begin
   if assigned(FCanvas) then
   begin
     ValidateCanvas;
-    FCanvas.Draw;
+    //FCanvas.Draw(); todo
   end;
   for i := 0 to ChildCount - 1 do
     if Child[i] is TavControl then

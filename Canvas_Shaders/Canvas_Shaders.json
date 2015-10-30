@@ -1,21 +1,20 @@
 {
-    "fxc_params"  : "/nologo /O3 /Zi /Gec",
     "HLSLcc_lang" : 330,
     "HLSLcc_flags": ["HLSLCC_FLAG_DISABLE_GLOBALS_STRUCT",
                      "HLSLCC_FLAG_INOUT_SEMANTIC_NAMES",
                      "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],    
     "OGLTranslate" : true,
-    "outdir" : "!Out",
-    "DXPrefix" : "DX_",
-    "OGLPrefix" : "OGL_",
-    "vertexEntry" : "VS",
-    "fragmentEntry" : "PS",
-    "programs":[
+    "OutDir" : "!Out",
+    "VertexTarget" : "vs_4_0",
+    "FragmentTarget" : "ps_4_0",
+    "VertexEntry" : "VS",
+    "FragmentEntry" : "PS",
+    "Programs":[
         {
-        "name"     : "CanvasLine",
-	"vertex"   : "line_v.cpp",
-	"fragment" : "line_f.cpp",
-	"path"     :["Line"]
+        "Name"     : "CanvasLine",
+	"Vertex"   : "line_v.cpp",
+	"Fragment" : "line_f.cpp",
+	"Path"     :["Line"]
         }
     ]
 }

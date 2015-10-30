@@ -69,8 +69,11 @@ type
     function Height: Integer;
     function Deep  : Integer;
     function MipsCount: Integer;
+    function SampleCount: Integer;
 
     function Format: TTextureFormat;
+
+    procedure AllocMultiSampled(AWidth, AHeight, ASampleCount: Integer); overload;
 
     procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; ForcedArray: Boolean = False); overload;
     procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte; ForcedArray: Boolean = False); overload;

@@ -413,39 +413,61 @@ type
     destructor Destroy; override;
   end;
 
+  { TavTextureBase }
+
+  TavTextureBase = class(TavRes)
+  protected
+    FTexH: IctxTexture;
+    FTargetFormat: TTextureFormat;
+    procedure BeforeFree3D; override;
+  public
+    function Width: Integer;
+    function Height: Integer;
+    function Size: TVec2;
+
+    property TargetFormat: TTextureFormat read FTargetFormat write FTargetFormat;
+  end;
+
   { TavTexture }
 
-  TavTexture = class(TavRes)
+  TavTexture = class(TavTextureBase)
   private
     FForcedArray: Boolean;
     FForcedPOT: Boolean;
     FAutoGenerateMips: Boolean;
     FDropLocalAfterBuild: Boolean;
-    FTargetFormat: TTextureFormat;
     FTexData: ITextureData;
     FImageSize: TVec2;
     procedure SetAutoGenerateMips(AValue: Boolean);
     procedure SetForcedArray(AValue: Boolean);
     procedure SetTexData(AValue: ITextureData);
   protected
-    FTexH: IctxTexture;
-    procedure BeforeFree3D; override;
     function DoBuild: Boolean; override;
   public
     property ForcedArray: Boolean read FForcedArray write SetForcedArray;
     property DropLocalAfterBuild: Boolean read FDropLocalAfterBuild write FDropLocalAfterBuild;
     property TexData: ITextureData read FTexData write SetTexData;
 
-    function Width: Integer;
-    function Height: Integer;
-    function Size: TVec2;
     function ImageSize: TVec2;
 
-    property TargetFormat: TTextureFormat read FTargetFormat write FTargetFormat;
     property AutoGenerateMips: Boolean read FAutoGenerateMips write SetAutoGenerateMips;
     property ForcedPOT: Boolean read FForcedPOT write FForcedPOT;
 
     procedure AfterConstruction; override;
+  end;
+
+  { TavMultiSampleTexture }
+
+  TavMultiSampleTexture = class(TavTextureBase)
+  private
+    FTargetWidth      : Integer;
+    FTargetHeight     : Integer;
+    FTargetSampleCount: Integer;
+  protected
+    function DoBuild: Boolean; override;
+  public
+    procedure SetSize(const AWidth, AHeight: Integer);
+    property TargetSampleCount: Integer read FTargetSampleCount write FTargetSampleCount;
   end;
 
   { TavProgram }
@@ -553,12 +575,12 @@ type
 
     procedure ClearColorList;
 
-    function GetColor(Index: Integer): TavTexture;
+    function GetColor(Index: Integer): TavTextureBase;
     function GetColorMipLevel(Index: Integer): Integer;
-    procedure SetColor(Index: Integer; AValue: TavTexture; mipLevel: Integer = 0);
+    procedure SetColor(Index: Integer; AValue: TavTextureBase; mipLevel: Integer = 0);
 
-    function GetDepth: TavTexture;
-    procedure SetDepth(AValue: TavTexture; mipLevel: Integer);
+    function GetDepth: TavTextureBase;
+    procedure SetDepth(AValue: TavTextureBase; mipLevel: Integer);
 
     procedure Clear(index: Integer; color: TVec4);
     procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
@@ -569,6 +591,7 @@ type
   end;
 
 function Create_FrameBuffer(Parent: TavObject; textures: array of TTextureFormat): TavFrameBuffer;
+function Create_FrameBufferMultiSampled(Parent: TavObject; textures: array of TTextureFormat; const ASampleCount: Integer): TavFrameBuffer;
 
 procedure DrawManaged(const AProg: TavProgram;
                       const Vert: IVBManagedHandle; const Ind: IIBManagedHandle; const Inst: IVBManagedHandle); overload;
@@ -600,6 +623,33 @@ begin
     tex := TavTexture.Create(Result);
     tex.TargetFormat := textures[i];
     tex.AutoGenerateMips := False;
+    if IsDepthTexture[textures[i]] then
+    begin
+        Result.SetDepth(tex, 0);
+        hasDepth := True;
+    end
+    else
+    begin
+        Result.SetColor(colorIndex, tex, 0);
+        Inc(colorIndex);
+    end;
+  end;
+end;
+
+function Create_FrameBufferMultiSampled(Parent: TavObject; textures: array of TTextureFormat; const ASampleCount: Integer): TavFrameBuffer;
+var i, colorIndex: Integer;
+    tex: TavMultiSampleTexture;
+    hasDepth: Boolean;
+begin
+  Result := TavFrameBuffer.Create(Parent);
+  colorIndex := 0;
+  hasDepth := False;
+  for i := Low(textures) to High(textures) do
+  begin
+    if IsDepthTexture[textures[i]] and hasDepth then Continue;
+    tex := TavMultiSampleTexture.Create(Result);
+    tex.TargetFormat := textures[i];
+    tex.TargetSampleCount := ASampleCount;
     if IsDepthTexture[textures[i]] then
     begin
         Result.SetDepth(tex, 0);
@@ -662,6 +712,68 @@ begin
 
   AProg.Draw(PrimTopology, CullMode, Assigned(IndNode), InstCount, Start, Count, BaseVertex, BaseInst);
 end;
+
+{ TavMultiSampleTexture }
+
+function TavMultiSampleTexture.DoBuild: Boolean;
+begin
+  inherited DoBuild;
+  if FTexH = nil then FTexH := Main.Context.CreateTexture;
+  FTexH.TargetFormat := FTargetFormat;
+  FTexH.AllocMultiSampled(FTargetWidth, FTargetHeight, FTargetSampleCount);
+  Result := True;
+end;
+
+procedure TavMultiSampleTexture.SetSize(const AWidth, AHeight: Integer);
+begin
+  if (FTargetHeight <> AHeight) or
+     (FTargetWidth <> AWidth) then
+  begin
+    FTargetWidth := AWidth;
+    FTargetHeight := AHeight;
+    Invalidate;
+  end;
+end;
+
+{ TavTextureBase }
+
+procedure TavTextureBase.BeforeFree3D;
+begin
+  inherited BeforeFree3D;
+  if Assigned(FTexH) then Invalidate;
+  FTexH := nil;
+end;
+
+function TavTextureBase.Width: Integer;
+begin
+  if Assigned(FTexH) then
+    Result := FTexH.Width
+  else
+    Result := 0;
+end;
+
+function TavTextureBase.Height: Integer;
+begin
+  if Assigned(FTexH) then
+    Result := FTexH.Height
+  else
+    Result := 0;
+end;
+
+function TavTextureBase.Size: TVec2;
+begin
+  if Assigned(FTexH) then
+  begin
+    Result.x := FTexH.Width;
+    Result.y := FTexH.Height;
+  end
+  else
+  begin
+    Result.x := 0;
+    Result.y := 0;
+  end;
+end;
+
 
 { TavIBManaged.TIBNode }
 
@@ -1005,7 +1117,7 @@ end;
 
 { TavFrameBuffer }
 
-function TavFrameBuffer.GetColor(Index: Integer): TavTexture;
+function TavFrameBuffer.GetColor(Index: Integer): TavTextureBase;
 var ref: IWeakRef;
 begin
   if (Index >= 0) and (Index < FColors.Count) then
@@ -1013,7 +1125,7 @@ begin
   else
     ref := nil;
   if Assigned(ref) then
-      Result := TavTexture(ref.Obj);
+      Result := TavTextureBase(ref.Obj);
 end;
 
 function TavFrameBuffer.GetColorMipLevel(Index: Integer): Integer;
@@ -1024,14 +1136,14 @@ begin
     Result := 0;
 end;
 
-function TavFrameBuffer.GetDepth: TavTexture;
+function TavFrameBuffer.GetDepth: TavTextureBase;
 begin
   Result := nil;
   if Assigned(FDepth.tex) then
-    Result := TavTexture(FDepth.tex.Obj);
+    Result := TavTextureBase(FDepth.tex.Obj);
 end;
 
-procedure TavFrameBuffer.SetColor(Index: Integer; AValue: TavTexture; mipLevel: Integer = 0);
+procedure TavFrameBuffer.SetColor(Index: Integer; AValue: TavTextureBase; mipLevel: Integer = 0);
 var oldCount: Integer;
     ainfo: TAttachInfo;
     i: Integer;
@@ -1048,7 +1160,7 @@ begin
   Invalidate;
 end;
 
-procedure TavFrameBuffer.SetDepth(AValue: TavTexture; mipLevel: Integer);
+procedure TavFrameBuffer.SetDepth(AValue: TavTextureBase; mipLevel: Integer);
 begin
   if Assigned(AValue) then
     FDepth.tex := AValue.WeakRef
@@ -1089,7 +1201,7 @@ begin
 end;
 
 function TavFrameBuffer.DoBuild: Boolean;
-  function GetTex(const ainfo: TAttachInfo): TavTexture; inline;
+  function GetTex(const ainfo: TAttachInfo): TavTextureBase; inline;
   begin
     if Assigned(ainfo.tex) then
       Result := TavTexture(ainfo.tex.Obj)
@@ -1097,21 +1209,36 @@ function TavFrameBuffer.DoBuild: Boolean;
       Result := nil;
   end;
 
-  procedure ResizeTex(tex: TavTexture; FrameSize: TVec2i; mipLevel: Integer); //inline;
+  procedure ResizeTex(tex: TavTextureBase; FrameSize: TVec2i; mipLevel: Integer); //inline;
   var NewTexSize: TVec2i;
+      SimpleTex: TavTexture absolute tex;
+      MultiTex : TavMultiSampleTexture absolute tex;
   begin
-    if ForcedPOT then
-      NewTexSize := NextPow2(FrameSize) * (1 shl mipLevel)
-    else
-      NewTexSize := FrameSize * (1 shl mipLevel);
+    if tex is TavTexture then
+    begin
+      if ForcedPOT then
+        NewTexSize := NextPow2(FrameSize) * (1 shl mipLevel)
+      else
+        NewTexSize := FrameSize * (1 shl mipLevel);
 
-    if (tex.Size.x <> NewTexSize.x) or (tex.Size.y <> NewTexSize.y) then
-      tex.TexData := EmptyTexData(NewTexSize.x, NewTexSize.y, tex.TargetFormat, mipLevel > 0);
-    tex.Build;
+      if (SimpleTex.Size.x <> NewTexSize.x) or (SimpleTex.Size.y <> NewTexSize.y) then
+        SimpleTex.TexData := EmptyTexData(NewTexSize.x, NewTexSize.y, SimpleTex.TargetFormat, mipLevel > 0);
+      SimpleTex.Build;
+      Exit;
+    end;
+
+    if tex is TavMultiSampleTexture then
+    begin
+      MultiTex.SetSize(FrameSize.x, FrameSize.y);
+      MultiTex.Build;
+      Exit;
+    end;
+
+    Assert(False, 'Unknown type of texture: '+tex.ClassName);
   end;
 
 var ainfo: TAttachInfo;
-    tex: TavTexture;
+    tex: TavTextureBase;
     i: Integer;
     FrameSize: TVec2i;
 begin
@@ -1190,13 +1317,6 @@ begin
   FForcedArray := AValue;
 end;
 
-procedure TavTexture.BeforeFree3D;
-begin
-  inherited BeforeFree3D;
-  if Assigned(FTexH) then Invalidate;
-  FTexH := nil;
-end;
-
 function TavTexture.DoBuild: Boolean;
 var MipInfo : ITextureMip;
     i, j, n: Integer;
@@ -1229,36 +1349,6 @@ begin
   end;
   if FDropLocalAfterBuild then FTexData := nil;
   Result := True;
-end;
-
-function TavTexture.Width: Integer;
-begin
-  if Assigned(FTexH) then
-    Result := FTexH.Width
-  else
-    Result := 0;
-end;
-
-function TavTexture.Height: Integer;
-begin
-  if Assigned(FTexH) then
-    Result := FTexH.Height
-  else
-    Result := 0;
-end;
-
-function TavTexture.Size: TVec2;
-begin
-  if Assigned(FTexH) then
-  begin
-    Result.x := FTexH.Width;
-    Result.y := FTexH.Height;
-  end
-  else
-  begin
-    Result.x := 0;
-    Result.y := 0;
-  end;
 end;
 
 function TavTexture.ImageSize: TVec2;

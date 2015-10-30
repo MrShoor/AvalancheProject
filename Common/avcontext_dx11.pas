@@ -457,6 +457,7 @@ type
     FForcedArray: Boolean;
     FFormat: TTextureFormat;
     FMipsCount: Integer;
+    FSampleCount: Integer;
 
     FTexture: ID3D11Texture2D;
     FResView: ID3D11ShaderResourceView;
@@ -476,7 +477,10 @@ type
     function Height: Integer;
     function Deep  : Integer;
     function MipsCount: Integer;
+    function SampleCount: Integer;
     function Format: TTextureFormat;
+
+    procedure AllocMultiSampled(AWidth, AHeight, ASampleCount: Integer); overload;
 
     procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; ForcedArray: Boolean); overload;
     procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte; ForcedArray: Boolean); overload;
@@ -2220,9 +2224,55 @@ begin
   Result := FMipsCount;
 end;
 
+function TTexture.SampleCount: Integer;
+begin
+  Result := FSampleCount;
+end;
+
 function TTexture.Format: TTextureFormat;
 begin
   Result := FFormat;
+end;
+
+procedure TTexture.AllocMultiSampled(AWidth, AHeight, ASampleCount: Integer);
+var desc: TD3D11_Texture2DDesc;
+    Quality: LongWord;
+begin
+  desc.Width  := AWidth;
+  desc.Height := AHeight;
+  desc.MipLevels := 1;
+
+  case FTargetFormat of
+    TTextureFormat.D24_S8,
+    TTextureFormat.D32f_S8,
+    TTextureFormat.D16,
+    TTextureFormat.D24,
+    TTextureFormat.D32,
+    TTextureFormat.D32f:
+      desc.BindFlags := DWord(D3D11_BIND_DEPTH_STENCIL);
+  else
+    desc.BindFlags := DWord(D3D11_BIND_RENDER_TARGET);
+  end;
+
+  Check3DError(FContext.FDevice.CheckMultisampleQualityLevels(D3D11TextureFormat[FTargetFormat], ASampleCount, Quality));
+  Dec(Quality);
+
+  desc.ArraySize := 1;
+  desc.Format := D3D11TextureFormat[FTargetFormat];
+  desc.SampleDesc.Count := ASampleCount;
+  desc.SampleDesc.Quality := Quality;
+  desc.Usage := D3D11_USAGE_DEFAULT;
+  desc.CPUAccessFlags := 0;
+  desc.MiscFlags := 0;
+
+  FResView := nil;
+  Check3DError(FContext.FDevice.CreateTexture2D(desc, nil, FTexture));
+  FSampleCount := ASampleCount;
+  FWidth := AWidth;
+  FHeight := AHeight;
+  FDeep := 1;
+  FForcedArray := False;
+  FFormat := FTargetFormat;
 end;
 
 procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; ForcedArray: Boolean);
@@ -2231,6 +2281,7 @@ begin
   FResView := nil;
   desc := BuildDesc(AWidth, AHeight, ADeep, WithMips);
   Check3DError(FContext.FDevice.CreateTexture2D(desc, nil, FTexture));
+  FSampleCount := 1;
   FWidth := desc.Width;
   FHeight := desc.Height;
   FDeep := ADeep;
@@ -2245,6 +2296,7 @@ begin
   desc := BuildDesc(AWidth, AHeight, ADeep, WithMips);
   //todo: initialization with data
   Check3DError(FContext.FDevice.CreateTexture2D(desc, nil, FTexture));
+  FSampleCount := 1;
   FWidth := desc.Width;
   FHeight := desc.Height;
   FDeep := ADeep;
@@ -2315,8 +2367,15 @@ begin
       end;
       FillChar(RTDesc, SizeOf(RTDesc), 0);
       RTDesc.Format := D3D11ViewFormat[FTex[i].Tex.Format];
-      RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2D;
-      RTDesc.Texture2D.MipSlice := FTex[i].Mip;
+      if FTex[i].Tex.SampleCount > 1 then
+      begin
+        RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2DMS;
+      end
+      else
+      begin
+        RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2D;
+        RTDesc.Texture2D.MipSlice := FTex[i].Mip;
+      end;
 
       Check3DError(FContext.FDevice.CreateRenderTargetView((FTex[i].Tex as IctxTexture_DX11).GetHandle, @RTDesc, FViews[i]));
     end;
@@ -2325,8 +2384,15 @@ begin
     begin
       FillChar(DSDesc, SizeOf(DSDesc), 0);
       DSDesc.Format := D3D11ViewFormat[FDepthTex.Format];
-      DSDesc.ViewDimension := D3D11_DSV_DIMENSION_TEXTURE2D;
-      DSDesc.Texture2D.MipSlice := FDepthMip;
+      if FDepthTex.SampleCount > 1 then
+      begin
+        DSDesc.ViewDimension := D3D11_DSV_DIMENSION_TEXTURE2DMS;
+      end
+      else
+      begin
+        DSDesc.ViewDimension := D3D11_DSV_DIMENSION_TEXTURE2D;
+        DSDesc.Texture2D.MipSlice := FDepthMip;
+      end;
 
       Check3DError(FContext.FDevice.CreateDepthStencilView((FDepthTex as IctxTexture_DX11).GetHandle, @DSDesc, FDepthView));
     end
@@ -2402,6 +2468,7 @@ end;
 procedure TFrameBuffer.BlitToWindow(index: Integer; const srcRect,
   dstRect: TRectI; const Filter: TTextureFilter);
 var SrcBox: TD3D11_Box;
+    desc: TD3D11_Texture2DDesc;
 begin
   //todo blitting with stretch
   if FTex[index].Tex = nil then Exit;
@@ -2411,8 +2478,16 @@ begin
   SrcBox.bottom := srcRect.Bottom;
   SrcBox.front := 0;
   SrcBox.back := 1;
-  FContext.FDeviceContext.CopySubresourceRegion(FContext.FBackBuffer, 0, dstRect.Left, dstRect.Top, 0,
-                                                (FTex[index].Tex as IctxTexture_DX11).GetHandle, FTex[index].Mip, @SrcBox);
+  if FTex[index].Tex.SampleCount > 1 then
+  begin
+    FContext.FBackBuffer.GetDesc(desc);
+    FContext.FDeviceContext.ResolveSubresource(FContext.FBackBuffer, 0, (FTex[index].Tex as IctxTexture_DX11).GetHandle, 0, desc.Format);
+  end
+  else
+  begin
+    FContext.FDeviceContext.CopySubresourceRegion(FContext.FBackBuffer, 0, dstRect.Left, dstRect.Top, 0,
+                                                  (FTex[index].Tex as IctxTexture_DX11).GetHandle, FTex[index].Mip, @SrcBox);
+  end;
 end;
 
 { THandleObject }

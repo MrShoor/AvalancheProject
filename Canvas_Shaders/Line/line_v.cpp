@@ -1,12 +1,11 @@
 #include "hlsl.h"
-#include "matrices.h"
+#pragma pack_matrix( row_major )
 
-float2 PixelSize;
+//float Rad;
+//float2 FiModifier;
 
-float Rad;
-float2 FiModifier;
-
-float4x4 WndMatrix;
+float4x4 UIMatrix;
+float PixelToUnit;
 
 struct VS_Input {
     float2 quadCoord : quadCoord;
@@ -25,10 +24,12 @@ VS_Output VS(VS_Input In) {
     VS_Output Out;
     float2 Crd = lerp(In.Coords.xy, In.Coords.zw, In.quadCoord.x);
     float2 Norm = lerp(In.Normals.xy, In.Normals.zw, In.quadCoord.x);
-    Crd += Norm*In.quadCoord.y*In.Width.x;
+    float w = max(In.Width.x, In.Width.y*PixelToUnit)*0.5;
+    Crd += Norm*w*(In.quadCoord.y+In.HintingAlign.z);
     
-    Norm = normalize(mul(WndMatrix, float4(Norm, 0.0, 0.0)).xy);
-    Out.Pos = mul(WndMatrix, float4(Crd, 0.0, 1.0));
+    Norm = normalize(mul(float4(Norm, 0.0, 0.0), UIMatrix).xy);
+    Out.Pos = mul(float4(Crd, 0.0, 1.0), UIMatrix);
+    Out.Pos.z = 0.5;
     
     //Out.Pos.xy /= Out.Pos.w;
     //float2 offset = Norm*In.quadCoord.y*In.Width.x;
