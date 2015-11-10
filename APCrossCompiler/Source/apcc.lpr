@@ -6,7 +6,7 @@ uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
   {$ENDIF}{$ENDIF}
-  Classes, SysUtils, CustApp, CompileTask, avContnrs, apccUtils, avTypes,
+  Classes, SysUtils, CustApp, CompileTask, apccUtils, avTypes,
   untMain, HLSLCompiler, GLSLCompiler;
 
 

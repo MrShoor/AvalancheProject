@@ -1,5 +1,7 @@
 unit HLSLCompiler;
 
+{$Include Options.inc}
+
 {$IfDef fpc}
   {$mode objfpc}{$H+}
   {$modeswitch advancedrecords}
@@ -150,47 +152,65 @@ begin
 end;
 
 function ReparseOutput(const str: ID3DBlob; const incl: TIncludeAdapter): string;
+  function ReparseLine(const ALine: string; const incl: TIncludeAdapter): string;
+  var addrS: string;
+      addrPos: Integer;
+      addr: Pointer;
+      fname: string;
+      rowInd, charInd: Integer;
+      OffsetIndex: Integer;
+      n1, n2: Integer;
+  begin
+    addrPos := Pos('@0x', ALine);
+    Result := string(ALine);
+    if addrPos > 0 then
+    begin
+      //copy addr str for 32 bit application only
+      addrS := '$' + Copy(ALine, addrPos + 3, 8);
+      if not TryStrToInt(addrS, Integer(addr)) then Exit;
+      OffsetIndex := addrPos + 3 + 8;
+
+      fname := incl.FileNameByPointer(addr);
+      if fname = '' then Exit;
+
+      //extract row index
+      n1 := PosEx('(', ALine, OffsetIndex);
+      if n1 <= 0 then Exit;
+      Inc(OffsetIndex);
+      n2 := PosEx(',', ALine, OffsetIndex);
+      if n2 <= 0 then Exit;
+      OffsetIndex := n2 + 1;
+      if not TryStrToInt(Copy(ALine, n1+1, n2-n1-1), rowInd) then Exit;
+
+      //extract char index
+      n1 := n2;
+      n2 := PosEx(')', ALine, OffsetIndex);
+      if n2 <= 0 then Exit;
+      OffsetIndex := n2 + 1;
+      if not TryStrToInt(Copy(ALine, n1+1, n2-n1-1), charInd) then Exit;
+
+      Inc(OffsetIndex);
+      Result := fname + ':' + IntToStr(rowInd) + ':' + IntToStr(charInd) + ':' + Copy(ALine, OffsetIndex, Length(ALine) - OffsetIndex + 1);
+    end;
+  end;
+
 var src: AnsiString;
-    addrS: string;
-    addrPos: Integer;
-    addr: Pointer;
-    fname: string;
-    rowInd, charInd: Integer;
-    OffsetIndex: Integer;
-    n1, n2: Integer;
+    strPos, newStrPos: Integer;
+    ResultLine: string;
 begin
+  Result := '';
   SetLength(src, str.GetBufferSize);
   Move(str.GetBufferPointer^, src[1], str.GetBufferSize);
-  addrPos := Pos('@0x', src);
-  Result := string(src);
-  if addrPos > 0 then
+  strPos := 1;
+  while strPos > 0 do
   begin
-    //copy addr str for 32 bit application only
-    addrS := '$' + Copy(Result, addrPos + 3, 8);
-    if not TryStrToInt(addrS, Integer(addr)) then Exit;
-    OffsetIndex := addrPos + 3 + 8;
-
-    fname := incl.FileNameByPointer(addr);
-    if fname = '' then Exit;
-
-    //extract row index
-    n1 := PosEx('(', src, OffsetIndex);
-    if n1 <= 0 then Exit;
-    Inc(OffsetIndex);
-    n2 := PosEx(',', src, OffsetIndex);
-    if n2 <= 0 then Exit;
-    OffsetIndex := n2 + 1;
-    if not TryStrToInt(Copy(src, n1+1, n2-n1-1), rowInd) then Exit;
-
-    //extract char index
-    n1 := n2;
-    n2 := PosEx(')', src, OffsetIndex);
-    if n2 <= 0 then Exit;
-    OffsetIndex := n2 + 1;
-    if not TryStrToInt(Copy(src, n1+1, n2-n1-1), charInd) then Exit;
-
-    Inc(OffsetIndex);
-    Result := fname + ':' + IntToStr(rowInd) + ':' + IntToStr(charInd) + ':' + Copy(src, OffsetIndex, Length(src) - OffsetIndex - 1);
+    newStrPos := PosEx(#10, src, strPos+1);
+    if newStrPos <= 0 then
+      ResultLine := Copy(src, strPos, Length(src) - strPos + 1)
+    else
+      ResultLine := Copy(src, strPos, newStrPos - strPos + 1);
+    Result := Result + ReparseLine(ResultLine, incl);
+    strPos := newStrPos;
   end;
 end;
 
@@ -200,11 +220,15 @@ var incl: TIncludeAdapter;
     target: AnsiString;
     code: ID3DBlob;
     output: ID3DBlob;
+    {$IfDef DEBUGHLSLCC}
+    disasm: ID3DBlob;
+    {$EndIf}
     fs: TFileStream;
 
     data: Pointer;
     dataSize: LongWord;
 begin
+  fs := nil;
   Write('Compiling(HLSL): "', prog.Shader[st], '" ... ');
   incl := TIncludeAdapter.Create(prog);
   try
@@ -212,6 +236,15 @@ begin
     target := AnsiString(prog.Target[st]);
     incl.Open(D3D_INCLUDE_LOCAL, PAnsiChar(AnsiString(prog.Shader[st])), nil, @data, @dataSize);
     CheckHResult( D3DCompile(data, dataSize, nil, nil, incl, PAnsiChar(entry), PAnsiChar(target), D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY or D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, code, output) );
+    {$IfDef DEBUGHLSLCC}
+    D3DDisassemble(code.GetBufferPointer, code.GetBufferSize, D3D_DISASM_ENABLE_DEFAULT_VALUE_PRINTS or D3D_DISASM_ENABLE_INSTRUCTION_NUMBERING, nil, disasm);
+    fs := TFileStream.Create(OutFile+'.asm', fmCreate);
+    try
+      fs.WriteBuffer(disasm.GetBufferPointer^, disasm.GetBufferSize);
+    finally
+      fs.Free;
+    end;
+    {$EndIf}
     if code = nil then
       RaiseHLSL('unknown error');
     fs := TFileStream.Create(OutFile, fmCreate);

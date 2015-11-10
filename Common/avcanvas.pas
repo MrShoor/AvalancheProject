@@ -102,7 +102,7 @@ type
     Coords      : TVec4; //xy - start point, zw - end point
     Normals     : TVec4; //xy - normal at start point, zw - normal at end point
     Width       : TVec2; //x - real width, y - minimal width in pixels
-    HintingAlign: TVec3;
+    HintingAlign: TVec4;
     class function Layout: IDataLayout; static;
   end;
   TLinePointVertices = specialize TVerticesRec<TLinePointVertex>;
@@ -110,7 +110,7 @@ type
 
   {$SCOPEDENUMS ON}
   TPenAlign = (Center, Left, Right);
-  TPenHintingStyle = (Vertical, Horizontal);
+  TPenHintingStyle = (Vertical, Horizontal, PostHinting);
   TPenHinting = set of TPenHintingStyle;
   {$SCOPEDENUMS OFF}
 
@@ -227,7 +227,7 @@ begin
   Result := LB.Add('Coords', ctFloat, 4).
                Add('Normals', ctFloat, 4).
                Add('Width', ctFloat, 2).
-               Add('HintingAlign', ctFloat, 3).
+               Add('HintingAlign', ctFloat, 4).
                Finish(SizeOf(TLinePointVertex));
 end;
 
@@ -259,7 +259,7 @@ end;
 
 procedure TavCanvasCommonData.ReloadShaders;
 const LOADFROMRES = False;
-      DIR = 'C:\MyProj\AvalancheProject\Canvas_Shaders\!Out\';
+      DIR = 'E:\Projects\AvalancheProject\Canvas_Shaders\!Out\';
 begin
   FLineProg.LoadFromJSON('CanvasLine', LOADFROMRES, DIR);
 end;
@@ -319,10 +319,15 @@ begin
   else
     Seg.HintingAlign.y := 0;
 
+  if TPenHintingStyle.PostHinting in Pen.Hinting then
+    Seg.HintingAlign.z := 1
+  else
+    Seg.HintingAlign.z := 0;
+
   case Pen.Align of
-    TPenAlign.Center: Seg.HintingAlign.z := 0;
-    TPenAlign.Left  : Seg.HintingAlign.z := 1;
-    TPenAlign.Right : Seg.HintingAlign.z := -1;
+    TPenAlign.Center: Seg.HintingAlign.w := 0;
+    TPenAlign.Left  : Seg.HintingAlign.w := 1;
+    TPenAlign.Right : Seg.HintingAlign.w := -1;
   end;
 end;
 
@@ -382,6 +387,8 @@ begin
   prog.Select;
   prog.SetAttributes(CommonData.LineQuad, nil, FVBLines);
   prog.SetUniform('UIMatrix', ATransform);
+  prog.SetUniform('UIMatrixInverse', Inv(ATransform) );
+  prog.SetUniform('ViewPortSize', Main.States.Viewport.Size);
   prog.SetUniform('PixelToUnit', APixelToUnit);
   prog.Draw(FVBLines.Vertices.VerticesCount);
 end;

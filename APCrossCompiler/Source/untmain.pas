@@ -1,6 +1,6 @@
 unit untMain;
 
-//{$define DEBUGHLSLCC}
+{$Include Options.inc}
 
 {$ifdef fpc}
   {$mode objfpc}{$H+}

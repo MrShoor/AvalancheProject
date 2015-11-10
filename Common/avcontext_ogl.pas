@@ -1260,6 +1260,7 @@ begin
 end;
 
 procedure TTexture.AllocMultiSampled(AWidth, AHeight, ASampleCount: Integer);
+var maxSamples: Integer;
 begin
   FWidth := AWidth;
   FHeight := AHeight;
@@ -1271,9 +1272,11 @@ begin
 
   FGLTexTarget := GL_TEXTURE_2D_MULTISAMPLE;
 
+  glGetIntegerv(GL_MAX_SAMPLES, @maxSamples);
+
   glActiveTexture(GL_TEXTURE31);
   glBindTexture(FGLTexTarget, FHandle);
-  glTexImage2DMultisample(FGLTexTarget, FSampleCount, GLTextureFormat[FTargetFormat], AWidth, AHeight, False);
+  glTexImage2DMultisample(FGLTexTarget, max(0, min(maxSamples, FSampleCount))-1, GLTextureFormat[FTargetFormat], AWidth, AHeight, False);
 end;
 
 procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; ForcedArray: Boolean);

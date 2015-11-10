@@ -1,6 +1,6 @@
 unit apccUtils;
 
-//{$DEFINE DEBUGHLSLCC}
+{$Include Options.inc}
 
 {$ifdef fpc}
   {$mode objfpc}{$H+}
@@ -81,7 +81,11 @@ end;
 function CreateHLSLccProcess(Params: string; out output: string): Cardinal;
 var App, CmdLine: string;
 begin
+    {$IFDEF DEBUGHLSLCC}
+    App     := ExtractFilePath(ParamStr(0)) + 'HLSLcc_d.exe';
+    {$ELSE}
     App     := ExtractFilePath(ParamStr(0)) + 'HLSLcc.exe';
+    {$ENDIF}
     CmdLine := Format('"%s" %s', [App, Params]);
     {$IFDEF DEBUGHLSLCC}
     WriteLn('cmd: ', CmdLine);

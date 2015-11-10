@@ -15,6 +15,12 @@
 	"Vertex"   : "line_v.cpp",
 	"Fragment" : "line_f.cpp",
 	"Path"     :["Line"]
+        },
+        {
+        "Name"     : "Drawing",
+	"Vertex"   : "Drawing.cpp",
+	"Fragment" : "Drawing.cpp",
+	"Path"     :["Drawing"]
         }
     ]
 }
