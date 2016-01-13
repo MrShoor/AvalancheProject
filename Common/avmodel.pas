@@ -69,6 +69,7 @@ type
 
     property Transform: TMat4 read GetTransform write SetTransform;
     property BoneTransform[const AName: string]: TMat4 read GetBoneTransform write SetBoneTransform;
+    function Clone: IavModelInstance;
 
     property AutoUpdateAnimation: Boolean read GetAutoUpdateAnimation write SetAutoUpdateAnimation;
   end;
@@ -192,7 +193,6 @@ type
       FMeshInst: IavMeshInstance;
 
       FName: string;
-      FTransform: TMat4;
       FAutoUpdateAnimation: Boolean;
 
       FAnimationStates   : array of TMeshAnimationState;
@@ -227,6 +227,8 @@ type
       function Collection: TavModelCollection;
       function ModelName: String;
       function Name: String;
+
+      function Clone: IavModelInstance;
 
       procedure AfterConstruction; override;
       destructor Destroy; override;
@@ -274,6 +276,7 @@ type
     procedure Reset;
     function NextModel(out ModelName: string): Boolean;
     function NextInstance(out Instance: IavModelInstance): Boolean;
+    function FindInstance(const InstanceName: string): IavModelInstance;
     procedure DeleteInstance(const InstanceName: string);
 
     procedure Select;
@@ -281,6 +284,7 @@ type
     procedure Draw(const Instances: array of IModelInstanceArr; SortByMaterial: Boolean = True); overload;
 
     procedure AddFromFile(const FileName: String; const TexManager: ITextureManager = nil);
+    function  AddFromMeshInstance(const AMeshInstance: IavMeshInstance): IavModelInstance;
     procedure AddFromMeshInstances(const AMeshInstances: IavMeshInstances);
 
     constructor Create(AParent: TavObject); override;
@@ -312,6 +316,7 @@ end;
 
 procedure TavModelCollection.TavBoneTransformMap.TTransformNode.SetMatrices(const AValue: TMat4Arr);
 begin
+  Assert(Length(Mat) = Length(AValue));
   Mat := AValue;
   Owner.FNodes.Invalidate(Self);
 end;
@@ -537,7 +542,7 @@ begin
       FAnimationPlayState[i].StartTime := -1;
   end;
 
-  //cleanup completed
+  //remove completed animations
   n := 0;
   for i := 0 to Length(FAnimationStates) - 1 do
   begin
@@ -581,7 +586,6 @@ begin
 end;
 
 procedure TavModelCollection.TavModelInstance.UpdateBoneTransform;
-var m: TMat4Arr;
 begin
   if FAutoUpdateAnimation then
     UpdateAnimationStates(Collection.Main.BindTime64);
@@ -589,8 +593,10 @@ begin
   if FBoneTransformDirty then
   begin
     FBoneTransformDirty := False;
-    m := FBoneTransformHandle.Matrices;
-    FMeshInst.GetPoseData(m, FAnimationStates);
+    FMeshInst.SetAnimationPose(FAnimationStates);
+    FBoneTransformHandle.Matrices := FMeshInst.AbsPose;
+//    m := FBoneTransformHandle.Matrices;
+//    FMeshInst.GetPoseData(m, FAnimationStates);
     FBoneTransformHandle.Invalidate;
   end;
 end;
@@ -620,7 +626,7 @@ end;
 
 function TavModelCollection.TavModelInstance.GetTransform: TMat4;
 begin
-  Result := FTransform;
+  Result := FMeshInst.Transform;
 end;
 
 procedure TavModelCollection.TavModelInstance.SetAutoUpdateAnimation(AValue: Boolean);
@@ -632,12 +638,13 @@ procedure TavModelCollection.TavModelInstance.SetBoneTransform(const AName: stri
 begin
   if FModel = nil then Exit;
   if FModel.Mesh = nil then Exit;
+  FMeshInst.IndexOfBone(AName);
 end;
 
 procedure TavModelCollection.TavModelInstance.SetTransform(const AValue: TMat4);
 begin
-  if FTransform = AValue then Exit;
-  FTransform := AValue;
+  if FMeshInst.Transform = AValue then Exit;
+  FMeshInst.Transform := AValue;
   FBoneTransformDirty := True;
 end;
 
@@ -731,10 +738,24 @@ begin
   Result := FName;
 end;
 
+function TavModelCollection.TavModelInstance.Clone: IavModelInstance;
+var NewInstName: string;
+    i: Integer;
+begin
+  Result := nil;
+  if FModel = nil then Exit;
+
+  i := 0;
+  repeat
+    NewInstName := Name + 'Clone' + IntToStr(i);
+    Inc(i);
+  until not FModel.Owner.FModelInstances.Contains(NewInstName);
+  Result := FModel.Owner.AddFromMeshInstance(FMeshInst.Clone(NewInstName));
+end;
+
 procedure TavModelCollection.TavModelInstance.AfterConstruction;
 begin
   inherited AfterConstruction;
-  FTransform := IdentityMat4;
   FAutoUpdateAnimation := True;
 end;
 
@@ -868,6 +889,12 @@ begin
   Result := FModelInstances.NextValue(Instance);
 end;
 
+function TavModelCollection.FindInstance(const InstanceName: string): IavModelInstance;
+begin
+  if not FModelInstances.TryGetValue(InstanceName, Result) then
+    Result := nil;
+end;
+
 procedure TavModelCollection.DeleteInstance(const InstanceName: string);
 begin
   FModelInstances.Delete(InstanceName);
@@ -939,7 +966,7 @@ begin
   AddFromMeshInstances(inst);
 end;
 
-procedure TavModelCollection.AddFromMeshInstances(const AMeshInstances: IavMeshInstances);
+function TavModelCollection.AddFromMeshInstance(const AMeshInstance: IavMeshInstance): IavModelInstance;
   procedure AddTexData(const TexKey: TTextureKey; TexData: ITextureData);
   var Tex: TavTexture;
   begin
@@ -965,98 +992,103 @@ var
   tKey: TTextureKey;
   ContainDiffuseMap, ContainNormalMap: Boolean;
 
-  inst: IavMeshInstance;
   modelInst: TavModelInstance;
   instGPU : TModelInstanceGPUData;
   m: TMat4Arr;
 begin
-  AMeshInstances.Reset;
-  while AMeshInstances.NextValue(inst) do
+  Assert(not FModelInstances.Contains(AMeshInstance.Name), 'Instance with name "'+AMeshInstance.Name+'" already in set');
+
+  if not FModels.TryGetValue(AMeshInstance.Mesh.Name, model) then
   begin
-    Assert(not FModelInstances.Contains(inst.Name), 'Instance with name "'+inst.Name+'" already in set');
+    model := TModel.Create;
+    model.Owner := Self;
+    model.Mesh := AMeshInstance.Mesh;
+    model.VBHandle := FVB.Add(model.Mesh.Vert as IVerticesData);
+    model.IBHandle := FIB.Add(model.Mesh.Ind as IIndicesData);
 
-    if not FModels.TryGetValue(inst.Mesh.Name, model) then
+    //prepare map size
+    tKey.Width := -1;
+    tKey.Height := -1;
+    tKey.Mips := -1;
+    ContainDiffuseMap := False;
+    ContainNormalMap := False;
+    for j := 0 to model.Mesh.MaterialsCount-1 do
     begin
-      model := TModel.Create;
-      model.Owner := Self;
-      model.Mesh := inst.Mesh;
-      model.VBHandle := FVB.Add(model.Mesh.Vert as IVerticesData);
-      model.IBHandle := FIB.Add(model.Mesh.Ind as IIndicesData);
-
-      //prepare map size
-      tKey.Width := -1;
-      tKey.Height := -1;
-      tKey.Mips := -1;
-      ContainDiffuseMap := False;
-      ContainNormalMap := False;
-      for j := 0 to model.Mesh.MaterialsCount-1 do
+      if Assigned(model.Mesh.MaterialMaps[j].matDiffMap) then
       begin
-        if Assigned(model.Mesh.MaterialMaps[j].matDiffMap) then
-        begin
-          tKey.Width  := model.Mesh.MaterialMaps[j].matDiffMap.Width;
-          tKey.Height := model.Mesh.MaterialMaps[j].matDiffMap.Height;
-          tKey.Mips   := model.Mesh.MaterialMaps[j].matDiffMap.MipsCount;
-          ContainDiffuseMap := True;
-        end;
-        if Assigned(model.Mesh.MaterialMaps[j].matNormalMap) then
-        begin
-          tKey.Width  := model.Mesh.MaterialMaps[j].matNormalMap.Width;
-          tKey.Height := model.Mesh.MaterialMaps[j].matNormalMap.Height;
-          tKey.Mips   := model.Mesh.MaterialMaps[j].matNormalMap.MipsCount;
-          ContainNormalMap := True;
-        end;
+        tKey.Width  := model.Mesh.MaterialMaps[j].matDiffMap.Width;
+        tKey.Height := model.Mesh.MaterialMaps[j].matDiffMap.Height;
+        tKey.Mips   := model.Mesh.MaterialMaps[j].matDiffMap.MipsCount;
+        ContainDiffuseMap := True;
       end;
-      if tKey.Width < 0 then
+      if Assigned(model.Mesh.MaterialMaps[j].matNormalMap) then
       begin
-        tKey.Width := 1;
-        tKey.Height := 1;
-        tKey.Mips := 1;
+        tKey.Width  := model.Mesh.MaterialMaps[j].matNormalMap.Width;
+        tKey.Height := model.Mesh.MaterialMaps[j].matNormalMap.Height;
+        tKey.Mips   := model.Mesh.MaterialMaps[j].matNormalMap.MipsCount;
+        ContainNormalMap := True;
       end;
-
-      if ContainDiffuseMap then
-      begin
-        model.DiffuseOffset := GetMapOffset(tKey);
-        for j := 0 to model.Mesh.MaterialsCount-1 do
-          AddTexData(tKey, model.Mesh.MaterialMaps[j].matDiffMap);
-      end;
-      if ContainNormalMap then
-      begin
-        model.NormalsOffset := GetMapOffset(tKey);
-        for j := 0 to model.Mesh.MaterialsCount-1 do
-          AddTexData(tKey, model.Mesh.MaterialMaps[j].matNormalMap);
-      end;
-
-      model.MaterialOffset := FMaterials.GetMaterialCount;
-      for j := 0 to model.Mesh.MaterialsCount - 1 do
-      begin
-        material := model.Mesh.Material[j];
-        if model.Mesh.MaterialMaps[j].matDiffMap = nil then material.matDiffMapFactor := 0;
-        FMaterials.AddMaterial(material);
-      end;
-
-      model.FMapTex := ObtainMap(tKey);
-
-      FModels.AddOrSet(model.Mesh.Name, model);
+    end;
+    if tKey.Width < 0 then
+    begin
+      tKey.Width := 1;
+      tKey.Height := 1;
+      tKey.Mips := 1;
     end;
 
-    modelInst := TavModelInstance.Create;
-    modelInst.FMeshInst := inst;
-    modelInst.FMeshInst.GetPoseData(m, []);
-    modelInst.FBoneTransformHandle := FBoneTransform.AddMatrices(m);
-    instGPU := TModelInstanceGPUData.Create;
-    instGPU.aiBoneMatDifNormOffset := Vec(modelInst.FBoneTransformHandle.Offset,
-                                          model.MaterialOffset,
-                                          model.DiffuseOffset,
-                                          model.NormalsOffset);
-    modelInst.FModel := model;
-    modelInst.FInstGPUData := FInstVB.Add(instGPU as IVerticesData);
-    modelInst.FInstanceIndex := model.FInstances.Count;
-    modelInst.FTransform := inst.Transform;
-    modelInst.FName := inst.Name;
-    model.FInstances.Add(modelInst);
-    modelInst.OnLink;
-    FModelInstances.Add(modelInst.FName, modelInst);
+    if ContainDiffuseMap then
+    begin
+      model.DiffuseOffset := GetMapOffset(tKey);
+      for j := 0 to model.Mesh.MaterialsCount-1 do
+        AddTexData(tKey, model.Mesh.MaterialMaps[j].matDiffMap);
+    end;
+    if ContainNormalMap then
+    begin
+      model.NormalsOffset := GetMapOffset(tKey);
+      for j := 0 to model.Mesh.MaterialsCount-1 do
+        AddTexData(tKey, model.Mesh.MaterialMaps[j].matNormalMap);
+    end;
+
+    model.MaterialOffset := FMaterials.GetMaterialCount;
+    for j := 0 to model.Mesh.MaterialsCount - 1 do
+    begin
+      material := model.Mesh.Material[j];
+      if model.Mesh.MaterialMaps[j].matDiffMap = nil then material.matDiffMapFactor := 0;
+      FMaterials.AddMaterial(material);
+    end;
+
+    model.FMapTex := ObtainMap(tKey);
+
+    FModels.AddOrSet(model.Mesh.Name, model);
   end;
+
+  modelInst := TavModelInstance.Create;
+  modelInst.FMeshInst := AMeshInstance;
+  modelInst.FMeshInst.SetAnimationPose([]);
+  m := modelInst.FMeshInst.AbsPose;
+  modelInst.FBoneTransformHandle := FBoneTransform.AddMatrices(m);
+  instGPU := TModelInstanceGPUData.Create;
+  instGPU.aiBoneMatDifNormOffset := Vec(modelInst.FBoneTransformHandle.Offset,
+                                        model.MaterialOffset,
+                                        model.DiffuseOffset,
+                                        model.NormalsOffset);
+  modelInst.FModel := model;
+  modelInst.FInstGPUData := FInstVB.Add(instGPU as IVerticesData);
+  modelInst.FInstanceIndex := model.FInstances.Count;
+  modelInst.FName := AMeshInstance.Name;
+  model.FInstances.Add(modelInst);
+  modelInst.OnLink;
+  FModelInstances.Add(modelInst.FName, modelInst);
+
+  Result := modelInst;
+end;
+
+procedure TavModelCollection.AddFromMeshInstances(const AMeshInstances: IavMeshInstances);
+var inst: IavMeshInstance;
+begin
+  AMeshInstances.Reset;
+  while AMeshInstances.NextValue(inst) do
+    AddFromMeshInstance(inst);
 end;
 
 constructor TavModelCollection.Create(AParent: TavObject);

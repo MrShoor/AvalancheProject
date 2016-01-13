@@ -430,18 +430,21 @@ const
   MethodID: Integer = 1;
 var ms: TMemoryStream;
     key: TByteArr;
+    fullName: string;
 begin
   ms := TMemoryStream.Create;
   try
+    fullName := ExpandFileName(FileName);
+
     ms.WriteBuffer(MethodID, SizeOf(MethodID));
-    StreamWriteString(ms, FileName);
+    StreamWriteString(ms, fullName);
     ms.WriteBuffer(targetWidth, SizeOf(targetWidth));
     ms.WriteBuffer(targetHeight, SizeOf(targetHeight));
     ms.WriteBuffer(targetFormat, SizeOf(targetFormat));
     key := StreamToKey(ms);
     if not FTexHash.TryGetValue(key, Result) then
     begin
-      Result := avTexLoader.LoadTexture(FileName, targetWidth, targetHeight, targetFormat);
+      Result := avTexLoader.LoadTexture(fullName, targetWidth, targetHeight, targetFormat);
       FTexHash.Add(key, Result);
     end;
   finally

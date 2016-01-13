@@ -4,7 +4,12 @@ unit mutils;
   {$Macro On}
   {$mode objfpc}{$H+}
   {$modeswitch advancedrecords}
-  {$fputype sse2}
+  {$IfDef CPU86}
+    {$FPUType sse2}
+  {$EndIf}
+  {$IfDef CPU64}
+    {$FPUType sse64}
+  {$EndIf}
 {$endif}
 
 {$define NoInline}

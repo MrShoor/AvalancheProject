@@ -37,7 +37,6 @@
           <CodeGeneration>
             <Checks>
               <IOChecks Value="True"/>
-              <RangeChecks Value="True"/>
               <OverflowChecks Value="True"/>
               <StackChecks Value="True"/>
             </Checks>
@@ -48,13 +47,11 @@
               <UseHeaptrc Value="True"/>
               <UseExternalDbgSyms Value="True"/>
             </Debugging>
-            <Options>
-              <Win32>
-                <GraphicApplication Value="True"/>
-              </Win32>
-            </Options>
           </Linking>
           <Other>
+            <Verbosity>
+              <ShowDebugInfo Value="True"/>
+            </Verbosity>
             <CompilerMessages>
               <IgnoredMessages idx5024="True" idx4081="True" idx4080="True" idx4079="True"/>
             </CompilerMessages>
@@ -66,7 +63,7 @@
           <Version Value="11"/>
           <PathDelim Value="\"/>
           <Target>
-            <Filename Value="avm_Import"/>
+            <Filename Value="..\..\Bin\avm_Import"/>
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
@@ -127,7 +124,7 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="avm_Import"/>
+      <Filename Value="..\..\Bin\avm_Import"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>

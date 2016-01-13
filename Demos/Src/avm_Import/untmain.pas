@@ -1,7 +1,7 @@
 unit untMain;
 
 {$mode objfpc}{$H+}
-{$R 'MeshShader\shaders.res'}
+{$R 'MeshShader\shaders.rc'}
 
 interface
 
@@ -171,6 +171,7 @@ procedure TfrmMain.RenderScene;
   function GetVisibleInstances(const AllInstances: IModelInstanceArr): IModelInstanceArr;
   var i: Integer;
   begin
+    if AllInstances = nil then Exit;
     Result := TModelInstanceArr.Create(nil);
     for i := 0 to min(AllInstances.Count, lbNames.Count) - 1 do
       if lbNames.Selected[i] then
@@ -179,6 +180,7 @@ procedure TfrmMain.RenderScene;
   procedure SyncAnimations(const Instances: IModelInstanceArr);
   var i, j: Integer;
   begin
+    if Instances = nil then Exit;
     for i := 0 to Instances.Count - 1 do
     begin
       for j := 0 to lbAnimations.Count - 1 do
@@ -213,7 +215,7 @@ begin
 
     FProg.Select;
 
-    if visInst.Count > 0 then
+    if assigned(visInst) and (visInst.Count > 0) then
     begin
       FModels.Select;
       FModels.Draw(visInst);

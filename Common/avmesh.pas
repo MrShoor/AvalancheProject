@@ -102,7 +102,12 @@ type
     procedure AddChild(const AChild: IavMeshInstance);
     function IndexOf(const AChild: IavMeshInstance): Integer;
 
-    procedure GetPoseData(var Matrices: TMat4Arr; const AnimState: array of TMeshAnimationState);
+    function  IndexOfBone(const ABoneName: string): Integer;
+    procedure SetAnimationPose(const AnimState: array of TMeshAnimationState);
+    function  LocalPose: TMat4Arr;
+    function  AbsPose: TMat4Arr;
+
+    function Clone(const NewInstanceName: string): IavMeshInstance;
   end;
 
   IavMeshInstances = specialize IHashMap<string, IavMeshInstance, TMurmur2HashString>;
@@ -174,7 +179,7 @@ type
     function IndexOfBone(const AName: string): Integer;
     function FindBone(const AName: string): IavBone;
 
-    procedure GetPoseData(var Matrices: TMat4Arr; const RemapIndices: TIntArr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
+    procedure GetPoseData(var Matrices: TMat4Arr; const RemapIndices: TIntArr; const AnimState: array of TMeshAnimationState);
   end;
 
   IavArmatures = specialize IHashMap<string, IavArmature, TMurmur2HashString>;
@@ -328,7 +333,7 @@ type
     procedure AddAnimation(const AAnim: IavAnimationInternal);
     function FindAnim(const AName: string): IavAnimation;
 
-    procedure GetPoseData(var Matrices: TMat4Arr; const RemapIndices: TIntArr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
+    procedure GetPoseData(var Matrices: TMat4Arr; const RemapIndices: TIntArr; const AnimState: array of TMeshAnimationState);
 
     procedure AfterConstruction; override;
     destructor Destroy; override;
@@ -385,6 +390,10 @@ type
 
     FName: string;
     FLocalTransform: TMat4;
+    FPoseTransform: TMat4Arr;
+
+    FPoseAbsValid: Boolean;
+    FPoseAbs: TMat4Arr;
   public
     function GetArmature: IavArmature;
     function GetChild(const AIndex: Integer): IavMeshInstance;
@@ -412,7 +421,12 @@ type
     procedure AddChild(const AChild: IavMeshInstance);
     function IndexOf(const AChild: IavMeshInstance): Integer;
 
-    procedure GetPoseData(var Matrices: TMat4Arr; const AnimState: array of TMeshAnimationState);
+    function IndexOfBone(const ABoneName: string): Integer;
+    procedure SetAnimationPose(const AnimState: array of TMeshAnimationState);
+    function LocalPose: TMat4Arr;
+    function AbsPose: TMat4Arr;
+
+    function Clone(const NewInstanceName: string): IavMeshInstance;
   public
     procedure AfterConstruction; override;
   end;
@@ -877,7 +891,9 @@ end;
 
 procedure TavMeshInstance.SetTransform(const AValue: TMat4);
 begin
+  if FLocalTransform = AValue then Exit;
   FLocalTransform := AValue;
+  FPoseAbsValid := False;
 end;
 
 function TavMeshInstance.ChildsCount: Integer;
@@ -905,15 +921,75 @@ begin
   Result := FChilds.IndexOf(AChild);
 end;
 
-procedure TavMeshInstance.GetPoseData(var Matrices: TMat4Arr; const AnimState: array of TMeshAnimationState);
+procedure TavMeshInstance.SetAnimationPose(const AnimState: array of TMeshAnimationState);
 begin
   if Assigned(FArm) then
-    FArm.GetPoseData(Matrices, FBoneRemap, FLocalTransform, AnimState)
+  begin
+    FArm.GetPoseData(FPoseTransform, FBoneRemap, AnimState);
+    FPoseAbsValid := False;
+  end
   else
   begin
-    SetLength(Matrices, 1);
-    Matrices[0] := FLocalTransform;
+    SetLength(FPoseTransform, 1);
+    FPoseTransform[0] := IdentityMat4;
   end;
+end;
+
+function TavMeshInstance.LocalPose: TMat4Arr;
+begin
+  if Length(FPoseTransform) = 0 then
+    SetAnimationPose([]);
+  Result := FPoseTransform;
+end;
+
+function TavMeshInstance.AbsPose: TMat4Arr;
+var lPose: TMat4Arr;
+  i: Integer;
+begin
+  if not FPoseAbsValid then
+  begin
+    lPose := LocalPose;
+    if Length(lPose) <> Length(FPoseAbs) then
+      SetLength(FPoseAbs, Length(lPose));
+    for i := 0 to Length(lPose) - 1 do
+      FPoseAbs[i] := lPose[i] * FLocalTransform;
+    FPoseAbsValid := True;
+  end;
+  Result := FPoseAbs;
+end;
+
+function TavMeshInstance.IndexOfBone(const ABoneName: string): Integer;
+var i: Integer;
+begin
+  Result := -1;
+  if Armature = nil then Exit;
+  Result := Armature.IndexOfBone(ABoneName);
+  if Result < 0 then Exit;
+  for i := 0 to Length(FBoneRemap) - 1 do
+  begin
+    if FBoneRemap[i] = Result then
+    begin
+      Result := i;
+      Exit;
+    end;
+  end;
+  Result := -1;
+end;
+
+function TavMeshInstance.Clone(const NewInstanceName: string): IavMeshInstance;
+var inst: TavMeshInstance;
+    intf: IavMeshInstance;
+begin
+  inst := TavMeshInstance.Create;
+  intf := inst;
+  inst.SetMesh(Mesh);
+  inst.SetName(NewInstanceName);
+  if Assigned(Parent) then
+    Parent.AddChild(inst);
+  inst.FArm := Armature;
+  inst.FBoneRemap := FBoneRemap;
+  inst.Transform := Transform;
+  Result := intf;
 end;
 
 procedure TavMeshInstance.AfterConstruction;
@@ -1183,7 +1259,7 @@ begin
       Exit(FAnim[i]);
 end;
 
-procedure TavArmature.GetPoseData(var Matrices: TMat4Arr; const RemapIndices: TIntArr; const MeshTransform: TMat4; const AnimState: array of TMeshAnimationState);
+procedure TavArmature.GetPoseData(var Matrices: TMat4Arr; const RemapIndices: TIntArr; const AnimState: array of TMeshAnimationState);
   procedure FillBoneData_Recursive(var AbsTransform: TMat4Arr; const animTransform: TMat4Arr; const bone: IavBone; const parentTransform: TMat4);
   var i: Integer;
   begin
@@ -1244,9 +1320,9 @@ begin
   begin
     j := RemapIndices[i];
     if j < 0 then
-      Matrices[i] := MeshTransform
+      Matrices[i] := IdentityMat4
     else
-      Matrices[i] := boneTransform[j]*MeshTransform;
+      Matrices[i] := boneTransform[j];
   end;
 {
   if Length(Matrices) <> Length(boneTransform) then
@@ -1255,6 +1331,7 @@ begin
   for i := 0 to Length(Matrices) - 1 do
     Matrices[i] := Matrices[i]*MeshTransform;
 }
+  currAnim := nil;
 end;
 
 procedure TavArmature.AfterConstruction;
