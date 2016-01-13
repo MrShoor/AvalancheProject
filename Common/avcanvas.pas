@@ -193,7 +193,7 @@ function GetCanvasCommonData(const RenderMain: TavMainRender): TavCanvasCommonDa
 
 implementation
 
-{$R '..\Canvas_Shaders\Canvas_Shaders.res'}
+{$R '..\Canvas_Shaders\Canvas_Shaders.rc'}
 
 uses Math;
 

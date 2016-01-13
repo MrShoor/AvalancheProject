@@ -118,7 +118,7 @@
         <PackageName Value="LCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="6">
+    <Units Count="4">
       <Unit0>
         <Filename Value="Instancing.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -136,17 +136,9 @@
         <IsPartOfProject Value="True"/>
       </Unit2>
       <Unit3>
-        <Filename Value="Instancing_shaders\shaders.RES"/>
-        <IsPartOfProject Value="True"/>
-      </Unit3>
-      <Unit4>
-        <Filename Value="..\..\..\Canvas_Shaders\Canvas_Shaders.RES"/>
-        <IsPartOfProject Value="True"/>
-      </Unit4>
-      <Unit5>
         <Filename Value="..\Common\contextswitcher.pas"/>
         <IsPartOfProject Value="True"/>
-      </Unit5>
+      </Unit3>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

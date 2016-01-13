@@ -50,11 +50,9 @@ var
 
 implementation
 
-uses Math;
-
 {$R *.lfm}
 
-{$R 'Texturing_shaders\shaders.res'}
+{$R 'Texturing_shaders\shaders.rc'}
 
 { TCubeVertex }
 
@@ -194,9 +192,6 @@ begin
 end;
 
 procedure TfrmMain.RenderScene;
-var m: TMat4;
-    v: TVec4;
-    i, j, k: Integer;
 begin
   if FMain = nil then Exit;
   if FMain.Bind then

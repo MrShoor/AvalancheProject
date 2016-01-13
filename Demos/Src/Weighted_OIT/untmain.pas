@@ -87,7 +87,7 @@ implementation
 
 {$R *.lfm}
 
-{$R 'WOIT_shaders\shaders.res'}
+{$R 'WOIT_shaders\shaders.rc'}
 
 { TCubeVertex }
 

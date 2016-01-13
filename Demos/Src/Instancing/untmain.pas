@@ -60,7 +60,7 @@ implementation
 
 {$R *.lfm}
 
-{$R 'Instancing_shaders\shaders.res'}
+{$R 'Instancing_shaders\shaders.rc'}
 
 { TCubeVertex }
 

@@ -529,7 +529,7 @@ type
     procedure SetUniform (const AName: string; const values: TSingleArr); overload;
     procedure SetUniform (const AName: string; const v: TVec4arr);        overload;
     procedure SetUniform (const AName: string; const m: TMat4);           overload;
-    procedure SetUniform (const AName: string; const tex: TavTexture; const sampler: TSamplerInfo); overload;
+    procedure SetUniform (const AName: string; const tex: TavTextureBase; const sampler: TSamplerInfo); overload;
 
     procedure LoadFromJSON(const AProgram: string; FromResource: boolean = false; const AProgramPath: string = ''); overload;
 
@@ -2438,7 +2438,7 @@ begin
   FProgram.SetUniform(GetUniformField(AName), m);
 end;
 
-procedure TavProgram.SetUniform(const AName: string; const tex: TavTexture; const sampler: TSamplerInfo);
+procedure TavProgram.SetUniform(const AName: string; const tex: TavTextureBase; const sampler: TSamplerInfo);
 begin
   if tex = nil then Exit;
   tex.Build;

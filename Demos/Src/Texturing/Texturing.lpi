@@ -122,7 +122,7 @@
         <PackageName Value="LCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="7">
+    <Units Count="5">
       <Unit0>
         <Filename Value="Texturing.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -140,22 +140,14 @@
         <IsPartOfProject Value="True"/>
       </Unit2>
       <Unit3>
-        <Filename Value="Texturing_shaders\shaders.RES"/>
-        <IsPartOfProject Value="True"/>
-      </Unit3>
-      <Unit4>
-        <Filename Value="..\..\..\Canvas_Shaders\Canvas_Shaders.RES"/>
-        <IsPartOfProject Value="True"/>
-      </Unit4>
-      <Unit5>
         <Filename Value="..\..\..\Common\avcontext_dx11.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="avContext_DX11"/>
-      </Unit5>
-      <Unit6>
+      </Unit3>
+      <Unit4>
         <Filename Value="..\Common\contextswitcher.pas"/>
         <IsPartOfProject Value="True"/>
-      </Unit6>
+      </Unit4>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
