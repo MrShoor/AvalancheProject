@@ -546,9 +546,9 @@ var sn, cs: float;
 begin
   sincos(Angle, sn, cs);
   Result.OX := Vec(cs,  sn);
-  Result.OY := Vec(cs,  sn);
+  Result.OY := Vec(-sn, cs);
   Result.Pos := Vec(0, 0);
-  Result.f[2,2] := 1;
+  Result.Col[2] := Vec(0,0,1);
 end;
 
 function Mat3(const Angle: Single; newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -556,9 +556,9 @@ var sn, cs: float;
 begin
   sincos(Angle, sn, cs);
   Result.OX := Vec(cs,  sn);
-  Result.OY := Vec(cs,  sn);
+  Result.OY := Vec(-sn, cs);
   Result.Pos := Vec(newPos.x, newPos.y);
-  Result.f[2,2] := 1;
+  Result.Col[2] := Vec(0,0,1);
 end;
 
 function Mat4(const Q: TQuat): TMat4;

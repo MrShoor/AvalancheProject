@@ -18,7 +18,7 @@
         </Debugging>
       </Linking>
     </CompilerOptions>
-    <Files Count="3">
+    <Files Count="4">
       <Item1>
         <Filename Value="avcontnrs.pas"/>
         <UnitName Value="avContnrs"/>
@@ -31,6 +31,10 @@
         <Filename Value="mutils_v.inc"/>
         <Type Value="Include"/>
       </Item3>
+      <Item4>
+        <Filename Value="intfutils.pas"/>
+        <UnitName Value="intfutils"/>
+      </Item4>
     </Files>
     <RequiredPkgs Count="1">
       <Item1>
