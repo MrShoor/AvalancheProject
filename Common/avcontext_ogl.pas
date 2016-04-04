@@ -2403,6 +2403,7 @@ begin
   glTexParameteri(TexTarget, GL_TEXTURE_WRAP_S, GLWrap[Sampler.Wrap_X]);
   glTexParameteri(TexTarget, GL_TEXTURE_WRAP_T, GLWrap[Sampler.Wrap_Y]);
   glTexParameterf(TexTarget, GL_TEXTURE_MAX_ANISOTROPY_EXT, Sampler.Anisotropy);
+  glTexParameterfv(TexTarget, GL_TEXTURE_BORDER_COLOR, @Sampler.Border);
 end;
 
 procedure TProgram.Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode;

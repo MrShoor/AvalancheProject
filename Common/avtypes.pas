@@ -214,7 +214,12 @@ Type
     function MipCount(const Index: Integer): Integer;
     function MipData(const Index, MipLevel: Integer): ITextureMip;
 
-    procedure Merge(const TexData: array of ITextureData);
+    procedure SetMip(Index, MipLevel: Integer; const AImage: ITextureMip; AutoResize: Boolean; const FillColor: TVec4);
+    procedure Drop(Index, MipLevel: Integer); overload;
+    procedure Drop(Index: Integer) overload;
+
+    procedure Merge(const TexData: array of ITextureData); overload;
+    procedure Merge(const TexData: array of ITextureData; AutoResize: Boolean; const FillColor: TVec4); overload;
   end;
 
 const
@@ -328,9 +333,18 @@ const
       MinFilter  : tfNearest;
       MagFilter  : tfNearest;
       MipFilter  : tfNone;
-      Anisotropy : 16;
+      Anisotropy : 0;
       Wrap_X     : twRepeat;
       Wrap_Y     : twRepeat;
+      Border     : (x: 0; y: 0; z: 0; w: 0);
+    );
+    Sampler_NoFilterClamped : TSamplerInfo = (
+      MinFilter  : tfNearest;
+      MagFilter  : tfNearest;
+      MipFilter  : tfNone;
+      Anisotropy : 0;
+      Wrap_X     : twClamp;
+      Wrap_Y     : twClamp;
       Border     : (x: 0; y: 0; z: 0; w: 0);
     );
     Sampler_LinearNoMips : TSamplerInfo = (

@@ -203,6 +203,13 @@ const
   IdentityMat4: TMat4 = (f: ((1,0,0,0), (0,1,0,0), (0,0,1,0), (0,0,0,1)));
   ZeroMat4: TMat4 = (f: ((0,0,0,0), (0,0,0,0), (0,0,0,0), (0,0,0,0)));
 
+Operator := (const v: TVec2B)v2: TVec2I; {$IFNDEF NoInline} inline; {$ENDIF}
+Operator := (const v: TVec3B)v2: TVec3I; {$IFNDEF NoInline} inline; {$ENDIF}
+Operator := (const v: TVec4B)v2: TVec4I; {$IFNDEF NoInline} inline; {$ENDIF}
+Operator := (const v: TVec2B)v2: TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
+Operator := (const v: TVec3B)v2: TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+Operator := (const v: TVec4B)v2: TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
+
 Operator := (const v: TVec2S)v2: TVec2I; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator := (const v: TVec3S)v2: TVec3I; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator := (const v: TVec4S)v2: TVec4I; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -414,6 +421,49 @@ end;
 {$define TM3 := TMat3b}
 {$define TM4 := TMat4b}
 {$Include mutils_v.inc}
+
+operator := (const v: TVec2B)v2: TVec2I;
+begin
+  v2.x := v.x;
+  v2.y := v.y;
+end;
+
+operator := (const v: TVec3B)v2: TVec3I;
+begin
+  v2.x := v.x;
+  v2.y := v.y;
+  v2.z := v.z;
+end;
+
+operator := (const v: TVec4B)v2: TVec4I;
+begin
+  v2.x := v.x;
+  v2.y := v.y;
+  v2.z := v.z;
+  v2.w := v.w;
+end;
+
+operator := (const v: TVec2B)v2: TVec2;
+begin
+  v2.x := v.x;
+  v2.y := v.y;
+end;
+
+operator := (const v: TVec3B)v2: TVec3;
+begin
+  v2.x := v.x;
+  v2.y := v.y;
+  v2.z := v.z;
+end;
+
+operator := (const v: TVec4B)v2: TVec4;
+begin
+  v2.x := v.x;
+  v2.y := v.y;
+  v2.z := v.z;
+  v2.w := v.w;
+end;
+
 operator := (const v: TVec2S)v2: TVec2I;
 begin
   v2.x := v.x;

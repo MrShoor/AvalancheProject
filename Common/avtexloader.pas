@@ -203,7 +203,12 @@ type
     function MipCount(const Index: Integer): Integer;
     function MipData(const Index, MipLevel: Integer): ITextureMip;
 
-    procedure Merge(const TexData: array of ITextureData);
+    procedure SetMip(Index, MipLevel: Integer; const AImage: ITextureMip; AutoResize: Boolean; const FillColor: TVec4);
+    procedure Drop(Index, MipLevel: Integer); overload;
+    procedure Drop(Index: Integer); overload;
+
+    procedure Merge(const TexData: array of ITextureData); overload;
+    procedure Merge(const TexData: array of ITextureData; AutoResize: Boolean; const FillColor: TVec4); overload;
 
     {$IfDef VAMPYRE}
     constructor Create(ImgData: TDynImageDataArray;
@@ -290,6 +295,56 @@ begin
     TImageFormat.DXT5          : Result := ifDXT5;
   else
     Result := ifUnknown;
+  end;
+end;
+{$EndIf}
+
+{$IfDef VAMPYRE}
+function ConvertMip(const srcMip: ITextureMip; const w, h: Integer; const format: TImageFormat; AutoStretch: Boolean; Const FillColor: TVec4): ITextureMip;
+  function MipToImg(const AMip: ITextureMip): TImageData;
+  begin
+    Result.Format := AvToVamp(AMip.PixelFormat);
+    Result.Height := AMip.Height;
+    Result.Width := AMip.Width;
+    Result.Palette := nil;
+    Result.Size := AMip.Width*AMip.Height*ImagePixelSize[AMip.PixelFormat];
+    Result.Bits := AMip.Data;
+  end;
+var img, img2: TImageData;
+    col: TColorFPRec;
+    pcol: Pointer;
+begin
+  if (srcMip.Width = w) and (srcMip.Height=h) and (srcMip.PixelFormat = format) then
+    Exit(srcMip);
+
+  ZeroClear(img, SizeOf(img));
+  ZeroClear(img2, SizeOf(img2));
+  try
+    if AutoStretch then
+    begin
+      img2 := MipToImg(srcMip);
+      CloneImage(img2, img);
+      ResizeImage(img, w, h, rfBicubic);
+      ConvertImage(img, AvToVamp(format));
+    end
+    else
+    begin
+      img2 := MipToImg(srcMip);
+
+      NewImage(w, h, AvToVamp(format), img);
+      col.R := FillColor.x;
+      col.G := FillColor.y;
+      col.B := FillColor.z;
+      col.A := FillColor.w;
+      SetPixelFP(img, 0, 0, col);
+      GetPixelDirect(img, 0, 0, pcol);
+      FillRect(img, 0, 0, img.Width, img.Height, pcol);
+
+      CopyRect(img2, 0, 0, srcMip.Width, srcMip.Height, img, 0, 0);
+    end;
+    Result := TMipImage.Create(img.Width, img.Height, img.Bits, img.Size, format);
+  finally
+    FreeImage(img);
   end;
 end;
 {$EndIf}
@@ -533,27 +588,55 @@ begin
   Result := FMips[Index][MipLevel];
 end;
 
-procedure TTextureData.Merge(const TexData: array of ITextureData);
-  {$IfDef VAMPYRE}
-  function ConvertMip(const srcMip: ITextureMip; const w, h: Integer; const format: TImageFormat): ITextureMip;
-  var img: TImageData;
-  begin
-    if (srcMip.Width = w) and (srcMip.Height=h) and (srcMip.PixelFormat = format) then
-      Exit(srcMip);
+procedure TTextureData.SetMip(Index, MipLevel: Integer; const AImage: ITextureMip; AutoResize: Boolean; const FillColor: TVec4);
+var w, h: Integer;
+begin
+  if (MipLevel < 0) or (MipLevel >= FMipsCount) then Exit;
 
-    ZeroClear(img, SizeOf(img));
-    NewImage(srcMip.Width, srcMip.Height, AvToVamp(srcMip.PixelFormat), img);
-    img.Format := AvToVamp(format);
-    img.Height := h;
-    img.Width := w;
-    img.Palette := nil;
-    img.Size := srcMip.Width*srcMip.Height*ImagePixelSize[srcMip.PixelFormat];
-    img.Bits := srcMip.Data;
-    ResizeImage(img, w, h, rfBicubic);
-    ConvertImage(img, AvToVamp(format));
-    Result := TMipImage.Create(img.Width, img.Height, img.Bits, img.Size, format);
+  if (Index < 0) or (Index > Length(FMips)) then
+    Index := Length(FMips);
+
+  if Index = Length(FMips) then
+  begin
+    SetLength(FMips, Length(FMips) + 1);
+    SetLength(FMips[Index], FMipsCount);
   end;
-  {$EndIf}
+
+  w := Width shr MipLevel;
+  h := Height shr MipLevel;
+  FMips[Index][MipLevel] := ConvertMip(AImage, w, h, Format, AutoResize, FillColor);
+end;
+
+procedure TTextureData.Drop(Index, MipLevel: Integer);
+var I: Integer;
+begin
+  if index < 0 then Exit;
+  if MipLevel < 0 then Exit;
+  if index >= Length(FMips) then Exit;
+  if MipLevel >= Length(FMips[Index]) then Exit;
+  FMips[Index][MipLevel] := nil;
+  for I := 0 to Length(FMips[Index]) - 1 do
+    if Assigned(FMips[Index]) then Exit;
+  Drop(Index);
+end;
+
+procedure TTextureData.Drop(Index: Integer);
+var i: Integer;
+begin
+  if index < 0 then Exit;
+  if index >= Length(FMips) then Exit;
+
+  for i := Index to Length(FMips) - 2 do
+    FMips[i] := FMips[i+1];
+  SetLength(FMips, Length(FMips)-1);
+end;
+
+procedure TTextureData.Merge(const TexData: array of ITextureData);
+begin
+  Merge(TexData, True, Vec(0,0,0,0));
+end;
+
+procedure TTextureData.Merge(const TexData: array of ITextureData; AutoResize: Boolean; const FillColor: TVec4);
 var i, j, k: Integer;
     sliceStart, sliceOffset: Integer;
     w, h: Integer;
@@ -590,9 +673,9 @@ begin
       for k := 0 to FMipsCount - 1 do
       begin
         if k < TexData[i].MipsCount then
-          FMips[sliceOffset][k] := ConvertMip(TexData[i].MipData(j, k), w, h, FFormat)
+          FMips[sliceOffset][k] := ConvertMip(TexData[i].MipData(j, k), w, h, FFormat, AutoResize, FillColor)
         else
-          FMips[sliceOffset][k] := ConvertMip(FMips[sliceOffset][k-1], w, h, FFormat);
+          FMips[sliceOffset][k] := ConvertMip(FMips[sliceOffset][k-1], w, h, FFormat, AutoResize, FillColor);
         w := w div 2;
         h := h div 2;
       end;

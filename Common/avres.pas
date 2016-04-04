@@ -1493,7 +1493,7 @@ procedure TavProjection.UpdateMatrix;
     Result.f[1, 1] := h;
     Result.f[2, 2] := DepthRange.x - DepthSize * FarPlane * Q;
     Result.f[2, 3] := 1.0;
-    Result.f[3, 2] := DepthSize * fNearPlane * fFarPlane * Q;
+    Result.f[3, 2] := DepthSize * NearPlane * FarPlane * Q;
   end;
 
   function CalcOrthoMatrix: TMat4;
@@ -1507,8 +1507,8 @@ procedure TavProjection.UpdateMatrix;
     Result := IdentityMat4;
     Result.f[0, 0] := w;
     Result.f[1, 1] := h;
-    Result.f[2, 3] := DepthSize * Q;
-    Result.f[2, 2] := DepthRange.x - DepthSize * NearPlane * Q;
+    Result.f[2, 2] := DepthSize * Q;
+    Result.f[3, 2] := DepthRange.x  - DepthSize * NearPlane * Q;
   end;
 
 begin
@@ -1547,6 +1547,7 @@ begin
   FNearPlane := 1;
   FFarPlane := 703.62;
   FOrthoHeight := 100;
+  FDepthRange := DepthRangeMinMax;
   UpdateMatrix;
 end;
 
