@@ -98,7 +98,7 @@ begin
            CaptureWindow;
            FCaptured:=true;
            FMoving:=true;
-           FMovingPt:=Intersect(MovePlane, Main.Cursor.Ray);
+           Intersect(MovePlane, Main.Cursor.Ray, FMovingPt);
          end;
        end;
     2: begin
@@ -157,7 +157,7 @@ begin
     Main.Camera.MoveForward(dpt.y*0.1);
     FRotatingPt.x:=msg.xPos;
     FRotatingPt.y:=msg.yPos;
-    FMovingPt:=Intersect(MovePlane, Main.Cursor.Ray);
+    Intersect(MovePlane, Main.Cursor.Ray, FMovingPt);
 
     if FAutoInvalidate then InvalidateWindow(Main.Window, False);
   end
@@ -189,7 +189,8 @@ begin
 
     if FMoving then
     begin
-      dVec:=FMovingPt - Intersect(MovePlane, Main.Cursor.Ray);
+      Intersect(MovePlane, Main.Cursor.Ray, dVec);
+      dVec:=FMovingPt - dVec;
       Main.Camera.BeginUpdate;
       Main.Camera.At:=Main.Camera.At + dVec;
       Main.Camera.Eye:=Main.Camera.Eye + dVec;

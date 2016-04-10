@@ -87,6 +87,8 @@ type
     procedure SetOZ(const AValue: TV3); {$IFNDEF NoInline} inline; {$ENDIF}
     procedure SetPos(const AValue: TV3); {$IFNDEF NoInline} inline; {$ENDIF}
   public
+    function Mat3x3: TM3;
+
     property Col[index: Integer]: TV4 read GetCol write SetCol;
     property OX: TV3 read GetOX write SetOX;
     property OY: TV3 read GetOY write SetOY;
@@ -325,6 +327,13 @@ type
   procedure TM4.SetPos(const AValue: TV3);
   begin
     Row[3].xyz := AValue;
+  end;
+
+  function TM4.Mat3x3: TM3;
+  begin
+    Result.Row[0] := Row[0].xyz;
+    Result.Row[1] := Row[1].xyz;
+    Result.Row[2] := Row[2].xyz;
   end;
 
   Operator = (const v1, v2: TV2): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}

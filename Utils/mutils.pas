@@ -178,6 +178,7 @@ type
     function Size    : TVec3;
     function IsEmpty : Boolean;
     function Point(index: Integer): TVec3;
+    function Edge(index: Integer): TLine;
   case Byte of
     0: (min, max: TVec3);
   end;
@@ -231,6 +232,7 @@ Operator / (const v: TVec4; const f: Single): TVec4; {$IFNDEF NoInline} inline; 
 Operator * (const a, b: TQuat): TQuat; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator * (const a: TQuat; b: TVec3): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator * (const a: TVec3I; s: Single): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+Operator * (const a: TLine; const b: TMat4): TLine; {$IFNDEF NoInline} inline; {$ENDIF}
 
 function Quat(const Dir: TVec3; Angle: Single): TQuat; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
@@ -271,7 +273,7 @@ function Rotate(const v: TVec2; const Angle: Single): TVec2; overload; {$IFNDEF 
 
 function Intersect(const Line1, Line2: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const Seg: TSegment2D; const Line: TLine2D; out IntPoint: TVec2): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
-function Intersect(const Plane: TPlane; Line: TLine): TVec3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Intersect(const Plane: TPlane; Line: TLine; out IntPt: TVec3): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Distance(const Pt: TVec2; const Seg: TSegment2D): Single; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Projection(const Pt: TVec2; const Line: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat2): TMat2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
@@ -342,6 +344,61 @@ begin
     5: Result := Vec(min.x, max.y, max.z);
     6: Result := Vec(max.x, max.y, max.z);
     7: Result := Vec(max.x, min.y, max.z);
+  end;
+end;
+
+function TAABB.Edge(index: Integer): TLine;
+begin
+  case index mod 12 of
+    0: begin
+         Result.Pnt := Vec(min.x, min.y, min.z);
+         Result.Dir := Vec(min.x, max.y, min.z) - Result.Pnt;
+       end;
+    1: begin
+         Result.Pnt := Vec(min.x, max.y, min.z);
+         Result.Dir := Vec(max.x, max.y, min.z) - Result.Pnt;
+       end;
+    2: begin
+         Result.Pnt := Vec(max.x, max.y, min.z);
+         Result.Dir := Vec(max.x, min.y, min.z) - Result.Pnt;
+       end;
+    3: begin
+         Result.Pnt := Vec(max.x, min.y, min.z);
+         Result.Dir := Vec(min.x, min.y, min.z) - Result.Pnt;
+       end;
+    4: begin
+         Result.Pnt := Vec(min.x, min.y, max.z);
+         Result.Dir := Vec(min.x, max.y, max.z) - Result.Pnt;
+       end;
+    5: begin
+         Result.Pnt := Vec(min.x, max.y, max.z);
+         Result.Dir := Vec(max.x, max.y, max.z) - Result.Pnt;
+       end;
+    6: begin
+         Result.Pnt := Vec(max.x, max.y, max.z);
+         Result.Dir := Vec(max.x, min.y, max.z) - Result.Pnt;
+       end;
+    7: begin
+         Result.Pnt := Vec(max.x, min.y, max.z);
+         Result.Dir := Vec(min.x, min.y, max.z) - Result.Pnt;
+       end;
+
+    8: begin
+         Result.Pnt := Vec(min.x, min.y, min.z);
+         Result.Dir := Vec(min.x, min.y, max.z) - Result.Pnt;
+       end;
+    9: begin
+         Result.Pnt := Vec(min.x, max.y, min.z);
+         Result.Dir := Vec(min.x, max.y, max.z) - Result.Pnt;
+       end;
+    10: begin
+         Result.Pnt := Vec(max.x, max.y, min.z);
+         Result.Dir := Vec(max.x, max.y, max.z) - Result.Pnt;
+        end;
+    11: begin
+         Result.Pnt := Vec(max.x, min.y, min.z);
+         Result.Dir := Vec(max.x, min.y, max.z) - Result.Pnt;
+        end;
   end;
 end;
 
@@ -583,6 +640,12 @@ begin
   Result.x := a.x*s;
   Result.y := a.y*s;
   Result.z := a.z*s;
+end;
+
+operator*(const a: TLine; const b: TMat4): TLine;
+begin
+  Result.Pnt := a.Pnt * b;
+  Result.Dir := (a.Pnt + a.Dir) * b - Result.Pnt;
 end;
 
 function Quat(const Dir: TVec3; Angle: Single): TQuat; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -1066,15 +1129,20 @@ begin
   Result := (Dot(IntPoint - Seg.Pt1, dir) >= 0) and (Dot(IntPoint - Seg.Pt2, dir) <= 0);
 end;
 
-function Intersect(const Plane: TPlane; Line: TLine): TVec3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Intersect(const Plane: TPlane; Line: TLine; out IntPt: TVec3): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 var Da,Db : single;
     k     : single;
 begin
   Da := -Dot(Plane.Norm, Line.Pnt);
   Db := -Dot(Plane.Norm, Line.Pnt + Line.Dir);
-  if Da = Db then Exit(Vec(Infinity, Infinity, Infinity));
+  if Da = Db then
+  begin
+    IntPt := Vec(Infinity, Infinity, Infinity);
+    Exit(False);
+  end;
   k := (Plane.D - Da) / (Db - Da);
-  Result := Line.Pnt + (Line.Dir * k);
+  IntPt := Line.Pnt + (Line.Dir * k);
+  Result := True;
 end;
 
 function Distance(const Pt: TVec2; const Seg: TSegment2D): Single;

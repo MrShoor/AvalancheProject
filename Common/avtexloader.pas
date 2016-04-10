@@ -25,6 +25,7 @@ type
   { ITextureManager }
 
   ITextureManager = interface
+    procedure DropCache;
     function LoadTexture(const FileData    : TByteArr;
                          const targetWidth : Integer = SIZE_DEFAULT;
                          const targetHeight: Integer = SIZE_DEFAULT;
@@ -150,6 +151,7 @@ type
 
     function StreamToKey(const AStream: TStream): TByteArr;
   public
+    procedure DropCache;
     function LoadTexture(const FileData    : TByteArr;
                          const targetWidth : Integer = SIZE_DEFAULT;
                          const targetHeight: Integer = SIZE_DEFAULT;
@@ -452,6 +454,11 @@ begin
   AStream.ReadBuffer(Result[0], Length(Result));
 end;
 
+procedure TTextureManager.DropCache;
+begin
+  FTexHash.Clear;
+end;
+
 function TTextureManager.LoadTexture(const FileData: TByteArr;
   const targetWidth: Integer; const targetHeight: Integer;
   const targetFormat: TImageFormat): ITextureData;
@@ -478,7 +485,7 @@ begin
   end;
 end;
 
-function TTextureManager.LoadTexture(const FileName: String;
+function TTextureManager.LoadTexture(const FileName: string;
   const targetWidth: Integer; const targetHeight: Integer;
   const targetFormat: TImageFormat): ITextureData;
 const

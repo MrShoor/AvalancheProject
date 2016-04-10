@@ -1378,7 +1378,7 @@ begin
   if (vCur = FWindowCur) and (FMain.Camera.UpdateID = FCameraUpdateID) and (FMain.Projection.UpdateID = FProjectionUpdateID) then Exit;
   FWindowCur := vCur;
 
-  m := FMain.Camera.uMatrix * FMain.Projection.uMatrix;
+  m := FMain.Projection.uMatrix * FMain.Camera.uMatrix;
   v := Vec(vCur.x, vCur.y, FMain.Projection.DepthRange.x, 1);
   v := v * m;
   FFrom := v.xyz / v.w;
