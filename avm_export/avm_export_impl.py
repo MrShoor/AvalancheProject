@@ -184,6 +184,8 @@ def Export(WFloat, WInt, WStr, WBool):
         if not (bone.parent is None):
             m2 = GetPoseBoneAbsTransform(bone.parent)
             m = m2.inverted()*m
+        else:
+            m = bone.id_data.matrix_world*m
         return m
     
     def WriteBone(bone):
