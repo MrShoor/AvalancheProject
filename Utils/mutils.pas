@@ -305,6 +305,11 @@ function Bezier3(const pt1, pt2, pt3, pt4: TVec2; t: single): TVec2; overload; {
 function SetViewMatrix(var MatrixView: TMat4; const From, At, Worldup: TVec3; leftHanded: boolean = true): HResult;
 function GetUIMatrix(const AWidth, AHeight: Single; const ADepth: Single = 10000): TMat4;
 
+function ToStr(const v: Single): string; overload;
+function ToStr(const v: TVec2): string; overload;
+function ToStr(const v: TVec3): string; overload;
+function ToStr(const v: TVec4): string; overload;
+
 operator = (const v1, v2: TRectF): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 operator = (const v1, v2: TRectI): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 
@@ -682,17 +687,17 @@ end;
 function Mat4(const Q: TQuat; newPos: TVec3): TMat4;
 begin
   Result.f[0][0] := 1 - 2*Q.y*Q.y - 2*Q.z*Q.z;
-  Result.f[0][1] :=     2*Q.x*Q.y - 2*Q.z*Q.w;
-  Result.f[0][2] :=     2*Q.x*Q.z + 2*Q.y*Q.w;
+  Result.f[0][1] :=     2*Q.x*Q.y + 2*Q.z*Q.w;
+  Result.f[0][2] :=     2*Q.x*Q.z - 2*Q.y*Q.w;
   Result.f[0][3] := 0;
 
-  Result.f[1][0] :=     2*Q.x*Q.y + 2*Q.z*Q.w;
+  Result.f[1][0] :=     2*Q.x*Q.y - 2*Q.z*Q.w;
   Result.f[1][1] := 1 - 2*Q.x*Q.x - 2*Q.z*Q.z;
-  Result.f[1][2] :=     2*Q.y*Q.z - 2*Q.x*Q.w;
+  Result.f[1][2] :=     2*Q.y*Q.z + 2*Q.x*Q.w;
   Result.f[1][3] := 0;
 
-  Result.f[2][0] :=     2*Q.x*Q.z - 2*Q.y*Q.w;
-  Result.f[2][1] :=     2*Q.y*Q.z + 2*Q.x*Q.w;
+  Result.f[2][0] :=     2*Q.x*Q.z + 2*Q.y*Q.w;
+  Result.f[2][1] :=     2*Q.y*Q.z - 2*Q.x*Q.w;
   Result.f[2][2] := 1 - 2*Q.x*Q.x - 2*Q.y*Q.y;
   Result.f[2][3] := 0;
 
@@ -1077,6 +1082,26 @@ begin
   Result.OY := Vec(0, -2/AHeight, 0);
   Result.OZ := Vec(0, 0, 1/ADepth);
   Result.Pos := Vec(-1.0, 1.0, 0);
+end;
+
+function ToStr(const v: Single): string;
+begin
+  Result := FormatFloat('0.000', v);
+end;
+
+function ToStr(const v: TVec2): string;
+begin
+  Result := '(' + ToStr(v.x) + '; ' + ToStr(v.y) + ')';
+end;
+
+function ToStr(const v: TVec3): string;
+begin
+  Result := '(' + ToStr(v.x) + '; ' + ToStr(v.y) + '; ' + ToStr(v.z) + ')';
+end;
+
+function ToStr(const v: TVec4): string;
+begin
+  Result := '(' + ToStr(v.x) + '; ' + ToStr(v.y) + '; ' + ToStr(v.z) + '; ' + ToStr(v.w) + ')';
 end;
 
 operator = (const v1, v2: TRectF): Boolean;

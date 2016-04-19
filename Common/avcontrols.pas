@@ -5,7 +5,7 @@ unit avControls;
 interface
 
 uses
-  Classes, SysUtils, avBase, avPlatform, avTypes, avCanvas, avRes, mutils;
+  Classes, SysUtils, intfUtils, avBase, avPlatform, avTypes, avCanvas, avRes, mutils;
 
 const
   EM_SIZECHANGED = EM_EVENTS_START_CONTROLS + 1;

@@ -1094,8 +1094,8 @@ end;
 constructor TavModelCollection.Create(AParent: TavObject);
 begin
   inherited;
-  FModels := TModelHash.Create('', nil);
-  FModelInstances := TModelInstHash.Create('', nil);
+  FModels := TModelHash.Create;
+  FModelInstances := TModelInstHash.Create;
 
   FVB := TavVBManaged.Create(Self);
   FVB.CullMode := cmBack;
@@ -1105,7 +1105,7 @@ begin
   FBoneTransform := TavBoneTransformMap.Create(Self);
   FMaps := TTextureHash.Create;
 
-  FDummyTexData := TDummyTexDataHash.Create(EmptyTexureKey, nil);
+  FDummyTexData := TDummyTexDataHash.Create;
 end;
 
 destructor TavModelCollection.Destroy;

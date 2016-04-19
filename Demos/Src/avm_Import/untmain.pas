@@ -172,7 +172,7 @@ procedure TfrmMain.RenderScene;
   var i: Integer;
   begin
     if AllInstances = nil then Exit;
-    Result := TModelInstanceArr.Create(nil);
+    Result := TModelInstanceArr.Create();
     for i := 0 to min(AllInstances.Count, lbNames.Count) - 1 do
       if lbNames.Selected[i] then
         Result.Add(AllInstances[i]);
@@ -239,7 +239,7 @@ var newInst: IavModelInstance;
     i: Integer;
 begin
   FModels.AddFromFile(AFileName);
-  FInstances := TModelInstanceArr.Create(nil);
+  FInstances := TModelInstanceArr.Create;
   lbNames.Clear;
   lbAnimations.Clear;
 

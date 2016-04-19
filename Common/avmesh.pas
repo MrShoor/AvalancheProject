@@ -771,7 +771,7 @@ begin
 
   n := 0;
 
-  armatures := TavArmatures.Create('', nil);
+  armatures := TavArmatures.Create;
   stream.ReadBuffer(n, SizeOf(n));
   for i := 0 to n - 1 do
   begin
@@ -779,7 +779,7 @@ begin
     armatures.Add(arm.Name, arm);
   end;
 
-  meshes := TavMeshes.Create('',nil);
+  meshes := TavMeshes.Create;
   stream.ReadBuffer(n, SizeOf(n));
   for i := 0 to n - 1 do
   begin
@@ -787,7 +787,7 @@ begin
     meshes.Add(mesh.Name, mesh);
   end;
 
-  meshInst := TavMeshInstances.Create('',nil);
+  meshInst := TavMeshInstances.Create;
   stream.ReadBuffer(n, SizeOf(n));
   SetLength(instArr, n);
   for i := 0 to n - 1 do
@@ -952,7 +952,7 @@ begin
     if Length(lPose) <> Length(FPoseAbs) then
       SetLength(FPoseAbs, Length(lPose));
     for i := 0 to Length(lPose) - 1 do
-      FPoseAbs[i] := lPose[i] * FLocalTransform;
+      FPoseAbs[i] := FLocalTransform*lPose[i];
     FPoseAbsValid := True;
   end;
   Result := FPoseAbs;
@@ -995,7 +995,7 @@ end;
 procedure TavMeshInstance.AfterConstruction;
 begin
   inherited AfterConstruction;
-  FChilds := TChildList.Create(nil);
+  FChilds := TChildList.Create;
 end;
 
 { TavAnimation }
@@ -1263,7 +1263,7 @@ procedure TavArmature.GetPoseData(var Matrices: TMat4Arr; const RemapIndices: TI
   procedure FillBoneData_Recursive(var AbsTransform: TMat4Arr; const animTransform: TMat4Arr; const bone: IavBone; const parentTransform: TMat4);
   var i: Integer;
   begin
-    AbsTransform[bone.Index] := parentTransform*animTransform[bone.Index];
+    AbsTransform[bone.Index] := animTransform[bone.Index]*parentTransform;
     for i := 0 to bone.ChildsCount - 1 do
       FillBoneData_Recursive(AbsTransform, animTransform, bone.Child[i], AbsTransform[bone.Index]);
   end;

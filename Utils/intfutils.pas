@@ -9,66 +9,103 @@ uses
   Classes, SysUtils;
 
 type
-  IWeakRef_Obj = interface
-    procedure _Clear;
-    function Obj : TObject;
+  { IWeakRef }
+
+  IWeakRef = interface(IUnknown)
+    function Obj: TObject;
   end;
 
-  { TWeaklyObject }
+  { IWeakRefInternal }
 
-  TWeaklyObject = class
+  IWeakRefInternal = interface(IWeakRef)
+    procedure CleanUp;
+  end;
+
+  { TWeakedObject }
+
+  TWeakedObject = class (TObject)
   private
-    FWeakRef : IWeakRef_Obj;
+    FWeakRef: IWeakRefInternal;
   public
-    function WeakRef : IWeakRef_Obj;
+    function WeakRef: IWeakRef;
+    destructor Destroy; override;
+  end;
+
+  IWeakedObject = interface
+  ['{08E0422B-0726-444B-90AA-BDF4D85D5668}']
+    function WeakRef: IWeakRef;
+  end;
+
+  { TWeakedInterfacedObject }
+
+  TWeakedInterfacedObject = class (TInterfacedObject, IWeakedObject)
+  private
+    FWeakRef: IWeakRefInternal;
+  public
+    function WeakRef: IWeakRef;
     destructor Destroy; override;
   end;
 
 implementation
 
 type
+  { TWeakRef }
 
-  { TWeakRef_Obj }
-
-  TWeakRef_Obj = class (TInterfacedObject, IWeakRef_Obj)
+  TWeakRef = class (TInterfacedObject, IWeakRef, IWeakRefInternal)
   private
-    FObj : TObject;
+    FObj: TObject;
   public
-    procedure _Clear;
-    function Obj : TObject;
-    constructor Create(const AObj : TObject);
+    function Obj: TObject;
+    procedure CleanUp;
+    constructor Create(AInstance: TObject);
   end;
 
-{ TWeakRef_Obj }
+{ TWeakRef }
 
-procedure TWeakRef_Obj._Clear;
-begin
-  FObj := nil;
-end;
-
-function TWeakRef_Obj.Obj: TObject;
+function TWeakRef.Obj: TObject;
 begin
   Result := FObj;
 end;
 
-constructor TWeakRef_Obj.Create(const AObj: TObject);
+procedure TWeakRef.CleanUp;
 begin
-  FObj := AObj;
+  FObj := nil;
 end;
 
-{ TWeaklyObject }
+constructor TWeakRef.Create(AInstance: TObject);
+begin
+  FObj := AInstance;
+end;
 
-function TWeaklyObject.WeakRef: IWeakRef_Obj;
+{ TWeakedObject }
+
+function TWeakedObject.WeakRef: IWeakRef;
 begin
   if FWeakRef = nil then
-    FWeakRef := TWeakRef_Obj.Create(Self);
+    FWeakRef := TWeakRef.Create(Self);
   Result := FWeakRef;
 end;
 
-destructor TWeaklyObject.Destroy;
+destructor TWeakedObject.Destroy;
 begin
   if Assigned(FWeakRef) then
-     FWeakRef._Clear;
+    FWeakRef.CleanUp;
+  inherited Destroy;
+end;
+
+{ TWeakedInterfacedObject }
+
+function TWeakedInterfacedObject.WeakRef: IWeakRef;
+begin
+  if FWeakRef = nil then
+    FWeakRef := TWeakRef.Create(Self);
+  Result := FWeakRef;
+end;
+
+destructor TWeakedInterfacedObject.Destroy;
+begin
+  if Assigned(FWeakRef) then
+    FWeakRef.CleanUp;
   inherited Destroy;
 end;
 

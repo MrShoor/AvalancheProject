@@ -8,7 +8,7 @@ object frmMain: TfrmMain
   ClientWidth = 1044
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  LCLVersion = '1.6.0.1'
+  LCLVersion = '1.6.0.4'
   object RenderPanel: TPanel
     Left = 186
     Height = 728

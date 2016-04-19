@@ -12,6 +12,11 @@
         <OtherUnitFiles Value="."/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
+      <CodeGeneration>
+        <Optimizations>
+          <OptimizationLevel Value="0"/>
+        </Optimizations>
+      </CodeGeneration>
       <Linking>
         <Debugging>
           <DebugInfoType Value="dsDwarf2Set"/>
@@ -33,7 +38,7 @@
       </Item3>
       <Item4>
         <Filename Value="intfutils.pas"/>
-        <UnitName Value="intfutils"/>
+        <UnitName Value="intfUtils"/>
       </Item4>
     </Files>
     <RequiredPkgs Count="1">

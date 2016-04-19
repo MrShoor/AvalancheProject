@@ -2471,16 +2471,12 @@ begin
 end;
 
 constructor TProgram.Create(AContext: TContext_OGL);
-var VaoKey: TVAOKey;
-    VaoInfo: TVAOInfo;
 begin
   inherited Create(AContext);
   FUniformList := TUniformHash.Create;
   FAttrList := TAttributeHash.Create;
 
-  ZeroMemory(@VaoKey, SizeOf(VaoKey));
-  ZeroMemory(@VaoInfo, SizeOf(VaoInfo));
-  FVAOList := TVaoHash.Create(VaoKey, VaoInfo);
+  FVAOList := TVaoHash.Create;
 end;
 
 destructor TProgram.Destroy;

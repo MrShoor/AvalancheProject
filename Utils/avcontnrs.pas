@@ -29,6 +29,7 @@ type
 
     function  Add(const item: TValue): Integer; //index of new added element
     procedure Delete(const index: Integer);
+    procedure DeleteWithSwap(const index: Integer);
     function  IndexOf(const item: TValue): Integer;
 
     procedure Clear(const TrimCapacity: Boolean = False);
@@ -68,6 +69,7 @@ type
 
     function Add(const item: TValue): Integer; //return index of new added element
     procedure Delete(const index: Integer);
+    procedure DeleteWithSwap(const index: Integer);
     function IndexOf(const item: TValue): Integer;
 
     procedure Clear(const TrimCapacity: Boolean = False);
@@ -77,7 +79,6 @@ type
     property Capacity: Integer read GetCapacity write SetCapacity;
   public
     constructor Create; overload;
-    constructor Create(const AEmptyValue: TValue); overload;
   end;
 
   IObjArr = specialize IArray<TObject>;
@@ -135,7 +136,8 @@ type
     FGrowLimit: Integer;
     FCount: Integer;
 
-    FCleanWithEmpty: Boolean;
+    FCleanWithEmptyKey  : Boolean;
+    FCleanWithEmptyValue: Boolean;
     FEmptyKey: TKey;
     FEmptyValue: TValue;
 
@@ -147,11 +149,11 @@ type
     function CmpArray(item1, item2: Pointer; dataSize: Integer): Boolean;
     function GetCompareMethod(tinfo: PTypeInfo): TCompareMethod;
 
-    function PrevIndex(const index: Integer): Integer; inline;
-    function Wrap(const index: Integer): Integer; inline;
-    function CalcBucketIndex(const AKey: TKey; AHash: Cardinal; out AIndex: Integer): Boolean; inline;
-    procedure DoAddOrSet(BucketIndex, AHash: Integer; const AKey: TKey; const AValue: TValue); inline;
-    procedure GrowIfNeeded; inline;
+    function PrevIndex(const index: Integer): Integer; {$IfNDef NoInline}inline;{$EndIf}
+    function Wrap(const index: Integer): Integer; {$IfNDef NoInline}inline;{$EndIf}
+    function CalcBucketIndex(const AKey: TKey; AHash: Cardinal; out AIndex: Integer): Boolean; {$IfNDef NoInline}inline;{$EndIf}
+    procedure DoAddOrSet(BucketIndex, AHash: Integer; const AKey: TKey; const AValue: TValue); {$IfNDef NoInline}inline;{$EndIf}
+    procedure GrowIfNeeded; {$IfNDef NoInline}inline;{$EndIf}
 
     function GetCapacity: Integer;
     procedure SetCapacity(const cap: Integer);
@@ -178,7 +180,6 @@ type
     property Capacity: Integer read GetCapacity write SetCapacity;
   public
     constructor Create; overload;
-    constructor Create(const AEmptyKey: TKey; const AEmptyValue: TValue); overload;
   end;
 
   { TMurmur2Hash }
@@ -200,6 +201,8 @@ type
 //{$INCLUDE LooseTree.inc}
 
 function Murmur2(const SrcData; len: LongWord; const Seed: LongWord=$9747b28c): Cardinal;
+
+function IsAutoReferenceCounterType(const AType: PTypeInfo): Boolean;
 
 implementation {$DEFINE IMPLEMENTATION} {$UNDEF INTERFACE}
 
@@ -266,6 +269,60 @@ begin
   h := h xor (h shr 15);
 
   Result := h;
+end;
+
+function IsAutoReferenceCounterType(const AType: PTypeInfo): Boolean;
+var td: PTypeData;
+    mf: PManagedField;
+    n, i: Integer;
+begin
+  case AType^.Kind of
+  tkUnknown     : Assert(False, 'What???');
+  tkInteger     : Result := False;
+  tkChar        : Result := False;
+  tkEnumeration : Result := False;
+  tkFloat       : Result := False;
+  tkSet         : Result := False;
+  tkMethod      : Result := False;
+  tkSString     : Result := False;
+  tkLString     : Result := True;
+  tkAString     : Result := True;
+  tkWString     : Result := True;
+  tkVariant     : Result := True;
+  tkArray       : Result := False;
+  tkRecord      : begin
+                    Result := False;
+                    td := GetTypeData(AType);
+                    n := td^.ManagedFldCount;
+                    mf := PManagedField(@td^.ManagedFldCount);
+                    Inc(PByte(mf), SizeOf(td^.ManagedFldCount));
+                    for i := 0 to n-1 do
+                    begin
+                      if IsAutoReferenceCounterType(mf^.TypeRef) then
+                      begin
+                        Result := True;
+                        Exit;
+                      end;
+                      Inc(mf);
+                    end;
+                  end;
+  tkInterface   : Result := True;
+  tkClass       : Result := False;
+  tkObject      : Result := False;
+  tkWChar       : Result := False;
+  tkBool        : Result := False;
+  tkInt64       : Result := False;
+  tkQWord       : Result := False;
+  tkDynArray    : Result := True;
+  tkInterfaceRaw: Result := False;
+  tkProcVar     : Result := False;
+  tkUString     : Result := True;
+  tkUChar       : Result := False;
+  tkHelper      : Result := False;
+  tkFile        : Result := False;
+  tkClassRef    : Result := False;
+  tkPointer     : Result := False;
+  end;
 end;
 
 { TMurmur2HashString }
@@ -351,6 +408,9 @@ begin
   tkUString: Result := @CmpUString;
   tkUChar: ;
   tkHelper: ;
+  tkFile: ;
+  tkClassRef: Result := @CmpRecord;
+  tkPointer: Result := @CmpRecord;
   end;
   if Result = nil then Assert(False, 'Not implemented yet');
 end;
@@ -373,7 +433,6 @@ begin
     AIndex := 0;
     Exit(False);
   end;
-
   AIndex := Wrap(AHash);
   while True do
   begin
@@ -487,17 +546,16 @@ begin
   end;
   Dec(FCount);
   FData[bIndex].Hash := 0;
-  if FCleanWithEmpty then
-  begin
-    FData[bIndex].Key := FEmptyKey;
-    FData[bIndex].Value := FEmptyValue;
-  end;
+  if FCleanWithEmptyKey then FData[bIndex].Key := FEmptyKey;
+  if FCleanWithEmptyValue then FData[bIndex].Value := FEmptyValue;
 end;
 
 function THashMap.TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
 var bIndex: Integer = 0;
+    hash: Integer;
 begin
-  if not CalcBucketIndex(AKey, THash.Hash(AKey), bIndex) then
+  hash := THash.Hash(AKey);
+  if not CalcBucketIndex(AKey, hash, bIndex) then
     Exit(False);
   Result := True;
   AValue := FData[bIndex].Value;
@@ -596,16 +654,10 @@ end;
 
 constructor THashMap.Create;
 begin
-  FCleanWithEmpty := False;
-  FKeyComparer := GetCompareMethod(TypeInfo(TKey));
-  FValueComparer := GetCompareMethod(TypeInfo(TValue));
-end;
-
-constructor THashMap.Create(const AEmptyKey: TKey; const AEmptyValue: TValue);
-begin
-  FCleanWithEmpty := True;
-  FEmptyKey := AEmptyKey;
-  FEmptyValue := AEmptyValue;
+  FCleanWithEmptyKey := IsAutoReferenceCounterType(TypeInfo(TKey));
+  if FCleanWithEmptyKey then FEmptyKey := Default(TKey);
+  FCleanWithEmptyValue := IsAutoReferenceCounterType(TypeInfo(TValue));
+  if FCleanWithEmptyValue then FEmptyValue := Default(TValue);
   FKeyComparer := GetCompareMethod(TypeInfo(TKey));
   FValueComparer := GetCompareMethod(TypeInfo(TValue));
 end;
@@ -669,6 +721,9 @@ begin
   tkUString: Result := @CmpUString;
   tkUChar: ;
   tkHelper: ;
+  tkFile: ;
+  tkClassRef: Result := @CmpRecord;
+  tkPointer: Result := @CmpRecord;
   end;
 end;
 
@@ -767,6 +822,17 @@ begin
     FData[FCount] := FEmpty;
 end;
 
+procedure TArray.DeleteWithSwap(const index: Integer);
+var last: Integer;
+begin
+  last := Count - 1;
+  if index <> last then
+    FData[index] := FData[last];
+  Dec(FCount);
+  if FCleanWithEmpty then
+    FData[last] := FEmpty;
+end;
+
 function TArray.IndexOf(const item: TValue): Integer;
 var I: Integer;
 begin
@@ -795,14 +861,8 @@ end;
 
 constructor TArray.Create;
 begin
-  FCleanWithEmpty := False;
-  FItemComparer := GetCompareMethod(TypeInfo(TValue));
-end;
-
-constructor TArray.Create(const AEmptyValue: TValue);
-begin
-  FCleanWithEmpty := True;
-  FEmpty := AEmptyValue;
+  FCleanWithEmpty := IsAutoReferenceCounterType(TypeInfo(TValue));
+  if FCleanWithEmpty then FEmpty := Default(TValue);
   FItemComparer := GetCompareMethod(TypeInfo(TValue));
 end;
 

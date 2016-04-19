@@ -548,7 +548,7 @@ end;
 procedure TTextureManager.AfterConstruction;
 begin
   inherited AfterConstruction;
-  FTexHash := TTexHash.Create(nil, nil);
+  FTexHash := TTexHash.Create;
 end;
 
 {$EndIf}

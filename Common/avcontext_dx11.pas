@@ -1060,15 +1060,9 @@ begin
 end;
 
 procedure TProgram.AfterConstruction;
-var ILKey : TILKey;
-    ILInfo: TILInfo;
 begin
   inherited AfterConstruction;
-  ILKey.InstanceRI := nil;
-  ILKey.ModelRI := nil;
-  ILInfo.IL := nil;
-  ILInfo.BindTime := 0;
-  FILMap := TILMap.Create(ILKey, ILInfo);
+  FILMap := TILMap.Create;
   FUniforms := TUniformMap.Create;
 end;
 
@@ -1911,9 +1905,9 @@ begin
   FillChar(FRDesc, SizeOf(FRDesc), 0);
   FillChar(FDDesc, SizeOf(FDDesc), 0);
 
-  FBlendStates  := TBlendStateMap.Create(FBDesc, nil);
-  FRasterStates := TRasterStateMap.Create(FRDesc, nil);
-  FDepthStates  := TDepthStateMap.Create(FDDesc, nil);
+  FBlendStates  := TBlendStateMap.Create();
+  FRasterStates := TRasterStateMap.Create();
+  FDepthStates  := TDepthStateMap.Create();
 
   LoadDefaultState;
 end;
@@ -2720,13 +2714,11 @@ end;
 
 constructor TContext_DX11.Create(const Wnd: TWindow);
 var SwapChainDesc: TDXGI_SwapChainDesc;
-    EmptySampler: TSamplerInfo;
 begin
   FStates := TStates.Create(Self);
   FStatesIntf := TStates(FStates);
 
-  FillChar(EmptySampler, SizeOf(EmptySampler), 0);
-  FSamplerMap := TSamplerMap.Create(EmptySampler, nil);
+  FSamplerMap := TSamplerMap.Create;
 
   FWnd := Wnd;
 

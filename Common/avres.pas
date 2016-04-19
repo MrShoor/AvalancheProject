@@ -5,7 +5,7 @@ unit avRes;
 interface
 
 uses
-  Classes, SysUtils, avBase, avContext, mutils, avTypes, avTess, avPlatform, avContnrs;
+  Classes, SysUtils, intfUtils, avBase, avContext, mutils, avTypes, avTess, avPlatform, avContnrs;
 
 type
   TavProgram = class;
@@ -1291,7 +1291,7 @@ end;
 procedure TavFrameBuffer.AfterConstruction;
 begin
   inherited AfterConstruction;
-  FColors := TColorsList.Create(EmptyAttachInfo);
+  FColors := TColorsList.Create;
 end;
 
 { TavTexture }

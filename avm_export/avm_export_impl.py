@@ -102,7 +102,7 @@ def Export(WFloat, WInt, WStr, WBool):
                 specularColor.append(mat.specular_alpha)
                 specularPower = mat.specular_hardness
                 for ts in mat.texture_slots:
-                    if (not ts is None) and (not ts.texture is None) and (not ts.texture.image is None):
+                    if (not ts is None) and (not ts.texture is None) and (ts.texture.type == 'IMAGE') and (not ts.texture.image is None):
                         fpath = ts.texture.image.filepath
                         if fpath.find(r'\\') == 0:
                             fpath = '//'+fpath[2:]
@@ -176,13 +176,14 @@ def Export(WFloat, WInt, WStr, WBool):
             WStr(vg.name)
     
     def GetPoseBoneAbsTransform(bone):
-        return bone.id_data.matrix_world*bone.matrix_channel*bone.id_data.matrix_world.inverted()
+        #return bone.id_data.matrix_world*bone.matrix_channel*bone.id_data.matrix_world.inverted()
+        return bone.matrix_channel
     
     def GetPoseBoneTransform(bone):
         m = GetPoseBoneAbsTransform(bone)
         if not (bone.parent is None):
             m2 = GetPoseBoneAbsTransform(bone.parent)
-            m = m*m2.inverted()
+            m = m2.inverted()*m
         return m
     
     def WriteBone(bone):
@@ -193,7 +194,6 @@ def Export(WFloat, WInt, WStr, WBool):
             WStr(bone.parent.name)
         WInt(GetPoseBoneIndex(bone.id_data, bone.name))
         WriteMatrix(GetPoseBoneTransform(bone))
-        #WriteMatrix(bone.matrix)
         #WriteMatrix( bone.id_data.children[0].convert_space(bone, bone.matrix_channel, 'WORLD', 'WORLD') )        
     
     def WriteArmature(obj):
@@ -311,5 +311,5 @@ def ExportToConsole():
     print('---------')
     Export(WFloat, WInt, WStr, WBool)
             
-ExportToFile(outfilename)
+#ExportToFile(outfilename)
 #ExportToConsole()
