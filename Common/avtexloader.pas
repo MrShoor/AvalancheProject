@@ -143,9 +143,8 @@ type
 
   TTextureManager = class (TInterfacedObject, ITextureManager)
   private type
-    TTexHashFunc = specialize TMurmur2Hash<TByteArr>;
-    ITexHash = specialize IHashMap<TByteArr, ITextureData, TTexHashFunc>;
-    TTexHash = specialize THashMap<TByteArr, ITextureData, TTexHashFunc>;
+    ITexHash = specialize IHashMap<TByteArr, ITextureData>;
+    TTexHash = specialize THashMap<TByteArr, ITextureData>;
   private
     FTexHash: ITexHash;
 

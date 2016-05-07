@@ -16,9 +16,8 @@ type
 
   TContext_DX11 = class (TavInterfacedObject, IRenderContext)
   private type
-    TSamplerMap_Hash = specialize TMurmur2Hash<TSamplerInfo>;
-    TSamplerMap = specialize THashMap<TSamplerInfo, ID3D11SamplerState, TSamplerMap_Hash>;
-    ISamplerMap = specialize IHashMap<TSamplerInfo, ID3D11SamplerState, TSamplerMap_Hash>;
+    TSamplerMap = specialize THashMap<TSamplerInfo, ID3D11SamplerState>;
+    ISamplerMap = specialize IHashMap<TSamplerInfo, ID3D11SamplerState>;
   private
     FStates: TObject;
     FStatesIntf: IRenderStates;
@@ -343,17 +342,14 @@ type
       D3D11_STENCIL_OP_DECR_SAT  //saDecWrap
     );
   private type
-    TBlendStateHash_func = specialize TMurmur2Hash<TD3D11_BlendDesc>;
-    TBlendStateMap = specialize THashMap<TD3D11_BlendDesc, ID3D11BlendState, TBlendStateHash_func>;
-    IBlendStateMap = specialize IHashMap<TD3D11_BlendDesc, ID3D11BlendState, TBlendStateHash_func>;
+    TBlendStateMap = specialize THashMap<TD3D11_BlendDesc, ID3D11BlendState>;
+    IBlendStateMap = specialize IHashMap<TD3D11_BlendDesc, ID3D11BlendState>;
 
-    TRasterStateHash_func = specialize TMurmur2Hash<TD3D11_RasterizerDesc>;
-    TRasterStateMap = specialize THashMap<TD3D11_RasterizerDesc, ID3D11RasterizerState, TRasterStateHash_func>;
-    IRasterStateMap = specialize IHashMap<TD3D11_RasterizerDesc, ID3D11RasterizerState, TRasterStateHash_func>;
+    TRasterStateMap = specialize THashMap<TD3D11_RasterizerDesc, ID3D11RasterizerState>;
+    IRasterStateMap = specialize IHashMap<TD3D11_RasterizerDesc, ID3D11RasterizerState>;
 
-    TDepthStateHash_func = specialize TMurmur2Hash<TD3D11_DepthStencilDesc>;
-    TDepthStateMap = specialize THashMap<TD3D11_DepthStencilDesc, ID3D11DepthStencilState, TDepthStateHash_func>;
-    IDepthStateMap = specialize IHashMap<TD3D11_DepthStencilDesc, ID3D11DepthStencilState, TDepthStateHash_func>;
+    TDepthStateMap = specialize THashMap<TD3D11_DepthStencilDesc, ID3D11DepthStencilState>;
+    IDepthStateMap = specialize IHashMap<TD3D11_DepthStencilDesc, ID3D11DepthStencilState>;
   private
     FContext: TContext_DX11;
 
@@ -659,12 +655,11 @@ type
       BindTime  : Cardinal;
     end;
 
-    TILKeyHash_func = specialize TMurmur2Hash<TILKey>;
-    TILMap = specialize THashMap<TILKey, TILInfo, TILKeyHash_func>;
-    IILMap = specialize IHashMap<TILKey, TILInfo, TILKeyHash_func>;
+    TILMap = specialize THashMap<TILKey, TILInfo>;
+    IILMap = specialize IHashMap<TILKey, TILInfo>;
 
-    TUniformMap = specialize THashMap<string, TUniformField, TMurmur2HashString>;
-    IUniformMap = specialize IHashMap<string, TUniformField, TMurmur2HashString>;
+    TUniformMap = specialize THashMap<string, TUniformField>;
+    IUniformMap = specialize IHashMap<string, TUniformField>;
   private
     FILMap: IILMap;
 

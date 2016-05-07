@@ -23,7 +23,7 @@
         </Debugging>
       </Linking>
     </CompilerOptions>
-    <Files Count="4">
+    <Files Count="5">
       <Item1>
         <Filename Value="avcontnrs.pas"/>
         <UnitName Value="avContnrs"/>
@@ -40,6 +40,10 @@
         <Filename Value="intfutils.pas"/>
         <UnitName Value="intfUtils"/>
       </Item4>
+      <Item5>
+        <Filename Value="avcontnrsdefaults.pas"/>
+        <UnitName Value="avcontnrsdefaults"/>
+      </Item5>
     </Files>
     <RequiredPkgs Count="1">
       <Item1>

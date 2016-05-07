@@ -7,7 +7,7 @@ unit AvalancheUtils;
 interface
 
 uses
-  avContnrs, mutils, intfUtils, LazarusPackageIntf;
+  avContnrs, mutils, intfUtils, avContnrsDefaults, LazarusPackageIntf;
 
 implementation
 

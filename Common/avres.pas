@@ -324,9 +324,8 @@ type
 
   generic TNodeManager<TNode> = class
   strict private type
-    TGroupHashFunc = specialize TMurmur2Hash<TNode>;
-    IGroupHash = specialize IHashMap<TNode, Integer, TGroupHashFunc>;
-    TGroupHash = specialize THashMap<TNode, Integer, TGroupHashFunc>;
+    IGroupHash = specialize IHashMap<TNode, Integer>;
+    TGroupHash = specialize THashMap<TNode, Integer>;
     IGroupList = specialize IArray<TNode>;
     TGroupList = specialize TArray<TNode>;
   strict private

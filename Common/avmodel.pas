@@ -234,11 +234,11 @@ type
       destructor Destroy; override;
     end;
 
-    IModelHash = specialize IHashMap<String, TModel, TMurmur2HashString>;
-    TModelHash = specialize THashMap<String, TModel, TMurmur2HashString>;
+    IModelHash = specialize IHashMap<String, TModel>;
+    TModelHash = specialize THashMap<String, TModel>;
 
-    IModelInstHash = specialize IHashMap<String, IavModelInstance, TMurmur2HashString>;
-    TModelInstHash = specialize THashMap<String, IavModelInstance, TMurmur2HashString>;
+    IModelInstHash = specialize IHashMap<String, IavModelInstance>;
+    TModelInstHash = specialize THashMap<String, IavModelInstance>;
 
     TTextureKey = packed record
       Width : Integer;
@@ -248,12 +248,11 @@ type
   private const
     EmptyTexureKey: TTextureKey = (Width:0;Height:0;Mips:0);
   private type
-    TTextureHashFunc = specialize TMurmur2Hash<TTextureKey>;
-    ITextureHash = specialize IHashMap<TTextureKey, TavTexture, TTextureHashFunc>;
-    TTextureHash = specialize THashMap<TTextureKey, TavTexture, TTextureHashFunc>;
+    ITextureHash = specialize IHashMap<TTextureKey, TavTexture>;
+    TTextureHash = specialize THashMap<TTextureKey, TavTexture>;
 
-    IDummyTexDataHash = specialize IHashMap<TTextureKey, ITextureData, TTextureHashFunc>;
-    TDummyTexDataHash = specialize THashMap<TTextureKey, ITextureData, TTextureHashFunc>;
+    IDummyTexDataHash = specialize IHashMap<TTextureKey, ITextureData>;
+    TDummyTexDataHash = specialize THashMap<TTextureKey, ITextureData>;
   private
     FVB: TavVBManaged;
     FIB: TavIBManaged;

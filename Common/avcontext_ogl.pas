@@ -15,9 +15,8 @@ const
 type
   TavInterfacedObject = TInterfacedObject;
 
-  TObjListHash_func = specialize TMurmur2Hash<TObject>;
-  TObjListHash = specialize THashMap<TObject, Boolean, TObjListHash_func>;
-  IObjListHash = specialize IHashMap<TObject, Boolean, TObjListHash_func>;
+  TObjListHash = specialize THashMap<TObject, Boolean>;
+  IObjListHash = specialize IHashMap<TObject, Boolean>;
 
   { TContext_OGL }
 
@@ -885,15 +884,13 @@ type
         GL_CLAMP_TO_BORDER  // twClampToEdge
       );
     type
-      TVaoHash_func = specialize TMurmur2Hash<TVAOKey>;
-      TVaoHash = specialize THashMap<TVAOKey, TVAOInfo, TVaoHash_func>;
-      IVaoHash = specialize IHashMap<TVAOKey, TVAOInfo, TVaoHash_func>;
+      TVaoHash = specialize THashMap<TVAOKey, TVAOInfo>;
+      IVaoHash = specialize IHashMap<TVAOKey, TVAOInfo>;
 
-      TStringHash_func = TMurmur2HashString;
-      TUniformHash = specialize THashMap<string, TUniformField_OGL, TStringHash_func>;
-      IUniformHash = specialize IHashMap<string, TUniformField_OGL, TStringHash_func>;
-      TAttributeHash = specialize THashMap<string, TAttributeField_OGL, TStringHash_func>;
-      IAttributeHash = specialize IHashMap<string, TAttributeField_OGL, TStringHash_func>;
+      TUniformHash = specialize THashMap<string, TUniformField_OGL>;
+      IUniformHash = specialize IHashMap<string, TUniformField_OGL>;
+      TAttributeHash = specialize THashMap<string, TAttributeField_OGL>;
+      IAttributeHash = specialize IHashMap<string, TAttributeField_OGL>;
   private
     FUniformList: IUniformHash;
     FAttrList: IAttributeHash;

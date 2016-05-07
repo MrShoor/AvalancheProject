@@ -7,10 +7,11 @@ unit avContnrs;
 interface {$DEFINE INTERFACE}
 
 uses
-  Classes, SysUtils, mutils, FGL, typinfo, Windows;
+  Classes, SysUtils, mutils, FGL, typinfo, avContnrsDefaults;
 
 type
-  TInterfacedObjectEx = TInterfacedObject;
+  TInterfacedObjectEx = avContnrsDefaults.TInterfacedObjectEx;
+
   TCompareMethod = function (item1, item2: Pointer; dataSize: Integer): Boolean of object;
   TCompareMethodStatic = function (item1, item2: Pointer; dataSize: Integer; userData: Pointer): Integer;
 
@@ -86,11 +87,7 @@ type
 
   { IHashMap }
 
-  //THash must contain Hash method like this:
-  //TMyHash = record
-  //  function Hash(AKey: TKey): Cardinal;
-  //end;
-  generic IHashMap<TKey, TValue, THash> = interface
+  generic IHashMap<TKey, TValue> = interface
     function GetCapacity: Integer;
     procedure SetCapacity(const cap: Integer);
     function GetItem(const AKey: TKey): TValue;
@@ -102,8 +99,6 @@ type
     procedure Delete(const AKey: TKey);
     function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
     function Contains(const AKey: TKey): Boolean;
-    function ContainsValue(const AValue: TValue): Boolean; overload;
-    function ContainsValue(const AValue: TValue; out AKey: TKey): Boolean; overload;
     procedure Clear;
 
     procedure Reset;
@@ -112,16 +107,12 @@ type
     function NextValue(out AValue: TValue): Boolean;
 
     property Capacity: Integer read GetCapacity write SetCapacity;
-    property Item[AKey: TKey]: TValue read GetItem write SetItem;
+    property Item[AKey: TKey]: TValue read GetItem write SetItem; default;
   end;
 
   { THashMap }
 
-  //THash must contain Hash method like this:
-  //TMyHash = record
-  //  function Hash(AKey: TKey): Cardinal;
-  //end;
-  generic THashMap<TKey, TValue, THash> = class (TInterfacedObjectEx, specialize IHashMap<TKey, TValue, THash>)
+  generic THashMap<TKey, TValue> = class (TInterfacedObjectEx, specialize IHashMap<TKey, TValue>)
   private
     type
       TItem = packed record
@@ -130,24 +121,22 @@ type
         Value: TValue;
       end;
       TItems = array of TItem;
+
+      IEqComparer  = specialize IEqualityComparer<TKey>;
+      TEQC_UString = specialize TEqualityComparer_UString<TKey>;
+      TEQC_WString = specialize TEqualityComparer_WString<TKey>;
+      TEQC_AString = specialize TEqualityComparer_AString<TKey>;
+      TEQC_Data    = specialize TEqualityComparer_Data<TKey>;
+      TEQC_Array   = specialize TEqualityComparer_Array<TKey>;
   strict private
     FEnumIndex: Integer;
     FData: TItems;
     FGrowLimit: Integer;
     FCount: Integer;
 
-    FCleanWithEmptyKey  : Boolean;
-    FCleanWithEmptyValue: Boolean;
+    FComparer: IEqComparer;
     FEmptyKey: TKey;
     FEmptyValue: TValue;
-
-    FKeyComparer: TCompareMethod;
-    FValueComparer: TCompareMethod;
-    function CmpUString(item1, item2: Pointer; dataSize: Integer): Boolean;
-    function CmpAString(item1, item2: Pointer; dataSize: Integer): Boolean;
-    function CmpRecord(item1, item2: Pointer; dataSize: Integer): Boolean;
-    function CmpArray(item1, item2: Pointer; dataSize: Integer): Boolean;
-    function GetCompareMethod(tinfo: PTypeInfo): TCompareMethod;
 
     function PrevIndex(const index: Integer): Integer; {$IfNDef NoInline}inline;{$EndIf}
     function Wrap(const index: Integer): Integer; {$IfNDef NoInline}inline;{$EndIf}
@@ -166,8 +155,6 @@ type
     procedure Delete(const AKey: TKey);
     function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
     function Contains(const AKey: TKey): Boolean;
-    function ContainsValue(const AValue: TValue): Boolean; overload;
-    function ContainsValue(const AValue: TValue; out AKey: TKey): Boolean; overload;
     procedure Clear;
 
     function WrapedIndexIsBetween(Left, Index, Right: Integer): Boolean;
@@ -178,29 +165,11 @@ type
     function NextValue(out AValue: TValue): Boolean;
 
     property Capacity: Integer read GetCapacity write SetCapacity;
+
+    procedure AutoSelectComparer;
   public
-    constructor Create; overload;
+    constructor Create; virtual;
   end;
-
-  { TMurmur2Hash }
-
-  generic TMurmur2Hash<TKey> = record
-    function Hash(const AKey: TKey): Cardinal;
-  end;
-
-  { TMurmur2HashString }
-
-  TMurmur2HashString = record
-    function Hash(AKey: string): Cardinal;
-  end;
-
-//{$DEFINE DIM := 2}
-//{$DEFINE TCompType := Single}
-//{$DEFINE TBox := TBox2f}
-//{$DEFINE TLooseTree := TLooseQuadTree_f}
-//{$INCLUDE LooseTree.inc}
-
-function Murmur2(const SrcData; len: LongWord; const Seed: LongWord=$9747b28c): Cardinal;
 
 function IsAutoReferenceCounterType(const AType: PTypeInfo): Boolean;
 
@@ -211,65 +180,6 @@ uses
 
 {$R-}
 {$Q-}
-function Murmur2(const SrcData; len: LongWord; const Seed: LongWord = $9747B28C): Cardinal;
-var
-  S: array [0 .. 0] of Byte absolute SrcData;
-  h: LongWord;
-  k: LongWord;
-  data: Integer;
-const
-  // 'm' and 'r' are mixing constants generated offline.
-  // They're not really 'magic', they just happen to work well.
-  m = $5BD1E995;
-  r = 24;
-begin
-  // The default seed, $9747b28c, is from the original C library
-
-  // Initialize the hash to a 'random' value
-  h := Seed xor len;
-
-  // Mix 4 bytes at a time into the hash
-  data := 0;
-
-  while (len >= 4) do
-  begin
-    k := PLongWord(@S[data])^;
-
-    k := k * m;
-    k := k xor (k shr r);
-    k := k * m;
-
-    h := h * m;
-    h := h xor k;
-
-    data := data + 4;
-    len := len - 4;
-  end;
-
-  { Handle the last few bytes of the input array
-    S: ... $69 $18 $2f
-    }
-  Assert(len <= 3);
-  if len = 3 then
-    h := h xor (LongWord(S[data + 2]) shl 16);
-  if len >= 2 then
-    h := h xor (LongWord(S[data + 1]) shl 8);
-  if len >= 1 then
-  begin
-    h := h xor (LongWord(S[data]));
-
-    h := h * m;
-  end;
-
-  // Do a few final mixes of the hash to ensure the last few
-  // bytes are well-incorporated.
-  h := h xor (h shr 13);
-
-  h := h * m;
-  h := h xor (h shr 15);
-
-  Result := h;
-end;
 
 function IsAutoReferenceCounterType(const AType: PTypeInfo): Boolean;
 var td: PTypeData;
@@ -325,95 +235,7 @@ begin
   end;
 end;
 
-{ TMurmur2HashString }
-
-function TMurmur2HashString.Hash(AKey: string): Cardinal;
-begin
-  if AKey = '' then Exit(1);
-  Result := Murmur2(AKey[1], (Length(AKey)+1)*SizeOf(char));
-  if Result = 0 then Result := 1;
-end;
-
-{ TMurmur2Hash }
-
-function TMurmur2Hash.Hash(const AKey: TKey): Cardinal;
-var p: PTypeInfo;
-    arr: TBytes absolute AKey;
-begin
-  p := TypeInfo(TKey);
-  if p^.Kind = tkDynArray then
-    Result := Murmur2(arr[0], Length(arr)*Integer(GetTypeData(p)^.elSize))
-  else
-    Result := Murmur2(AKey, SizeOf(AKey));
-  if Result = 0 then Result := 1;
-end;
-
 { THashMap }
-
-function THashMap.CmpUString(item1, item2: Pointer; dataSize: Integer): Boolean;
-begin
-  Result := string(item1^) = string(item2^);
-end;
-
-function THashMap.CmpAString(item1, item2: Pointer; dataSize: Integer): Boolean;
-begin
-  Result := AnsiString(item1^) = AnsiString(item2^);
-end;
-
-function THashMap.CmpRecord(item1, item2: Pointer; dataSize: Integer): Boolean;
-begin
-  Result := CompareMem(item1, item2, dataSize);
-end;
-
-function THashMap.CmpArray(item1, item2: Pointer; dataSize: Integer): Boolean;
-var b1: TBytes absolute item1;
-    b2: TBytes absolute item2;
-begin
-  Result := False;
-  if item1 = item2 then Exit;
-  if Length(b1) <> Length(b2) then Exit;
-  dataSize := Length(b1)*Integer(GetTypeData(TypeInfo(TKey))^.elsize);
-  if dataSize = 0 then Exit(True);
-  Result := CompareMem(@b1[0], @b2[0], dataSize);
-end;
-
-function THashMap.GetCompareMethod(tinfo: PTypeInfo): TCompareMethod;
-begin
-  Result := Nil;
-  case tinfo^.Kind of
-  tkUnknown: Assert(False, 'Not implemented yet');
-  tkInteger: Result := @CmpRecord;
-  tkChar: Result := @CmpRecord;
-  tkEnumeration: Result := @CmpRecord;
-  tkFloat: Result := @CmpRecord;
-  tkSet: Result := @CmpRecord;
-  tkMethod: Assert(False, 'Not implemented yet');
-  tkSString: Result := @CmpRecord;
-  tkLString: ;
-  tkAString: Result := @CmpAString;
-  tkWString: ;
-  tkVariant: ;
-  tkArray: ;
-  tkRecord: Result := @CmpRecord;
-  tkInterface: Result := @CmpRecord;
-  tkClass: Result := @CmpRecord;
-  tkObject: Result := @CmpRecord;
-  tkWChar: Result := @CmpRecord;
-  tkBool: Result := @CmpRecord;
-  tkInt64: Result := @CmpRecord;
-  tkQWord: Result := @CmpRecord;
-  tkDynArray: Result := @CmpArray;
-  tkInterfaceRaw: Result := @CmpRecord;
-  tkProcVar: ;
-  tkUString: Result := @CmpUString;
-  tkUChar: ;
-  tkHelper: ;
-  tkFile: ;
-  tkClassRef: Result := @CmpRecord;
-  tkPointer: Result := @CmpRecord;
-  end;
-  if Result = nil then Assert(False, 'Not implemented yet');
-end;
 
 function THashMap.PrevIndex(const index: Integer): Integer;
 begin
@@ -437,7 +259,7 @@ begin
   while True do
   begin
     if FData[AIndex].Hash = 0 then Exit(False);
-    if (FData[AIndex].Hash = AHash) And FKeyComparer(@FData[AIndex].Key, @AKey, SizeOf(AKey)) then Exit(True);
+    if (FData[AIndex].Hash = AHash) And FComparer.IsEqual(FData[AIndex].Key, AKey) then Exit(True);
     Inc(AIndex);
     if AIndex = Length(FData) then AIndex := 0;
   end;
@@ -483,7 +305,7 @@ end;
 function THashMap.GetItem(const AKey: TKey): TValue;
 var bIndex: Integer = 0;
 begin
-  if not CalcBucketIndex(AKey, THash.Hash(AKey), bIndex) then
+  if not CalcBucketIndex(AKey, FComparer.Hash(AKey), bIndex) then
     raise EContnrsError.CreateFmt(SListIndexError, [bIndex]);
   Result := FData[bIndex].Value;
 end;
@@ -491,7 +313,7 @@ end;
 procedure THashMap.SetItem(const AKey: TKey; const AValue: TValue);
 var bIndex: Integer = 0;
 begin
-  if not CalcBucketIndex(AKey, THash.Hash(AKey), bIndex) then
+  if not CalcBucketIndex(AKey, FComparer.Hash(AKey), bIndex) then
     raise EContnrsError.CreateFmt(SListIndexError, [bIndex]);
   FData[bIndex].Value := AValue;
 end;
@@ -506,7 +328,7 @@ var hash: Cardinal;
     bIndex: Integer;
 begin
   GrowIfNeeded;
-  hash := THash.Hash(AKey);
+  hash := FComparer.Hash(AKey);
   if CalcBucketIndex(AKey, hash, bIndex) then
       raise EListError.CreateFmt(SDuplicateItem, [bIndex]);
   DoAddOrSet(bIndex, hash, AKey, AValue);
@@ -517,7 +339,7 @@ var hash: Cardinal;
     bIndex: Integer;
 begin
   GrowIfNeeded;
-  hash := THash.Hash(AKey);
+  hash := FComparer.Hash(AKey);
   CalcBucketIndex(AKey, hash, bIndex);
   DoAddOrSet(bIndex, hash, AKey, AValue);
 end;
@@ -526,7 +348,7 @@ procedure THashMap.Delete(const AKey: TKey);
 var hash: Cardinal;
     bIndex, curInd: Integer;
 begin
-  hash := THash.Hash(AKey);
+  hash := FComparer.Hash(AKey);
   if not CalcBucketIndex(AKey, hash, bIndex) then
     Exit;
 
@@ -536,25 +358,25 @@ begin
     Inc(curInd);
     if curInd = Length(FData) then curInd := 0;
     hash := FData[curInd].Hash;
-    if hash = 0 then Break;
+    if hash = EMPTY_HASH then Break;
     if not WrapedIndexIsBetween(bIndex, Wrap(hash), curInd) then
     begin
       FData[bIndex] := FData[curInd];
       bIndex := curInd;
-      FData[bIndex].Hash := 0;
+      FData[bIndex].Hash := EMPTY_HASH;
     end;
   end;
   Dec(FCount);
-  FData[bIndex].Hash := 0;
-  if FCleanWithEmptyKey then FData[bIndex].Key := FEmptyKey;
-  if FCleanWithEmptyValue then FData[bIndex].Value := FEmptyValue;
+  FData[bIndex].Hash := EMPTY_HASH;
+  FData[bIndex].Key := FEmptyKey;
+  FData[bIndex].Value := FEmptyValue;
 end;
 
 function THashMap.TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
 var bIndex: Integer = 0;
     hash: Integer;
 begin
-  hash := THash.Hash(AKey);
+  hash := FComparer.Hash(AKey);
   if not CalcBucketIndex(AKey, hash, bIndex) then
     Exit(False);
   Result := True;
@@ -564,26 +386,7 @@ end;
 function THashMap.Contains(const AKey: TKey): Boolean;
 var bIndex: Integer;
 begin
-  Result := CalcBucketIndex(AKey, THash.Hash(AKey), bIndex);
-end;
-
-function THashMap.ContainsValue(const AValue: TValue): Boolean;
-var dummyKey: TKey;
-begin
-  Result := ContainsValue(AValue, dummyKey);
-end;
-
-function THashMap.ContainsValue(const AValue: TValue; out AKey: TKey): Boolean;
-var i: Integer;
-begin
-  for i := 0 to Length(FData)-1 do
-    if FValueComparer(@FData[i].Value, @AValue, SizeOf(AValue)) then
-    begin
-      Result := True;
-      AKey := FData[i].Key;
-      Exit;
-    end;
-  Result := False;
+  Result := CalcBucketIndex(AKey, FComparer.Hash(AKey), bIndex);
 end;
 
 procedure THashMap.Clear;
@@ -652,14 +455,54 @@ begin
  Result := False;
 end;
 
+procedure THashMap.AutoSelectComparer;
+var pInfo: PTypeInfo;
+begin
+  if FComparer = nil then
+  begin
+    pInfo := TypeInfo(TKey);
+    case pInfo^.Kind of
+      tkUnknown     : Assert(False, 'What?');
+      tkInteger     : FComparer := TEQC_Data.Create;
+      tkChar        : FComparer := TEQC_Data.Create;
+      tkEnumeration : FComparer := TEQC_Data.Create;
+      tkFloat       : FComparer := TEQC_Data.Create;
+      tkSet         : FComparer := TEQC_Data.Create;
+      tkMethod      : FComparer := TEQC_Data.Create;
+      tkSString     : FComparer := TEQC_Data.Create;
+      tkLString     : Assert(False, 'Todooo');
+      tkAString     : FComparer := TEQC_AString.Create;
+      tkWString     : FComparer := TEQC_WString.Create;
+      tkVariant     : Assert(False, 'Todooo');
+      tkArray       : FComparer := TEQC_Data.Create;
+      tkRecord      : FComparer := TEQC_Data.Create;
+      tkInterface   : FComparer := TEQC_Data.Create;
+      tkClass       : FComparer := TEQC_Data.Create;
+      tkObject      : FComparer := TEQC_Data.Create;
+      tkWChar       : FComparer := TEQC_Data.Create;
+      tkBool        : FComparer := TEQC_Data.Create;
+      tkInt64       : FComparer := TEQC_Data.Create;
+      tkQWord       : FComparer := TEQC_Data.Create;
+      tkDynArray    : FComparer := TEQC_Array.Create;
+      tkInterfaceRaw: FComparer := TEQC_Data.Create;
+      tkProcVar     : FComparer := TEQC_Data.Create;
+      tkUString     : FComparer := TEQC_UString.Create;
+      tkUChar       : FComparer := TEQC_Data.Create;
+      tkHelper      : FComparer := TEQC_Data.Create;
+      tkFile        : FComparer := TEQC_Data.Create;
+      tkClassRef    : FComparer := TEQC_Data.Create;
+      tkPointer     : FComparer := TEQC_Data.Create;
+    else
+      Assert(False, 'Usupported type of key');
+    end;
+  end;
+end;
+
 constructor THashMap.Create;
 begin
-  FCleanWithEmptyKey := IsAutoReferenceCounterType(TypeInfo(TKey));
-  if FCleanWithEmptyKey then FEmptyKey := Default(TKey);
-  FCleanWithEmptyValue := IsAutoReferenceCounterType(TypeInfo(TValue));
-  if FCleanWithEmptyValue then FEmptyValue := Default(TValue);
-  FKeyComparer := GetCompareMethod(TypeInfo(TKey));
-  FValueComparer := GetCompareMethod(TypeInfo(TValue));
+  AutoSelectComparer;
+  FEmptyKey := Default(TKey);
+  FEmptyValue := Default(TValue);
 end;
 
 { TArray }
@@ -865,11 +708,5 @@ begin
   if FCleanWithEmpty then FEmpty := Default(TValue);
   FItemComparer := GetCompareMethod(TypeInfo(TValue));
 end;
-
-//{$DEFINE DIM := 2}
-//{$DEFINE TCompType := Single}
-//{$DEFINE TBox := TBox2f}
-//{$DEFINE TLooseTree := TLooseQuadTree_f}
-//{$INCLUDE LooseTree.inc}
 
 end. {$UNDEF IMPLEMENTATION}

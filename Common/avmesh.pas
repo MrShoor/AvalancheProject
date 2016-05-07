@@ -74,8 +74,8 @@ type
     function CreateInstance(const AInstanceName: string): IavMeshInstance;
   end;
 
-  IavMeshes = specialize IHashMap<string, IavMesh, TMurmur2HashString>;
-  TavMeshes = specialize THashMap<string, IavMesh, TMurmur2HashString>;
+  IavMeshes = specialize IHashMap<string, IavMesh>;
+  TavMeshes = specialize THashMap<string, IavMesh>;
 
   { IavMeshInstance }
 
@@ -110,8 +110,8 @@ type
     function Clone(const NewInstanceName: string): IavMeshInstance;
   end;
 
-  IavMeshInstances = specialize IHashMap<string, IavMeshInstance, TMurmur2HashString>;
-  TavMeshInstances = specialize THashMap<string, IavMeshInstance, TMurmur2HashString>;
+  IavMeshInstances = specialize IHashMap<string, IavMeshInstance>;
+  TavMeshInstances = specialize THashMap<string, IavMeshInstance>;
 
   { IavBone }
 
@@ -182,8 +182,8 @@ type
     procedure GetPoseData(var Matrices: TMat4Arr; const RemapIndices: TIntArr; const AnimState: array of TMeshAnimationState);
   end;
 
-  IavArmatures = specialize IHashMap<string, IavArmature, TMurmur2HashString>;
-  TavArmatures = specialize THashMap<string, IavArmature, TMurmur2HashString>;
+  IavArmatures = specialize IHashMap<string, IavArmature>;
+  TavArmatures = specialize THashMap<string, IavArmature>;
 
 procedure LoadFromStream(const stream: TStream; out meshes: IavMeshes; out meshInst: IavMeshInstances; TexManager: ITextureManager = Nil);
 procedure LoadFromFile(const FileName: string; out meshes: IavMeshes; out meshInst: IavMeshInstances; const TexManager: ITextureManager = Nil);
@@ -298,8 +298,8 @@ type
   TavArmature = class (TInterfacedObjectEx, IavArmature, IavArmatureInternal)
   private type
     TavBoneArr = array of IavBone;
-    IBoneHash = specialize IHashMap<string, Integer, TMurmur2HashString>;
-    TBoneHash = specialize THashMap<string, Integer, TMurmur2HashString>;
+    IBoneHash = specialize IHashMap<string, Integer>;
+    TBoneHash = specialize THashMap<string, Integer>;
   private
     FName: String;
     FBones: TavBoneArr;
@@ -485,9 +485,8 @@ type
   IPNWVertices = specialize IArray<TPNWVertex>;
   TPNWVertices = specialize TVerticesRec<TPNWVertex>;
 
-  TMeshVertexFunc = specialize TMurmur2Hash<TMeshVertex>;
-  IMeshVerticesHash = specialize IHashMap<TMeshVertex, Integer, TMeshVertexFunc>;
-  TMeshVerticesHash = specialize THashMap<TMeshVertex, Integer, TMeshVertexFunc>;
+  IMeshVerticesHash = specialize IHashMap<TMeshVertex, Integer>;
+  TMeshVerticesHash = specialize THashMap<TMeshVertex, Integer>;
 
 const
   EmptyPNWVertex: TPNWVertex = (
