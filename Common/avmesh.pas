@@ -390,6 +390,7 @@ type
 
     FName: string;
     FLocalTransform: TMat4;
+    FBonePretransform: TMat4;
     FPoseTransform: TMat4Arr;
 
     FPoseAbsValid: Boolean;
@@ -868,6 +869,8 @@ var
   i: Integer;
 begin
   FArm := AValue;
+  FBonePretransform := FLocalTransform;
+  FLocalTransform := IdentityMat4;
   SetLength(FBoneRemap, Length(AGroupNames));
   for i := 0 to Length(FBoneRemap) - 1 do
     FBoneRemap[i] := FArm.IndexOfBone(AGroupNames[i]);
@@ -951,7 +954,7 @@ begin
     if Length(lPose) <> Length(FPoseAbs) then
       SetLength(FPoseAbs, Length(lPose));
     for i := 0 to Length(lPose) - 1 do
-      FPoseAbs[i] := lPose[i]*FLocalTransform;
+      FPoseAbs[i] := FBonePretransform*lPose[i]*FLocalTransform;
     FPoseAbsValid := True;
   end;
   Result := FPoseAbs;
@@ -995,6 +998,7 @@ procedure TavMeshInstance.AfterConstruction;
 begin
   inherited AfterConstruction;
   FChilds := TChildList.Create;
+  FBonePretransform := IdentityMat4;
 end;
 
 { TavAnimation }
