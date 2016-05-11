@@ -951,7 +951,7 @@ begin
     if Length(lPose) <> Length(FPoseAbs) then
       SetLength(FPoseAbs, Length(lPose));
     for i := 0 to Length(lPose) - 1 do
-      FPoseAbs[i] := FLocalTransform*lPose[i];
+      FPoseAbs[i] := lPose[i]*FLocalTransform;
     FPoseAbsValid := True;
   end;
   Result := FPoseAbs;

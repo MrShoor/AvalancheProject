@@ -128,6 +128,11 @@ type
       TEQC_AString = specialize TEqualityComparer_AString<TKey>;
       TEQC_Data    = specialize TEqualityComparer_Data<TKey>;
       TEQC_Array   = specialize TEqualityComparer_Array<TKey>;
+  public type
+    TPair = record
+      Key  : TKey;
+      Value: TValue;
+    end;
   strict private
     FEnumIndex: Integer;
     FData: TItems;
@@ -299,7 +304,7 @@ begin
       CalcBucketIndex(OldItems[i].Key, OldItems[i].Hash, bIndex);
       DoAddOrSet(bIndex, OldItems[i].Hash, OldItems[i].Key, OldItems[i].Value);
     end;
-  FGrowLimit := cap div 2 + cap div 4;
+  FGrowLimit := cap div 2;
 end;
 
 function THashMap.GetItem(const AKey: TKey): TValue;

@@ -241,6 +241,7 @@ function Mat3(const Angle: Single; newPos: TVec2): TMat3; overload; {$IFNDEF NoI
 function Mat4(const Q: TQuat): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Mat4(const Q: TQuat; newPos: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function MatTranslate(const newPos: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function MatScale(const Scale: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
 function RectF(Left, Top, Right, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
 function RectI(Left, Top, Right, Bottom: Integer): TRectI; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -709,6 +710,14 @@ function MatTranslate(const newPos: TVec3): TMat4;
 begin
   Result := IdentityMat4;
   Result.Pos := newPos;
+end;
+
+function MatScale(const Scale: TVec3): TMat4;
+begin
+  Result := IdentityMat4;
+  Result.f[0,0] := Scale.x;
+  Result.f[1,1] := Scale.y;
+  Result.f[2,2] := Scale.z;
 end;
 
 function RectF(Left, Top, Right, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
