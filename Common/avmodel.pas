@@ -656,6 +656,7 @@ begin
   if FModel = nil then Exit;
   if FMeshInst.Armature = nil then Exit;
   anim := FMeshInst.Armature.FindAnim(AAnimationName);
+  if anim = nil then Exit;
   animIndex := anim.Index;
 
   for i := 0 to Length(FAnimationStates) - 1 do

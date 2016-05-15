@@ -110,6 +110,25 @@ type
     property Item[AKey: TKey]: TValue read GetItem write SetItem; default;
   end;
 
+  { IHashSet }
+
+  generic IHashSet<TKey> = interface
+    function GetCapacity: Integer;
+    procedure SetCapacity(const cap: Integer);
+
+    function Count: Integer;
+    procedure Add(const AKey: TKey);
+    procedure AddOrSet(const AKey: TKey);
+    procedure Delete(const AKey: TKey);
+    function Contains(const AKey: TKey): Boolean;
+    procedure Clear;
+
+    procedure Reset;
+    function Next(out AKey: TKey): Boolean;
+
+    property Capacity: Integer read GetCapacity write SetCapacity;
+  end;
+
   { THashMap }
 
   generic THashMap<TKey, TValue> = class (TInterfacedObjectEx, specialize IHashMap<TKey, TValue>)
@@ -176,6 +195,33 @@ type
     constructor Create; virtual;
   end;
 
+  { THashSet }
+
+  generic THashSet<TKey> = class (TInterfacedObjectEx, specialize IHashSet<TKey>)
+  private type
+    TMap = specialize THashMap<TKey, Boolean>;
+    IMap = specialize IHashMap<TKey, Boolean>;
+  strict private
+    FHash : IMap;
+
+    function GetCapacity: Integer;
+    procedure SetCapacity(const cap: Integer);
+
+    function Count: Integer;
+    procedure Add(const AKey: TKey);
+    procedure AddOrSet(const AKey: TKey);
+    procedure Delete(const AKey: TKey);
+    function Contains(const AKey: TKey): Boolean;
+    procedure Clear;
+
+    procedure Reset;
+    function Next(out AKey: TKey): Boolean;
+
+    property Capacity: Integer read GetCapacity write SetCapacity;
+  public
+    constructor Create; virtual;
+  end;
+
 function IsAutoReferenceCounterType(const AType: PTypeInfo): Boolean;
 
 implementation {$DEFINE IMPLEMENTATION} {$UNDEF INTERFACE}
@@ -238,6 +284,63 @@ begin
   tkClassRef    : Result := False;
   tkPointer     : Result := False;
   end;
+end;
+
+{ THashSet }
+
+function THashSet.GetCapacity: Integer;
+begin
+  Result := FHash.Capacity;
+end;
+
+procedure THashSet.SetCapacity(const cap: Integer);
+begin
+  FHash.Capacity := cap;
+end;
+
+function THashSet.Count: Integer;
+begin
+  Result := FHash.Count;
+end;
+
+procedure THashSet.Add(const AKey: TKey);
+begin
+  FHash.Add(AKey, False);
+end;
+
+procedure THashSet.AddOrSet(const AKey: TKey);
+begin
+ FHash.AddOrSet(AKey, False);
+end;
+
+procedure THashSet.Delete(const AKey: TKey);
+begin
+ FHash.Delete(AKey);
+end;
+
+function THashSet.Contains(const AKey: TKey): Boolean;
+begin
+ Result := FHash.Contains(AKey);
+end;
+
+procedure THashSet.Clear;
+begin
+  FHash.Clear;
+end;
+
+procedure THashSet.Reset;
+begin
+  FHash.Reset;
+end;
+
+function THashSet.Next(out AKey: TKey): Boolean;
+begin
+  FHash.NextKey(AKey);
+end;
+
+constructor THashSet.Create;
+begin
+  FHash := TMap.Create;
 end;
 
 { THashMap }

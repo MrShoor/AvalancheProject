@@ -991,6 +991,7 @@ begin
   inst.FArm := Armature;
   inst.FBoneRemap := FBoneRemap;
   inst.Transform := Transform;
+  inst.FBonePretransform := FBonePretransform;
   Result := intf;
 end;
 

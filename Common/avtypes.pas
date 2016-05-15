@@ -401,6 +401,17 @@ implementation
 
 type
 
+  { TDataLayoutItem }
+
+  TDataLayoutItem = record
+    Fields: TFieldInfoArr;
+    Layout: IDataLayout;
+    function IsEqualFileds(const AFields: TFieldInfoArr): Boolean;
+  end;
+
+  threadvar gvDataLayouts: array of TDataLayoutItem;
+
+type
   { TDataLayout }
 
   TDataLayout = class(TInterfacedObject, IDataLayout)
@@ -421,8 +432,15 @@ type
   end;
 
 function Create_DataLayout(const AFields: TFieldInfoArr; AStrideSize: Integer = 0): IDataLayout;
+var i: Integer;
 begin
+  for i := 0 to Length(gvDataLayouts) - 1 do
+    if gvDataLayouts[i].IsEqualFileds(AFields) then Exit(gvDataLayouts[i].Layout);
+
   Result := TDataLayout.Create(AFields, AStrideSize);
+  SetLength(gvDataLayouts, Length(gvDataLayouts) + 1);
+  gvDataLayouts[High(gvDataLayouts)].Fields := AFields;
+  gvDataLayouts[High(gvDataLayouts)].Layout := Result;
 end;
 
 function CalcPrimCount(const ItemsCount: Integer; const PrimType: TPrimitiveType): Integer;
@@ -489,6 +507,24 @@ begin
   {$Hints OFF}
   FillChar(data, DataSize, 0);
   {$Hints ON}
+end;
+
+{ TDataLayoutItem }
+
+function TDataLayoutItem.IsEqualFileds(const AFields: TFieldInfoArr): Boolean;
+var i: Integer;
+begin
+  if Length(AFields) <> Length(Fields) then Exit(False);
+  for i := 0 to Length(Fields) - 1 do
+  begin
+    if Fields[i].Name      <> AFields[i].Name      then Exit(False);
+    if Fields[i].CompCount <> AFields[i].CompCount then Exit(False);
+    if Fields[i].DoNorm    <> AFields[i].DoNorm    then Exit(False);
+    if Fields[i].CompType  <> AFields[i].CompType  then Exit(False);
+    if Fields[i].Offset    <> AFields[i].Offset    then Exit(False);
+    if Fields[i].Size      <> AFields[i].Size      then Exit(False);
+  end;
+  Result := True;
 end;
 
 { TNoRefObject }
