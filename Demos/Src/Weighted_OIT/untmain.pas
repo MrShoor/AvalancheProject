@@ -7,7 +7,7 @@ interface
 
 uses
   LCLType, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, StdCtrls, avRes, avTypes, avTess, avContnrs, mutils,
+  ExtCtrls, StdCtrls, avRes, avTypes, avTess, avContnrs, avContnrsDefaults, mutils,
   avCameraController, Math, ContextSwitcher;
 
 type
@@ -85,7 +85,31 @@ var
 
 implementation
 
+type
+
+  { TDepthComparator }
+
+  TDepthComparator = class (TInterfacedObject, specialize IComparer<TCubeInstance>)
+  private
+    FTransform: TMat4;
+    function Compare(const Left, Right: TCubeInstance): Integer;
+  public
+    constructor Create(const Transform: TMat4);
+  end;
+
 {$R *.lfm}
+
+{ TDepthComparator }
+
+function TDepthComparator.Compare(const Left, Right: TCubeInstance): Integer;
+begin
+  Result := -Sign( (Left.aiPosition * FTransform).z - (Right.aiPosition * FTransform).z );
+end;
+
+constructor TDepthComparator.Create(const Transform: TMat4);
+begin
+  FTransform := Transform;
+end;
 
 {$R 'WOIT_shaders\shaders.rc'}
 
@@ -284,7 +308,6 @@ var  instV: TCubeInstance;
      inst : ICubeInstances;
      i, j, k: Integer;
      rMin, rMax, rDelta: TVec3;
-     m: TMat4;
 begin
   rMin := RangeMin;
   rMax := RangeMax;
@@ -304,10 +327,8 @@ begin
         inst.Add(instV);
       end;
   if ZSorted then
-  begin
-    m := FMain.Camera.Matrix;
-    inst.Sort(@DepthComparator, @m);
-  end;
+    inst.Sort(TDepthComparator.Create(FMain.Camera.Matrix));
+
   Result := inst as IVerticesData;
 end;
 

@@ -12,9 +12,6 @@ uses
 type
   TInterfacedObjectEx = avContnrsDefaults.TInterfacedObjectEx;
 
-  TCompareMethod = function (item1, item2: Pointer; dataSize: Integer): Boolean of object;
-  TCompareMethodStatic = function (item1, item2: Pointer; dataSize: Integer; userData: Pointer): Integer;
-
   EContnrsError = class(Exception);
 
   { IArray }
@@ -35,7 +32,7 @@ type
 
     procedure Clear(const TrimCapacity: Boolean = False);
 
-    procedure Sort(comparator: TCompareMethodStatic; userData: Pointer);
+    procedure Sort(const comparator: specialize IComparer<TValue> = nil); overload;
 
     property Item[index: Integer]: TValue read GetItem write SetItem; default;
     property PItem[index: Integer]: Pointer read GetPItem;
@@ -45,20 +42,25 @@ type
   { TArray }
 
   generic TArray<TValue> = class (TInterfacedObjectEx, specialize IArray<TValue>)
+  public type
+    TComparator = specialize IComparer<TValue>;
+  private type
+    TC_UString = specialize TComparer_UString<TValue>;
+    TC_WString = specialize TComparer_WString<TValue>;
+    TC_AString = specialize TComparer_AString<TValue>;
+    TC_Data    = specialize TComparer_Data<TValue>;
+    TC_Array   = specialize TComparer_Array<TValue>;
   private
     FData : array of TValue;
     FCount: Integer;
     FCleanWithEmpty: Boolean;
     FEmpty: TValue;
 
-    FItemComparer: TCompareMethod;
-    function CmpUString(item1, item2: Pointer; dataSize: Integer): Boolean;
-    function CmpAString(item1, item2: Pointer; dataSize: Integer): Boolean;
-    function CmpRecord(item1, item2: Pointer; dataSize: Integer): Boolean;
-    function CmpArray(item1, item2: Pointer; dataSize: Integer): Boolean;
-    function GetCompareMethod(tinfo: PTypeInfo): TCompareMethod;
+    FComparator: TComparator;
+
+    //FItemComparer: TCompareMethod;
   private
-    procedure QuickSort(L, R : Longint; Compare: TCompareMethodStatic; userData: Pointer);
+    procedure QuickSort(L, R : Longint; const comparator: specialize IComparer<TValue>);
   protected
     function GetCapacity: Integer;
     procedure SetCapacity(const cap: Integer);
@@ -75,11 +77,13 @@ type
 
     procedure Clear(const TrimCapacity: Boolean = False);
 
-    procedure Sort(comparator: TCompareMethodStatic; userData: Pointer);
+    procedure Sort(const comparator: specialize IComparer<TValue> = nil); overload;
 
     property Capacity: Integer read GetCapacity write SetCapacity;
+
+    procedure AutoSelectComparer;
   public
-    constructor Create; overload;
+    constructor Create(const AComparator: TComparator = nil); overload;
   end;
 
   IObjArr = specialize IArray<TObject>;
@@ -117,7 +121,8 @@ type
     procedure SetCapacity(const cap: Integer);
 
     function Count: Integer;
-    procedure Add(const AKey: TKey);
+    procedure Add(const AKey: TKey); overload;
+    procedure Add(const Arr : specialize IArray<TKey>); overload;
     procedure AddOrSet(const AKey: TKey);
     procedure Delete(const AKey: TKey);
     function Contains(const AKey: TKey): Boolean;
@@ -208,7 +213,8 @@ type
     procedure SetCapacity(const cap: Integer);
 
     function Count: Integer;
-    procedure Add(const AKey: TKey);
+    procedure Add(const AKey: TKey); overload;
+    procedure Add(const Arr : specialize IArray<TKey>); overload;
     procedure AddOrSet(const AKey: TKey);
     procedure Delete(const AKey: TKey);
     function Contains(const AKey: TKey): Boolean;
@@ -326,6 +332,13 @@ end;
 procedure THashSet.Clear;
 begin
   FHash.Clear;
+end;
+
+procedure THashSet.Add(const Arr : specialize IArray<TKey>);
+var i: Integer;
+begin
+  for i := 0 to Arr.Count - 1 do
+    AddOrSet(Arr[i]);
 end;
 
 procedure THashSet.Reset;
@@ -615,71 +628,7 @@ end;
 
 { TArray }
 
-function TArray.CmpUString(item1, item2: Pointer; dataSize: Integer): Boolean;
-begin
-  Result := string(item1) = string(item2);
-end;
-
-function TArray.CmpAString(item1, item2: Pointer; dataSize: Integer): Boolean;
-begin
-  Result := AnsiString(item1) = AnsiString(item2);
-end;
-
-function TArray.CmpRecord(item1, item2: Pointer; dataSize: Integer): Boolean;
-begin
-  Result := CompareMem(item1, item2, dataSize);
-end;
-
-function TArray.CmpArray(item1, item2: Pointer; dataSize: Integer): Boolean;
-var b1: TBytes absolute item1;
-    b2: TBytes absolute item2;
-begin
-  Result := False;
-  if item1 = item2 then Exit;
-  if Length(b1) <> Length(b2) then Exit;
-  dataSize := Length(b1)*Integer(GetTypeData(TypeInfo(TValue))^.elsize);
-  if dataSize = 0 then Exit(True);
-  Result := CompareMem(@b1[0], @b2[0], dataSize);
-end;
-
-function TArray.GetCompareMethod(tinfo: PTypeInfo): TCompareMethod;
-begin
-  case tinfo^.Kind of
-  tkUnknown: Assert(False, 'Not implemented yet');
-  tkInteger: Result := @CmpRecord;
-  tkChar: Result := @CmpRecord;
-  tkEnumeration: Result := @CmpRecord;
-  tkFloat: Result := @CmpRecord;
-  tkSet: Result := @CmpRecord;
-  tkMethod: Assert(False, 'Not implemented yet');
-  tkSString: Result := @CmpRecord;
-  tkLString: ;
-  tkAString: Result := @CmpAString;
-  tkWString: ;
-  tkVariant: ;
-  tkArray: ;
-  tkRecord: Result := @CmpRecord;
-  tkInterface: Result := @CmpRecord;
-  tkClass: Result := @CmpRecord;
-  tkObject: Result := @CmpRecord;
-  tkWChar: Result := @CmpRecord;
-  tkBool: Result := @CmpRecord;
-  tkInt64: Result := @CmpRecord;
-  tkQWord: Result := @CmpRecord;
-  tkDynArray: Result := @CmpArray;
-  tkInterfaceRaw: Result := @CmpRecord;
-  tkProcVar: ;
-  tkUString: Result := @CmpUString;
-  tkUChar: ;
-  tkHelper: ;
-  tkFile: ;
-  tkClassRef: Result := @CmpRecord;
-  tkPointer: Result := @CmpRecord;
-  end;
-end;
-
-procedure TArray.QuickSort(L, R: Longint; Compare: TCompareMethodStatic;
-  userData: Pointer);
+procedure TArray.QuickSort(L, R: Longint; const comparator: specialize IComparer<TValue>);
 var
   I, J : Longint;
   P, Q : TValue;
@@ -689,9 +638,9 @@ begin
    J := R;
    P := FData[ (L + R) div 2 ];
    repeat
-     while Compare(@P, @FData[i], SizeOf(TValue), userData) > 0 do
+     while comparator.Compare(P, FData[i]) > 0 do
        I := I + 1;
-     while Compare(@P, @FData[J], SizeOf(TValue), userData) < 0 do
+     while comparator.Compare(P, FData[J]) < 0 do
        J := J - 1;
      If I <= J then
      begin
@@ -708,13 +657,13 @@ begin
    if J - L < R - I then
    begin
      if L < J then
-       QuickSort(L, J, Compare, userData);
+       QuickSort(L, J, comparator);
      L := I;
    end
    else
    begin
      if I < R then
-       QuickSort(I, R, Compare, userData);
+       QuickSort(I, R, comparator);
      R := J;
    end;
  until L >= R;
@@ -789,7 +738,7 @@ var I: Integer;
 begin
   Result := -1;
   for I := 0 to FCount - 1 do
-    if FItemComparer(@FData[I], @item, SizeOf(item)) then
+    if FComparator.Compare(FData[I], item)=0 then
       Exit(I);
 end;
 
@@ -804,17 +753,66 @@ begin
     SetLength(FData, 0);
 end;
 
-procedure TArray.Sort(comparator: TCompareMethodStatic; userData: Pointer);
+procedure TArray.Sort(const comparator: specialize IComparer<TValue>);
 begin
   if FCount < 2 then Exit;
-  QuickSort(0, FCount-1, comparator, userData);
+  if comparator = nil then
+    QuickSort(0, FCount-1, FComparator)
+  else
+    QuickSort(0, FCount-1, comparator);
 end;
 
-constructor TArray.Create;
+procedure TArray.AutoSelectComparer;
+var pInfo: PTypeInfo;
+begin
+  if FComparator = nil then
+  begin
+    pInfo := TypeInfo(TValue);
+    case pInfo^.Kind of
+      tkUnknown     : Assert(False, 'What?');
+      tkInteger     : FComparator := TC_Data.Create;
+      tkChar        : FComparator := TC_Data.Create;
+      tkEnumeration : FComparator := TC_Data.Create;
+      tkFloat       : FComparator := TC_Data.Create;
+      tkSet         : FComparator := TC_Data.Create;
+      tkMethod      : FComparator := TC_Data.Create;
+      tkSString     : FComparator := TC_Data.Create;
+      tkLString     : Assert(False, 'Todooo');
+      tkAString     : FComparator := TC_AString.Create;
+      tkWString     : FComparator := TC_WString.Create;
+      tkVariant     : Assert(False, 'Todooo');
+      tkArray       : FComparator := TC_Data.Create;
+      tkRecord      : FComparator := TC_Data.Create;
+      tkInterface   : FComparator := TC_Data.Create;
+      tkClass       : FComparator := TC_Data.Create;
+      tkObject      : FComparator := TC_Data.Create;
+      tkWChar       : FComparator := TC_Data.Create;
+      tkBool        : FComparator := TC_Data.Create;
+      tkInt64       : FComparator := TC_Data.Create;
+      tkQWord       : FComparator := TC_Data.Create;
+      tkDynArray    : FComparator := TC_Array.Create;
+      tkInterfaceRaw: FComparator := TC_Data.Create;
+      tkProcVar     : FComparator := TC_Data.Create;
+      tkUString     : FComparator := TC_UString.Create;
+      tkUChar       : FComparator := TC_Data.Create;
+      tkHelper      : FComparator := TC_Data.Create;
+      tkFile        : FComparator := TC_Data.Create;
+      tkClassRef    : FComparator := TC_Data.Create;
+      tkPointer     : FComparator := TC_Data.Create;
+    else
+      Assert(False, 'Usupported type of key');
+    end;
+  end;
+end;
+
+constructor TArray.Create(const AComparator: TComparator = nil);
 begin
   FCleanWithEmpty := IsAutoReferenceCounterType(TypeInfo(TValue));
   if FCleanWithEmpty then FEmpty := Default(TValue);
-  FItemComparer := GetCompareMethod(TypeInfo(TValue));
+  FComparator := AComparator;
+  AutoSelectComparer;
+
+  //FItemComparer := GetCompareMethod(TypeInfo(TValue));
 end;
 
 end. {$UNDEF IMPLEMENTATION}

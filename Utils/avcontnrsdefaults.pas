@@ -72,6 +72,45 @@ type
     class constructor Create;
   end;
 
+  { TComparer_UString }
+
+  generic TComparer_UString<T> = class (TInterfacedObjectEx, specialize IComparer<T>)
+  public
+    function Compare(const Left, Right: T): Integer;
+  end;
+
+  { TComparer_AString }
+
+  generic TComparer_AString<T> = class (TInterfacedObjectEx, specialize IComparer<T>)
+  public
+    function Compare(const Left, Right: T): Integer;
+  end;
+
+  { TComparer_WString }
+
+  generic TComparer_WString<T> = class (TInterfacedObjectEx, specialize IComparer<T>)
+  public
+    function Compare(const Left, Right: T): Integer;
+  end;
+
+  { TComparer_Data }
+
+  generic TComparer_Data<T> = class (TInterfacedObjectEx, specialize IComparer<T>)
+  public
+    function Compare(const Left, Right: T): Integer;
+  end;
+
+  { TComparer_Array }
+
+  generic TComparer_Array<T> = class (TInterfacedObjectEx, specialize IComparer<T>)
+  private
+    class var ElementSize: Integer;
+  public
+    function Compare(const Left, Right: T): Integer;
+
+    class constructor Create;
+  end;
+
 var gvDefaultHash: THashFunction;
 
 function Murmur2DefSeed(const SrcData; len: LongWord): Cardinal;
@@ -79,7 +118,7 @@ function Murmur2(const SrcData; len: LongWord; const Seed: LongWord = $9747b28c)
 
 implementation
 
-uses TypInfo;
+uses TypInfo, Math;
 
 function Murmur2DefSeed(const SrcData; len: LongWord): Cardinal;
 begin
@@ -145,6 +184,83 @@ begin
   h := h xor (h shr 15);
 
   Result := h;
+end;
+
+{ TComparer_Array }
+
+function TComparer_Array.Compare(const Left, Right: T): Integer;
+var arrLeft  : TBytes absolute Left;
+    arrRight : TBytes absolute Right;
+    diff : Integer;
+    i : Integer;
+begin
+  if Length(arrLeft) = Length(arrRight) then
+    Result := 0
+  else
+  if Length(arrLeft) < Length(arrRight) then
+    Result := -1
+  else
+    Result := 1;
+
+  for i := 0 to min(Length(arrLeft), Length(arrRight))*ElementSize - 1 do
+  begin
+    diff := arrLeft[i] - arrRight[i];
+    if diff <> 0 then Exit(diff);
+  end;
+end;
+
+class constructor TComparer_Array.Create;
+var p: PTypeInfo;
+begin
+  p := TypeInfo(T);
+  Assert(p^.Kind = tkDynArray);
+  ElementSize := GetTypeData(p)^.elSize;
+end;
+
+{ TComparer_Data }
+
+function TComparer_Data.Compare(const Left, Right: T): Integer;
+var arrLeft  : array [0..0] of Byte absolute Left;
+    arrRight : array [0..0] of Byte absolute Right;
+    diff : Integer;
+    i : Integer;
+begin
+  Result := 0;
+  for i := 0 to SizeOf(T) - 1 do
+  begin
+    diff := arrLeft[i] - arrRight[i];
+    if diff <> 0 then Exit(diff);
+  end;
+end;
+
+{ TComparer_WString }
+
+function TComparer_WString.Compare(const Left, Right: T): Integer;
+var
+  strLeft: WideString absolute Left;
+  strRight: WideString absolute Right;
+begin
+  Result := CompareStr(strLeft, strRight);
+end;
+
+{ TComparer_AString }
+
+function TComparer_AString.Compare(const Left, Right: T): Integer;
+var
+  strLeft: AnsiString absolute Left;
+  strRight: AnsiString absolute Right;
+begin
+  Result := CompareStr(strLeft, strRight);
+end;
+
+{ TComparer_UString }
+
+function TComparer_UString.Compare(const Left, Right: T): Integer;
+var
+  strLeft: UnicodeString absolute Left;
+  strRight: UnicodeString absolute Right;
+begin
+  Result := CompareStr(strLeft, strRight);
 end;
 
 { TEqualityComparer_WString }
