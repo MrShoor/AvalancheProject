@@ -17,6 +17,19 @@ type
 
   EContnrsError = class(Exception);
 
+  generic TArrData<T> = array of T;
+
+  { IHeap }
+
+  generic IHeap<T> = interface
+    function PeekTop(): T;
+    function ExtractTop(): T;
+    procedure Insert(const Value: T);
+
+    procedure Trim;
+    procedure Clear(const NewCapacity: Integer);
+  end;
+
   { IArray }
 
   generic IArray<TValue> = interface
@@ -46,7 +59,7 @@ type
 
   generic TArray<TValue> = class (TInterfacedObjectEx, specialize IArray<TValue>)
   private
-    FData : array of TValue;
+    FData : specialize TArrData<TValue>;
     FCount: Integer;
     FCleanWithEmpty: Boolean;
     FEmpty: TValue;
@@ -222,6 +235,39 @@ type
     constructor Create; virtual;
   end;
 
+  { THeap }
+
+  generic THeap<T> = class (TInterfacedObjectEx, specialize IHeap<T>)
+  private type
+    ICmp = specialize IComparer<T>;
+    TData = specialize TArrData<T>;
+  private
+    FData  : TData;
+    FCount : Integer;
+
+    FComparer: ICmp;
+
+    procedure Grow;
+
+    function GetMinIndex(const i1, i2: Integer): Integer; inline;
+    procedure Swap(const i1, i2: Integer); inline;
+    procedure SiftDown(Index: Integer);
+    procedure SiftUp(Index: Integer);
+
+    procedure AutoSelectComparer;
+  public
+    function PeekTop(): T;
+    function ExtractTop(): T;
+    procedure Insert(const Value: T);
+
+    procedure Trim;
+    procedure Clear(const NewCapacity: Integer);
+
+    constructor Create(const ArrData: TData; const AComparer: ICmp = nil); overload;
+    constructor Create(const ACapacity: Integer); overload;
+    constructor Create(const ACapacity: Integer; const AComparer: ICmp); overload;
+  end;
+
 function IsAutoReferenceCounterType(const AType: PTypeInfo): Boolean;
 
 implementation {$DEFINE IMPLEMENTATION} {$UNDEF INTERFACE}
@@ -284,6 +330,132 @@ begin
   tkClassRef    : Result := False;
   tkPointer     : Result := False;
   end;
+end;
+
+{ THeap }
+
+procedure THeap.Grow;
+begin
+  SetLength(FData, NextPow2(FCount + 1));
+end;
+
+procedure THeap.Trim;
+begin
+  SetLength(FData, FCount);
+end;
+
+procedure THeap.Clear(const NewCapacity: Integer);
+begin
+  FData := nil;
+  FCount := 0;
+  SetLength(FData, NewCapacity);
+end;
+
+function THeap.GetMinIndex(const i1, i2: Integer): Integer;
+begin
+  if FComparer.Compare(FData[i1], FData[i2]) < 0 then
+    Result := i1
+  else
+    Result := i2;
+end;
+
+procedure THeap.Swap(const i1, i2: Integer);
+var tmp: T;
+begin
+  tmp := FData[i2];
+  FData[i2] := FData[i1];
+  FData[i1] := tmp;
+end;
+
+procedure THeap.SiftDown(Index: Integer);
+var leftIdx, rightIdx: Integer;
+    minChild: Integer;
+begin
+  while True do
+  begin
+    leftIdx := 2 * Index + 1;
+    if leftIdx >= FCount then Exit; // no left child
+
+    rightIdx := 2 * Index + 2;
+    if rightIdx >= FCount then
+      minChild := GetMinIndex(leftIdx, rightIdx)
+    else
+      minChild := leftIdx;
+
+    if FComparer.Compare(Index, minChild) <= 0 then Exit; // sift completed
+    Swap(Index, minChild);
+    Index := minChild;
+  end;
+end;
+
+procedure THeap.SiftUp(Index: Integer);
+var parentIdx: Integer;
+begin
+  while True do
+  begin
+    if Index = 0 then Exit; // at Root
+    parentIdx := (Index - 1) div 2;
+    if FComparer.Compare(parentIdx, Index) <= 0 then Exit; // sift completed
+    Swap(parentIdx, Index);
+    Index := parentIdx;
+  end;
+end;
+
+procedure THeap.AutoSelectComparer;
+begin
+
+end;
+
+function THeap.PeekTop: T;
+begin
+  if FCount = 0 then raise ERangeError.Create('Index 0 out of bound');
+  Result := FData[0];
+end;
+
+function THeap.ExtractTop: T;
+begin
+  if FCount = 0 then raise ERangeError.Create('Index 0 out of bound');
+  Result := FData[0];
+  FData[0] := FData[FCount - 1];
+  FData[FCount - 1] := Default(T);
+  Dec(FCount);
+  SiftDown(0);
+
+  if Length(FData) div 4 >= FCount then Trim;
+end;
+
+procedure THeap.Insert(const Value: T);
+begin
+  if FCount = Length(FData) then Grow;
+  FData[FCount] := T;
+  Inc(FCount);
+  SiftUp(FCount - 1);
+end;
+
+constructor THeap.Create(const ArrData: TData; const AComparer: ICmp);
+var i: Integer;
+begin
+  FData := ArrData;
+  FComparer := AComparer;
+  AutoSelectComparer;
+  FCount := Length(ArrData);
+
+  //heapify
+  for i := FCount div 2 downto 0 do
+    siftDown(i);
+end;
+
+constructor THeap.Create(const ACapacity: Integer);
+begin
+  Create(ACapacity, nil);
+end;
+
+constructor THeap.Create(const ACapacity: Integer; const AComparer: ICmp);
+begin
+  SetLength(FData, ACapacity);
+  FComparer := AComparer;
+  AutoSelectComparer;
+  FCount := 0;
 end;
 
 { THashSet }
