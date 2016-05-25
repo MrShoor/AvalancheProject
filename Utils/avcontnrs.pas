@@ -46,6 +46,7 @@ type
     procedure Clear(const TrimCapacity: Boolean = False);
 
     procedure Sort(const comparator: specialize IComparer<TValue> = nil); overload;
+    function Heapify(const comparator: specialize IComparer<TValue> = nil): specialize IHeap<TValue>; //todoo
 
     property Item[index: Integer]: TValue read GetItem write SetItem; default;
     property PItem[index: Integer]: Pointer read GetPItem;
@@ -91,6 +92,7 @@ type
     procedure Clear(const TrimCapacity: Boolean = False);
 
     procedure Sort(const comparator: specialize IComparer<TValue> = nil); overload;
+    function Heapify(const comparator: specialize IComparer<TValue> = nil): specialize IHeap<TValue>;
 
     property Capacity: Integer read GetCapacity write SetCapacity;
 
@@ -247,6 +249,12 @@ type
   private type
     ICmp = specialize IComparer<T>;
     TData = specialize TArrData<T>;
+
+    TC_UString = specialize TComparer_UString<T>;
+    TC_WString = specialize TComparer_WString<T>;
+    TC_AString = specialize TComparer_AString<T>;
+    TC_Data    = specialize TComparer_Data<T>;
+    TC_Array   = specialize TComparer_Array<T>;
   private
     FData  : TData;
     FCount : Integer;
@@ -269,7 +277,7 @@ type
     procedure Trim;
     procedure Clear(const NewCapacity: Integer);
 
-    constructor Create(const ArrData: TData; const AComparer: ICmp = nil); overload;
+    constructor Create(const ArrData: TData; const ACount: Integer = -1; const AComparer: ICmp = nil); overload;
     constructor Create(const ACapacity: Integer); overload;
     constructor Create(const ACapacity: Integer; const AComparer: ICmp); overload;
   end;
@@ -408,8 +416,46 @@ begin
 end;
 
 procedure THeap.AutoSelectComparer;
+var pInfo: PTypeInfo;
 begin
-
+  if FComparer = nil then
+  begin
+    pInfo := TypeInfo(T);
+    case pInfo^.Kind of
+      tkUnknown     : Assert(False, 'What?');
+      tkInteger     : FComparer := TC_Data.Create;
+      tkChar        : FComparer := TC_Data.Create;
+      tkEnumeration : FComparer := TC_Data.Create;
+      tkFloat       : FComparer := TC_Data.Create;
+      tkSet         : FComparer := TC_Data.Create;
+      tkMethod      : FComparer := TC_Data.Create;
+      tkSString     : FComparer := TC_Data.Create;
+      tkLString     : Assert(False, 'Todooo');
+      tkAString     : FComparer := TC_AString.Create;
+      tkWString     : FComparer := TC_WString.Create;
+      tkVariant     : Assert(False, 'Todooo');
+      tkArray       : FComparer := TC_Data.Create;
+      tkRecord      : FComparer := TC_Data.Create;
+      tkInterface   : FComparer := TC_Data.Create;
+      tkClass       : FComparer := TC_Data.Create;
+      tkObject      : FComparer := TC_Data.Create;
+      tkWChar       : FComparer := TC_Data.Create;
+      tkBool        : FComparer := TC_Data.Create;
+      tkInt64       : FComparer := TC_Data.Create;
+      tkQWord       : FComparer := TC_Data.Create;
+      tkDynArray    : FComparer := TC_Array.Create;
+      tkInterfaceRaw: FComparer := TC_Data.Create;
+      tkProcVar     : FComparer := TC_Data.Create;
+      tkUString     : FComparer := TC_UString.Create;
+      tkUChar       : FComparer := TC_Data.Create;
+      tkHelper      : FComparer := TC_Data.Create;
+      tkFile        : FComparer := TC_Data.Create;
+      tkClassRef    : FComparer := TC_Data.Create;
+      tkPointer     : FComparer := TC_Data.Create;
+    else
+      Assert(False, 'Usupported type of key');
+    end;
+  end;
 end;
 
 function THeap.PeekTop: T;
@@ -438,13 +484,16 @@ begin
   SiftUp(FCount - 1);
 end;
 
-constructor THeap.Create(const ArrData: TData; const AComparer: ICmp);
+constructor THeap.Create(const ArrData: TData; const ACount: Integer; const AComparer: ICmp);
 var i: Integer;
 begin
   FData := ArrData;
   FComparer := AComparer;
   AutoSelectComparer;
-  FCount := Length(ArrData);
+  if ACount < 0 then
+    FCount := Length(ArrData)
+  else
+    FCount := ACount;
 
   //heapify
   for i := FCount div 2 downto 0 do
@@ -932,6 +981,20 @@ begin
     QuickSort(0, FCount-1, FComparator)
   else
     QuickSort(0, FCount-1, comparator);
+end;
+
+function TArray.Heapify(const comparator: specialize IComparer<TValue> = nil): specialize IHeap<TValue>;
+//type
+//  INewHeap = specialize IHeap<TValue>;
+//  TNewHeap = specialize THeap<TValue>;
+//var newData: specialize TArrData<TValue>;
+begin
+  //newData := FData;
+  //SetLength(newData, FCount);
+  //if comparator = nil then
+  //  Result := TNewHeap.Create(newData, FCount, FComparator)
+  //else
+  //  Result := TNewHeap.Create(newData, FCount, comparator);
 end;
 
 procedure TArray.AutoSelectComparer;
