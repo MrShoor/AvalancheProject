@@ -832,15 +832,6 @@ begin
   end;
 end;
 
-function SortByTexture(item1, item2: Pointer; dataSize: Integer; userData: Pointer): Integer;
-var m1: ^TavModelCollection.TavModelInstance absolute item1;
-    m2: ^TavModelCollection.TavModelInstance absolute item2;
-begin
-  Assert(m1^ <> nil);
-  Assert(m2^ <> nil);
-  Result := NativeInt(m1^.GetTexMap) - NativeInt(m2^.GetTexMap);
-end;
-
 procedure TavModelCollection.Draw(const Intances: IObjArr; SortByMaterial: Boolean);
 var mInst: TavModelInstance;
     lastDiffuse: TavTexture;
@@ -851,7 +842,7 @@ begin
   if prog = nil then Exit;
 
   if SortByMaterial then
-    Intances.Sort(@SortByTexture, nil);
+    Intances.Sort;
 
   lastDiffuse := nil;
   for i := 0 to Intances.Count - 1 do
