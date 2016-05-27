@@ -89,10 +89,10 @@ type
 
   { TDepthComparator }
 
-  TDepthComparator = class (TInterfacedObject, specialize IComparer<TCubeInstance>)
+  TDepthComparator = class (TInterfacedObject, IComparer)
   private
     FTransform: TMat4;
-    function Compare(const Left, Right: TCubeInstance): Integer;
+    function Compare(const L, R): Integer;
   public
     constructor Create(const Transform: TMat4);
   end;
@@ -101,7 +101,9 @@ type
 
 { TDepthComparator }
 
-function TDepthComparator.Compare(const Left, Right: TCubeInstance): Integer;
+function TDepthComparator.Compare(const L, R): Integer;
+var Left : TCubeInstance absolute L;
+    Right : TCubeInstance absolute R;
 begin
   Result := -Sign( (Left.aiPosition * FTransform).z - (Right.aiPosition * FTransform).z );
 end;

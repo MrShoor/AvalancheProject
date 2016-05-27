@@ -8,8 +8,7 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, vampyreimagingpackage, untMain, ContextSwitcher
-  { you can add units after this };
+  Forms, vampyreimagingpackage, untMain, ContextSwitcher;
 
 {$R *.res}
 
