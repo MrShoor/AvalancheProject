@@ -50,7 +50,7 @@
         <UnitName Value="untMain"/>
       </Unit1>
       <Unit2>
-        <Filename Value="E:\Projects\AvalancheProject\Utils\avpathfinder.pas"/>
+        <Filename Value="..\..\..\Utils\avpathfinder.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="avPathFinder"/>
       </Unit2>

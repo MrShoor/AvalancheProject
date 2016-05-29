@@ -5,7 +5,7 @@ unit avPathFinder;
 interface
 
 uses
-  Classes, SysUtils, avContnrs, avContnrsDefaults;
+  Classes, SysUtils, avContnrs, avContnrsDefaults, Math;
 
 type
   generic IMap<TNode> = interface
@@ -22,8 +22,8 @@ type
   { IAStar }
 
   generic IAStar<TNode> = interface
-    function FindPath(const AStartNode, AEndNode: TNode; const ConstructClosestPath: Boolean = True): specialize IArray<TNode>;
-    function FindPathWithDebugOut(const AStartNode, AEndNode: TNode; const ADebugOut: IDebugOut; const ConstructClosestPath: Boolean = True): specialize IArray<TNode>;
+    function FindPath(const AStartNode, AEndNode: TNode; AStopWeigth: Single = Infinity; ConstructClosestPath: Boolean = True): specialize IArray<TNode>;
+    function FindPathWithDebugOut(const AStartNode, AEndNode: TNode; const ADebugOut: IDebugOut; AStopWeigth: Single = Infinity; ConstructClosestPath: Boolean = True): specialize IArray<TNode>;
   end;
 
   { TAStar }
@@ -75,16 +75,14 @@ type
     function ExtractTop: TOpenHeapInfo;
 
     function ConstructPath(const ATarget, AStartNode: TNode): specialize IArray<TNode>;
-    function FindPath(const AStartNode, AEndNode: TNode; const ConstructClosestPath: Boolean = True): specialize IArray<TNode>;
-    function FindPathWithDebugOut(const AStartNode, AEndNode: TNode; const ADebugOut: IDebugOut; const ConstructClosestPath: Boolean = True): specialize IArray<TNode>;
+    function FindPath(const AStartNode, AEndNode: TNode; AStopWeigth: Single = Infinity; ConstructClosestPath: Boolean = True): specialize IArray<TNode>;
+    function FindPathWithDebugOut(const AStartNode, AEndNode: TNode; const ADebugOut: IDebugOut; AStopWeigth: Single = Infinity; ConstructClosestPath: Boolean = True): specialize IArray<TNode>;
   public
     constructor Create(const AMap: IFindMap);
     destructor Destroy; override;
   end;
 
 implementation
-
-uses Math;
 
 { TAStar }
 
@@ -207,7 +205,8 @@ begin
     Result.Swap(i, Result.Count-1-i);
 end;
 
-function TAStar.FindPath(const AStartNode, AEndNode: TNode; const ConstructClosestPath: Boolean): specialize IArray<TNode>;
+function TAStar.FindPath(const AStartNode, AEndNode: TNode;
+  AStopWeigth: Single; ConstructClosestPath: Boolean): specialize IArray<TNode>;
 var currNodeInfo: TOpenHeapInfo;
     nextNode: TNode;
     i: Integer;
@@ -238,6 +237,8 @@ begin
       Result := ConstructPath(currNodeInfo.From, AStartNode);
       Exit;
     end;
+
+    if currNodeInfo.MoveWeight >= AStopWeigth then break;
 
     pathStep.From := currNodeInfo.From;
     pathStep.MoveWeight := currNodeInfo.MoveWeight;
@@ -275,7 +276,8 @@ begin
 end;
 
 function TAStar.FindPathWithDebugOut(const AStartNode, AEndNode: TNode;
-  const ADebugOut: IDebugOut; const ConstructClosestPath: Boolean): specialize IArray<TNode>;
+  const ADebugOut: IDebugOut; AStopWeigth: Single; ConstructClosestPath: Boolean
+  ): specialize IArray<TNode>;
 var currNodeInfo: TOpenHeapInfo;
     nextNode: TNode;
     i: Integer;
@@ -307,6 +309,8 @@ begin
       Result := ConstructPath(currNodeInfo.From, AStartNode);
       Exit;
     end;
+
+    if currNodeInfo.MoveWeight >= AStopWeigth then break;
 
     pathStep.From := currNodeInfo.From;
     pathStep.MoveWeight := currNodeInfo.MoveWeight;
