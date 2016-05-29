@@ -46,6 +46,15 @@ type
     destructor Destroy; override;
   end;
 
+  { TNoRefObject }
+
+  TNoRefObject = class (TObject)
+  public
+    function QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj) : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+    function _AddRef : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+    function _Release : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+  end;
+
 implementation
 
 type
@@ -59,6 +68,26 @@ type
     procedure CleanUp;
     constructor Create(AInstance: TObject);
   end;
+
+{ TNoRefObject }
+
+function TNoRefObject.QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj) : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+begin
+  if getinterface(iid,obj) then
+    result:=S_OK
+  else
+    result:=longint(E_NOINTERFACE);
+end;
+
+function TNoRefObject._AddRef : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+begin
+  Result := -1;
+end;
+
+function TNoRefObject._Release : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+begin
+  Result := -1;
+end;
 
 { TWeakRef }
 

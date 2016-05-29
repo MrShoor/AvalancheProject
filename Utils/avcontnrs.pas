@@ -19,6 +19,10 @@ type
   { IHeap }
 
   generic IHeap<T> = interface
+    function GetOnDuplicate: IDuplicateResolver;
+    procedure SetOnDuplicate(const AValue: IDuplicateResolver);
+    property OnDuplicate: IDuplicateResolver read GetOnDuplicate write SetOnDuplicate;
+
     function Count: Integer;
     function PeekTop(): T;
     function ExtractTop(): T;
@@ -44,6 +48,8 @@ type
     procedure DeleteWithSwap(const index: Integer);
     function  IndexOf(const item: TValue): Integer;
 
+    procedure Swap(const I1, I2: Integer);
+
     procedure Clear(const TrimCapacity: Boolean = False);
 
     procedure Sort(const comparator: IComparer = nil); overload;
@@ -57,15 +63,16 @@ type
   { THeap }
 
   generic THeap<T> = class (TInterfacedObjectEx, specialize IHeap<T>)
-  private type
+  protected type
     TData = specialize TArrData<T>;
-  private
+  protected
     FData  : TData;
     FCount : Integer;
 
     FComparer: IComparer;
 
     FEnumIndex: Integer;
+    FOnDuplicate: IDuplicateResolver;
 
     procedure Grow;
 
@@ -76,6 +83,10 @@ type
 
     procedure AutoSelectComparer;
   public
+    function GetOnDuplicate: IDuplicateResolver;
+    procedure SetOnDuplicate(const AValue: IDuplicateResolver);
+    property OnDuplicate: IDuplicateResolver read GetOnDuplicate write SetOnDuplicate;
+
     function Count: Integer;
     function PeekTop(): T;
     function ExtractTop(): T;
@@ -123,6 +134,8 @@ type
     procedure DeleteWithSwap(const index: Integer);
     function IndexOf(const item: TValue): Integer;
 
+    procedure Swap(const I1, I2: Integer);
+
     procedure Clear(const TrimCapacity: Boolean = False);
 
     procedure Sort(const comparator: IComparer = nil); overload;
@@ -141,13 +154,16 @@ type
   { IHashMap }
 
   generic IHashMap<TKey, TValue> = interface
+    function GetOnDuplicate: IDuplicateResolver;
+    procedure SetOnDuplicate(const AValue: IDuplicateResolver);
+
     function GetCapacity: Integer;
     procedure SetCapacity(const cap: Integer);
     function GetItem(const AKey: TKey): TValue;
     procedure SetItem(const AKey: TKey; const AValue: TValue);
 
     function Count: Integer;
-    procedure Add(const AKey: TKey; const AValue: TValue);
+    function Add(const AKey: TKey; const AValue: TValue): Boolean;
     procedure AddOrSet(const AKey: TKey; const AValue: TValue);
     procedure Delete(const AKey: TKey);
     function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
@@ -159,6 +175,7 @@ type
     function NextKey(out AKey: TKey): Boolean;
     function NextValue(out AValue: TValue): Boolean;
 
+    property OnDuplicate: IDuplicateResolver read GetOnDuplicate write SetOnDuplicate;
     property Capacity: Integer read GetCapacity write SetCapacity;
     property Item[AKey: TKey]: TValue read GetItem write SetItem; default;
   end;
@@ -166,6 +183,9 @@ type
   { IHashSet }
 
   generic IHashSet<TKey> = interface
+    function GetOnDuplicate: IDuplicateResolver;
+    procedure SetOnDuplicate(const AValue: IDuplicateResolver);
+
     function GetCapacity: Integer;
     procedure SetCapacity(const cap: Integer);
 
@@ -180,6 +200,7 @@ type
     procedure Reset;
     function Next(out AKey: TKey): Boolean;
 
+    property OnDuplicate: IDuplicateResolver read GetOnDuplicate write SetOnDuplicate;
     property Capacity: Integer read GetCapacity write SetCapacity;
   end;
 
@@ -209,11 +230,16 @@ type
     FEmptyKey: TKey;
     FEmptyValue: TValue;
 
+    FOnDuplicate: IDuplicateResolver;
+
     function PrevIndex(const index: Integer): Integer; {$IfNDef NoInline}inline;{$EndIf}
     function Wrap(const index: Integer): Integer; {$IfNDef NoInline}inline;{$EndIf}
     function CalcBucketIndex(const AKey: TKey; AHash: Cardinal; out AIndex: Integer): Boolean; {$IfNDef NoInline}inline;{$EndIf}
     procedure DoAddOrSet(BucketIndex, AHash: Integer; const AKey: TKey; const AValue: TValue); {$IfNDef NoInline}inline;{$EndIf}
     procedure GrowIfNeeded; {$IfNDef NoInline}inline;{$EndIf}
+
+    function GetOnDuplicate: IDuplicateResolver;
+    procedure SetOnDuplicate(const AValue: IDuplicateResolver);
 
     function GetCapacity: Integer;
     procedure SetCapacity(const cap: Integer);
@@ -221,7 +247,7 @@ type
     procedure SetItem(const AKey: TKey; const AValue: TValue);
 
     function Count: Integer;
-    procedure Add(const AKey: TKey; const AValue: TValue);
+    function Add(const AKey: TKey; const AValue: TValue): Boolean;
     procedure AddOrSet(const AKey: TKey; const AValue: TValue);
     procedure Delete(const AKey: TKey);
     function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
@@ -239,7 +265,10 @@ type
 
     procedure AutoSelectComparer;
   public
-    constructor Create; virtual;
+    property OnDuplicate: IDuplicateResolver read GetOnDuplicate write SetOnDuplicate;
+
+    constructor Create; overload;
+    constructor Create(const AComparer: IEqualityComparer); overload;
   end;
 
   { THashSet }
@@ -250,6 +279,9 @@ type
     IMap = specialize IHashMap<TKey, Boolean>;
   strict private
     FHash : IMap;
+
+    function GetOnDuplicate: IDuplicateResolver;
+    procedure SetOnDuplicate(const AValue: IDuplicateResolver);
 
     function GetCapacity: Integer;
     procedure SetCapacity(const cap: Integer);
@@ -266,7 +298,10 @@ type
 
     property Capacity: Integer read GetCapacity write SetCapacity;
   public
-    constructor Create; virtual;
+    property OnDuplicate: IDuplicateResolver read GetOnDuplicate write SetOnDuplicate;
+
+    constructor Create; overload;
+    constructor Create(const AComparer: IEqualityComparer); overload;
   end;
 
 implementation
@@ -277,6 +312,11 @@ uses
 procedure THeap.Grow;
 begin
   SetLength(FData, NextPow2(FCount + 1));
+end;
+
+function THeap.GetOnDuplicate: IDuplicateResolver;
+begin
+  Result := FOnDuplicate;
 end;
 
 procedure THeap.Trim;
@@ -297,6 +337,12 @@ begin
     Result := i1
   else
     Result := i2;
+end;
+
+procedure THeap.SetOnDuplicate(const AValue: IDuplicateResolver);
+begin
+  if FOnDuplicate = AValue then Exit;
+  FOnDuplicate := AValue;
 end;
 
 procedure THeap.Swap(const i1, i2: Integer);
@@ -330,12 +376,28 @@ end;
 
 procedure THeap.SiftUp(Index: Integer);
 var parentIdx: Integer;
+    cmpResult: Integer;
 begin
   while True do
   begin
     if Index = 0 then Exit; // at Root
     parentIdx := (Index - 1) div 2;
-    if FComparer.Compare(FData[parentIdx], FData[Index]) <= 0 then Exit; // sift completed
+
+    cmpResult := FComparer.Compare(FData[parentIdx], FData[Index]);
+    if cmpResult = 0 then
+    begin
+      if FOnDuplicate = nil then Exit;
+      case FOnDuplicate.DuplicateResolve(FData[Index], FData[parentIdx]) of
+        dupAddNew: Exit;
+        dupOverwrite: FData[parentIdx] := FData[Index];
+        dupSkip: ;
+      end;
+      FData[Index] := FData[FCount - 1];
+      Dec(FCount);
+      SiftDown(Index);
+      Exit;
+    end;
+    if cmpResult < 0 then Exit; // sift completed
     Swap(parentIdx, Index);
     Index := parentIdx;
   end;
@@ -438,6 +500,16 @@ end;
 
 { THashSet }
 
+function THashSet.GetOnDuplicate: IDuplicateResolver;
+begin
+  Result := FHash.OnDuplicate;
+end;
+
+procedure THashSet.SetOnDuplicate(const AValue: IDuplicateResolver);
+begin
+  FHash.OnDuplicate := AValue;
+end;
+
 function THashSet.GetCapacity: Integer;
 begin
   Result := FHash.Capacity;
@@ -490,7 +562,12 @@ end;
 
 constructor THashSet.Create;
 begin
-  FHash := TMap.Create;
+  Create(nil);
+end;
+
+constructor THashSet.Create(const AComparer: IEqualityComparer);
+begin
+  FHash := TMap.Create(AComparer);
 end;
 
 { THashMap }
@@ -502,8 +579,7 @@ end;
 
 function THashMap.Wrap(const index: Integer): Integer;
 begin
-  //used And operation instead Mod because Length(FData) always power of two
-  Result := index And (Length(FData)-1);
+  Result := abs(index Mod Length(FData));
 end;
 
 function THashMap.CalcBucketIndex(const AKey: TKey; AHash: Cardinal; out AIndex: Integer): Boolean;
@@ -538,6 +614,17 @@ begin
     Capacity := Max(4, Capacity) * 2;
 end;
 
+function THashMap.GetOnDuplicate: IDuplicateResolver;
+begin
+  Result := FOnDuplicate;
+end;
+
+procedure THashMap.SetOnDuplicate(const AValue: IDuplicateResolver);
+begin
+  if FOnDuplicate = AValue then Exit;
+  FOnDuplicate := AValue;
+end;
+
 function THashMap.GetCapacity: Integer;
 begin
   Result := Length(FData);
@@ -564,7 +651,7 @@ function THashMap.GetItem(const AKey: TKey): TValue;
 var bIndex: Integer = 0;
 begin
   if not CalcBucketIndex(AKey, FComparer.Hash(AKey), bIndex) then
-    raise EContnrsError.CreateFmt(SListIndexError, [bIndex]);
+    raise EContnrsError.CreateFmt(SItemNotFound, [bIndex]);
   Result := FData[bIndex].Value;
 end;
 
@@ -572,7 +659,7 @@ procedure THashMap.SetItem(const AKey: TKey; const AValue: TValue);
 var bIndex: Integer = 0;
 begin
   if not CalcBucketIndex(AKey, FComparer.Hash(AKey), bIndex) then
-    raise EContnrsError.CreateFmt(SListIndexError, [bIndex]);
+    raise EContnrsError.CreateFmt(SItemNotFound, [bIndex]);
   FData[bIndex].Value := AValue;
 end;
 
@@ -581,15 +668,28 @@ begin
   Result := FCount;
 end;
 
-procedure THashMap.Add(const AKey: TKey; const AValue: TValue);
+function THashMap.Add(const AKey: TKey; const AValue: TValue): Boolean;
 var hash: Cardinal;
     bIndex: Integer;
 begin
+  Result := False;
   GrowIfNeeded;
   hash := FComparer.Hash(AKey);
+
   if CalcBucketIndex(AKey, hash, bIndex) then
-      raise EListError.CreateFmt(SDuplicateItem, [bIndex]);
+  begin
+    if FOnDuplicate = nil then
+      raise EListError.CreateFmt(SDuplicateItem, [bIndex])
+    else
+      case FOnDuplicate.DuplicateResolve(FData[bIndex].Key, AKey) of
+        dupAddNew: raise EListError.CreateFmt(SDuplicateItem, [bIndex]);
+        dupOverwrite: ;
+        dupSkip: Exit;
+      end;
+  end;
+
   DoAddOrSet(bIndex, hash, AKey, AValue);
+  Result := True;
 end;
 
 procedure THashMap.AddOrSet(const AKey: TKey; const AValue: TValue);
@@ -721,6 +821,12 @@ end;
 
 constructor THashMap.Create;
 begin
+  Create(nil);
+end;
+
+constructor THashMap.Create(const AComparer: IEqualityComparer);
+begin
+  FComparer := AComparer;
   AutoSelectComparer;
   FEmptyKey := Default(TKey);
   FEmptyValue := Default(TValue);
@@ -840,6 +946,14 @@ begin
   for I := 0 to FCount - 1 do
     if FComparator.Compare(FData[I], item)=0 then
       Exit(I);
+end;
+
+procedure TArray.Swap(const I1, I2: Integer);
+var tmp: TValue;
+begin
+  tmp := FData[I1];
+  FData[I1] := FData[I2];
+  FData[I2] := tmp;
 end;
 
 procedure TArray.Clear(const TrimCapacity: Boolean);

@@ -11,9 +11,15 @@ const
   EMPTY_HASH = 0;
 
 type
+  TDuplicateResolve = (dupAddNew, dupOverwrite, dupSkip);
+
   THashFunction = function (const SrcData; len: Cardinal): Cardinal;
 
   TInterfacedObjectEx = TInterfacedObject;
+
+  IDuplicateResolver = interface
+    function DuplicateResolve(const NewItem, CurrentItem): TDuplicateResolve;
+  end;
 
   { IComparer }
 
@@ -38,7 +44,6 @@ type
     constructor Create(const AComparer: IComparer);
   end;
 
-
 var gvDefaultHash: THashFunction;
 
 function Murmur2DefSeed(const SrcData; len: LongWord): Cardinal;
@@ -49,11 +54,33 @@ function IsAutoReferenceCounterType(const AType: PTypeInfo): Boolean;
 function AutoSelectComparer(const pInfo: PTypeInfo; const TypeSize: Integer): IComparer;
 function AutoSelectEqualityComparer(const pInfo: PTypeInfo; const TypeSize: Integer): IEqualityComparer;
 
+function DuplicateIgnorer : IDuplicateResolver;
+function DuplicateRewriter: IDuplicateResolver;
+
 implementation
 
-uses Math;
+uses Math, intfUtils;
 
 type
+
+  { TDupIngnore }
+
+  TDupIngnore = class (TNoRefObject, IDuplicateResolver)
+  public
+    function DuplicateResolve(const NewItem, CurrentItem): TDuplicateResolve;
+  end;
+
+  { TDupRewrite }
+
+  TDupRewrite = class (TNoRefObject, IDuplicateResolver)
+  public
+    function DuplicateResolve(const NewItem, CurrentItem): TDuplicateResolve;
+  end;
+
+var GV_dupIgnore, GV_dupOverwrite: IDuplicateResolver;
+
+type
+
   { TEqualityComparer_UString }
 
   TEqualityComparer_UString = class (TInterfacedObjectEx, IEqualityComparer)
@@ -383,6 +410,32 @@ begin
     tkClassRef    : Result := TEqualityComparer_Data.Create(TypeSize);
     tkPointer     : Result := TEqualityComparer_Data.Create(TypeSize);
   end;
+end;
+
+function DuplicateIgnorer: IDuplicateResolver;
+begin
+  if GV_dupIgnore = nil then GV_dupIgnore := TDupIngnore.Create;
+  Result := GV_dupIgnore;
+end;
+
+function DuplicateRewriter: IDuplicateResolver;
+begin
+  if GV_dupOverwrite = nil then GV_dupOverwrite := TDupRewrite.Create;
+  Result := GV_dupOverwrite;
+end;
+
+{ TDupRewrite }
+
+function TDupRewrite.DuplicateResolve(const NewItem, CurrentItem): TDuplicateResolve;
+begin
+  Result := dupOverwrite;
+end;
+
+{ TNoRefObject }
+
+function TDupIngnore.DuplicateResolve(const NewItem, CurrentItem): TDuplicateResolve;
+begin
+  Result := dupSkip;
 end;
 
 { TInvertedComparer }
