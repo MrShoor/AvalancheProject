@@ -1,6 +1,7 @@
 unit untMain;
 
 {$mode objfpc}{$H+}
+{$Define AllowDiagonals}
 //{$Define DebugOut}
 
 interface
@@ -105,7 +106,11 @@ end;
 
 function TInteractiveMap.MaxNeighbourCount(const ANode: TPoint): Integer;
 begin
+  {$IfDef AllowDiagonals}
   Result := 8;
+  {$Else}
+  Result := 4;
+  {$EndIf}
 end;
 
 function TInteractiveMap.GetNeighbour(Index: Integer; const ACurrent, ATarget: TPoint;
@@ -140,9 +145,12 @@ begin
 
   v.x := abs(ATarget.x - ANeighbour.x);
   v.y := abs(ATarget.y - ANeighbour.y);
+  {$IfDef AllowDiagonals}
   minDelta := Min(v.x, v.y);
   DistWeight := Max(v.x, v.y) - minDelta + minDelta*sqrt(2);
-  DistWeight := sqrt(sqr(v.x)+sqr(v.y));
+  {$Else}
+  DistWeight := v.x+v.y;
+  {$EndIf}
 
   Result := True;
 end;
@@ -214,11 +222,13 @@ var pf: IPathFinder;
     s: string;
 begin
   pf := TPathFinder.Create(FMap);
-  {$IfDef DebugOut}
-  FPath := pf.FindPathWithDebugOut(FStartPt, FEndPt, Self);
-  {$Else}
+
   QueryPerformanceCounter(startTime);
+  {$IfDef DebugOut}
+  FPath := pf.FindPath(FStartPt, FEndPt, Self);
+  {$Else}
   FPath := pf.FindPath(FStartPt, FEndPt);
+  {$EndIf}
   QueryPerformanceCounter(endTime);
   QueryPerformanceFrequency(Freq);
   if Assigned(FPath) then
@@ -227,7 +237,6 @@ begin
     s := 'Not found in ';
   s := s + IntToStr(Trunc( (endTime - startTime) / Freq * 1000 )) + 'msec';
   Caption := s;
-  {$EndIf}
   Invalidate;
 end;
 

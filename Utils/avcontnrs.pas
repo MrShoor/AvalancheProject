@@ -160,6 +160,7 @@ type
     function GetCapacity: Integer;
     procedure SetCapacity(const cap: Integer);
     function GetItem(const AKey: TKey): TValue;
+    function GetPItem(const AKey: TKey): Pointer;
     procedure SetItem(const AKey: TKey; const AValue: TValue);
 
     function Count: Integer;
@@ -167,6 +168,7 @@ type
     procedure AddOrSet(const AKey: TKey; const AValue: TValue);
     procedure Delete(const AKey: TKey);
     function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
+    function TryGetPValue(const AKey: TKey; out Value: Pointer): Boolean;
     function Contains(const AKey: TKey): Boolean;
     procedure Clear;
 
@@ -178,6 +180,7 @@ type
     property OnDuplicate: IDuplicateResolver read GetOnDuplicate write SetOnDuplicate;
     property Capacity: Integer read GetCapacity write SetCapacity;
     property Item[AKey: TKey]: TValue read GetItem write SetItem; default;
+    property PItem[AKey: TKey]: Pointer read GetPItem;
   end;
 
   { IHashSet }
@@ -220,7 +223,7 @@ type
       Key  : TKey;
       Value: TValue;
     end;
-  strict private
+  protected
     FEnumIndex: Integer;
     FData: TItems;
     FGrowLimit: Integer;
@@ -242,8 +245,9 @@ type
     procedure SetOnDuplicate(const AValue: IDuplicateResolver);
 
     function GetCapacity: Integer;
-    procedure SetCapacity(const cap: Integer);
+    procedure SetCapacity(const cap: Integer); virtual;
     function GetItem(const AKey: TKey): TValue;
+    function GetPItem(const AKey: TKey): Pointer;
     procedure SetItem(const AKey: TKey; const AValue: TValue);
 
     function Count: Integer;
@@ -251,6 +255,7 @@ type
     procedure AddOrSet(const AKey: TKey; const AValue: TValue);
     procedure Delete(const AKey: TKey);
     function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
+    function TryGetPValue(const AKey: TKey; out AValue: Pointer): Boolean;
     function Contains(const AKey: TKey): Boolean;
     procedure Clear;
 
@@ -655,6 +660,14 @@ begin
   Result := FData[bIndex].Value;
 end;
 
+function THashMap.GetPItem(const AKey: TKey): Pointer;
+var bIndex: Integer = 0;
+begin
+  if not CalcBucketIndex(AKey, FComparer.Hash(AKey), bIndex) then
+    raise EContnrsError.CreateFmt(SItemNotFound, [bIndex]);
+  Result := @FData[bIndex].Value;
+end;
+
 procedure THashMap.SetItem(const AKey: TKey; const AValue: TValue);
 var bIndex: Integer = 0;
 begin
@@ -739,6 +752,20 @@ begin
     Exit(False);
   Result := True;
   AValue := FData[bIndex].Value;
+end;
+
+function THashMap.TryGetPValue(const AKey: TKey; out AValue: Pointer): Boolean;
+var bIndex: Integer = 0;
+    hash: Integer;
+begin
+  hash := FComparer.Hash(AKey);
+  if not CalcBucketIndex(AKey, hash, bIndex) then
+  begin
+    AValue := nil;
+    Exit(False);
+  end;
+  Result := True;
+  AValue := @FData[bIndex].Value;
 end;
 
 function THashMap.Contains(const AKey: TKey): Boolean;
@@ -888,6 +915,7 @@ end;
 
 function TArray.GetItem(const index: Integer): TValue;
 begin
+  Assert(index >= 0);
   Result := FData[index];
 end;
 
@@ -898,6 +926,7 @@ end;
 
 function TArray.GetPItem(const index: Integer): Pointer;
 begin
+  Assert(index >= 0);
   Result := @FData[index];
 end;
 
