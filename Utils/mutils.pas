@@ -341,7 +341,7 @@ end;
 
 function TAABB.Point(index: Integer): TVec3;
 begin
-  case index mod 8 of
+  case abs(index mod 8) of
     0: Result := Vec(min.x, min.y, min.z);
     1: Result := Vec(min.x, max.y, min.z);
     2: Result := Vec(max.x, max.y, min.z);
@@ -350,12 +350,14 @@ begin
     5: Result := Vec(min.x, max.y, max.z);
     6: Result := Vec(max.x, max.y, max.z);
     7: Result := Vec(max.x, min.y, max.z);
+  else
+    Result := Vec(0,0,0);
   end;
 end;
 
 function TAABB.Edge(index: Integer): TLine;
 begin
-  case index mod 12 of
+  case abs(index mod 12) of
     0: begin
          Result.Pnt := Vec(min.x, min.y, min.z);
          Result.Dir := Vec(min.x, max.y, min.z) - Result.Pnt;
@@ -405,6 +407,9 @@ begin
          Result.Pnt := Vec(max.x, min.y, min.z);
          Result.Dir := Vec(max.x, min.y, max.z) - Result.Pnt;
         end;
+  else
+    Result.Dir := Vec(0,0,0);
+    Result.Pnt := Vec(0,0,0);
   end;
 end;
 

@@ -30,7 +30,7 @@ type
   { IEqualityComparer }
 
   IEqualityComparer = interface
-    function Hash(const Value): Integer;
+    function Hash(const Value): Cardinal;
     function IsEqual(const Left, Right): Boolean;
   end;
 
@@ -85,7 +85,7 @@ type
 
   TEqualityComparer_UString = class (TInterfacedObjectEx, IEqualityComparer)
   public
-    function Hash(const Value): Integer;
+    function Hash(const Value): Cardinal;
     function IsEqual(const Left, Right): Boolean;
   end;
 
@@ -93,7 +93,7 @@ type
 
   TEqualityComparer_AString = class (TInterfacedObjectEx, IEqualityComparer)
   public
-    function Hash(const Value): Integer;
+    function Hash(const Value): Cardinal;
     function IsEqual(const Left, Right): Boolean;
   end;
 
@@ -101,7 +101,7 @@ type
 
   TEqualityComparer_WString = class (TInterfacedObjectEx, IEqualityComparer)
   public
-    function Hash(const Value): Integer;
+    function Hash(const Value): Cardinal;
     function IsEqual(const Left, Right): Boolean;
   end;
 
@@ -111,7 +111,7 @@ type
   private
     ElementSize: Integer;
   public
-    function Hash(const Value): Integer;
+    function Hash(const Value): Cardinal;
     function IsEqual(const Left, Right): Boolean;
 
     constructor Create(const ATypeSize: Integer);
@@ -123,7 +123,7 @@ type
   private
     ElementSize: Integer;
   public
-    function Hash(const Value): Integer;
+    function Hash(const Value): Cardinal;
     function IsEqual(const Left, Right): Boolean;
 
     constructor Create(const p: PTypeInfo);
@@ -185,8 +185,6 @@ begin
   if Result = EMPTY_HASH then Inc(Result);
 end;
 
-{$R-}
-{$Q-}
 function Murmur2(const SrcData; len: LongWord; const Seed: LongWord = $9747B28C): Cardinal;
 var
   S: array [0 .. 0] of Byte absolute SrcData;
@@ -199,6 +197,8 @@ const
   m = $5BD1E995;
   r = 24;
 begin
+  {$R-}
+  {$Q-}
   // The default seed, $9747b28c, is from the original C library
 
   // Initialize the hash to a 'random' value
@@ -326,6 +326,7 @@ var td: PTypeData;
     mf: PManagedField;
     n, i: Integer;
 begin
+  Result := False;
   case AType^.Kind of
   tkUnknown     : Assert(False, 'What???');
   tkInteger     : Result := False;
@@ -523,7 +524,7 @@ var
   strLeft: WideString absolute Left;
   strRight: WideString absolute Right;
 begin
-  Result := CompareStr(strLeft, strRight);
+  Result := WideCompareStr(strLeft, strRight);
 end;
 
 { TComparer_AString }
@@ -543,12 +544,12 @@ var
   strLeft: UnicodeString absolute Left;
   strRight: UnicodeString absolute Right;
 begin
-  Result := CompareStr(strLeft, strRight);
+  Result := UnicodeCompareStr(strLeft, strRight);
 end;
 
 { TEqualityComparer_WString }
 
-function TEqualityComparer_WString.Hash(const Value): Integer;
+function TEqualityComparer_WString.Hash(const Value): Cardinal;
 var str: WideString absolute Value;
 begin
   if Length(str) = 0 then
@@ -567,7 +568,7 @@ end;
 
 { TEqualityComparer_Array }
 
-function TEqualityComparer_Array.Hash(const Value): Integer;
+function TEqualityComparer_Array.Hash(const Value): Cardinal;
 var arr : TBytes absolute Value;
 begin
   if Length(arr) = 0 then
@@ -593,7 +594,7 @@ end;
 
 { TEqualityComparer_UString }
 
-function TEqualityComparer_UString.Hash(const Value): Integer;
+function TEqualityComparer_UString.Hash(const Value): Cardinal;
 var str: UnicodeString absolute Value;
 begin
   if Length(str) = 0 then
@@ -612,7 +613,7 @@ end;
 
 { TEqualityComparer_AString }
 
-function TEqualityComparer_AString.Hash(const Value): Integer;
+function TEqualityComparer_AString.Hash(const Value): Cardinal;
 var str: AnsiString absolute Value;
 begin
   if Length(str) = 0 then
@@ -631,7 +632,7 @@ end;
 
 { TDataEqualityComparer }
 
-function TEqualityComparer_Data.Hash(const Value): Integer;
+function TEqualityComparer_Data.Hash(const Value): Cardinal;
 begin
   Result := gvDefaultHash(Value, ElementSize);
 end;

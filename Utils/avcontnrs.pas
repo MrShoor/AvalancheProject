@@ -236,9 +236,9 @@ type
     FOnDuplicate: IDuplicateResolver;
 
     function PrevIndex(const index: Integer): Integer; {$IfNDef NoInline}inline;{$EndIf}
-    function Wrap(const index: Integer): Integer; {$IfNDef NoInline}inline;{$EndIf}
+    function Wrap(const index: Cardinal): Integer; {$IfNDef NoInline}inline;{$EndIf}
     function CalcBucketIndex(const AKey: TKey; AHash: Cardinal; out AIndex: Integer): Boolean; {$IfNDef NoInline}inline;{$EndIf}
-    procedure DoAddOrSet(BucketIndex, AHash: Integer; const AKey: TKey; const AValue: TValue); {$IfNDef NoInline}inline;{$EndIf}
+    procedure DoAddOrSet(BucketIndex, AHash: Cardinal; const AKey: TKey; const AValue: TValue); {$IfNDef NoInline}inline;{$EndIf}
     procedure GrowIfNeeded; {$IfNDef NoInline}inline;{$EndIf}
 
     function GetOnDuplicate: IDuplicateResolver;
@@ -582,9 +582,9 @@ begin
   Result := Wrap(index-1+Length(FData));
 end;
 
-function THashMap.Wrap(const index: Integer): Integer;
+function THashMap.Wrap(const index: Cardinal): Integer;
 begin
-  Result := abs(index Mod Length(FData));
+  Result := index Mod Length(FData);
 end;
 
 function THashMap.CalcBucketIndex(const AKey: TKey; AHash: Cardinal; out AIndex: Integer): Boolean;
@@ -597,17 +597,17 @@ begin
   AIndex := Wrap(AHash);
   while True do
   begin
-    if FData[AIndex].Hash = 0 then Exit(False);
+    if FData[AIndex].Hash = EMPTY_HASH then Exit(False);
     if (FData[AIndex].Hash = AHash) And FComparer.IsEqual(FData[AIndex].Key, AKey) then Exit(True);
     Inc(AIndex);
     if AIndex = Length(FData) then AIndex := 0;
   end;
 end;
 
-procedure THashMap.DoAddOrSet(BucketIndex, AHash: Integer; const AKey: TKey;
+procedure THashMap.DoAddOrSet(BucketIndex, AHash: Cardinal; const AKey: TKey;
   const AValue: TValue);
 begin
-  if FData[BucketIndex].Hash = 0 then Inc(FCount);
+  if FData[BucketIndex].Hash = EMPTY_HASH then Inc(FCount);
   FData[BucketIndex].Hash := AHash;
   FData[BucketIndex].Key := AKey;
   FData[BucketIndex].Value := AValue;
@@ -644,7 +644,7 @@ begin
   FCount := 0;
   SetLength(FData, cap);
   for i := 0 to Length(OldItems)-1 do
-    if OldItems[i].Hash <> 0 then
+    if OldItems[i].Hash <> EMPTY_HASH then
     begin
       CalcBucketIndex(OldItems[i].Key, OldItems[i].Hash, bIndex);
       DoAddOrSet(bIndex, OldItems[i].Hash, OldItems[i].Key, OldItems[i].Value);
@@ -745,7 +745,7 @@ end;
 
 function THashMap.TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
 var bIndex: Integer = 0;
-    hash: Integer;
+    hash: Cardinal;
 begin
   hash := FComparer.Hash(AKey);
   if not CalcBucketIndex(AKey, hash, bIndex) then
@@ -756,7 +756,7 @@ end;
 
 function THashMap.TryGetPValue(const AKey: TKey; out AValue: Pointer): Boolean;
 var bIndex: Integer = 0;
-    hash: Integer;
+    hash: Cardinal;
 begin
   hash := FComparer.Hash(AKey);
   if not CalcBucketIndex(AKey, hash, bIndex) then
@@ -799,7 +799,7 @@ begin
   Inc(FEnumIndex);
   while FEnumIndex < Length(FData) do
   begin
-    if FData[FEnumIndex].Hash <> 0 then
+    if FData[FEnumIndex].Hash <> EMPTY_HASH then
     begin
       AKey   := FData[FEnumIndex].Key;
       AValue := FData[FEnumIndex].Value;
@@ -815,7 +815,7 @@ begin
  Inc(FEnumIndex);
  while FEnumIndex < Length(FData) do
  begin
-   if FData[FEnumIndex].Hash <> 0 then
+   if FData[FEnumIndex].Hash <> EMPTY_HASH then
    begin
      AKey   := FData[FEnumIndex].Key;
      Exit(True);
@@ -830,7 +830,7 @@ begin
  Inc(FEnumIndex);
  while FEnumIndex < Length(FData) do
  begin
-   if FData[FEnumIndex].Hash <> 0 then
+   if FData[FEnumIndex].Hash <> EMPTY_HASH then
    begin
      AValue := FData[FEnumIndex].Value;
      Exit(True);

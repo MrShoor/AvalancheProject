@@ -31,7 +31,7 @@ type
 
     function CellFree(const X, Y: Integer): Boolean;
   public
-    function Hash(const Value): Integer;
+    function Hash(const Value): Cardinal;
     function IsEqual(const Left, Right): Boolean;
 
     function MaxNeighbourCount(const ANode: TPoint): Integer;
@@ -92,9 +92,10 @@ begin
   Result := pRow^ > 127;
 end;
 
-function TInteractiveMap.Hash(const Value): Integer;
+function TInteractiveMap.Hash(const Value): Cardinal;
+var p: TPoint absolute Value;
 begin
-  Result := Murmur2(TPoint(Value), SizeOf(TPoint));
+  Result := Murmur2(p, SizeOf(TPoint));
 end;
 
 function TInteractiveMap.IsEqual(const Left, Right): Boolean;
