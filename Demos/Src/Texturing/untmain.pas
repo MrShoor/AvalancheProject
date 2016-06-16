@@ -1,12 +1,18 @@
-unit untMain;
-
-{$mode objfpc}{$H+}
-{$ModeSwitch advancedrecords}
+unit untmain;
+{$I avConfig.inc}
 
 interface
 
 uses
-  LCLType, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
+  {$IfDef FPC}
+  LCLType,
+  FileUtil,
+  {$EndIf}
+  {$IfDef DCC}
+  Windows,
+  Messages,
+  {$EndIf}
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
   ExtCtrls, avRes, avTypes, avTess, avContnrs, mutils,
   avCameraController, avTexLoader, ContextSwitcher;
 
@@ -20,8 +26,8 @@ type
     vsTexCrd: TVec2;
     class function Layout: IDataLayout; static;
   end;
-  ICubeVertices = specialize IArray<TCubeVertex>;
-  TCubeVertices = specialize TVerticesRec<TCubeVertex>;
+  ICubeVertices = {$IfDef FPC}specialize{$EndIf} IArray<TCubeVertex>;
+  TCubeVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TCubeVertex>;
 
   { TfrmMain }
 
@@ -41,7 +47,12 @@ type
 
     FFrameBuffer: TavFrameBuffer;
   public
+    {$IfDef FPC}
     procedure EraseBackground(DC: HDC); override;
+    {$EndIf}
+    {$IfDef DCC}
+    procedure WMEraseBkgnd(var Message: TWmEraseBkgnd); message WM_ERASEBKGND;
+    {$EndIf}
     procedure RenderScene;
   end;
 
@@ -50,9 +61,14 @@ var
 
 implementation
 
-{$R *.lfm}
+{$IfDef DCC}
+  {$R *.dfm}
+{$EndIf}
 
-{$R 'Texturing_shaders\shaders.rc'}
+{$IfDef FPC}
+  {$R *.lfm}
+  {$R 'Texturing_shaders\shaders.rc'}
+{$EndIf}
 
 { TCubeVertex }
 
@@ -186,10 +202,18 @@ begin
   RenderScene;
 end;
 
+{$IfDef FPC}
 procedure TfrmMain.EraseBackground(DC: HDC);
 begin
   //inherited EraseBackground(DC);
 end;
+{$EndIf}
+{$IfDef DCC}
+procedure TfrmMain.WMEraseBkgnd(var Message: TWmEraseBkgnd);
+begin
+  Message.Result := 1;
+end;
+{$EndIf}
 
 procedure TfrmMain.RenderScene;
 begin

@@ -61,7 +61,7 @@ function Create_ITextureManager: ITextureManager;
 
 implementation
 
-uses Classes;
+uses Classes, Math;
 
 const
 BestImageFormat : array [TTextureFormat] of TImageFormat = (
@@ -143,8 +143,8 @@ type
 
   TTextureManager = class (TInterfacedObject, ITextureManager)
   private type
-    ITexHash = specialize IHashMap<TByteArr, ITextureData>;
-    TTexHash = specialize THashMap<TByteArr, ITextureData>;
+    ITexHash = {$IfDef FPC}specialize{$EndIf} IHashMap<TByteArr, ITextureData>;
+    TTexHash = {$IfDef FPC}specialize{$EndIf} THashMap<TByteArr, ITextureData>;
   private
     FTexHash: ITexHash;
 

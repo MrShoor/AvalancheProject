@@ -1,8 +1,7 @@
 unit avContext_OGL;
+{$I avConfig.inc}
 //{$DEFINE NOVAO}
 //{$DEFINE NOglNamed}
-
-{$mode objfpc}{$H+}
 
 interface
 
@@ -15,8 +14,8 @@ const
 type
   TavInterfacedObject = TInterfacedObject;
 
-  TObjListHash = specialize THashMap<TObject, Boolean>;
-  IObjListHash = specialize IHashMap<TObject, Boolean>;
+  TObjListHash = {$IfDef FPC}specialize{$EndIf} THashMap<TObject, Boolean>;
+  IObjListHash = {$IfDef FPC}specialize{$EndIf} IHashMap<TObject, Boolean>;
 
   { TContext_OGL }
 
@@ -72,6 +71,9 @@ type
     ModelIndex    : IctxIndexBuffer;
     InstanceVertex: IctxVetexBuffer;
     InstanceStepRate: Integer;
+    {$IfDef DCC}
+    class operator Equal(a, b: TVAOKey): Boolean;
+    {$EndIf}
   end;
   TVAOInfo = record
     VAO: Cardinal;
@@ -79,14 +81,19 @@ type
     Model     : IDataLayout;
     Instance  : IDataLayout;
     HasIndices: Boolean;
+    {$IfDef DCC}
+    class operator Equal(a, b: TVAOInfo): Boolean;
+    {$EndIf}
   end;
 
+{$IfDef FPC}
 operator = (const a, b: TVAOKey): Boolean;
 operator = (const a, b: TVAOInfo): Boolean;
+{$EndIf}
 
 implementation
 
-uses SuperObject, avLog;
+uses SuperObject, avLog, Math;
 
 const
   DEFAULT_BackBuffer: Boolean = False;
@@ -183,6 +190,7 @@ const
                                                        {ctDouble}8);
 
 
+{$IfDef FPC}
 operator = (const a, b: TVAOKey): Boolean;
 begin
   Result := CompareMem(@a, @b, SizeOf(TVAOKey));
@@ -191,7 +199,19 @@ operator = (const a, b: TVAOInfo): Boolean;
 begin
   Result := CompareMem(@a, @b, SizeOf(TVAOInfo));
 end;
+{$EndIf}
 
+{$IfDef DCC}
+class operator TVAOKey.Equal(a, b: TVAOKey): Boolean;
+begin
+  Result := CompareMem(@a, @b, SizeOf(TVAOKey));
+end;
+
+class operator TVAOInfo.Equal(a, b: TVAOInfo): Boolean;
+begin
+  Result := CompareMem(@a, @b, SizeOf(TVAOInfo));
+end;
+{$EndIf}
 
 procedure VectorInfoOfDataType(datatype: Cardinal; out ElementClass: TDataClass;
                                                    out ElementType: TComponentType;
@@ -617,7 +637,7 @@ type
     FRefCount: Integer;
 
     function Handle: Cardinal;
-    function QueryInterface(constref iid: tguid; out obj): longint; stdcall;
+    function QueryInterface({$IfDef FPC_HAS_CONSTREF}constref{$Else}const{$EndIf}iid: tguid; out obj): longint; stdcall;
     function _AddRef: longint; stdcall;
     function _Release: longint; stdcall;
   protected
@@ -884,13 +904,13 @@ type
         GL_CLAMP_TO_BORDER  // twClampToEdge
       );
     type
-      TVaoHash = specialize THashMap<TVAOKey, TVAOInfo>;
-      IVaoHash = specialize IHashMap<TVAOKey, TVAOInfo>;
+      TVaoHash = {$IfDef FPC}specialize{$EndIf} THashMap<TVAOKey, TVAOInfo>;
+      IVaoHash = {$IfDef FPC}specialize{$EndIf} IHashMap<TVAOKey, TVAOInfo>;
 
-      TUniformHash = specialize THashMap<string, TUniformField_OGL>;
-      IUniformHash = specialize IHashMap<string, TUniformField_OGL>;
-      TAttributeHash = specialize THashMap<string, TAttributeField_OGL>;
-      IAttributeHash = specialize IHashMap<string, TAttributeField_OGL>;
+      TUniformHash = {$IfDef FPC}specialize{$EndIf} THashMap<string, TUniformField_OGL>;
+      IUniformHash = {$IfDef FPC}specialize{$EndIf} IHashMap<string, TUniformField_OGL>;
+      TAttributeHash = {$IfDef FPC}specialize{$EndIf} THashMap<string, TAttributeField_OGL>;
+      IAttributeHash = {$IfDef FPC}specialize{$EndIf} IHashMap<string, TAttributeField_OGL>;
   private
     FUniformList: IUniformHash;
     FAttrList: IAttributeHash;
@@ -926,7 +946,7 @@ type
     procedure Select;
     procedure Load(const AProgram: string; FromResource: Boolean = false);
 
-    procedure SetAttributes(const AModel, AInstances : IctxVetexBuffer; const AModelIndices: IctxIndexBuffer; InstanceStepRate: Integer = 1);
+    procedure SetAttributes(const AModel, AInstances : IctxVetexBuffer; const AModelIndices: IctxIndexBuffer; InstanceStepRate: Integer = 1); overload;
 
     function GetUniformField(const Name: string): TUniformField;
     procedure SetUniform(const Field: TUniformField; const Value: integer); overload;
@@ -2306,7 +2326,7 @@ procedure TProgram.SetUniform(const Field: TUniformField; const v: TVec2);
 begin
   if Field = nil then Exit;
   if Field.DataClass = dcSampler then Exit;
-  If PVec2(Field.Data)^ <> v Then
+  If not (PVec2(Field.Data)^ = v) Then
   begin
     PVec2(Field.Data)^ := v;
     glUniform2fv(TUniformField_OGL(Field).ID, 1, @v);
@@ -2317,7 +2337,7 @@ procedure TProgram.SetUniform(const Field: TUniformField; const v: TVec3);
 begin
   if Field = nil then Exit;
   if Field.DataClass = dcSampler then Exit;
-  If PVec3(Field.Data)^ <> v Then
+  If not (PVec3(Field.Data)^ = v) Then
   begin
     PVec3(Field.Data)^ := v;
     glUniform3fv(TUniformField_OGL(Field).ID, 1, @v);
@@ -2328,7 +2348,7 @@ procedure TProgram.SetUniform(const Field: TUniformField; const v: TVec4);
 begin
   if Field = nil then Exit;
   if Field.DataClass = dcSampler then Exit;
-  If PVec4(Field.Data)^ <> v Then
+  If not (PVec4(Field.Data)^ = v) Then
   begin
     PVec4(Field.Data)^ := v;
     glUniform4fv(TUniformField_OGL(Field).ID, 1, @v);
@@ -2492,7 +2512,7 @@ begin
   Result := FHandle;
 end;
 
-function THandle.QueryInterface(constref iid: tguid; out obj): longint; stdcall;
+function THandle.QueryInterface({$IfDef FPC_HAS_CONSTREF}constref{$Else}const{$EndIf} iid: tguid; out obj): longint; stdcall;
 begin
   if GetInterface(IID, obj) then
     Result := 0

@@ -1,7 +1,5 @@
 unit avBase;
-
-{$mode objfpc}{$H+}
-{$DEFINE AssertOnRegFailed}
+{$I avConfig.inc}
 
 interface
 

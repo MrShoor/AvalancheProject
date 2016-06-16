@@ -1,6 +1,5 @@
 unit avLog;
-
-{$mode objfpc}{$H+}
+{$I avConfig.inc}
 
 interface
 

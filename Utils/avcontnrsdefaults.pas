@@ -1,6 +1,5 @@
 unit avContnrsDefaults;
-
-{$mode objfpc}{$H+}
+{$I avConfig.inc}
 
 interface
 
@@ -59,7 +58,8 @@ function DuplicateRewriter: IDuplicateResolver;
 
 implementation
 
-uses Math, intfUtils;
+uses Math, intfUtils
+  {$IfDef DCC}, Generics.Defaults{$EndIf};
 
 type
 
@@ -174,7 +174,12 @@ type
 
   { TComparer_OrdValue }
 
-  generic TComparer_OrdValue<T> = class (TInterfacedObjectEx, IComparer)
+  {$IfDef FPC}generic{$EndIf} TComparer_OrdValue<T> = class (TInterfacedObjectEx, IComparer)
+  {$IfDef DCC}
+  public
+    FComparer: Generics.Defaults.IComparer<T>;
+    constructor Create;
+  {$EndIf}
   public
     function Compare(const Left, Right): Integer;
   end;
@@ -249,20 +254,20 @@ end;
 
 function AutoSelectComparer(const pInfo: PTypeInfo; const TypeSize: Integer): IComparer;
 type
-  TComparer_Int8   = specialize TComparer_OrdValue<ShortInt>;
-  TComparer_UInt8  = specialize TComparer_OrdValue<Byte>;
-  TComparer_Int16  = specialize TComparer_OrdValue<SmallInt>;
-  TComparer_UInt16 = specialize TComparer_OrdValue<Word>;
-  TComparer_Int32  = specialize TComparer_OrdValue<LongInt>;
-  TComparer_UInt32 = specialize TComparer_OrdValue<Cardinal>;
-  TComparer_Int64  = specialize TComparer_OrdValue<Int64>;
-  TComparer_UInt64 = specialize TComparer_OrdValue<UInt64>;
+  TComparer_Int8   = {$IfDef FPC}specialize{$EndIf} TComparer_OrdValue<ShortInt>;
+  TComparer_UInt8  = {$IfDef FPC}specialize{$EndIf} TComparer_OrdValue<Byte>;
+  TComparer_Int16  = {$IfDef FPC}specialize{$EndIf} TComparer_OrdValue<SmallInt>;
+  TComparer_UInt16 = {$IfDef FPC}specialize{$EndIf} TComparer_OrdValue<Word>;
+  TComparer_Int32  = {$IfDef FPC}specialize{$EndIf} TComparer_OrdValue<LongInt>;
+  TComparer_UInt32 = {$IfDef FPC}specialize{$EndIf} TComparer_OrdValue<Cardinal>;
+  TComparer_Int64  = {$IfDef FPC}specialize{$EndIf} TComparer_OrdValue<Int64>;
+  TComparer_UInt64 = {$IfDef FPC}specialize{$EndIf} TComparer_OrdValue<UInt64>;
 
-  TComparer_Single   = specialize TComparer_OrdValue<Single>;
-  TComparer_Double   = specialize TComparer_OrdValue<Double>;
-  TComparer_Extended = specialize TComparer_OrdValue<Extended>;
-  TComparer_Currency = specialize TComparer_OrdValue<Currency>;
-  TComparer_Comp     = specialize TComparer_OrdValue<Comp>;
+  TComparer_Single   = {$IfDef FPC}specialize{$EndIf} TComparer_OrdValue<Single>;
+  TComparer_Double   = {$IfDef FPC}specialize{$EndIf} TComparer_OrdValue<Double>;
+  TComparer_Extended = {$IfDef FPC}specialize{$EndIf} TComparer_OrdValue<Extended>;
+  TComparer_Currency = {$IfDef FPC}specialize{$EndIf} TComparer_OrdValue<Currency>;
+  TComparer_Comp     = {$IfDef FPC}specialize{$EndIf} TComparer_OrdValue<Comp>;
 var pData: PTypeData;
 begin
   Result := nil;
@@ -295,27 +300,32 @@ begin
       end;
     tkSet         : Result := TComparer_Data.Create(TypeSize);
     tkMethod      : Result := TComparer_Data.Create(TypeSize);
+    {$IfDef FPC}
     tkSString     : Result := TComparer_Data.Create(TypeSize);
-    tkLString     : Assert(False, 'Todooo');
     tkAString     : Result := TComparer_AString.Create;
+    tkObject      : Result := TComparer_Data.Create(TypeSize);
+    tkBool        : Result := TComparer_Data.Create(TypeSize);
+    tkQWord       : Result := TComparer_UInt64.Create;
+    tkInterfaceRaw: Result := TComparer_Data.Create(TypeSize);
+    tkProcVar     : Result := TComparer_Data.Create(TypeSize);
+    tkUChar       : Result := TComparer_Data.Create(TypeSize);
+    tkHelper      : Result := TComparer_Data.Create(TypeSize);
+    tkFile        : Result := TComparer_Data.Create(TypeSize);
+    {$EndIf}
+    {$IfDef DCC}
+    tkProcedure  : Result := TComparer_Data.Create(TypeSize);
+    {$EndIf}
+    tkLString     : Assert(False, 'Todooo');
     tkWString     : Result := TComparer_WString.Create;
     tkVariant     : Assert(False, 'Todooo');
     tkArray       : Result := TComparer_Data.Create(TypeSize);
     tkRecord      : Result := TComparer_Data.Create(TypeSize);
     tkInterface   : Result := TComparer_Data.Create(TypeSize);
     tkClass       : Result := TComparer_Data.Create(TypeSize);
-    tkObject      : Result := TComparer_Data.Create(TypeSize);
     tkWChar       : Result := TComparer_Data.Create(TypeSize);
-    tkBool        : Result := TComparer_Data.Create(TypeSize);
     tkInt64       : Result := TComparer_Int64.Create;
-    tkQWord       : Result := TComparer_UInt64.Create;
     tkDynArray    : Result := TComparer_Array.Create(pInfo);
-    tkInterfaceRaw: Result := TComparer_Data.Create(TypeSize);
-    tkProcVar     : Result := TComparer_Data.Create(TypeSize);
     tkUString     : Result := TComparer_UString.Create;
-    tkUChar       : Result := TComparer_Data.Create(TypeSize);
-    tkHelper      : Result := TComparer_Data.Create(TypeSize);
-    tkFile        : Result := TComparer_Data.Create(TypeSize);
     tkClassRef    : Result := TComparer_Data.Create(TypeSize);
     tkPointer     : Result := TComparer_Data.Create(TypeSize);
   end;
@@ -335,9 +345,22 @@ begin
   tkFloat       : Result := False;
   tkSet         : Result := False;
   tkMethod      : Result := False;
+  {$IfDef FPC}
   tkSString     : Result := False;
-  tkLString     : Result := True;
   tkAString     : Result := True;
+  tkObject      : Result := False;
+  tkBool        : Result := False;
+  tkQWord       : Result := False;
+  tkInterfaceRaw: Result := False;
+  tkProcVar     : Result := False;
+  tkUChar       : Result := False;
+  tkHelper      : Result := False;
+  tkFile        : Result := False;
+  {$EndIf}
+  {$IfDef DCC}
+  tkProcedure   : Result := False;
+  {$EndIf}
+  tkLString     : Result := True;
   tkWString     : Result := True;
   tkVariant     : Result := True;
   tkArray       : Result := False;
@@ -349,7 +372,12 @@ begin
                     Inc(PByte(mf), SizeOf(td^.ManagedFldCount));
                     for i := 0 to n-1 do
                     begin
+                      {$IfDef FPC}
                       if IsAutoReferenceCounterType(mf^.TypeRef) then
+                      {$EndIf}
+                      {$IfDef DCC}
+                      if IsAutoReferenceCounterType(mf^.TypeRef^) then
+                      {$EndIf}
                       begin
                         Result := True;
                         Exit;
@@ -359,18 +387,10 @@ begin
                   end;
   tkInterface   : Result := True;
   tkClass       : Result := False;
-  tkObject      : Result := False;
   tkWChar       : Result := False;
-  tkBool        : Result := False;
   tkInt64       : Result := False;
-  tkQWord       : Result := False;
   tkDynArray    : Result := True;
-  tkInterfaceRaw: Result := False;
-  tkProcVar     : Result := False;
   tkUString     : Result := True;
-  tkUChar       : Result := False;
-  tkHelper      : Result := False;
-  tkFile        : Result := False;
   tkClassRef    : Result := False;
   tkPointer     : Result := False;
   end;
@@ -387,27 +407,33 @@ begin
     tkFloat       : Result := TEqualityComparer_Data.Create(TypeSize);
     tkSet         : Result := TEqualityComparer_Data.Create(TypeSize);
     tkMethod      : Result := TEqualityComparer_Data.Create(TypeSize);
+    {$IfDef FPC}
     tkSString     : Result := TEqualityComparer_Data.Create(TypeSize);
-    tkLString     : Assert(False, 'Todooo');
     tkAString     : Result := TEqualityComparer_AString.Create;
+    tkObject      : Result := TEqualityComparer_Data.Create(TypeSize);
+    tkBool        : Result := TEqualityComparer_Data.Create(TypeSize);
+    tkQWord       : Result := TEqualityComparer_Data.Create(TypeSize);
+    tkInterfaceRaw: Result := TEqualityComparer_Data.Create(TypeSize);
+    tkProcVar     : Result := TEqualityComparer_Data.Create(TypeSize);
+    tkUChar       : Result := TEqualityComparer_Data.Create(TypeSize);
+    tkHelper      : Result := TEqualityComparer_Data.Create(TypeSize);
+    tkFile        : Result := TEqualityComparer_Data.Create(TypeSize);
+    {$EndIf}
+    {$IfDef DCC}
+    tkProcedure   : Result := TEqualityComparer_Data.Create(TypeSize);
+    {$EndIf}
+    tkLString     : Assert(False, 'Todooo');
+
     tkWString     : Result := TEqualityComparer_WString.Create;
     tkVariant     : Assert(False, 'Todooo');
     tkArray       : Result := TEqualityComparer_Data.Create(TypeSize);
     tkRecord      : Result := TEqualityComparer_Data.Create(TypeSize);
     tkInterface   : Result := TEqualityComparer_Data.Create(TypeSize);
     tkClass       : Result := TEqualityComparer_Data.Create(TypeSize);
-    tkObject      : Result := TEqualityComparer_Data.Create(TypeSize);
     tkWChar       : Result := TEqualityComparer_Data.Create(TypeSize);
-    tkBool        : Result := TEqualityComparer_Data.Create(TypeSize);
     tkInt64       : Result := TEqualityComparer_Data.Create(TypeSize);
-    tkQWord       : Result := TEqualityComparer_Data.Create(TypeSize);
     tkDynArray    : Result := TEqualityComparer_Array.Create(pInfo);
-    tkInterfaceRaw: Result := TEqualityComparer_Data.Create(TypeSize);
-    tkProcVar     : Result := TEqualityComparer_Data.Create(TypeSize);
     tkUString     : Result := TEqualityComparer_UString.Create;
-    tkUChar       : Result := TEqualityComparer_Data.Create(TypeSize);
-    tkHelper      : Result := TEqualityComparer_Data.Create(TypeSize);
-    tkFile        : Result := TEqualityComparer_Data.Create(TypeSize);
     tkClassRef    : Result := TEqualityComparer_Data.Create(TypeSize);
     tkPointer     : Result := TEqualityComparer_Data.Create(TypeSize);
   end;
@@ -452,6 +478,7 @@ begin
   FComp := AComparer;
 end;
 
+{$IfDef FPC}
 { TComparer_OrdValue }
 
 function TComparer_OrdValue.Compare(const Left, Right): Integer;
@@ -466,6 +493,18 @@ begin
     else
       Result := 1;
 end;
+{$EndIf}
+{$IfDef DCC}
+constructor TComparer_OrdValue<T>.Create;
+begin
+  FComparer := Generics.Defaults.TComparer<T>.Default;
+end;
+
+function TComparer_OrdValue<T>.Compare(const Left, Right): Integer;
+begin
+  Result := FComparer.Compare(T(Left), T(Right));
+end;
+{$EndIf}
 
 { TComparer_Array }
 
@@ -534,7 +573,12 @@ var
   strLeft: AnsiString absolute Left;
   strRight: AnsiString absolute Right;
 begin
+  {$IfDef FPC}
   Result := CompareStr(strLeft, strRight);
+  {$EndIf}
+  {$IfDef DCC}
+  Result := CompareStr(string(strLeft), string(strRight));
+  {$EndIf}
 end;
 
 { TComparer_UString }
@@ -544,7 +588,12 @@ var
   strLeft: UnicodeString absolute Left;
   strRight: UnicodeString absolute Right;
 begin
+  {$IfDef FPC}
   Result := UnicodeCompareStr(strLeft, strRight);
+  {$EndIf}
+  {$IfDef DCC}
+  Result := CompareStr(strLeft, strRight);
+  {$EndIf}
 end;
 
 { TEqualityComparer_WString }

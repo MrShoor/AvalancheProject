@@ -1,6 +1,6 @@
 unit avPathFinder;
+{$I avConfig.inc}
 
-{$mode objfpc}{$H+}
 //{$Define DebugOut}
 
 interface
@@ -9,7 +9,7 @@ uses
   Classes, SysUtils, avContnrs, avContnrsDefaults, Math;
 
 type
-  generic IMap<TNode> = interface
+  {$IfDef FPC}generic{$EndIf} IMap<TNode> = interface
     function MaxNeighbourCount(const ANode: TNode): Integer;
     function GetNeighbour(Index: Integer; const ACurrent, ATarget: TNode; out ANeighbour: TNode; out MoveWeight, DistWeight: Single): Boolean;
 
@@ -22,15 +22,15 @@ type
 
   { IAStar }
 
-  generic IAStar<TNode> = interface
-    function FindPath(const AStartNode, AEndNode: TNode; {$IfDef DebugOut}const ADebugOut: IDebugOut;{$EndIf} AStopWeigth: Single = Infinity; ConstructClosestPath: Boolean = True): specialize IArray<TNode>;
+  {$IfDef FPC}generic{$EndIf} IAStar<TNode> = interface
+    function FindPath(const AStartNode, AEndNode: TNode; {$IfDef DebugOut}const ADebugOut: IDebugOut;{$EndIf} AStopWeigth: Single = Infinity; ConstructClosestPath: Boolean = True): {$IfDef FPC}specialize{$EndIf} IArray<TNode>;
   end;
 
   { IHashMapWithBuckets }
 
   TOnBucketIndexChange = procedure (const Key, Value; OldBucketIndex, NewBucketIndex: Integer) of object;
 
-  generic IHashMapWithBuckets<TKey, TValue> = interface (specialize IHashMap<TKey, TValue>)
+  {$IfDef FPC}generic{$EndIf} IHashMapWithBuckets<TKey, TValue> = interface ({$IfDef FPC}specialize{$EndIf} IHashMap<TKey, TValue>)
     function AddOrSetWithBucketIndex(const AKey: TKey; const AValue: TValue): Integer; //return bucket index
     function GetPKeyByBucketIndex(ABucketIndex: Integer): Pointer;
     function GetPValueByBucketIndex(ABucketIndex: Integer): Pointer;
@@ -43,7 +43,7 @@ type
 
   { THashMapWithBuckets }
 
-  generic THashMapWithBuckets<TKey, TValue> = class (specialize THashMap<TKey, TValue>, specialize IHashMapWithBuckets<TKey, TValue>)
+  {$IfDef FPC}generic{$EndIf} THashMapWithBuckets<TKey, TValue> = class ({$IfDef FPC}specialize{$EndIf} THashMap<TKey, TValue>, {$IfDef FPC}specialize{$EndIf} IHashMapWithBuckets<TKey, TValue>)
   protected
     procedure SetCapacity(const cap: Integer); override;
   private
@@ -59,21 +59,19 @@ type
 
   { TAStar }
 
-  generic TAStar<TNode> = class (TInterfacedObjectEx, specialize IAStar<TNode>)
+  {$IfDef FPC}generic{$EndIf} TAStar<TNode> = class (TInterfacedObjectEx, {$IfDef FPC}specialize{$EndIf} IAStar<TNode>)
   private type
+    TPath = {$IfDef FPC}specialize{$EndIf} TArray<TNode>;
 
-  private type
-    TPath = specialize TArray<TNode>;
-
-    IFindMap = specialize IMap<TNode>;
+    IFindMap = {$IfDef FPC}specialize{$EndIf} IMap<TNode>;
 
     TOpenHeapInfo = record
       NodeBucket: Integer;
       AllWeight : Single;
     end;
     POpenHeapInfo = ^TOpenHeapInfo;
-    IOpenHeap = specialize IArray<TOpenHeapInfo>;
-    TOpenHeap = specialize TArray<TOpenHeapInfo>;
+    IOpenHeap = {$IfDef FPC}specialize{$EndIf} IArray<TOpenHeapInfo>;
+    TOpenHeap = {$IfDef FPC}specialize{$EndIf} TArray<TOpenHeapInfo>;
 
     TOpenSetInfo = record
       HeapIndex  : Integer;
@@ -82,8 +80,8 @@ type
       AllWeight  : Single;
     end;
     POpenSetInfo = ^TOpenSetInfo;
-    TOpenSet = specialize THashMapWithBuckets<TNode, TOpenSetInfo>;
-    IOpenSet = specialize IHashMapWithBuckets<TNode, TOpenSetInfo>;
+    TOpenSet = {$IfDef FPC}specialize{$EndIf} THashMapWithBuckets<TNode, TOpenSetInfo>;
+    IOpenSet = {$IfDef FPC}specialize{$EndIf} IHashMapWithBuckets<TNode, TOpenSetInfo>;
   private
     FMap: IFindMap;
 
@@ -101,8 +99,8 @@ type
     procedure AddToOpen(const ANode, AFrom: TNode; const moveW, distW: Single);
     procedure ExtractTop(out ANode: TNode; out AStepInfo: TOpenSetInfo);
 
-    function ConstructPath(const ATarget, AStartNode: TNode): specialize IArray<TNode>;
-    function FindPath(const AStartNode, AEndNode: TNode; {$IfDef DebugOut}const ADebugOut: IDebugOut;{$EndIf} AStopWeigth: Single = Infinity; ConstructClosestPath: Boolean = True): specialize IArray<TNode>;
+    function ConstructPath(const ATarget, AStartNode: TNode): {$IfDef FPC}specialize{$EndIf} IArray<TNode>;
+    function FindPath(const AStartNode, AEndNode: TNode; {$IfDef DebugOut}const ADebugOut: IDebugOut;{$EndIf} AStopWeigth: Single = Infinity; ConstructClosestPath: Boolean = True): {$IfDef FPC}specialize{$EndIf} IArray<TNode>;
   public
     constructor Create(const AMap: IFindMap);
     destructor Destroy; override;
@@ -112,8 +110,8 @@ implementation
 
 { THashMapWithBuckets }
 
-procedure THashMapWithBuckets.SetCapacity(const cap: Integer);
-var OldItems: TItems;
+procedure THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.SetCapacity(const cap: Integer);
+var OldItems: {$IfDef DCC}THashMap<TKey, TValue>.{$EndIf}TItems;
     i, bIndex: Integer;
 begin
   OldItems := FData;
@@ -132,7 +130,7 @@ begin
   FGrowLimit := cap div 2;
 end;
 
-function THashMapWithBuckets.AddOrSetWithBucketIndex(const AKey: TKey; const AValue: TValue): Integer;
+function THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.AddOrSetWithBucketIndex(const AKey: TKey; const AValue: TValue): Integer;
 var hash: Cardinal;
 begin
   GrowIfNeeded;
@@ -141,22 +139,22 @@ begin
   DoAddOrSet(Result, hash, AKey, AValue);
 end;
 
-function THashMapWithBuckets.GetPKeyByBucketIndex(ABucketIndex: Integer): Pointer;
+function THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.GetPKeyByBucketIndex(ABucketIndex: Integer): Pointer;
 begin
   Result := @FData[ABucketIndex].Key;
 end;
 
-function THashMapWithBuckets.GetPValueByBucketIndex(ABucketIndex: Integer): Pointer;
+function THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.GetPValueByBucketIndex(ABucketIndex: Integer): Pointer;
 begin
   Result := @FData[ABucketIndex].Value;
 end;
 
-function THashMapWithBuckets.GetOnBucketIndexChange: TOnBucketIndexChange;
+function THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.GetOnBucketIndexChange: TOnBucketIndexChange;
 begin
   Result := FOnBucketIndexChange;
 end;
 
-procedure THashMapWithBuckets.SetOnBucketIndexChange(
+procedure THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.SetOnBucketIndexChange(
   const AValue: TOnBucketIndexChange);
 begin
   FOnBucketIndexChange := AValue;
@@ -164,7 +162,7 @@ end;
 
 { TAStar }
 
-procedure TAStar.Swap(I1, I2: Integer);
+procedure TAStar{$IfDef DCC}<TNode>{$EndIf}.Swap(I1, I2: Integer);
 var psInfo: POpenSetInfo;
     hInfo: TOpenHeapInfo;
 begin
@@ -179,7 +177,7 @@ begin
   psInfo^.HeapIndex := I2;
 end;
 
-procedure TAStar.SiftDown(Index: Integer);
+procedure TAStar{$IfDef DCC}<TNode>{$EndIf}.SiftDown(Index: Integer);
 var leftIdx, rightIdx: Integer;
     minChild: Integer;
 begin
@@ -205,7 +203,7 @@ begin
   end;
 end;
 
-procedure TAStar.SiftUp(Index: Integer);
+procedure TAStar{$IfDef DCC}<TNode>{$EndIf}.SiftUp(Index: Integer);
 var parentIdx: Integer;
     cmpResult: Single;
 begin
@@ -221,7 +219,7 @@ begin
   end;
 end;
 
-procedure TAStar.BucketIndexChange(const Key, Value; OldBucketIndex,
+procedure TAStar{$IfDef DCC}<TNode>{$EndIf}.BucketIndexChange(const Key, Value; OldBucketIndex,
   NewBucketIndex: Integer);
 var sInfo: TOpenSetInfo absolute Value;
     hInfo: POpenHeapInfo;
@@ -231,13 +229,13 @@ begin
   hInfo^.NodeBucket := NewBucketIndex;
 end;
 
-procedure TAStar.AddToOpen(const ANode, AFrom: TNode; const moveW, distW: Single);
+procedure TAStar{$IfDef DCC}<TNode>{$EndIf}.AddToOpen(const ANode, AFrom: TNode; const moveW, distW: Single);
 var psInfo: POpenSetInfo;
     phInfo: POpenHeapInfo;
     sInfo: TOpenSetInfo;
     hInfo: TOpenHeapInfo;
 begin
-  if FOpenSet.TryGetPValue(ANode, psInfo) then
+  if FOpenSet.TryGetPValue(ANode, Pointer(psInfo)) then
   begin
     if psInfo^.HeapIndex < 0 then Exit; //closed vertex
     if psInfo^.MoveWeight < moveW then Exit;
@@ -265,7 +263,7 @@ begin
   end;
 end;
 
-procedure TAStar.ExtractTop(out ANode: TNode; out AStepInfo: TOpenSetInfo);
+procedure TAStar{$IfDef DCC}<TNode>{$EndIf}.ExtractTop(out ANode: TNode; out AStepInfo: TOpenSetInfo);
 var bIndex: Integer;
     sInfo: POpenSetInfo;
 begin
@@ -285,7 +283,7 @@ begin
   end;
 end;
 
-function TAStar.ConstructPath(const ATarget, AStartNode: TNode): specialize IArray<TNode>;
+function TAStar{$IfDef DCC}<TNode>{$EndIf}.ConstructPath(const ATarget, AStartNode: TNode): {$IfDef FPC}specialize{$EndIf} IArray<TNode>;
 var nextNode: TNode;
     i: Integer;
     startTime, endTime, freq: Int64;
@@ -301,9 +299,9 @@ begin
     Result.Swap(i, Result.Count-1-i);
 end;
 
-function TAStar.FindPath(const AStartNode, AEndNode: TNode;
+function TAStar{$IfDef DCC}<TNode>{$EndIf}.FindPath(const AStartNode, AEndNode: TNode;
   {$IfDef DebugOut}const ADebugOut: IDebugOut;{$EndIf}
-  AStopWeigth: Single; ConstructClosestPath: Boolean): specialize IArray<TNode>;
+  AStopWeigth: Single; ConstructClosestPath: Boolean): {$IfDef FPC}specialize{$EndIf} IArray<TNode>;
 var currStepInfo: TOpenSetInfo;
     currNode: TNode;
     nextNode: TNode;
@@ -365,16 +363,20 @@ begin
   end;
 end;
 
-constructor TAStar.Create(const AMap: IFindMap);
+constructor TAStar{$IfDef DCC}<TNode>{$EndIf}.Create(const AMap: IFindMap);
 begin
   FMap := AMap;
 
   FOpenSet := TOpenSet.Create(FMap.NodeComparer);
+  {$IfDef FPC}
   FOpenSet.OnBucketIndexChange := @BucketIndexChange;
+  {$Else}
+  FOpenSet.OnBucketIndexChange := BucketIndexChange;
+  {$EndIf}
   FOpenHeap := TOpenHeap.Create;
 end;
 
-destructor TAStar.Destroy;
+destructor TAStar{$IfDef DCC}<TNode>{$EndIf}.Destroy;
 begin
   inherited Destroy;
 end;

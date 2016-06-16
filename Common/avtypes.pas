@@ -1,9 +1,5 @@
 unit avTypes;
-
-{$ifdef fpc}
-  {$mode objfpc}{$H+}
-  {$ModeSwitch advancedrecords}
-{$endif}
+{$I avConfig.inc}
 
 interface
 

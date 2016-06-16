@@ -1,6 +1,6 @@
 unit untMain;
+{$I avConfig.inc}
 
-{$mode objfpc}{$H+}
 {$Define AllowDiagonals}
 //{$Define DebugOut}
 
@@ -8,17 +8,17 @@ interface
 
 uses
   Windows,
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
+  Classes, SysUtils, {FileUtil,} Forms, Controls, Graphics, Dialogs,
   avContnrs, avContnrsDefaults, avPathFinder;
 
 const SCALE = 2;
 
 type
-  IPathFinder = specialize IAStar<TPoint>;
-  TPathFinder = specialize TAStar<TPoint>;
-  IPath = specialize IArray<TPoint>;
+  IPathFinder = {$IfDef FPC}specialize{$EndIf} IAStar<TPoint>;
+  TPathFinder = {$IfDef FPC}specialize{$EndIf} TAStar<TPoint>;
+  IPath = {$IfDef FPC}specialize{$EndIf} IArray<TPoint>;
 
-  IInteractiveMap = specialize IMap<TPoint>;
+  IInteractiveMap = {$IfDef FPC}specialize{$EndIf} IMap<TPoint>;
   IInteractiveMap2 = interface (IInteractiveMap)
     function Bmp: TBitmap;
   end;
@@ -75,7 +75,12 @@ implementation
 uses
   Math;
 
+{$IfDef FPC}
 {$R *.lfm}
+{$EndIf}
+{$IfDef DCC}
+{$R *.dfm}
+{$EndIf}
 
 { TInteractiveMap }
 
@@ -93,16 +98,13 @@ begin
 end;
 
 function TInteractiveMap.Hash(const Value): Cardinal;
-var p: TPoint absolute Value;
 begin
-  Result := Murmur2(p, SizeOf(TPoint));
+  Result := Murmur2(TPoint(Value), SizeOf(TPoint));
 end;
 
 function TInteractiveMap.IsEqual(const Left, Right): Boolean;
-var L: TPoint absolute Left;
-    R: TPoint absolute Right;
 begin
-  Result := (L.x = R.x) and (L.y = R.y);
+  Result := (TPoint(Left).x = TPoint(Right).x) and (TPoint(Left).y = TPoint(Right).y);
 end;
 
 function TInteractiveMap.MaxNeighbourCount(const ANode: TPoint): Integer;
@@ -267,9 +269,8 @@ begin
 end;
 
 procedure TForm1.OpeninigNode(const ANode; MoveWeight, AllWeight: Single);
-var P: TPoint absolute ANode;
 begin
-  DrawQuad(P, clGreen);
+  DrawQuad(TPoint(ANode), clGreen);
 //  DrawWeight(P, AllWeight);
 end;
 

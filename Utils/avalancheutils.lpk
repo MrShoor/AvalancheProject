@@ -14,7 +14,7 @@
       </SearchPaths>
       <CodeGeneration>
         <Optimizations>
-          <OptimizationLevel Value="0"/>
+          <OptimizationLevel Value="3"/>
         </Optimizations>
       </CodeGeneration>
       <Linking>
@@ -24,7 +24,7 @@
         </Debugging>
       </Linking>
     </CompilerOptions>
-    <Files Count="6">
+    <Files Count="7">
       <Item1>
         <Filename Value="avcontnrs.pas"/>
         <UnitName Value="avContnrs"/>
@@ -49,6 +49,10 @@
         <Filename Value="avpathfinder.pas"/>
         <UnitName Value="avPathFinder"/>
       </Item6>
+      <Item7>
+        <Filename Value="avConfig.inc"/>
+        <Type Value="Include"/>
+      </Item7>
     </Files>
     <RequiredPkgs Count="1">
       <Item1>

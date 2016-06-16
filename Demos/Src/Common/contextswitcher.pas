@@ -1,6 +1,5 @@
 unit ContextSwitcher;
-
-{$mode objfpc}{$H+}
+{$I avConfig.inc}
 
 interface
 

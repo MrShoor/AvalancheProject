@@ -1,23 +1,12 @@
 unit mutils;
-
-{$ifdef fpc}
-  {$Macro On}
-  {$mode objfpc}{$H+}
-  {$modeswitch advancedrecords}
-  {$IfDef CPU86}
-    {$FPUType sse2}
-  {$EndIf}
-  {$IfDef CPU64}
-    {$FPUType sse64}
-  {$EndIf}
-{$endif}
+{$I avConfig.inc}
 
 {$define NoInline}
 
 interface {$define INTF}
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils, Math;
 
 const
   EPS = 0.000005;
@@ -26,95 +15,123 @@ const
 type
   TSingleArr = array of Single;
 
-{$define TCompType := Single}
-{$define TV2 := TVec2}
-{$define TV3 := TVec3}
-{$define TV4 := TVec4}
-{$define PV2 := PVec2}
-{$define PV3 := PVec3}
-{$define PV4 := PVec4}
-{$define TV2Arr := TVec2Arr}
-{$define TV3Arr := TVec3Arr}
-{$define TV4Arr := TVec4Arr}
-{$define TM2 := TMat2}
-{$define TM3 := TMat3}
-{$define TM4 := TMat4}
-{$define PM2 := PMat2}
-{$define PM3 := PMat3}
-{$define PM4 := PMat4}
-{$define TM2Arr := TMat2Arr}
-{$define TM3Arr := TMat3Arr}
-{$define TM4Arr := TMat4Arr}
-{$Include mutils_v.inc}
+{$IfDef FPC}
+  {$define TCompType := Single}
+  {$define TV2 := TVec2}
+  {$define TV3 := TVec3}
+  {$define TV4 := TVec4}
+  {$define PV2 := PVec2}
+  {$define PV3 := PVec3}
+  {$define PV4 := PVec4}
+  {$define TV2Arr := TVec2Arr}
+  {$define TV3Arr := TVec3Arr}
+  {$define TV4Arr := TVec4Arr}
+  {$define TM2 := TMat2}
+  {$define TM3 := TMat3}
+  {$define TM4 := TMat4}
+  {$define PM2 := PMat2}
+  {$define PM3 := PMat3}
+  {$define PM4 := PMat4}
+  {$define TM2Arr := TMat2Arr}
+  {$define TM3Arr := TMat3Arr}
+  {$define TM4Arr := TMat4Arr}
+  {$Include mutils_v.inc}
 
-{$define TCompType := Integer}
-{$define TV2 := TVec2i}
-{$define TV3 := TVec3i}
-{$define TV4 := TVec4i}
-{$define PV2 := PVec2i}
-{$define PV3 := PVec3i}
-{$define PV4 := PVec4i}
-{$define TV2Arr := TVec2iArr}
-{$define TV3Arr := TVec3iArr}
-{$define TV4Arr := TVec4iArr}
-{$define TM2 := TMat2i}
-{$define TM3 := TMat3i}
-{$define TM4 := TMat4i}
-{$define PM2 := PMat2i}
-{$define PM3 := PMat3i}
-{$define PM4 := PMat4i}
-{$define TM2Arr := TMat2iArr}
-{$define TM3Arr := TMat3iArr}
-{$define TM4Arr := TMat4iArr}
-{$Include mutils_v.inc}
+  {$define TCompType := Integer}
+  {$define TV2 := TVec2i}
+  {$define TV3 := TVec3i}
+  {$define TV4 := TVec4i}
+  {$define PV2 := PVec2i}
+  {$define PV3 := PVec3i}
+  {$define PV4 := PVec4i}
+  {$define TV2Arr := TVec2iArr}
+  {$define TV3Arr := TVec3iArr}
+  {$define TV4Arr := TVec4iArr}
+  {$define TM2 := TMat2i}
+  {$define TM3 := TMat3i}
+  {$define TM4 := TMat4i}
+  {$define PM2 := PMat2i}
+  {$define PM3 := PMat3i}
+  {$define PM4 := PMat4i}
+  {$define TM2Arr := TMat2iArr}
+  {$define TM3Arr := TMat3iArr}
+  {$define TM4Arr := TMat4iArr}
+  {$Include mutils_v.inc}
 
-{$define TCompType := ShortInt}
-{$define TV2 := TVec2s}
-{$define TV3 := TVec3s}
-{$define TV4 := TVec4s}
-{$define PV2 := PVec2s}
-{$define PV3 := PVec3s}
-{$define PV4 := PVec4s}
-{$define TV2Arr := TVec2sArr}
-{$define TV3Arr := TVec3sArr}
-{$define TV4Arr := TVec4sArr}
-{$define TM2 := TMat2s}
-{$define TM3 := TMat3s}
-{$define TM4 := TMat4s}
-{$define PM2 := PMat2s}
-{$define PM3 := PMat3s}
-{$define PM4 := PMat4s}
-{$define TM2Arr := TMat2sArr}
-{$define TM3Arr := TMat3sArr}
-{$define TM4Arr := TMat4sArr}
-{$Include mutils_v.inc}
+  {$define TCompType := ShortInt}
+  {$define TV2 := TVec2s}
+  {$define TV3 := TVec3s}
+  {$define TV4 := TVec4s}
+  {$define PV2 := PVec2s}
+  {$define PV3 := PVec3s}
+  {$define PV4 := PVec4s}
+  {$define TV2Arr := TVec2sArr}
+  {$define TV3Arr := TVec3sArr}
+  {$define TV4Arr := TVec4sArr}
+  {$define TM2 := TMat2s}
+  {$define TM3 := TMat3s}
+  {$define TM4 := TMat4s}
+  {$define PM2 := PMat2s}
+  {$define PM3 := PMat3s}
+  {$define PM4 := PMat4s}
+  {$define TM2Arr := TMat2sArr}
+  {$define TM3Arr := TMat3sArr}
+  {$define TM4Arr := TMat4sArr}
+  {$Include mutils_v.inc}
 
-{$define TCompType := Byte}
-{$define TV2 := TVec2b}
-{$define TV3 := TVec3b}
-{$define TV4 := TVec4b}
-{$define PV2 := PVec2b}
-{$define PV3 := PVec3b}
-{$define PV4 := PVec4b}
-{$define TV2Arr := TVec2bArr}
-{$define TV3Arr := TVec3bArr}
-{$define TV4Arr := TVec4bArr}
-{$define TM2 := TMat2b}
-{$define TM3 := TMat3b}
-{$define TM4 := TMat4b}
-{$define PM2 := PMat2b}
-{$define PM3 := PMat3b}
-{$define PM4 := PMat4b}
-{$define TM2Arr := TMat2bArr}
-{$define TM3Arr := TMat3bArr}
-{$define TM4Arr := TMat4bArr}
-{$Include mutils_v.inc}
+  {$define TCompType := Byte}
+  {$define TV2 := TVec2b}
+  {$define TV3 := TVec3b}
+  {$define TV4 := TVec4b}
+  {$define PV2 := PVec2b}
+  {$define PV3 := PVec3b}
+  {$define PV4 := PVec4b}
+  {$define TV2Arr := TVec2bArr}
+  {$define TV3Arr := TVec3bArr}
+  {$define TV4Arr := TVec4bArr}
+  {$define TM2 := TMat2b}
+  {$define TM3 := TMat3b}
+  {$define TM4 := TMat4b}
+  {$define PM2 := PMat2b}
+  {$define PM3 := PMat3b}
+  {$define PM4 := PMat4b}
+  {$define TM2Arr := TMat2bArr}
+  {$define TM3Arr := TMat3bArr}
+  {$define TM4Arr := TMat4bArr}
+  {$Include mutils_v.inc}
+{$EndIf}
+
+{$IfDef DCC}
+  {$I mutils_v_d_Single.inc}
+  {$I mutils_v_d_Integer.inc}
+  {$I mutils_v_d_ShortInt.inc}
+  {$I mutils_v_d_Byte.inc}
+  function Abs(const V: Single): Single; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Abs(const V: Double): Double; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Abs(const V: SmallInt): SmallInt; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Abs(const V: ShortInt): ShortInt; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Abs(const V: Integer): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+
+  function Trunc(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Trunc(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Round(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Round(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Ceil(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Ceil(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Floor(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Floor(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+{$EndIf}
 
 type
 
   { TQuat }
 
   TQuat = record
+  {$IfDef DCC}
+  public
+    class operator Multiply(const a, b: TQuat): TQuat;
+    class operator Multiply(const a: TQuat; const b: TVec3): TVec3;
+  {$EndIf}
   case Byte of
     0: (x, y, z, w: Single);
     1: (v: TVec3; a: Single);
@@ -164,6 +181,9 @@ type
     function Center  : TVec2;
     function Size    : TVec2i;
     function IsEmpty : Boolean;
+    {$IfDef DCC}
+    class operator Equal(const v1, v2: TRectI): Boolean;
+    {$EndIf}
   case Byte of
     0: (Left, Top, Right, Bottom: Integer);
     1: (LeftTop, RightBottom: TVec2i);
@@ -204,6 +224,7 @@ const
   IdentityMat4: TMat4 = (f: ((1,0,0,0), (0,1,0,0), (0,0,1,0), (0,0,0,1)));
   ZeroMat4: TMat4 = (f: ((0,0,0,0), (0,0,0,0), (0,0,0,0), (0,0,0,0)));
 
+{$IfDef FPC}
 Operator := (const v: TVec2B)v2: TVec2I; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator := (const v: TVec3B)v2: TVec3I; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator := (const v: TVec4B)v2: TVec4I; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -233,6 +254,7 @@ Operator * (const a, b: TQuat): TQuat; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator * (const a: TQuat; b: TVec3): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator * (const a: TVec3I; s: Single): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator * (const a: TLine; const b: TMat4): TLine; {$IFNDEF NoInline} inline; {$ENDIF}
+{$EndIf}
 
 function Quat(const Dir: TVec3; Angle: Single): TQuat; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
@@ -271,6 +293,7 @@ function Lerp(const m1, m2: TMat3; s: Single): TMat3; overload; {$IFNDEF NoInlin
 function Lerp(const m1, m2: TMat4; s: Single): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
 function Rotate(const v: TVec2; const Angle: Single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Rotate90(const v: TVec2; const CW: Boolean): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
 function Intersect(const Line1, Line2: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const Seg: TSegment2D; const Line: TLine2D; out IntPoint: TVec2): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
@@ -311,16 +334,20 @@ function ToStr(const v: TVec2): string; overload;
 function ToStr(const v: TVec3): string; overload;
 function ToStr(const v: TVec4): string; overload;
 
+{$IfDef FPC}
 operator = (const v1, v2: TRectF): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 operator = (const v1, v2: TRectI): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 
 operator + (const AABB: TAABB; v: TVec3): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
 
 operator * (const v: TVec2i; s: Single): TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
+{$EndIf}
 
 implementation {$undef INTF} {$define IMPL}
 
-uses Math;
+{$IfDef DCC}
+
+{$EndIf}
 
 { TAABB }
 
@@ -430,66 +457,137 @@ begin
   Result := (Right<=Left) or (Bottom<=Top);
 end;
 
-{$define TCompType := Single}
-{$define TV2 := TVec2}
-{$define TV3 := TVec3}
-{$define TV4 := TVec4}
-{$define PV2 := PVec2}
-{$define PV3 := PVec3}
-{$define PV4 := PVec4}
-{$define TV2Arr := TVec2Arr}
-{$define TV3Arr := TVec4Arr}
-{$define TV4Arr := TVec3Arr}
-{$define TM2 := TMat2}
-{$define TM3 := TMat3}
-{$define TM4 := TMat4}
-{$Include mutils_v.inc}
+{$IfDef DCC}
+class operator TRectI.Equal(const v1, v2: TRectI): Boolean;
+begin
+  Result := (v1.Left = v2.Left) and (v1.Top = v2.Top) and (v1.Right = v2.Right) and (v1.Bottom = v2.Bottom);
+end;
+{$EndIf}
 
-{$define TCompType := Integer}
-{$define TV2 := TVec2i}
-{$define TV3 := TVec3i}
-{$define TV4 := TVec4i}
-{$define PV2 := PVec2i}
-{$define PV3 := PVec3i}
-{$define PV4 := PVec4i}
-{$define TV2Arr := TVec2iArr}
-{$define TV3Arr := TVec4iArr}
-{$define TV4Arr := TVec3iArr}
-{$define TM2 := TMat2i}
-{$define TM3 := TMat3i}
-{$define TM4 := TMat4i}
-{$Include mutils_v.inc}
+{$IfDef FPC}
+  {$define TCompType := Single}
+  {$define TV2 := TVec2}
+  {$define TV3 := TVec3}
+  {$define TV4 := TVec4}
+  {$define PV2 := PVec2}
+  {$define PV3 := PVec3}
+  {$define PV4 := PVec4}
+  {$define TV2Arr := TVec2Arr}
+  {$define TV3Arr := TVec4Arr}
+  {$define TV4Arr := TVec3Arr}
+  {$define TM2 := TMat2}
+  {$define TM3 := TMat3}
+  {$define TM4 := TMat4}
+  {$Include mutils_v.inc}
 
-{$define TCompType := ShortInt}
-{$define TV2 := TVec2s}
-{$define TV3 := TVec3s}
-{$define TV4 := TVec4s}
-{$define PV2 := PVec2s}
-{$define PV3 := PVec3s}
-{$define PV4 := PVec4s}
-{$define TV2Arr := TVec2sArr}
-{$define TV3Arr := TVec4sArr}
-{$define TV4Arr := TVec3sArr}
-{$define TM2 := TMat2s}
-{$define TM3 := TMat3s}
-{$define TM4 := TMat4s}
-{$Include mutils_v.inc}
+  {$define TCompType := Integer}
+  {$define TV2 := TVec2i}
+  {$define TV3 := TVec3i}
+  {$define TV4 := TVec4i}
+  {$define PV2 := PVec2i}
+  {$define PV3 := PVec3i}
+  {$define PV4 := PVec4i}
+  {$define TV2Arr := TVec2iArr}
+  {$define TV3Arr := TVec4iArr}
+  {$define TV4Arr := TVec3iArr}
+  {$define TM2 := TMat2i}
+  {$define TM3 := TMat3i}
+  {$define TM4 := TMat4i}
+  {$Include mutils_v.inc}
 
-{$define TCompType := Byte}
-{$define TV2 := TVec2b}
-{$define TV3 := TVec3b}
-{$define TV4 := TVec4b}
-{$define PV2 := PVec2b}
-{$define PV3 := PVec3b}
-{$define PV4 := PVec4b}
-{$define TV2Arr := TVec2bArr}
-{$define TV3Arr := TVec4bArr}
-{$define TV4Arr := TVec3bArr}
-{$define TM2 := TMat2b}
-{$define TM3 := TMat3b}
-{$define TM4 := TMat4b}
-{$Include mutils_v.inc}
+  {$define TCompType := ShortInt}
+  {$define TV2 := TVec2s}
+  {$define TV3 := TVec3s}
+  {$define TV4 := TVec4s}
+  {$define PV2 := PVec2s}
+  {$define PV3 := PVec3s}
+  {$define PV4 := PVec4s}
+  {$define TV2Arr := TVec2sArr}
+  {$define TV3Arr := TVec4sArr}
+  {$define TV4Arr := TVec3sArr}
+  {$define TM2 := TMat2s}
+  {$define TM3 := TMat3s}
+  {$define TM4 := TMat4s}
+  {$Include mutils_v.inc}
 
+  {$define TCompType := Byte}
+  {$define TV2 := TVec2b}
+  {$define TV3 := TVec3b}
+  {$define TV4 := TVec4b}
+  {$define PV2 := PVec2b}
+  {$define PV3 := PVec3b}
+  {$define PV4 := PVec4b}
+  {$define TV2Arr := TVec2bArr}
+  {$define TV3Arr := TVec4bArr}
+  {$define TV4Arr := TVec3bArr}
+  {$define TM2 := TMat2b}
+  {$define TM3 := TMat3b}
+  {$define TM4 := TMat4b}
+  {$Include mutils_v.inc}
+{$EndIf}
+
+{$IfDef DCC}
+  {$I mutils_v_d_Single.inc}
+  {$I mutils_v_d_Integer.inc}
+  {$I mutils_v_d_ShortInt.inc}
+  {$I mutils_v_d_Byte.inc}
+
+  function Abs(const V: Single): Single; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result := System.Abs(V);
+  end;
+  function Abs(const V: Double): Double; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result := System.Abs(V);
+  end;
+  function Abs(const V: SmallInt): SmallInt; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result := System.Abs(V);
+  end;
+  function Abs(const V: ShortInt): ShortInt; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result := System.Abs(V);
+  end;
+  function Abs(const V: Integer): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result := System.Abs(V);
+  end;
+
+  function Trunc(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result := System.Trunc(V);
+  end;
+  function Trunc(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result := System.Trunc(V);
+  end;
+  function Round(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result := System.Round(V);
+  end;
+  function Round(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result := System.Round(V);
+  end;
+  function Ceil(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result := Math.Ceil(V);
+  end;
+  function Ceil(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result := Math.Ceil(V);
+  end;
+  function Floor(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result := Math.Floor(V);
+  end;
+  function Floor(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result := Math.Floor(V);
+  end;
+{$EndIf}
+
+{$IfDef FPC}
 operator := (const v: TVec2B)v2: TVec2I;
 begin
   v2.x := v.x;
@@ -658,6 +756,24 @@ begin
   Result.Pnt := a.Pnt * b;
   Result.Dir := (a.Pnt + a.Dir) * b - Result.Pnt;
 end;
+{$EndIf}
+
+{$IfDef DCC}
+class operator TQuat.Multiply(const a, b: TQuat): TQuat;
+begin
+  Result.w:=a.w*b.w-a.x*b.x-a.y*b.y-a.z*b.z;
+  Result.x:=a.w*b.x+a.x*b.w+a.y*b.z-a.z*b.y;
+  Result.y:=a.w*b.y+a.y*b.w+a.z*b.x-a.x*b.z;
+  Result.z:=a.w*b.z+a.z*b.w+a.x*b.y-a.y*b.x;
+end;
+
+class operator TQuat.Multiply(const a: TQuat; const b: TVec3): TVec3;
+begin
+  Result.x:=b.x-2*b.x*(sqr(a.y)+sqr(a.z))+2*b.y*(a.x*a.y+a.z*a.w)+2*b.z*(a.x*a.z-a.y*a.w);
+  Result.y:=2*b.x*(a.x*a.y-a.z*a.w)+b.y-2*b.y*(sqr(a.x)+sqr(a.z))+2*b.z*(a.y*a.z+a.x*a.w);
+  Result.z:=2*b.x*(a.x*a.z+a.y*a.w)+2*b.y*(a.y*a.z-a.x*a.w)+b.z-2*b.z*(sqr(a.x)+sqr(a.y));
+end;
+{$EndIf}
 
 function Quat(const Dir: TVec3; Angle: Single): TQuat; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 begin
@@ -666,7 +782,7 @@ begin
 end;
 
 function Mat3(const Angle: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-var sn, cs: float;
+var sn, cs: Extended;
 begin
   sincos(Angle, sn, cs);
   Result.OX := Vec(cs,  sn);
@@ -676,7 +792,7 @@ begin
 end;
 
 function Mat3(const Angle: Single; newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-var sn, cs: float;
+var sn, cs: Extended;
 begin
   sincos(Angle, sn, cs);
   Result.OX := Vec(cs,  sn);
@@ -1118,6 +1234,7 @@ begin
   Result := '(' + ToStr(v.x) + '; ' + ToStr(v.y) + '; ' + ToStr(v.z) + '; ' + ToStr(v.w) + ')';
 end;
 
+{$IfDef FPC}
 operator = (const v1, v2: TRectF): Boolean;
 begin
   Result := (v1.LeftTop = v2.LeftTop) and (v1.RightBottom = v2.RightBottom);
@@ -1139,6 +1256,7 @@ begin
   Result.x := v.x * s;
   Result.y := v.y * s;
 end;
+{$EndIf}
 
 function Rotate(const v: TVec2; const Angle: Single): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 var sn, cs: Extended;
@@ -1146,6 +1264,20 @@ begin
   sincos(Angle, sn, cs);
   Result.x := cs * v.x - sn * v.y;
   Result.y := cs * v.y + sn * v.x;
+end;
+
+function Rotate90(const v: TVec2; const CW: Boolean): TVec2;
+begin
+  if CW then
+  begin
+    Result.x :=  v.y;
+    Result.y := -v.x;
+  end
+  else
+  begin
+    Result.x := -v.y;
+    Result.y :=  v.x;
+  end;
 end;
 
 function Intersect(const Line1, Line2: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}

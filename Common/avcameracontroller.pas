@@ -1,10 +1,12 @@
 unit avCameraController;
-
-{$mode objfpc}{$H+}
+{$I avConfig.inc}
 
 interface
 
 uses
+  {$IfDef DCC}
+  Windows,
+  {$EndIf}
   Classes, SysUtils, avBase, avRes, mutils, avTypes;
 
 type
