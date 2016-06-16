@@ -239,7 +239,8 @@ type
 
     procedure AutoSelectComparer;
   public
-    constructor Create; virtual;
+    constructor Create; overload;
+    constructor Create(const AComparer: IEqualityComparer); overload;
   end;
 
   { THashSet }
@@ -266,7 +267,8 @@ type
 
     property Capacity: Integer read GetCapacity write SetCapacity;
   public
-    constructor Create; virtual;
+    constructor Create; overload;
+    constructor Create(const AComparer: IEqualityComparer); overload;
   end;
 
 implementation
@@ -485,12 +487,17 @@ end;
 
 function THashSet.Next(out AKey: TKey): Boolean;
 begin
-  FHash.NextKey(AKey);
+  Result := FHash.NextKey(AKey);
 end;
 
 constructor THashSet.Create;
 begin
-  FHash := TMap.Create;
+  Create(nil);
+end;
+
+constructor THashSet.Create(const AComparer: IEqualityComparer);
+begin
+  FHash := TMap.Create(AComparer);
 end;
 
 { THashMap }
@@ -721,6 +728,12 @@ end;
 
 constructor THashMap.Create;
 begin
+  Create(nil);
+end;
+
+constructor THashMap.Create(const AComparer: IEqualityComparer);
+begin
+  FComparer := AComparer;
   AutoSelectComparer;
   FEmptyKey := Default(TKey);
   FEmptyValue := Default(TValue);
