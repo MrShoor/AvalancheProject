@@ -1,6 +1,5 @@
 unit avTess;
-
-{$mode objfpc}{$H+}
+{$I avConfig.inc}
 
 interface
 
@@ -15,7 +14,7 @@ type
 //  TRec = packed record
 //    class function Layout: IDataLayout; static;
 //  end;
-  generic TVerticesRec<TRec> = class (specialize TArray<TRec>, IVerticesData)
+  {$IfDef FPC}generic{$EndIf} TVerticesRec<TRec> = class ({$IfDef FPC}specialize{$EndIf} TArray<TRec>, IVerticesData)
   strict private
     FLayout: IDataLayout;
     function VerticesCount: Integer;
@@ -116,7 +115,7 @@ function Create_IRangeManager(const InitialSpace: Integer = 0): IRangeManager;
 
 implementation
 
-uses Math, AVL_Tree;
+uses Math, {$IfDef FPC}AVL_Tree{$EndIf}{$IfDef DCC}AVL_Tree_d, RTTI{$EndIf};
 
 threadvar GV_LB: ILayoutBuilder;
 
@@ -987,26 +986,35 @@ end;
 
 { TVerticesRec }
 
-function TVerticesRec.VerticesCount: Integer;
+function TVerticesRec{$IfDef DCC}<TRec>{$EndIf}.VerticesCount: Integer;
 begin
   Result := Count;
 end;
 
-function TVerticesRec.Layout: IDataLayout;
+function TVerticesRec{$IfDef DCC}<TRec>{$EndIf}.Layout: IDataLayout;
 begin
   Result := FLayout;
 end;
 
-function TVerticesRec.Data: TPointerData;
+function TVerticesRec{$IfDef DCC}<TRec>{$EndIf}.Data: TPointerData;
 begin
   Result.data := GetPItem(0);
   Result.size := Count * SizeOf(TRec);
 end;
 
+{$IfDef FPC}
 constructor TVerticesRec.Create;
 begin
   FLayout := TRec.Layout;
 end;
+{$EndIf}
+{$IfDef DCC}
+constructor TVerticesRec<TRec>.Create;
+begin
+
+//  FLayout := TRec.Layout;
+end;
+{$EndIf}
 
 end.
 

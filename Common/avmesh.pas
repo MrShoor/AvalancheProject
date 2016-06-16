@@ -112,6 +112,8 @@ type
 
   IavMeshInstances = specialize IHashMap<string, IavMeshInstance>;
   TavMeshInstances = specialize THashMap<string, IavMeshInstance>;
+  IavMeshInstanceArray = specialize IArray<IavMeshInstance>;
+  TavMeshInstanceArray = specialize TArray<IavMeshInstance>;
 
   { IavBone }
 

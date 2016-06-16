@@ -1,6 +1,5 @@
 unit avRes;
-
-{$mode objfpc}{$H+}
+{$I avConfig.inc}
 
 interface
 
@@ -321,13 +320,21 @@ type
   //  TNode.DirtyIndex : Integer
   //  TNode.Range      : IMemRange
   //  TNode.Size       : Integer
+  {$IfDef DCC}
+    TDefaultNode = class (TInterfacedObject)
+      DirtyIndex : Integer;
+      Range      : IMemRange;
+      function Size: Integer; virtual; abstract;
+    end;
+  {$EndIf}
 
-  generic TNodeManager<TNode> = class
+  {$IfDef FPC}generic TNodeManager<TNode> = class {$EndIf}
+  {$IfDef DCC} TNodeManager<TNode: TDefaultNode> = class {$EndIf}
   strict private type
-    IGroupHash = specialize IHashMap<TNode, Integer>;
-    TGroupHash = specialize THashMap<TNode, Integer>;
-    IGroupList = specialize IArray<TNode>;
-    TGroupList = specialize TArray<TNode>;
+    IGroupHash = {$IfDef FPC}specialize{$EndIf} IHashMap<TNode, Integer>;
+    TGroupHash = {$IfDef FPC}specialize{$EndIf} THashMap<TNode, Integer>;
+    IGroupList = {$IfDef FPC}specialize{$EndIf} IArray<TNode>;
+    TGroupList = {$IfDef FPC}specialize{$EndIf} TArray<TNode>;
   strict private
     FRangeMan  : IRangeManager;
     FNodes     : IGroupHash;
@@ -363,6 +370,7 @@ type
 
   TavVBManaged = class(TavVerticesBase)
   private type
+    {$IfDef FPC}
     TVBNode = class (TInterfacedObject, IManagedHandle)
       Owner     : TavVBManaged;
       Range     : IMemRange;
@@ -372,7 +380,17 @@ type
       function Size: Integer; Inline;
       destructor Destroy; override;
     end;
-    TNodes = specialize TNodeManager<TVBNode>;
+    {$EndIf}
+    {$IfDef DCC}
+    TVBNode = class (TDefaultNode, IManagedHandle)
+      Owner     : TavVBManaged;
+      Vert      : IVerticesData;
+      function HandleData: Pointer;
+      function Size: Integer; override;
+      destructor Destroy; override;
+    end;
+    {$EndIf}
+    TNodes = {$IfDef FPC}specialize{$EndIf} TNodeManager<TVBNode>;
   private
     FNodes : TNodes;
   protected
@@ -391,6 +409,7 @@ type
 
   TavIBManaged = class(TavIndicesBase)
   private type
+    {$IfDef FPC}
     TIBNode = class (TInterfacedObject, IManagedHandle)
       Owner     : TavIBManaged;
       Range     : IMemRange;
@@ -400,7 +419,17 @@ type
       function Size: Integer; Inline;
       destructor Destroy; override;
     end;
-    TNodes = specialize TNodeManager<TIBNode>;
+    {$EndIf}
+    {$IfDef DCC}
+    TIBNode = class (TDefaultNode, IManagedHandle)
+      Owner     : TavIBManaged;
+      Ind       : IIndicesData;
+      function HandleData: Pointer;
+      function Size: Integer; override;
+      destructor Destroy; override;
+    end;
+    {$EndIf}
+    TNodes = {$IfDef FPC}specialize{$EndIf} TNodeManager<TIBNode>;
   private
     FNodes : TNodes;
   protected
@@ -554,8 +583,8 @@ type
   private const
     EmptyAttachInfo: TAttachInfo = (tex : nil; mipLevel : 0);
   private type
-    TColorsList = specialize TArray<TAttachInfo>;
-    IColorsList = specialize IArray<TAttachInfo>;
+    TColorsList = {$IfDef FPC}specialize{$EndIf} TArray<TAttachInfo>;
+    IColorsList = {$IfDef FPC}specialize{$EndIf} IArray<TAttachInfo>;
   private
     FFrameBuf: IctxFrameBuffer;
     FColors  : IColorsList;
@@ -895,12 +924,12 @@ end;
 
 { TNodeManager }
 
-function TNodeManager.RangeManSize: Integer;
+function TNodeManager{$IfDef DCC}<TNode>{$EndIf}.RangeManSize: Integer;
 begin
   Result := FRangeMan.Size;
 end;
 
-procedure TNodeManager.Add(const ANode: TNode);
+procedure TNodeManager{$IfDef DCC}<TNode>{$EndIf}.Add(const ANode: TNode);
 begin
   if ANode = nil then Exit;
 
@@ -919,7 +948,7 @@ begin
   FNodes.Add(ANode, 0);
 end;
 
-function TNodeManager.Del(const ANode: TNode): Boolean;
+function TNodeManager{$IfDef DCC}<TNode>{$EndIf}.Del(const ANode: TNode): Boolean;
 begin
   Result := False;
   if ANode = nil then Exit;
@@ -929,7 +958,7 @@ begin
     FNodes.Delete(ANode);
 end;
 
-function TNodeManager.Invalidate(const ANode: TNode): Boolean;
+function TNodeManager{$IfDef DCC}<TNode>{$EndIf}.Invalidate(const ANode: TNode): Boolean;
 begin
   Result := False;
   if ANode = nil then Exit;
@@ -940,7 +969,7 @@ begin
   Result := True;
 end;
 
-procedure TNodeManager.InvalidateAll;
+procedure TNodeManager{$IfDef DCC}<TNode>{$EndIf}.InvalidateAll;
 var i: Integer;
 begin
   if FDirtyAll then Exit;
@@ -950,7 +979,7 @@ begin
   FDirtyNodes.Clear;
 end;
 
-procedure TNodeManager.Validate(const ANode: TNode);
+procedure TNodeManager{$IfDef DCC}<TNode>{$EndIf}.Validate(const ANode: TNode);
 var LastIndex: Integer;
 begin
   if ANode.DirtyIndex < 0 then Exit;
@@ -964,7 +993,7 @@ begin
   FDirtyNodes.Delete(LastIndex);
 end;
 
-procedure TNodeManager.ValidateAll;
+procedure TNodeManager{$IfDef DCC}<TNode>{$EndIf}.ValidateAll;
 var
   i: Integer;
 begin
@@ -978,7 +1007,7 @@ begin
   end;
 end;
 
-function TNodeManager.DirtyCount: Integer;
+function TNodeManager{$IfDef DCC}<TNode>{$EndIf}.DirtyCount: Integer;
 begin
   if FDirtyAll then
     Result := FNodes.Count
@@ -986,13 +1015,13 @@ begin
     Result := FDirtyNodes.Count;
 end;
 
-procedure TNodeManager.Reset;
+procedure TNodeManager{$IfDef DCC}<TNode>{$EndIf}.Reset;
 begin
   FEnumIndex := 0;
   FNodes.Reset;
 end;
 
-function TNodeManager.NextDirty(out ANode: TNode): Boolean;
+function TNodeManager{$IfDef DCC}<TNode>{$EndIf}.NextDirty(out ANode: TNode): Boolean;
 var Dummy: Integer;
 begin
   if FDirtyAll then
@@ -1008,13 +1037,13 @@ begin
   end;
 end;
 
-function TNodeManager.Next(out ANode: TNode): Boolean;
+function TNodeManager{$IfDef DCC}<TNode>{$EndIf}.Next(out ANode: TNode): Boolean;
 var Dummy: Integer;
 begin
   Result := FNodes.Next(ANode, Dummy);
 end;
 
-procedure TNodeManager.AfterConstruction;
+procedure TNodeManager{$IfDef DCC}<TNode>{$EndIf}.AfterConstruction;
 begin
   inherited AfterConstruction;
   FNodes := TGroupHash.Create;
@@ -2445,7 +2474,7 @@ begin
   FProgram.SetUniform(GetUniformField(AName), tex.FTexH, sampler);
 end;
 
-procedure TavProgram.LoadFromJSON(const AProgram: string; FromResource: boolean; const AProgramPath: string = '');
+procedure TavProgram.LoadFromJSON(const AProgram: string; FromResource: boolean = false; const AProgramPath: string = '');
 begin
   FSrc := AProgram;
   FFromRes := FromResource;

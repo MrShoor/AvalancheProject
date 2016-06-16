@@ -1,7 +1,5 @@
 unit avContext_DX11;
-
-{$mode objfpc}{$H+}
-{$ModeSwitch advancedrecords}
+{$I avConfig.inc}
 
 interface
 
@@ -16,8 +14,8 @@ type
 
   TContext_DX11 = class (TavInterfacedObject, IRenderContext)
   private type
-    TSamplerMap = specialize THashMap<TSamplerInfo, ID3D11SamplerState>;
-    ISamplerMap = specialize IHashMap<TSamplerInfo, ID3D11SamplerState>;
+    TSamplerMap = {$IfDef FPC}specialize{$EndIf} THashMap<TSamplerInfo, ID3D11SamplerState>;
+    ISamplerMap = {$IfDef FPC}specialize{$EndIf} IHashMap<TSamplerInfo, ID3D11SamplerState>;
   private
     FStates: TObject;
     FStatesIntf: IRenderStates;
@@ -342,14 +340,14 @@ type
       D3D11_STENCIL_OP_DECR_SAT  //saDecWrap
     );
   private type
-    TBlendStateMap = specialize THashMap<TD3D11_BlendDesc, ID3D11BlendState>;
-    IBlendStateMap = specialize IHashMap<TD3D11_BlendDesc, ID3D11BlendState>;
+    TBlendStateMap = {$IfDef FPC}specialize{$EndIf} THashMap<TD3D11_BlendDesc, ID3D11BlendState>;
+    IBlendStateMap = {$IfDef FPC}specialize{$EndIf} IHashMap<TD3D11_BlendDesc, ID3D11BlendState>;
 
-    TRasterStateMap = specialize THashMap<TD3D11_RasterizerDesc, ID3D11RasterizerState>;
-    IRasterStateMap = specialize IHashMap<TD3D11_RasterizerDesc, ID3D11RasterizerState>;
+    TRasterStateMap = {$IfDef FPC}specialize{$EndIf} THashMap<TD3D11_RasterizerDesc, ID3D11RasterizerState>;
+    IRasterStateMap = {$IfDef FPC}specialize{$EndIf} IHashMap<TD3D11_RasterizerDesc, ID3D11RasterizerState>;
 
-    TDepthStateMap = specialize THashMap<TD3D11_DepthStencilDesc, ID3D11DepthStencilState>;
-    IDepthStateMap = specialize IHashMap<TD3D11_DepthStencilDesc, ID3D11DepthStencilState>;
+    TDepthStateMap = {$IfDef FPC}specialize{$EndIf} THashMap<TD3D11_DepthStencilDesc, ID3D11DepthStencilState>;
+    IDepthStateMap = {$IfDef FPC}specialize{$EndIf} IHashMap<TD3D11_DepthStencilDesc, ID3D11DepthStencilState>;
   private
     FContext: TContext_DX11;
 
@@ -551,7 +549,7 @@ type
     function Map(usage: TMapingUsage): PByte;
     function Unmap: Boolean;
 
-    procedure AllocMem(ASize: Integer; Data: PByte); virtual; overload;
+    procedure AllocMem(ASize: Integer; Data: PByte); overload; virtual;
     procedure SetSubData(AOffset, ASize: Integer; Data: PByte); overload;
 
     procedure AfterConstruction; override;
@@ -618,7 +616,7 @@ type
     function GetBufferBindFlag: Cardinal; override;
   public
     function Ptr: PByte;
-    procedure AllocMem(ASize: Integer; Data: PByte); override; overload;
+    procedure AllocMem(ASize: Integer; Data: PByte); overload; override;
 //      procedure Select(Shader: TShaderType; Slot: Integer = 0);
     procedure AfterConstruction; override;
     procedure Invalidate;
@@ -655,11 +653,11 @@ type
       BindTime  : Cardinal;
     end;
 
-    TILMap = specialize THashMap<TILKey, TILInfo>;
-    IILMap = specialize IHashMap<TILKey, TILInfo>;
+    TILMap = {$IfDef FPC}specialize{$EndIf} THashMap<TILKey, TILInfo>;
+    IILMap = {$IfDef FPC}specialize{$EndIf} IHashMap<TILKey, TILInfo>;
 
-    TUniformMap = specialize THashMap<string, TUniformField>;
-    IUniformMap = specialize IHashMap<string, TUniformField>;
+    TUniformMap = {$IfDef FPC}specialize{$EndIf} THashMap<string, TUniformField>;
+    IUniformMap = {$IfDef FPC}specialize{$EndIf} IHashMap<string, TUniformField>;
   private
     FILMap: IILMap;
 
@@ -1952,11 +1950,11 @@ type
 
   function CompCharToIndex(ch: Char): Integer;
   begin
-      case LowerCase(ch) of
-        'r' : Result := 0;
-        'g' : Result := 1;
-        'b' : Result := 2;
-        'a' : Result := 3;
+      case ch of
+        'r', 'R' : Result := 0;
+        'g', 'G' : Result := 1;
+        'b', 'B' : Result := 2;
+        'a', 'A' : Result := 3;
       else
         Result := -1;
       end;
@@ -2704,7 +2702,7 @@ end;
 
 procedure TContext_DX11.Present;
 begin
-  Check3DError(FSwapChain.Present(0, 0));
+  Check3DError(FSwapChain.Present(1, 0));
 end;
 
 constructor TContext_DX11.Create(const Wnd: TWindow);

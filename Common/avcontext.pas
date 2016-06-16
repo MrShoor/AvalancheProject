@@ -1,11 +1,11 @@
 unit avContext;
-
-{$mode objfpc}{$H+}
+{$I avConfig.inc}
 
 interface
 
 uses
-  Classes, SysUtils, avTypes, mutils;
+  Classes, SysUtils, avTypes, mutils
+  {$IfDef Windows}, Windows{$EndIf};
 
 type
   E3DError = Class(Exception);

@@ -1,24 +1,26 @@
 unit avContnrs;
-
-{$mode objfpc}{$H+}
-{$modeswitch advancedrecords}
+{$I avConfig.inc}
 
 interface
 
 uses
-  Classes, SysUtils, mutils, FGL, typinfo, avContnrsDefaults;
+  Classes, SysUtils, mutils, typinfo, avContnrsDefaults;
 
 type
   TInterfacedObjectEx = avContnrsDefaults.TInterfacedObjectEx;
 
   EContnrsError = class(Exception);
 
-  generic TArrData<T> = array of T;
+  {$IfDef FPC}generic{$EndIf} TArrData<T> = array of T;
 type
 
   { IHeap }
 
-  generic IHeap<T> = interface
+  {$IfDef FPC}generic{$EndIf} IHeap<T> = interface
+    function GetOnDuplicate: IDuplicateResolver;
+    procedure SetOnDuplicate(const AValue: IDuplicateResolver);
+    property OnDuplicate: IDuplicateResolver read GetOnDuplicate write SetOnDuplicate;
+
     function Count: Integer;
     function PeekTop(): T;
     function ExtractTop(): T;
@@ -30,12 +32,12 @@ type
 
   { IArray }
 
-  generic IArray<TValue> = interface
+  {$IfDef FPC}generic{$EndIf} IArray<TValue> = interface
     function GetCapacity: Integer;
     procedure SetCapacity(const cap: Integer);
-    function GetItem(const index: Integer): TValue;
-    procedure SetItem(const index: Integer; const AValue: TValue);
-    function GetPItem(const index: Integer): Pointer;
+    function GetItem(index: Integer): TValue;
+    procedure SetItem(index: Integer; const AValue: TValue);
+    function GetPItem(index: Integer): Pointer;
 
     function Count: Integer;
 
@@ -43,6 +45,8 @@ type
     procedure Delete(const index: Integer);
     procedure DeleteWithSwap(const index: Integer);
     function  IndexOf(const item: TValue): Integer;
+
+    procedure Swap(const I1, I2: Integer);
 
     procedure Clear(const TrimCapacity: Boolean = False);
 
@@ -56,16 +60,17 @@ type
 
   { THeap }
 
-  generic THeap<T> = class (TInterfacedObjectEx, specialize IHeap<T>)
-  private type
-    TData = specialize TArrData<T>;
-  private
+  {$IfDef FPC}generic{$EndIf} THeap<T> = class (TInterfacedObjectEx, {$IfDef FPC}specialize{$EndIf} IHeap<T>)
+  protected type
+    TData = {$IfDef FPC}specialize{$EndIf} TArrData<T>;
+  protected
     FData  : TData;
     FCount : Integer;
 
     FComparer: IComparer;
 
     FEnumIndex: Integer;
+    FOnDuplicate: IDuplicateResolver;
 
     procedure Grow;
 
@@ -76,6 +81,10 @@ type
 
     procedure AutoSelectComparer;
   public
+    function GetOnDuplicate: IDuplicateResolver;
+    procedure SetOnDuplicate(const AValue: IDuplicateResolver);
+    property OnDuplicate: IDuplicateResolver read GetOnDuplicate write SetOnDuplicate;
+
     function Count: Integer;
     function PeekTop(): T;
     function ExtractTop(): T;
@@ -95,11 +104,12 @@ type
 
   { TArray }
 
-  generic TArray<TValue> = class (TInterfacedObjectEx, specialize IArray<TValue>)
+  {$IfDef FPC}generic{$EndIf} TArray<TValue> = class (TInterfacedObjectEx, {$IfDef FPC}specialize{$EndIf} IArray<TValue>)
   private type
-    THeapSrt = specialize THeap<TValue>;
+    THeapSrt = {$IfDef FPC}specialize{$EndIf} THeap<TValue>;
+    TData = {$IfDef FPC}specialize{$EndIf} TArrData<TValue>;
   private
-    FData : array of TValue;
+    FData : TData;
     FCount: Integer;
     FCleanWithEmpty: Boolean;
     FEmpty: TValue;
@@ -112,9 +122,9 @@ type
   protected
     function GetCapacity: Integer;
     procedure SetCapacity(const cap: Integer);
-    function GetItem(const index: Integer): TValue;
-    procedure SetItem(const index: Integer; const AValue: TValue);
-    function GetPItem(const index: Integer): Pointer;
+    function GetItem(index: Integer): TValue;
+    procedure SetItem(index: Integer; const AValue: TValue);
+    function GetPItem(index: Integer): Pointer;
 
     function Count: Integer;
 
@@ -122,6 +132,8 @@ type
     procedure Delete(const index: Integer);
     procedure DeleteWithSwap(const index: Integer);
     function IndexOf(const item: TValue): Integer;
+
+    procedure Swap(const I1, I2: Integer);
 
     procedure Clear(const TrimCapacity: Boolean = False);
 
@@ -135,22 +147,27 @@ type
     constructor Create(const AComparator: IComparer = nil); overload;
   end;
 
-  IObjArr = specialize IArray<TObject>;
-  TObjArr = specialize TArray<TObject>;
+  IObjArr = {$IfDef FPC}specialize{$EndIf} IArray<TObject>;
+  TObjArr = {$IfDef FPC}specialize{$EndIf} TArray<TObject>;
 
   { IHashMap }
 
-  generic IHashMap<TKey, TValue> = interface
+  {$IfDef FPC}generic{$EndIf} IHashMap<TKey, TValue> = interface
+    function GetOnDuplicate: IDuplicateResolver;
+    procedure SetOnDuplicate(const AValue: IDuplicateResolver);
+
     function GetCapacity: Integer;
     procedure SetCapacity(const cap: Integer);
-    function GetItem(const AKey: TKey): TValue;
-    procedure SetItem(const AKey: TKey; const AValue: TValue);
+    function GetItem({$IfDef FPC}const{$EndIf} AKey: TKey): TValue;
+    function GetPItem({$IfDef FPC}const{$EndIf} AKey: TKey): Pointer;
+    procedure SetItem({$IfDef FPC}const{$EndIf} AKey: TKey; const AValue: TValue);
 
     function Count: Integer;
-    procedure Add(const AKey: TKey; const AValue: TValue);
+    function Add(const AKey: TKey; const AValue: TValue): Boolean;
     procedure AddOrSet(const AKey: TKey; const AValue: TValue);
     procedure Delete(const AKey: TKey);
     function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
+    function TryGetPValue(const AKey: TKey; out Value: Pointer): Boolean;
     function Contains(const AKey: TKey): Boolean;
     procedure Clear;
 
@@ -159,19 +176,24 @@ type
     function NextKey(out AKey: TKey): Boolean;
     function NextValue(out AValue: TValue): Boolean;
 
+    property OnDuplicate: IDuplicateResolver read GetOnDuplicate write SetOnDuplicate;
     property Capacity: Integer read GetCapacity write SetCapacity;
     property Item[AKey: TKey]: TValue read GetItem write SetItem; default;
+    property PItem[AKey: TKey]: Pointer read GetPItem;
   end;
 
   { IHashSet }
 
-  generic IHashSet<TKey> = interface
+  {$IfDef FPC}generic{$EndIf} IHashSet<TKey> = interface
+    function GetOnDuplicate: IDuplicateResolver;
+    procedure SetOnDuplicate(const AValue: IDuplicateResolver);
+
     function GetCapacity: Integer;
     procedure SetCapacity(const cap: Integer);
 
     function Count: Integer;
     procedure Add(const AKey: TKey); overload;
-    //procedure Add(const Arr : specialize IArray<TKey>); overload;
+    //procedure Add(const Arr : {$IfDef FPC}specialize{$EndIf} IArray<TKey>); overload;
     procedure AddOrSet(const AKey: TKey);
     procedure Delete(const AKey: TKey);
     function Contains(const AKey: TKey): Boolean;
@@ -180,13 +202,18 @@ type
     procedure Reset;
     function Next(out AKey: TKey): Boolean;
 
+    property OnDuplicate: IDuplicateResolver read GetOnDuplicate write SetOnDuplicate;
     property Capacity: Integer read GetCapacity write SetCapacity;
   end;
 
   { THashMap }
 
-  generic THashMap<TKey, TValue> = class (TInterfacedObjectEx, specialize IHashMap<TKey, TValue>)
-  private
+  {$IfDef FPC}generic{$EndIf} THashMap<TKey, TValue> = class (TInterfacedObjectEx, {$IfDef FPC}specialize{$EndIf} IHashMap<TKey, TValue>)
+  {$IfDef FPC}
+  protected
+  {$Else}
+  public
+  {$EndIf}
     type
       TItem = packed record
         Hash : Cardinal;
@@ -199,7 +226,7 @@ type
       Key  : TKey;
       Value: TValue;
     end;
-  strict private
+  protected
     FEnumIndex: Integer;
     FData: TItems;
     FGrowLimit: Integer;
@@ -209,22 +236,29 @@ type
     FEmptyKey: TKey;
     FEmptyValue: TValue;
 
+    FOnDuplicate: IDuplicateResolver;
+
     function PrevIndex(const index: Integer): Integer; {$IfNDef NoInline}inline;{$EndIf}
-    function Wrap(const index: Integer): Integer; {$IfNDef NoInline}inline;{$EndIf}
+    function Wrap(const index: Cardinal): Integer; {$IfNDef NoInline}inline;{$EndIf}
     function CalcBucketIndex(const AKey: TKey; AHash: Cardinal; out AIndex: Integer): Boolean; {$IfNDef NoInline}inline;{$EndIf}
-    procedure DoAddOrSet(BucketIndex, AHash: Integer; const AKey: TKey; const AValue: TValue); {$IfNDef NoInline}inline;{$EndIf}
+    procedure DoAddOrSet(BucketIndex, AHash: Cardinal; const AKey: TKey; const AValue: TValue); {$IfNDef NoInline}inline;{$EndIf}
     procedure GrowIfNeeded; {$IfNDef NoInline}inline;{$EndIf}
 
+    function GetOnDuplicate: IDuplicateResolver;
+    procedure SetOnDuplicate(const AValue: IDuplicateResolver);
+
     function GetCapacity: Integer;
-    procedure SetCapacity(const cap: Integer);
-    function GetItem(const AKey: TKey): TValue;
-    procedure SetItem(const AKey: TKey; const AValue: TValue);
+    procedure SetCapacity(const cap: Integer); virtual;
+    function GetItem({$IfDef FPC}const{$EndIf} AKey: TKey): TValue;
+    function GetPItem({$IfDef FPC}const{$EndIf} AKey: TKey): Pointer;
+    procedure SetItem({$IfDef FPC}const{$EndIf} AKey: TKey; const AValue: TValue);
 
     function Count: Integer;
-    procedure Add(const AKey: TKey; const AValue: TValue);
+    function Add(const AKey: TKey; const AValue: TValue): Boolean;
     procedure AddOrSet(const AKey: TKey; const AValue: TValue);
     procedure Delete(const AKey: TKey);
     function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
+    function TryGetPValue(const AKey: TKey; out AValue: Pointer): Boolean;
     function Contains(const AKey: TKey): Boolean;
     procedure Clear;
 
@@ -239,18 +273,23 @@ type
 
     procedure AutoSelectComparer;
   public
+    property OnDuplicate: IDuplicateResolver read GetOnDuplicate write SetOnDuplicate;
+
     constructor Create; overload;
     constructor Create(const AComparer: IEqualityComparer); overload;
   end;
 
   { THashSet }
 
-  generic THashSet<TKey> = class (TInterfacedObjectEx, specialize IHashSet<TKey>)
+  {$IfDef FPC}generic{$EndIf} THashSet<TKey> = class (TInterfacedObjectEx, {$IfDef FPC}specialize{$EndIf} IHashSet<TKey>)
   private type
-    TMap = specialize THashMap<TKey, Boolean>;
-    IMap = specialize IHashMap<TKey, Boolean>;
+    TMap = {$IfDef FPC}specialize{$EndIf} THashMap<TKey, Boolean>;
+    IMap = {$IfDef FPC}specialize{$EndIf} IHashMap<TKey, Boolean>;
   strict private
     FHash : IMap;
+
+    function GetOnDuplicate: IDuplicateResolver;
+    procedure SetOnDuplicate(const AValue: IDuplicateResolver);
 
     function GetCapacity: Integer;
     procedure SetCapacity(const cap: Integer);
@@ -267,6 +306,8 @@ type
 
     property Capacity: Integer read GetCapacity write SetCapacity;
   public
+    property OnDuplicate: IDuplicateResolver read GetOnDuplicate write SetOnDuplicate;
+
     constructor Create; overload;
     constructor Create(const AComparer: IEqualityComparer); overload;
   end;
@@ -276,24 +317,29 @@ implementation
 uses
   rtlconsts, math;
 
-procedure THeap.Grow;
+procedure THeap{$IfDef DCC}<T>{$EndIf}.Grow;
 begin
   SetLength(FData, NextPow2(FCount + 1));
 end;
 
-procedure THeap.Trim;
+function THeap{$IfDef DCC}<T>{$EndIf}.GetOnDuplicate: IDuplicateResolver;
+begin
+  Result := FOnDuplicate;
+end;
+
+procedure THeap{$IfDef DCC}<T>{$EndIf}.Trim;
 begin
   SetLength(FData, FCount);
 end;
 
-procedure THeap.Clear(const NewCapacity: Integer);
+procedure THeap{$IfDef DCC}<T>{$EndIf}.Clear(const NewCapacity: Integer);
 begin
   FData := nil;
   FCount := 0;
   SetLength(FData, NewCapacity);
 end;
 
-function THeap.GetMinIndex(const i1, i2: Integer): Integer;
+function THeap{$IfDef DCC}<T>{$EndIf}.GetMinIndex(const i1, i2: Integer): Integer;
 begin
   if FComparer.Compare(FData[i1], FData[i2]) < 0 then
     Result := i1
@@ -301,7 +347,13 @@ begin
     Result := i2;
 end;
 
-procedure THeap.Swap(const i1, i2: Integer);
+procedure THeap{$IfDef DCC}<T>{$EndIf}.SetOnDuplicate(const AValue: IDuplicateResolver);
+begin
+  if FOnDuplicate = AValue then Exit;
+  FOnDuplicate := AValue;
+end;
+
+procedure THeap{$IfDef DCC}<T>{$EndIf}.Swap(const i1, i2: Integer);
 var tmp: T;
 begin
   tmp := FData[i2];
@@ -309,7 +361,7 @@ begin
   FData[i1] := tmp;
 end;
 
-procedure THeap.SiftDown(Index: Integer);
+procedure THeap{$IfDef DCC}<T>{$EndIf}.SiftDown(Index: Integer);
 var leftIdx, rightIdx: Integer;
     minChild: Integer;
 begin
@@ -330,37 +382,53 @@ begin
   end;
 end;
 
-procedure THeap.SiftUp(Index: Integer);
+procedure THeap{$IfDef DCC}<T>{$EndIf}.SiftUp(Index: Integer);
 var parentIdx: Integer;
+    cmpResult: Integer;
 begin
   while True do
   begin
     if Index = 0 then Exit; // at Root
     parentIdx := (Index - 1) div 2;
-    if FComparer.Compare(FData[parentIdx], FData[Index]) <= 0 then Exit; // sift completed
+
+    cmpResult := FComparer.Compare(FData[parentIdx], FData[Index]);
+    if cmpResult = 0 then
+    begin
+      if FOnDuplicate = nil then Exit;
+      case FOnDuplicate.DuplicateResolve(FData[Index], FData[parentIdx]) of
+        dupAddNew: Exit;
+        dupOverwrite: FData[parentIdx] := FData[Index];
+        dupSkip: ;
+      end;
+      FData[Index] := FData[FCount - 1];
+      Dec(FCount);
+      SiftDown(Index);
+      Exit;
+    end;
+    if cmpResult < 0 then Exit; // sift completed
     Swap(parentIdx, Index);
     Index := parentIdx;
   end;
 end;
 
-procedure THeap.AutoSelectComparer;
+procedure THeap{$IfDef DCC}<T>{$EndIf}.AutoSelectComparer;
 begin
   if FComparer = nil then
     FComparer := avContnrsDefaults.AutoSelectComparer(TypeInfo(T), SizeOf(T));
 end;
 
-function THeap.Count: Integer;
+function THeap{$IfDef DCC}<T>{$EndIf}.Count: Integer;
 begin
   Result := FCount;
 end;
 
-function THeap.PeekTop: T;
+function THeap{$IfDef DCC}<T>{$EndIf}.PeekTop: T;
 begin
   if FCount = 0 then raise ERangeError.Create('Index 0 out of bound');
   Result := FData[0];
 end;
 
-function THeap.ExtractTop: T;
+function THeap{$IfDef DCC}<T>{$EndIf}.ExtractTop: T;
 begin
   if FCount = 0 then raise ERangeError.Create('Index 0 out of bound');
   Result := FData[0];
@@ -372,7 +440,7 @@ begin
   if Length(FData) div 4 >= FCount then Trim;
 end;
 
-function THeap.ExtractTop_NoClean_NoTrim: T;
+function THeap{$IfDef DCC}<T>{$EndIf}.ExtractTop_NoClean_NoTrim: T;
 begin
   if FCount = 0 then raise ERangeError.Create('Index 0 out of bound');
   Result := FData[0];
@@ -381,7 +449,7 @@ begin
   SiftDown(0);
 end;
 
-procedure THeap.Insert(const Value: T);
+procedure THeap{$IfDef DCC}<T>{$EndIf}.Insert(const Value: T);
 begin
   if FCount = Length(FData) then Grow;
   FData[FCount] := Value;
@@ -389,12 +457,12 @@ begin
   SiftUp(FCount - 1);
 end;
 
-procedure THeap.Reset;
+procedure THeap{$IfDef DCC}<T>{$EndIf}.Reset;
 begin
   FEnumIndex := -1;
 end;
 
-function THeap.Next(out AItem: T): Boolean;
+function THeap{$IfDef DCC}<T>{$EndIf}.Next(out AItem: T): Boolean;
 begin
   Inc(FEnumIndex);
   if FEnumIndex >= FCount then
@@ -409,7 +477,7 @@ begin
   end;
 end;
 
-constructor THeap.Create(const ArrData: TData; const ACount: Integer; const AComparer: IComparer);
+constructor THeap{$IfDef DCC}<T>{$EndIf}.Create(const ArrData: TData; const ACount: Integer; const AComparer: IComparer);
 var i: Integer;
 begin
   FData := ArrData;
@@ -425,12 +493,12 @@ begin
     siftDown(i);
 end;
 
-constructor THeap.Create(const ACapacity: Integer);
+constructor THeap{$IfDef DCC}<T>{$EndIf}.Create(const ACapacity: Integer);
 begin
   Create(ACapacity, nil);
 end;
 
-constructor THeap.Create(const ACapacity: Integer; const AComparer: IComparer);
+constructor THeap{$IfDef DCC}<T>{$EndIf}.Create(const ACapacity: Integer; const AComparer: IComparer);
 begin
   SetLength(FData, ACapacity);
   FComparer := AComparer;
@@ -440,80 +508,89 @@ end;
 
 { THashSet }
 
-function THashSet.GetCapacity: Integer;
+function THashSet{$IfDef DCC}<TKey>{$EndIf}.GetOnDuplicate: IDuplicateResolver;
+begin
+  Result := FHash.OnDuplicate;
+end;
+
+procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.SetOnDuplicate(const AValue: IDuplicateResolver);
+begin
+  FHash.OnDuplicate := AValue;
+end;
+
+function THashSet{$IfDef DCC}<TKey>{$EndIf}.GetCapacity: Integer;
 begin
   Result := FHash.Capacity;
 end;
 
-procedure THashSet.SetCapacity(const cap: Integer);
+procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.SetCapacity(const cap: Integer);
 begin
   FHash.Capacity := cap;
 end;
 
-function THashSet.Count: Integer;
+function THashSet{$IfDef DCC}<TKey>{$EndIf}.Count: Integer;
 begin
   Result := FHash.Count;
 end;
 
-procedure THashSet.Add(const AKey: TKey);
+procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.Add(const AKey: TKey);
 begin
   FHash.Add(AKey, False);
 end;
 
-procedure THashSet.AddOrSet(const AKey: TKey);
+procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.AddOrSet(const AKey: TKey);
 begin
  FHash.AddOrSet(AKey, False);
 end;
 
-procedure THashSet.Delete(const AKey: TKey);
+procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.Delete(const AKey: TKey);
 begin
  FHash.Delete(AKey);
 end;
 
-function THashSet.Contains(const AKey: TKey): Boolean;
+function THashSet{$IfDef DCC}<TKey>{$EndIf}.Contains(const AKey: TKey): Boolean;
 begin
  Result := FHash.Contains(AKey);
 end;
 
-procedure THashSet.Clear;
+procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.Clear;
 begin
   FHash.Clear;
 end;
 
-procedure THashSet.Reset;
+procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.Reset;
 begin
   FHash.Reset;
 end;
 
-function THashSet.Next(out AKey: TKey): Boolean;
+function THashSet{$IfDef DCC}<TKey>{$EndIf}.Next(out AKey: TKey): Boolean;
 begin
   Result := FHash.NextKey(AKey);
 end;
 
-constructor THashSet.Create;
+constructor THashSet{$IfDef DCC}<TKey>{$EndIf}.Create;
 begin
   Create(nil);
 end;
 
-constructor THashSet.Create(const AComparer: IEqualityComparer);
+constructor THashSet{$IfDef DCC}<TKey>{$EndIf}.Create(const AComparer: IEqualityComparer);
 begin
   FHash := TMap.Create(AComparer);
 end;
 
 { THashMap }
 
-function THashMap.PrevIndex(const index: Integer): Integer;
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.PrevIndex(const index: Integer): Integer;
 begin
   Result := Wrap(index-1+Length(FData));
 end;
 
-function THashMap.Wrap(const index: Integer): Integer;
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Wrap(const index: Cardinal): Integer;
 begin
-  //used And operation instead Mod because Length(FData) always power of two
-  Result := index And (Length(FData)-1);
+  Result := index Mod Length(FData);
 end;
 
-function THashMap.CalcBucketIndex(const AKey: TKey; AHash: Cardinal; out AIndex: Integer): Boolean;
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.CalcBucketIndex(const AKey: TKey; AHash: Cardinal; out AIndex: Integer): Boolean;
 begin
   if Length(FData) = 0 then
   begin
@@ -523,34 +600,45 @@ begin
   AIndex := Wrap(AHash);
   while True do
   begin
-    if FData[AIndex].Hash = 0 then Exit(False);
+    if FData[AIndex].Hash = EMPTY_HASH then Exit(False);
     if (FData[AIndex].Hash = AHash) And FComparer.IsEqual(FData[AIndex].Key, AKey) then Exit(True);
     Inc(AIndex);
     if AIndex = Length(FData) then AIndex := 0;
   end;
 end;
 
-procedure THashMap.DoAddOrSet(BucketIndex, AHash: Integer; const AKey: TKey;
+procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.DoAddOrSet(BucketIndex, AHash: Cardinal; const AKey: TKey;
   const AValue: TValue);
 begin
-  if FData[BucketIndex].Hash = 0 then Inc(FCount);
+  if FData[BucketIndex].Hash = EMPTY_HASH then Inc(FCount);
   FData[BucketIndex].Hash := AHash;
   FData[BucketIndex].Key := AKey;
   FData[BucketIndex].Value := AValue;
 end;
 
-procedure THashMap.GrowIfNeeded;
+procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.GrowIfNeeded;
 begin
   if FCount >= FGrowLimit then
     Capacity := Max(4, Capacity) * 2;
 end;
 
-function THashMap.GetCapacity: Integer;
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.GetOnDuplicate: IDuplicateResolver;
+begin
+  Result := FOnDuplicate;
+end;
+
+procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.SetOnDuplicate(const AValue: IDuplicateResolver);
+begin
+  if FOnDuplicate = AValue then Exit;
+  FOnDuplicate := AValue;
+end;
+
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.GetCapacity: Integer;
 begin
   Result := Length(FData);
 end;
 
-procedure THashMap.SetCapacity(const cap: Integer);
+procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.SetCapacity(const cap: Integer);
 var OldItems: TItems;
     i, bIndex: Integer;
 begin
@@ -559,7 +647,7 @@ begin
   FCount := 0;
   SetLength(FData, cap);
   for i := 0 to Length(OldItems)-1 do
-    if OldItems[i].Hash <> 0 then
+    if OldItems[i].Hash <> EMPTY_HASH then
     begin
       CalcBucketIndex(OldItems[i].Key, OldItems[i].Hash, bIndex);
       DoAddOrSet(bIndex, OldItems[i].Hash, OldItems[i].Key, OldItems[i].Value);
@@ -567,39 +655,63 @@ begin
   FGrowLimit := cap div 2;
 end;
 
-function THashMap.GetItem(const AKey: TKey): TValue;
-var bIndex: Integer = 0;
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.GetItem({$IfDef FPC}const{$EndIf} AKey: TKey): TValue;
+var bIndex: Integer;
 begin
+  bIndex := 0;
   if not CalcBucketIndex(AKey, FComparer.Hash(AKey), bIndex) then
-    raise EContnrsError.CreateFmt(SListIndexError, [bIndex]);
+    raise EContnrsError.CreateFmt(SItemNotFound, [bIndex]);
   Result := FData[bIndex].Value;
 end;
 
-procedure THashMap.SetItem(const AKey: TKey; const AValue: TValue);
-var bIndex: Integer = 0;
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.GetPItem({$IfDef FPC}const{$EndIf} AKey: TKey): Pointer;
+var bIndex: Integer;
 begin
+  bIndex := 0;
   if not CalcBucketIndex(AKey, FComparer.Hash(AKey), bIndex) then
-    raise EContnrsError.CreateFmt(SListIndexError, [bIndex]);
+    raise EContnrsError.CreateFmt(SItemNotFound, [bIndex]);
+  Result := @FData[bIndex].Value;
+end;
+
+procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.SetItem({$IfDef FPC}const{$EndIf} AKey: TKey; const AValue: TValue);
+var bIndex: Integer;
+begin
+  bIndex := 0;
+  if not CalcBucketIndex(AKey, FComparer.Hash(AKey), bIndex) then
+    raise EContnrsError.CreateFmt(SItemNotFound, [bIndex]);
   FData[bIndex].Value := AValue;
 end;
 
-function THashMap.Count: Integer;
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Count: Integer;
 begin
   Result := FCount;
 end;
 
-procedure THashMap.Add(const AKey: TKey; const AValue: TValue);
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Add(const AKey: TKey; const AValue: TValue): Boolean;
 var hash: Cardinal;
     bIndex: Integer;
 begin
+  Result := False;
   GrowIfNeeded;
   hash := FComparer.Hash(AKey);
+
   if CalcBucketIndex(AKey, hash, bIndex) then
-      raise EListError.CreateFmt(SDuplicateItem, [bIndex]);
+  begin
+    if FOnDuplicate = nil then
+      raise EListError.CreateFmt(SDuplicateItem, [bIndex])
+    else
+      case FOnDuplicate.DuplicateResolve(FData[bIndex].Key, AKey) of
+        dupAddNew: raise EListError.CreateFmt(SDuplicateItem, [bIndex]);
+        dupOverwrite: ;
+        dupSkip: Exit;
+      end;
+  end;
+
   DoAddOrSet(bIndex, hash, AKey, AValue);
+  Result := True;
 end;
 
-procedure THashMap.AddOrSet(const AKey: TKey; const AValue: TValue);
+procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.AddOrSet(const AKey: TKey; const AValue: TValue);
 var hash: Cardinal;
     bIndex: Integer;
 begin
@@ -609,7 +721,7 @@ begin
   DoAddOrSet(bIndex, hash, AKey, AValue);
 end;
 
-procedure THashMap.Delete(const AKey: TKey);
+procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Delete(const AKey: TKey);
 var hash: Cardinal;
     bIndex, curInd: Integer;
 begin
@@ -637,10 +749,11 @@ begin
   FData[bIndex].Value := FEmptyValue;
 end;
 
-function THashMap.TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
-var bIndex: Integer = 0;
-    hash: Integer;
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
+var bIndex: Integer;
+    hash: Cardinal;
 begin
+  bIndex := 0;
   hash := FComparer.Hash(AKey);
   if not CalcBucketIndex(AKey, hash, bIndex) then
     Exit(False);
@@ -648,20 +761,35 @@ begin
   AValue := FData[bIndex].Value;
 end;
 
-function THashMap.Contains(const AKey: TKey): Boolean;
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.TryGetPValue(const AKey: TKey; out AValue: Pointer): Boolean;
+var bIndex: Integer;
+    hash: Cardinal;
+begin
+  bIndex := 0;
+  hash := FComparer.Hash(AKey);
+  if not CalcBucketIndex(AKey, hash, bIndex) then
+  begin
+    AValue := nil;
+    Exit(False);
+  end;
+  Result := True;
+  AValue := @FData[bIndex].Value;
+end;
+
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Contains(const AKey: TKey): Boolean;
 var bIndex: Integer;
 begin
   Result := CalcBucketIndex(AKey, FComparer.Hash(AKey), bIndex);
 end;
 
-procedure THashMap.Clear;
+procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Clear;
 begin
   FData := nil;
   FGrowLimit := 0;
   FCount := 0;
 end;
 
-function THashMap.WrapedIndexIsBetween(Left, Index, Right: Integer): Boolean;
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.WrapedIndexIsBetween(Left, Index, Right: Integer): Boolean;
 begin
   if Left < Right then
     Result := (Left < Index) and (Index <= Right) // not wrapped range case
@@ -669,17 +797,17 @@ begin
     Result := (Index > Left) or (Index <= Right); // range is wraped, check outside
 end;
 
-procedure THashMap.Reset;
+procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Reset;
 begin
   FEnumIndex := -1;
 end;
 
-function THashMap.Next(out AKey: TKey; out AValue: TValue): Boolean;
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Next(out AKey: TKey; out AValue: TValue): Boolean;
 begin
   Inc(FEnumIndex);
   while FEnumIndex < Length(FData) do
   begin
-    if FData[FEnumIndex].Hash <> 0 then
+    if FData[FEnumIndex].Hash <> EMPTY_HASH then
     begin
       AKey   := FData[FEnumIndex].Key;
       AValue := FData[FEnumIndex].Value;
@@ -690,12 +818,12 @@ begin
   Result := False;
 end;
 
-function THashMap.NextKey(out AKey: TKey): Boolean;
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.NextKey(out AKey: TKey): Boolean;
 begin
  Inc(FEnumIndex);
  while FEnumIndex < Length(FData) do
  begin
-   if FData[FEnumIndex].Hash <> 0 then
+   if FData[FEnumIndex].Hash <> EMPTY_HASH then
    begin
      AKey   := FData[FEnumIndex].Key;
      Exit(True);
@@ -705,12 +833,12 @@ begin
  Result := False;
 end;
 
-function THashMap.NextValue(out AValue: TValue): Boolean;
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.NextValue(out AValue: TValue): Boolean;
 begin
  Inc(FEnumIndex);
  while FEnumIndex < Length(FData) do
  begin
-   if FData[FEnumIndex].Hash <> 0 then
+   if FData[FEnumIndex].Hash <> EMPTY_HASH then
    begin
      AValue := FData[FEnumIndex].Value;
      Exit(True);
@@ -720,18 +848,18 @@ begin
  Result := False;
 end;
 
-procedure THashMap.AutoSelectComparer;
+procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.AutoSelectComparer;
 begin
   if FComparer = nil then
     FComparer := AutoSelectEqualityComparer(TypeInfo(TKey), SizeOf(TKey));
 end;
 
-constructor THashMap.Create;
+constructor THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Create;
 begin
   Create(nil);
 end;
 
-constructor THashMap.Create(const AComparer: IEqualityComparer);
+constructor THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Create(const AComparer: IEqualityComparer);
 begin
   FComparer := AComparer;
   AutoSelectComparer;
@@ -741,7 +869,7 @@ end;
 
 { TArray }
 
-procedure TArray.QuickSort(L, R: Longint; const comparator: IComparer);
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.QuickSort(L, R: Longint; const comparator: IComparer);
 var
   I, J : Longint;
   P, Q : TValue;
@@ -782,38 +910,40 @@ begin
  until L >= R;
 end;
 
-function TArray.GetCapacity: Integer;
+function TArray{$IfDef DCC}<TValue>{$EndIf}.GetCapacity: Integer;
 begin
   Result := Length(FData);
 end;
 
-procedure TArray.SetCapacity(const cap: Integer);
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.SetCapacity(const cap: Integer);
 begin
   if cap <> Length(FData) then
     SetLength(FData, cap);
 end;
 
-function TArray.GetItem(const index: Integer): TValue;
+function TArray{$IfDef DCC}<TValue>{$EndIf}.GetItem(index: Integer): TValue;
 begin
+  Assert(index >= 0);
   Result := FData[index];
 end;
 
-procedure TArray.SetItem(const index: Integer; const AValue: TValue);
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.SetItem(index: Integer; const AValue: TValue);
 begin
   FData[index] := AValue;
 end;
 
-function TArray.GetPItem(const index: Integer): Pointer;
+function TArray{$IfDef DCC}<TValue>{$EndIf}.GetPItem(index: Integer): Pointer;
 begin
+  Assert(index >= 0);
   Result := @FData[index];
 end;
 
-function TArray.Count: Integer;
+function TArray{$IfDef DCC}<TValue>{$EndIf}.Count: Integer;
 begin
   Result := FCount;
 end;
 
-function TArray.Add(const item: TValue): Integer;
+function TArray{$IfDef DCC}<TValue>{$EndIf}.Add(const item: TValue): Integer;
 begin
   Result := FCount;
   if Capacity < 8 then
@@ -825,7 +955,7 @@ begin
   Inc(FCount);
 end;
 
-procedure TArray.Delete(const index: Integer);
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.Delete(const index: Integer);
 var I: Integer;
 begin
   for I := index to FCount - 2 do
@@ -835,7 +965,7 @@ begin
     FData[FCount] := FEmpty;
 end;
 
-procedure TArray.DeleteWithSwap(const index: Integer);
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.DeleteWithSwap(const index: Integer);
 var last: Integer;
 begin
   last := Count - 1;
@@ -846,7 +976,7 @@ begin
     FData[last] := FEmpty;
 end;
 
-function TArray.IndexOf(const item: TValue): Integer;
+function TArray{$IfDef DCC}<TValue>{$EndIf}.IndexOf(const item: TValue): Integer;
 var I: Integer;
 begin
   Result := -1;
@@ -855,7 +985,15 @@ begin
       Exit(I);
 end;
 
-procedure TArray.Clear(const TrimCapacity: Boolean);
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.Swap(const I1, I2: Integer);
+var tmp: TValue;
+begin
+  tmp := FData[I1];
+  FData[I1] := FData[I2];
+  FData[I2] := tmp;
+end;
+
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.Clear(const TrimCapacity: Boolean);
 var I: Integer;
 begin
   if FCleanWithEmpty then
@@ -866,7 +1004,7 @@ begin
     SetLength(FData, 0);
 end;
 
-procedure TArray.Sort(const comparator: IComparer);
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.Sort(const comparator: IComparer);
 begin
   if FCount < 2 then Exit;
   if comparator = nil then
@@ -875,7 +1013,7 @@ begin
     QuickSort(0, FCount-1, comparator);
 end;
 
-procedure TArray.HeapSort(const comparator: IComparer);
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.HeapSort(const comparator: IComparer);
 var Heap: THeapSrt;
 begin
   Heap := nil;
@@ -891,13 +1029,13 @@ begin
   end;
 end;
 
-procedure TArray.AutoSelectComparer;
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.AutoSelectComparer;
 begin
   if FComparator = nil then
     FComparator := avContnrsDefaults.AutoSelectComparer(TypeInfo(TValue), SizeOf(TValue));
 end;
 
-constructor TArray.Create(const AComparator: IComparer = nil);
+constructor TArray{$IfDef DCC}<TValue>{$EndIf}.Create(const AComparator: IComparer = nil);
 begin
   FCleanWithEmpty := IsAutoReferenceCounterType(TypeInfo(TValue));
   if FCleanWithEmpty then FEmpty := Default(TValue);
@@ -907,4 +1045,5 @@ begin
   //FItemComparer := GetCompareMethod(TypeInfo(TValue));
 end;
 
-end. {$UNDEF IMPLEMENTATION}
+{$UNDEF IMPLEMENTATION}
+end.
