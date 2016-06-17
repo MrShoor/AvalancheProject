@@ -1,12 +1,18 @@
 unit untMain;
-
-{$mode objfpc}{$H+}
-{$ModeSwitch advancedrecords}
+{$I avConfig.inc}
 
 interface
 
 uses
-  LCLType, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
+  {$IfDef FPC}
+  LCLType,
+  FileUtil,
+  {$EndIf}
+  {$IfDef DCC}
+  Windows,
+  Messages,
+  {$EndIf}
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
   ExtCtrls, StdCtrls, avRes, avTypes, avTess, avContnrs, avContnrsDefaults, mutils,
   avCameraController, Math, ContextSwitcher;
 
@@ -20,8 +26,8 @@ type
     vsTexCrd: TVec2;
     class function Layout: IDataLayout; static;
   end;
-  ICubeVertices = specialize IArray<TCubeVertex>;
-  TCubeVertices = specialize TVerticesRec<TCubeVertex>;
+  ICubeVertices = {$IfDef FPC}specialize{$EndIf} IArray<TCubeVertex>;
+  TCubeVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TCubeVertex>;
 
   { TQuadVertex }
 
@@ -29,8 +35,8 @@ type
     vsCoord: TVec2;
     class function Layout: IDataLayout; static;
   end;
-  IQuadVertices = specialize IArray<TQuadVertex>;
-  TQuadVertices = specialize TVerticesRec<TQuadVertex>;
+  IQuadVertices = {$IfDef FPC}specialize{$EndIf} IArray<TQuadVertex>;
+  TQuadVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TQuadVertex>;
 
   { TCubeInstance }
 
@@ -40,13 +46,14 @@ type
     class function Layout: IDataLayout; static;
   end;
   PCubeInstance = ^TCubeInstance;
-  ICubeInstances = specialize IArray<TCubeInstance>;
-  TCubeInstances = specialize TVerticesRec<TCubeInstance>;
+  ICubeInstances = {$IfDef FPC}specialize{$EndIf} IArray<TCubeInstance>;
+  TCubeInstances = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TCubeInstance>;
 
   { TfrmMain }
 
   TfrmMain = class(TForm)
     Button1: TButton;
+    Panel1: TPanel;
     cbSorted: TCheckBox;
     procedure Button1Click(Sender: TObject);
     procedure cbSortedChange(Sender: TObject);
@@ -76,7 +83,12 @@ type
     function GenCubeInstances(ZSorted: Boolean = False): IVerticesData; overload;
     function GenCubeInstances(const RangeMin, RangeMax: TVec3I; ZSorted: Boolean = False): IVerticesData; overload;
   public
+    {$IfDef FPC}
     procedure EraseBackground(DC: HDC); override;
+    {$EndIf}
+    {$IfDef DCC}
+    procedure WMEraseBkgnd(var Message: TWmEraseBkgnd); message WM_ERASEBKGND;
+    {$EndIf}
     procedure RenderScene;
   end;
 
@@ -97,7 +109,14 @@ type
     constructor Create(const Transform: TMat4);
   end;
 
-{$R *.lfm}
+{$IfnDef notDCC}
+  {$R *.dfm}
+{$EndIf}
+
+{$IfDef FPC}
+  {$R *.lfm}
+  {$R 'WOIT_shaders\shaders.rc'}
+{$EndIf}
 
 { TDepthComparator }
 
@@ -112,8 +131,6 @@ constructor TDepthComparator.Create(const Transform: TMat4);
 begin
   FTransform := Transform;
 end;
-
-{$R 'WOIT_shaders\shaders.rc'}
 
 { TCubeVertex }
 
@@ -334,10 +351,18 @@ begin
   Result := inst as IVerticesData;
 end;
 
+{$IfDef FPC}
 procedure TfrmMain.EraseBackground(DC: HDC);
 begin
   //inherited EraseBackground(DC);
 end;
+{$EndIf}
+{$IfDef DCC}
+procedure TfrmMain.WMEraseBkgnd(var Message: TWmEraseBkgnd);
+begin
+  Message.Result := 1;
+end;
+{$EndIf}
 
 procedure TfrmMain.RenderScene;
 begin

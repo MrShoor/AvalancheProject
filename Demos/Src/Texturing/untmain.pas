@@ -61,7 +61,7 @@ var
 
 implementation
 
-{$IfDef DCC}
+{$IfnDef notDCC}
   {$R *.dfm}
 {$EndIf}
 

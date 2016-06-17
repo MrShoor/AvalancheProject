@@ -1,7 +1,5 @@
 unit avMesh;
-
-{$mode objfpc}{$H+}
-{$ModeSwitch advancedrecords}
+{$I avConfig.inc}
 
 interface
 
@@ -25,8 +23,8 @@ type
     class function Layout: IDataLayout; static;
   end;
   PMeshVertex = ^TMeshVertex;
-  IMeshVertices = specialize IArray<TMeshVertex>;
-  TMeshVertices = specialize TVerticesRec<TMeshVertex>;
+  IMeshVertices = {$IfDef FPC}specialize{$EndIf} IArray<TMeshVertex>;
+  TMeshVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TMeshVertex>;
 
   { TMeshMaterial }
 
@@ -74,8 +72,8 @@ type
     function CreateInstance(const AInstanceName: string): IavMeshInstance;
   end;
 
-  IavMeshes = specialize IHashMap<string, IavMesh>;
-  TavMeshes = specialize THashMap<string, IavMesh>;
+  IavMeshes = {$IfDef FPC}specialize{$EndIf} IHashMap<string, IavMesh>;
+  TavMeshes = {$IfDef FPC}specialize{$EndIf} THashMap<string, IavMesh>;
 
   { IavMeshInstance }
 
@@ -110,10 +108,10 @@ type
     function Clone(const NewInstanceName: string): IavMeshInstance;
   end;
 
-  IavMeshInstances = specialize IHashMap<string, IavMeshInstance>;
-  TavMeshInstances = specialize THashMap<string, IavMeshInstance>;
-  IavMeshInstanceArray = specialize IArray<IavMeshInstance>;
-  TavMeshInstanceArray = specialize TArray<IavMeshInstance>;
+  IavMeshInstances = {$IfDef FPC}specialize{$EndIf} IHashMap<string, IavMeshInstance>;
+  TavMeshInstances = {$IfDef FPC}specialize{$EndIf} THashMap<string, IavMeshInstance>;
+  IavMeshInstanceArray = {$IfDef FPC}specialize{$EndIf} IArray<IavMeshInstance>;
+  TavMeshInstanceArray = {$IfDef FPC}specialize{$EndIf} TArray<IavMeshInstance>;
 
   { IavBone }
 
@@ -184,8 +182,8 @@ type
     procedure GetPoseData(var Matrices: TMat4Arr; const RemapIndices: TIntArr; const AnimState: array of TMeshAnimationState);
   end;
 
-  IavArmatures = specialize IHashMap<string, IavArmature>;
-  TavArmatures = specialize THashMap<string, IavArmature>;
+  IavArmatures = {$IfDef FPC}specialize{$EndIf} IHashMap<string, IavArmature>;
+  TavArmatures = {$IfDef FPC}specialize{$EndIf} THashMap<string, IavArmature>;
 
 procedure LoadFromStream(const stream: TStream; out meshes: IavMeshes; out meshInst: IavMeshInstances; TexManager: ITextureManager = Nil);
 procedure LoadFromFile(const FileName: string; out meshes: IavMeshes; out meshInst: IavMeshInstances; const TexManager: ITextureManager = Nil);
@@ -300,8 +298,8 @@ type
   TavArmature = class (TInterfacedObjectEx, IavArmature, IavArmatureInternal)
   private type
     TavBoneArr = array of IavBone;
-    IBoneHash = specialize IHashMap<string, Integer>;
-    TBoneHash = specialize THashMap<string, Integer>;
+    IBoneHash = {$IfDef FPC}specialize{$EndIf} IHashMap<string, Integer>;
+    TBoneHash = {$IfDef FPC}specialize{$EndIf} THashMap<string, Integer>;
   private
     FName: String;
     FBones: TavBoneArr;
@@ -314,7 +312,7 @@ type
     function GetAnimCount: Integer;
     function GetBone(index: Integer): IavBone;
     function GetBonesCount: Integer;
-    function GetName: AnsiString;
+    function GetName: string;
     procedure SetName(const AValue: String);
 
     function GetRootBones: TavBoneArr;
@@ -380,8 +378,8 @@ type
 
   TavMeshInstance = class (TInterfacedObjectEx, IavMeshInstance, IavMeshInstanceInternal)
   private type
-    IChildList = specialize IArray<IavMeshInstance>;
-    TChildList = specialize TArray<IavMeshInstance>;
+    IChildList = {$IfDef FPC}specialize{$EndIf} IArray<IavMeshInstance>;
+    TChildList = {$IfDef FPC}specialize{$EndIf} TArray<IavMeshInstance>;
   private
     FParent: Pointer;
     FArm: IavArmature;
@@ -485,11 +483,11 @@ type
     class function Layout: IDataLayout; static;
   end;
 
-  IPNWVertices = specialize IArray<TPNWVertex>;
-  TPNWVertices = specialize TVerticesRec<TPNWVertex>;
+  IPNWVertices = {$IfDef FPC}specialize{$EndIf} IArray<TPNWVertex>;
+  TPNWVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TPNWVertex>;
 
-  IMeshVerticesHash = specialize IHashMap<TMeshVertex, Integer>;
-  TMeshVerticesHash = specialize THashMap<TMeshVertex, Integer>;
+  IMeshVerticesHash = {$IfDef FPC}specialize{$EndIf} IHashMap<TMeshVertex, Integer>;
+  TMeshVerticesHash = {$IfDef FPC}specialize{$EndIf} THashMap<TMeshVertex, Integer>;
 
 const
   EmptyPNWVertex: TPNWVertex = (
@@ -680,8 +678,9 @@ type
     procedure LoadBoneFromStream(const stream: TStream; out bone: IavBoneInternal; out parent: String);
     var s: AnsiString;
         m: TMat4;
-        n: Integer = 0;
+        n: Integer;
     begin
+      n := 0;
       ZeroClear(m, SizeOf(m));
 
       bone := TavBone.Create;
@@ -701,12 +700,15 @@ type
     procedure LoadAnimationFromStream(const stream: TStream; out anim: IavAnimationInternal);
     var s: AnsiString;
         i: Integer;
-        n: Integer = 0;
+        n: Integer;
         bones: TIntArr;
         frame: TMat4Arr;
-        frameStart: Integer = 0;
-        frameEnd: Integer = 0;
+        frameStart: Integer;
+        frameEnd: Integer;
     begin
+      n := 0;
+      frameStart := 0;
+      frameEnd := 0;
       anim := TavAnimation.Create;
       StreamReadString(stream, s);
       anim.Name := String(s);
@@ -729,12 +731,13 @@ type
     end;
   var s: AnsiString;
       i: Integer;
-      n: Integer = 0;
+      n: Integer;
 
       bones: array of IavBoneInternal;
       boneParent: array of String;
       anim: IavAnimationInternal;
   begin
+    n := 0;
     arm := TavArmature.Create;
 
     StreamReadString(stream, s);
@@ -1086,8 +1089,8 @@ var Frame1, Frame2, FrameCnt: Integer;
 begin
   BoneIndex := FBones[AIndex];
 
-  Frame1 := Floor(AFrame);
-  Frame2 := Ceil(AFrame);
+  Frame1 := Math.Floor(AFrame);
+  Frame2 := Math.Ceil(AFrame);
   FrameWeight := AFrame - Frame1;
 
   FrameCnt := FrameCount;
@@ -1197,7 +1200,7 @@ begin
   Result := Length(FBones);
 end;
 
-function TavArmature.GetName: AnsiString;
+function TavArmature.GetName: string;
 begin
   Result := FName;
 end;

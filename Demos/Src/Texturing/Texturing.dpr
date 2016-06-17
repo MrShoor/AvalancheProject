@@ -1,5 +1,6 @@
 program Texturing;
 
+{$AppType Console}
 {$R 'shaders.res' 'Texturing_shaders\shaders.rc'}
 
 uses

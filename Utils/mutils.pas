@@ -199,6 +199,9 @@ type
     function IsEmpty : Boolean;
     function Point(index: Integer): TVec3;
     function Edge(index: Integer): TLine;
+    {$IfDef DCC}
+    class operator Add (const AABB: TAABB; const v: TVec3): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
+    {$EndIf}
   case Byte of
     0: (min, max: TVec3);
   end;
@@ -439,6 +442,14 @@ begin
     Result.Pnt := Vec(0,0,0);
   end;
 end;
+
+{$IfDef DCC}
+class operator TAABB.Add (const AABB: TAABB; const v: TVec3): TAABB;
+begin
+    Result.min := mutils.Min(AABB.min, v);
+    Result.max := mutils.Max(AABB.max, v);
+end;
+{$EndIf}
 
   { TRectI }
 
@@ -1033,44 +1044,44 @@ end;
 
 function Ceil(const V: TVec2): TVec2i;
 begin
-  Result.x := Ceil(V.x);
-  Result.y := Ceil(V.y);
+  Result.x := Math.Ceil(V.x);
+  Result.y := Math.Ceil(V.y);
 end;
 
 function Ceil(const V: TVec3): TVec3i;
 begin
-  Result.x := Ceil(V.x);
-  Result.y := Ceil(V.y);
-  Result.z := Ceil(V.z);
+  Result.x := Math.Ceil(V.x);
+  Result.y := Math.Ceil(V.y);
+  Result.z := Math.Ceil(V.z);
 end;
 
 function Ceil(const V: TVec4): TVec4i;
 begin
-  Result.x := Ceil(V.x);
-  Result.y := Ceil(V.y);
-  Result.z := Ceil(V.z);
-  Result.w := Ceil(V.w);
+  Result.x := Math.Ceil(V.x);
+  Result.y := Math.Ceil(V.y);
+  Result.z := Math.Ceil(V.z);
+  Result.w := Math.Ceil(V.w);
 end;
 
 function Floor(const V: TVec2): TVec2i;
 begin
-  Result.x := Floor(V.x);
-  Result.y := Floor(V.y);
+  Result.x := Math.Floor(V.x);
+  Result.y := Math.Floor(V.y);
 end;
 
 function Floor(const V: TVec3): TVec3i;
 begin
-  Result.x := Floor(V.x);
-  Result.y := Floor(V.y);
-  Result.z := Floor(V.z);
+  Result.x := Math.Floor(V.x);
+  Result.y := Math.Floor(V.y);
+  Result.z := Math.Floor(V.z);
 end;
 
 function Floor(const V: TVec4): TVec4i;
 begin
-  Result.x := Floor(V.x);
-  Result.y := Floor(V.y);
-  Result.z := Floor(V.z);
-  Result.w := Floor(V.w);
+  Result.x := Math.Floor(V.x);
+  Result.y := Math.Floor(V.y);
+  Result.z := Math.Floor(V.z);
+  Result.w := Math.Floor(V.w);
 end;
 
 function IsPow2(Num: LongInt): Boolean;

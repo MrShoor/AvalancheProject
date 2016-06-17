@@ -78,7 +78,7 @@ uses
 {$IfDef FPC}
 {$R *.lfm}
 {$EndIf}
-{$IfDef DCC}
+{$IfnDef notDCC}
 {$R *.dfm}
 {$EndIf}
 

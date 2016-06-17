@@ -1010,9 +1010,25 @@ end;
 {$EndIf}
 {$IfDef DCC}
 constructor TVerticesRec<TRec>.Create;
+var ctx: TRttiContext;
+    dataType: TRttiType;
+    recType: TRttiRecordType;
+    methods: System.TArray<TRttiMethod>;
+    method: TRttiMethod;
 begin
-
-//  FLayout := TRec.Layout;
+    ctx := TRttiContext.Create;
+    try
+        dataType := ctx.GetType(TypeInfo(TRec));
+        Assert(dataType.TypeKind = tkRecord);
+        recType := dataType as TRttiRecordType;
+        method := recType.GetMethod('Layout');
+        Assert(method <> nil);
+        Assert(Length(method.GetParameters) = 0);
+        Assert(method.ReturnType.Handle = TypeInfo(IDataLayout));
+        FLayout := System.Rtti.Invoke(method.CodeAddress, nil, method.CallingConvention, method.ReturnType.Handle, method.IsStatic).AsInterface As IDataLayout;
+    finally
+        ctx.Free;
+    end;
 end;
 {$EndIf}
 

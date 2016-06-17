@@ -1,12 +1,20 @@
 unit untMain;
-
-{$mode objfpc}{$H+}
-{$R 'MeshShader\shaders.rc'}
+{$I avConfig.inc}
 
 interface
 
 uses
-  LMessages, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
+  {$IfDef FPC}
+  LCLType,
+  FileUtil,
+  LMessages,
+  {$EndIf}
+  {$IfnDef notDCC}
+  Windows,
+  Messages,
+  Vcl.AppEvnts,
+  {$EndIf}
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
   ExtCtrls, StdCtrls, avRes, avTypes, mutils, avCameraController, avModel;
 
 const ObjInd = 0;
@@ -19,7 +27,12 @@ type
   private
     FOnRepaint: TNotifyEvent;
   protected
+    {$IfDef FPC}
     procedure WMEraseBkgnd(var Message: TLMEraseBkgnd); message LM_ERASEBKGND;
+    {$EndIf}
+    {$IfDef DCC}
+    procedure WMEraseBkgnd(var Message: TWMEraseBkgnd); message WM_ERASEBKGND;
+    {$EndIf}
     procedure Paint; override;
   public
     property OnRepaint: TNotifyEvent read FOnRepaint write FOnRepaint;
@@ -28,7 +41,11 @@ type
   { TfrmMain }
 
   TfrmMain = class(TForm)
+    {$IfDef FPC}
     ApplicationProperties1: TApplicationProperties;
+    {$Else}
+    ApplicationProperties1: TApplicationEvents;
+    {$EndIf}
     btnLoad: TButton;
     btnClear: TButton;
     cbDirectX11: TRadioButton;
@@ -71,10 +88,18 @@ implementation
 uses
   Math;
 
-{$R *.lfm}
+{$IfnDef notDCC}
+  {$R *.dfm}
+{$EndIf}
+
+{$IfDef FPC}
+  {$R *.lfm}
+  {$R 'MeshShader\shaders.rc'}
+{$EndIf}
 
 { TPanel }
 
+{$IfDef FPC}
 procedure TPanel.WMEraseBkgnd(var Message: TLMEraseBkgnd);
 begin
   if Assigned(FOnRepaint) then
@@ -82,6 +107,16 @@ begin
   else
     inherited;
 end;
+{$EndIf}
+{$IfDef DCC}
+procedure TPanel.WMEraseBkgnd(var Message: TWMEraseBkgnd);
+begin
+  if Assigned(FOnRepaint) then
+    Message.Result := 1
+  else
+    inherited;
+end;
+{$EndIf}
 
 procedure TPanel.Paint;
 begin
@@ -95,7 +130,11 @@ end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
+  {$IfDef FPC}
   RenderPanel.OnRepaint := @RenderPanelRepaint;
+  {$Else}
+  RenderPanel.OnRepaint := RenderPanelRepaint;
+  {$EndIf}
 
   FMain := TavMainRender.Create(Nil);
   FMain.Window := RenderPanel.Handle;

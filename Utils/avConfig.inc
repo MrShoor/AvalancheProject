@@ -8,6 +8,7 @@
   {$IfDef CPU64}
     {$FPUType sse64}
   {$EndIf}
+  {$Define notDCC}
 {$Else}
   {$Define DCC}
   {$IfDef WIN32}

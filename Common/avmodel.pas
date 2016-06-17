@@ -1,7 +1,5 @@
 unit avModel;
-
-{$mode objfpc}{$H+}
-{$ModeSwitch advancedrecords}
+{$I avConfig.inc}
 
 interface
 
@@ -74,8 +72,8 @@ type
     property AutoUpdateAnimation: Boolean read GetAutoUpdateAnimation write SetAutoUpdateAnimation;
   end;
 
-  IModelInstanceArr = specialize IArray<IavModelInstance>;
-  TModelInstanceArr = specialize TArray<IavModelInstance>;
+  IModelInstanceArr = {$IfDef FPC}specialize{$EndIf} IArray<IavModelInstance>;
+  TModelInstanceArr = {$IfDef FPC}specialize{$EndIf} TArray<IavModelInstance>;
 
   { IBoneTransformHandle }
 
@@ -133,6 +131,7 @@ type
 
     TavBoneTransformMap = class(TavTexture)
     private type
+      {$IfDef FPC}
       TTransformNode = class (TInterfacedObject, IBoneTransformHandle)
         Owner     : TavBoneTransformMap;
         Range     : IMemRange;
@@ -148,7 +147,23 @@ type
         function Size: Integer; Inline;
         destructor Destroy; override;
       end;
-      TNodes = specialize TNodeManager<TTransformNode>;
+      {$EndIf}
+      {$IfDef DCC}
+      TTransformNode = class (TDefaultNode, IBoneTransformHandle)
+        Owner     : TavBoneTransformMap;
+        Mat       : TMat4Arr;
+
+        procedure Invalidate;
+        function Offset: Integer;
+        function GetMatrices: TMat4Arr;
+        procedure SetMatrices(const AValue: TMat4Arr);
+        property Matrices: TMat4Arr read GetMatrices write SetMatrices;
+
+        function Size: Integer; override;
+        destructor Destroy; override;
+      end;
+      {$EndIf}
+      TNodes = {$IfDef FPC}specialize{$EndIf} TNodeManager<TTransformNode>;
     private
       FNodes : TNodes;
     protected
@@ -234,11 +249,11 @@ type
       destructor Destroy; override;
     end;
 
-    IModelHash = specialize IHashMap<String, TModel>;
-    TModelHash = specialize THashMap<String, TModel>;
+    IModelHash = {$IfDef FPC}specialize{$EndIf} IHashMap<String, TModel>;
+    TModelHash = {$IfDef FPC}specialize{$EndIf} THashMap<String, TModel>;
 
-    IModelInstHash = specialize IHashMap<String, IavModelInstance>;
-    TModelInstHash = specialize THashMap<String, IavModelInstance>;
+    IModelInstHash = {$IfDef FPC}specialize{$EndIf} IHashMap<String, IavModelInstance>;
+    TModelInstHash = {$IfDef FPC}specialize{$EndIf} THashMap<String, IavModelInstance>;
 
     TTextureKey = packed record
       Width : Integer;
@@ -248,11 +263,11 @@ type
   private const
     EmptyTexureKey: TTextureKey = (Width:0;Height:0;Mips:0);
   private type
-    ITextureHash = specialize IHashMap<TTextureKey, TavTexture>;
-    TTextureHash = specialize THashMap<TTextureKey, TavTexture>;
+    ITextureHash = {$IfDef FPC}specialize{$EndIf} IHashMap<TTextureKey, TavTexture>;
+    TTextureHash = {$IfDef FPC}specialize{$EndIf} THashMap<TTextureKey, TavTexture>;
 
-    IDummyTexDataHash = specialize IHashMap<TTextureKey, ITextureData>;
-    TDummyTexDataHash = specialize THashMap<TTextureKey, ITextureData>;
+    IDummyTexDataHash = {$IfDef FPC}specialize{$EndIf} IHashMap<TTextureKey, ITextureData>;
+    TDummyTexDataHash = {$IfDef FPC}specialize{$EndIf} THashMap<TTextureKey, ITextureData>;
   private
     FVB: TavVBManaged;
     FIB: TavIBManaged;
@@ -691,7 +706,7 @@ begin
     if FAnimationStates[i].Index = animIndex then
     begin
       if FAnimationPlayState[i].StopTime >= 0 then Exit;
-      FAnimationPlayState[i].StopTime := Collection.Main.Time64 + Ceil(FadeSpeed);
+      FAnimationPlayState[i].StopTime := Collection.Main.Time64 + Math.Ceil(FadeSpeed);
       FAnimationPlayState[i].FadeSpeed := FadeSpeed;
       Break;
     end;

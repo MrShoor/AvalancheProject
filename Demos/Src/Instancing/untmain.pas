@@ -1,12 +1,18 @@
 unit untMain;
-
-{$mode objfpc}{$H+}
-{$ModeSwitch advancedrecords}
+{$I avConfig.inc}
 
 interface
 
 uses
-  LCLType, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
+  {$IfDef FPC}
+  LCLType,
+  FileUtil,
+  {$EndIf}
+  {$IfDef DCC}
+  Windows,
+  Messages,
+  {$EndIf}
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
   ExtCtrls, avRes, avTypes, avTess, avContnrs, mutils, avCameraController,
   ContextSwitcher;
 
@@ -20,8 +26,8 @@ type
     vsTexCrd: TVec2;
     class function Layout: IDataLayout; static;
   end;
-  ICubeVertices = specialize IArray<TCubeVertex>;
-  TCubeVertices = specialize TVerticesRec<TCubeVertex>;
+  ICubeVertices = {$IfDef FPC}specialize{$EndIf} IArray<TCubeVertex>;
+  TCubeVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TCubeVertex>;
 
   { TCubeInstance }
 
@@ -30,8 +36,8 @@ type
     aiColor : TVec4;
     class function Layout: IDataLayout; static;
   end;
-  ICubeInstances = specialize IArray<TCubeInstance>;
-  TCubeInstances = specialize TVerticesRec<TCubeInstance>;
+  ICubeInstances = {$IfDef FPC}specialize{$EndIf} IArray<TCubeInstance>;
+  TCubeInstances = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TCubeInstance>;
 
   { TfrmMain }
 
@@ -49,7 +55,12 @@ type
 
     FFrameBuffer: TavFrameBuffer;
   public
+    {$IfDef FPC}
     procedure EraseBackground(DC: HDC); override;
+    {$EndIf}
+    {$IfDef DCC}
+    procedure WMEraseBkgnd(var Message: TWmEraseBkgnd); message WM_ERASEBKGND;
+    {$EndIf}
     procedure RenderScene;
   end;
 
@@ -58,9 +69,14 @@ var
 
 implementation
 
-{$R *.lfm}
+{$IfnDef notDCC}
+  {$R *.dfm}
+{$EndIf}
 
-{$R 'Instancing_shaders\shaders.rc'}
+{$IfDef FPC}
+  {$R *.lfm}
+  {$R 'Instancing_shaders\shaders.rc'}
+{$EndIf}
 
 { TCubeVertex }
 
@@ -209,10 +225,18 @@ begin
   RenderScene;
 end;
 
+{$IfDef FPC}
 procedure TfrmMain.EraseBackground(DC: HDC);
 begin
   //inherited EraseBackground(DC);
 end;
+{$EndIf}
+{$IfDef DCC}
+procedure TfrmMain.WMEraseBkgnd(var Message: TWmEraseBkgnd);
+begin
+  Message.Result := 1;
+end;
+{$EndIf}
 
 procedure TfrmMain.RenderScene;
 begin
