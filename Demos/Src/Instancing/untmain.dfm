@@ -1,0 +1,19 @@
+object frmMain: TfrmMain
+  Left = 585
+  Top = 234
+  Caption = 'frmMain'
+  ClientHeight = 471
+  ClientWidth = 755
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'Tahoma'
+  Font.Style = []
+  OldCreateOrder = True
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnPaint = FormPaint
+  PixelsPerInch = 96
+  TextHeight = 13
+end
