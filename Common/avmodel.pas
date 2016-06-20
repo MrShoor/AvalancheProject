@@ -20,6 +20,7 @@ type
 
   TModelInstanceGPUData_Base = class (TInterfacedObjectEx, IVerticesData)
   protected
+    dummy: Boolean;
     function GetBasicPtr: Pointer;
     function GetOffset(const FieldPtr: Pointer): Integer;
 
@@ -366,6 +367,7 @@ function TavModelCollection.TavBoneTransformMap.DoBuild: Boolean;
       y := start div TexWidth;
       x := (start mod TexWidth);
       rowsize := min(stop - start, TexWidth - x);
+
       FTexH.SetMipImage(x*4, y, rowsize*4, 1, 0, 0, TImageFormat.R32G32B32A32F, @ANode.Mat[0]);
       Inc(start, rowsize);
     end;
@@ -458,8 +460,7 @@ end;
 
 function TModelInstanceGPUData_Base.GetBasicPtr: Pointer;
 begin
-  Result := Pointer(Self);
-  Inc(PByte(Result), ClassParent.InstanceSize);
+  Result := @dummy;
 end;
 
 function TModelInstanceGPUData_Base.GetOffset(const FieldPtr: Pointer): Integer;
@@ -483,8 +484,10 @@ begin
 end;
 
 function TModelInstanceGPUData.AddLayoutFields(const LBuilder: ILayoutBuilder): ILayoutBuilder;
+var offset: Integer;
 begin
-  Result := LBuilder.Add('aiBoneMatDifNormOffset', ctFloat, 4, False, GetOffset(@aiBoneMatDifNormOffset));
+  offset := GetOffset(@aiBoneMatDifNormOffset);
+  Result := LBuilder.Add('aiBoneMatDifNormOffset', ctFloat, 4, False, offset);
 end;
 
 function TModelInstanceGPUData.Layout: IDataLayout;

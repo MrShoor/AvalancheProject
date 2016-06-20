@@ -78,7 +78,6 @@ end;
 function FindSubclassInfo(handle: TWindow): TwndSubclassInfo;
 var i: Integer;
     lst: TList;
-    sc: TwndSubclassInfo;
 begin
   lst := SubClassingList.LockList;
   try

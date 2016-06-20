@@ -451,6 +451,8 @@ begin
       ptLineStrip_Adj    : Assert(False, 'Not implemented yet');
       ptTriangles_Adj    : Assert(False, 'Not implemented yet');
       ptTriangleStrip_Adj: Assert(False, 'Not implemented yet');
+  else
+    Assert(False, 'Not implemented yet');
   end;
 end;
 

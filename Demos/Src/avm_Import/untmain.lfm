@@ -17,6 +17,7 @@ object frmMain: TfrmMain
     Anchors = [akTop, akLeft, akRight, akBottom]
     BevelOuter = bvNone
     TabOrder = 0
+    OnMouseDown = RenderPanelMouseDown
   end
   object Panel1: TPanel
     Left = 0

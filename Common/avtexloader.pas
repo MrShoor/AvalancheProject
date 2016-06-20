@@ -782,6 +782,7 @@ var NewVamp: ImagingTypes.TImageFormat;
     j, i: Integer;
     w,h: Integer;
 begin
+  PImg := nil;
   Assert(Length(ImgData)>0);
   Assert(Length(ImgData[0])>0);
 

@@ -708,6 +708,8 @@ var
     BaseInst, InstCount: Integer;
     Start, Count, BaseVertex: Integer;
 begin
+  IndNode := nil;
+  InstNode := nil;
   if Vert = nil then Exit;
   VertNode := TavVBManaged.TVBNode(Vert.HandleData);
   Assert(Assigned(VertNode));

@@ -63,6 +63,8 @@ type
     procedure btnLoadClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure RenderPanelMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
   private
     procedure Sync3DApi;
     procedure RenderScene;
@@ -265,6 +267,12 @@ begin
   finally
     FMain.Unbind;
   end;
+end;
+
+procedure TfrmMain.RenderPanelMouseDown(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  RenderPanel.SetFocus;
 end;
 
 procedure TfrmMain.RenderPanelRepaint(Sender: TObject);

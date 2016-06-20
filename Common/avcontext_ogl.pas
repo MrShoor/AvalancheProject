@@ -96,7 +96,7 @@ implementation
 uses SuperObject, avLog, Math;
 
 const
-  DEFAULT_BackBuffer: Boolean = False;
+  DEFAULT_BackBuffer: Boolean = True;
 
 const
   GLPoolType: array [TBufferPoolType] of Cardinal = ( {StaticDraw }  GL_STATIC_DRAW,
@@ -1600,7 +1600,6 @@ end;
 procedure TStates_OGL.ReadDefaultStates;
 var gb: GLboolean;
     gi: GLint;
-    gf: GLfloat;
     colorwritemask: array [0..3] of GLboolean;
     i: Integer;
 begin
@@ -1731,6 +1730,7 @@ begin
     TIndexSize.DWord : Result := FSize div 2;
   else
     Assert(False, 'Not implemented yet');
+    Result := 0;
   end;
 end;
 
@@ -2644,7 +2644,11 @@ end;
 function TContext_OGL.Bind: Boolean;
 begin
   if FBindCount = 0 then
+  begin
     wglMakeCurrent(FDC, FRC);
+    if not DEFAULT_BackBuffer then
+      glDrawBuffer(GL_FRONT);
+  end;
   Inc(FBindCount);
   Result := True;
 end;
@@ -2654,8 +2658,8 @@ begin
   Dec(FBindCount);
   if FBindCount = 0 then
   begin
-    wglMakeCurrent(0, 0);
     glUseProgram(0);
+    wglMakeCurrent(0, 0);
     FActiveProgram := nil;
   end;
   Result := True;
@@ -2688,9 +2692,9 @@ end;
 
 procedure TContext_OGL.Present;
 begin
-  glUseProgram(0);
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-  SwapBuffers(FDC);
+  if DEFAULT_BackBuffer then
+    SwapBuffers(FDC);
 end;
 
 constructor TContext_OGL.Create(const Wnd: TWindow);

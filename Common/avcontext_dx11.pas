@@ -1608,6 +1608,7 @@ begin
     D3D11_BLEND_DEST_COLOR: Result := bfDstColor;
   else
     Assert(False, 'not implemented yet');
+    Result := bfZero;
   end;
 end;
 
@@ -1622,6 +1623,7 @@ begin
     D3D11_BLEND_DEST_COLOR: Result := bfDstColor;
   else
     Assert(False, 'not implemented yet');
+    Result := bfZero;
   end;
 end;
 
@@ -1648,6 +1650,9 @@ begin
     D3D11_CULL_NONE: Result := cmNone;
     D3D11_CULL_FRONT: Result := cmFront;
     D3D11_CULL_BACK: Result := cmBack;
+  else
+    Assert(False, 'Not implemented yet');
+    Result := cmNone;
   end;
 end;
 
@@ -1693,6 +1698,7 @@ begin
     D3D11_FILL_SOLID    : Result := False;
   else
     Assert(False, 'WTF??');
+    Result := False;
   end;
 end;
 

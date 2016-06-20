@@ -772,7 +772,8 @@ begin
   else
     FFields[FCount].Offset := Offset;
   FFields[FCount].Size := ComponentTypeSize(CompType)*CompCount;
-  Inc(FTotalSize, FFields[FCount].Size); //to do align here
+
+  FTotalSize := Max(FTotalSize, FFields[FCount].Offset + FFields[FCount].Size); //to do align here
   Inc(FCount);
 
   Result := Self;
