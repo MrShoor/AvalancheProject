@@ -96,7 +96,7 @@ implementation
 uses SuperObject, avLog, Math;
 
 const
-  DEFAULT_BackBuffer: Boolean = True;
+  DEFAULT_BackBuffer: Boolean = False;
 
 const
   GLPoolType: array [TBufferPoolType] of Cardinal = ( {StaticDraw }  GL_STATIC_DRAW,
@@ -2694,7 +2694,9 @@ procedure TContext_OGL.Present;
 begin
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
   if DEFAULT_BackBuffer then
-    SwapBuffers(FDC);
+    SwapBuffers(FDC)
+  else
+    glFlush;
 end;
 
 constructor TContext_OGL.Create(const Wnd: TWindow);
