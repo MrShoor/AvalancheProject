@@ -4,8 +4,13 @@ unit avMesh;
 interface
 
 uses
-  Classes, SysUtils,
+  Classes, SysUtils, intfUtils,
   avTypes, avTess, avContnrs, mutils, avTexLoader;
+
+const
+  KeyFramePerMSec = 1/30;
+  Default_GrowSpeed = 70;
+  Default_FadeSpeed = 70;
 
 type
   IavArmature = interface;
@@ -77,7 +82,7 @@ type
 
   { IavMeshInstance }
 
-  IavMeshInstance = interface
+  IavMeshInstance = interface (IWeakedInterface)
     function GetArmature: IavArmature;
     function GetChild(const AIndex: Integer): IavMeshInstance;
     function GetMesh: IavMesh;
@@ -102,6 +107,7 @@ type
 
     function  IndexOfBone(const ABoneName: string): Integer;
     procedure SetAnimationPose(const AnimState: array of TMeshAnimationState);
+    function  PoseID: Int64;
     function  LocalPose: TMat4Arr;
     function  AbsPose: TMat4Arr;
 
@@ -182,11 +188,27 @@ type
     procedure GetPoseData(var Matrices: TMat4Arr; const RemapIndices: TIntArr; const AnimState: array of TMeshAnimationState);
   end;
 
+  { IavAnimationController }
+
+  IavAnimationController = interface
+    function GetInstance: IavMeshInstance;
+    procedure SetInstance(const AValue: IavMeshInstance);
+    property Instance: IavMeshInstance read GetInstance write SetInstance;
+
+    procedure SetTime(const ATime: Int64);
+    procedure AnimationStartStop(const AAnimationName: string; DoStart: Boolean; GrowSpeed: Single = Default_GrowSpeed);
+    procedure AnimationStart(const AAnimationName: string; GrowSpeed: Single = Default_GrowSpeed);
+    procedure AnimationStop (const AAnimationName: string; FadeSpeed: Single = Default_FadeSpeed);
+    procedure AnimationStartAndStopOther(const AAnimationNames: array of string; GrowFadeSpeed: Single = Default_FadeSpeed);
+  end;
+
   IavArmatures = {$IfDef FPC}specialize{$EndIf} IHashMap<string, IavArmature>;
   TavArmatures = {$IfDef FPC}specialize{$EndIf} THashMap<string, IavArmature>;
 
 procedure LoadFromStream(const stream: TStream; out meshes: IavMeshes; out meshInst: IavMeshInstances; TexManager: ITextureManager = Nil);
 procedure LoadFromFile(const FileName: string; out meshes: IavMeshes; out meshInst: IavMeshInstances; const TexManager: ITextureManager = Nil);
+
+function Create_IavAnimationController(const AInstance: IavMeshInstance; const ATime: Int64): IavAnimationController;
 
 implementation
 
@@ -376,7 +398,7 @@ type
 
   { TavMeshInstance }
 
-  TavMeshInstance = class (TInterfacedObjectEx, IavMeshInstance, IavMeshInstanceInternal)
+  TavMeshInstance = class (TWeakedInterfacedObject, IavMeshInstance, IavMeshInstanceInternal)
   private type
     IChildList = {$IfDef FPC}specialize{$EndIf} IArray<IavMeshInstance>;
     TChildList = {$IfDef FPC}specialize{$EndIf} TArray<IavMeshInstance>;
@@ -395,6 +417,8 @@ type
 
     FPoseAbsValid: Boolean;
     FPoseAbs: TMat4Arr;
+
+    FPoseID : Int64;
   public
     function GetArmature: IavArmature;
     function GetChild(const AIndex: Integer): IavMeshInstance;
@@ -424,6 +448,7 @@ type
 
     function IndexOfBone(const ABoneName: string): Integer;
     procedure SetAnimationPose(const AnimState: array of TMeshAnimationState);
+    function  PoseID: Int64;
     function LocalPose: TMat4Arr;
     function AbsPose: TMat4Arr;
 
@@ -471,6 +496,38 @@ type
     property Enabled: Boolean read GetEnabled write SetEnabled;
     property FrameCount: Integer read GetFrameCount;
     property Frame: Single read GetFrame write SetFrame;
+  end;
+
+
+  { TavAnimationController }
+
+  TavAnimationController = class (TInterfacedObjectEx, IavAnimationController)
+  private type
+    TAnimationPlayState = packed record
+      StartTime: Int64;
+      StopTime : Int64;
+      GrowSpeed: Single;
+      FadeSpeed: Single;
+      procedure Calc(const ATime: Int64; out AFrame: Single; out AWeight: Single; out AComplete: Boolean);
+    end;
+  private
+    FInstance: IavMeshInstance;//IWeakRefIntf;// ref to IavMeshInstance;
+
+    FTime : Int64;
+    FAnimationStates   : array of TMeshAnimationState;
+    FAnimationPlayState: array of TAnimationPlayState;
+
+    procedure UpdateAnimationState;
+  private
+    function GetInstance: IavMeshInstance;
+    procedure SetInstance(const AValue: IavMeshInstance);
+    property Instance: IavMeshInstance read GetInstance write SetInstance;
+
+    procedure SetTime(const ATime: Int64);
+    procedure AnimationStartStop(const AAnimationName: string; DoStart: Boolean; GrowSpeed: Single = Default_GrowSpeed);
+    procedure AnimationStart(const AAnimationName: string; GrowSpeed: Single = Default_GrowSpeed);
+    procedure AnimationStop (const AAnimationName: string; FadeSpeed: Single = Default_FadeSpeed);
+    procedure AnimationStartAndStopOther(const AAnimationNames: array of string; GrowFadeSpeed: Single = Default_FadeSpeed);
   end;
 
   { TPNWVertex }
@@ -837,6 +894,202 @@ begin
   end;
 end;
 
+function Create_IavAnimationController(const AInstance: IavMeshInstance; const ATime: Int64): IavAnimationController;
+begin
+  Result := TavAnimationController.Create;
+  Result.Instance := AInstance;
+  Result.SetTime(ATime);
+end;
+
+{ TavAnimationController.TAnimationPlayState }
+
+procedure TavAnimationController.TAnimationPlayState.Calc(const ATime: Int64;
+  out AFrame: Single; out AWeight: Single; out AComplete: Boolean);
+var FadeValue: Single;
+begin
+  AComplete := False;
+  if ATime < StartTime then
+  begin
+    AWeight := 0;
+    AFrame := 0;
+    Exit;
+  end;
+
+  AFrame := (ATime - StartTime) * KeyFramePerMSec;
+  AWeight := Min(1, (ATime - StartTime) / GrowSpeed);
+
+  if StopTime > 0 then
+  begin
+    if ATime > StopTime then
+      FadeValue := 1
+    else
+      FadeValue := Min(1, (ATime - StopTime) / FadeSpeed);
+    AWeight := Max(0, AWeight - FadeValue);
+    if AWeight = 0 then AComplete := True;
+  end;
+end;
+
+{ TavAnimationController }
+
+procedure TavAnimationController.UpdateAnimationState;
+var i, n: Integer;
+    currTime: Int64;
+    Complete: Boolean;
+    inst: IavMeshInstance;
+begin
+  if Length(FAnimationStates) = 0 then Exit;
+
+  //update
+  currTime := FTime;
+  for i := 0 to Length(FAnimationStates) - 1 do
+  begin
+    FAnimationPlayState[i].Calc(currTime, FAnimationStates[i].Frame, FAnimationStates[i].Weight, Complete);
+    if Complete then
+      FAnimationPlayState[i].StartTime := -1;
+  end;
+
+  //remove completed animations
+  n := 0;
+  for i := 0 to Length(FAnimationStates) - 1 do
+  begin
+    if FAnimationPlayState[i].StartTime < 0 then
+    begin
+      Inc(n);
+      Continue;
+    end;
+    if n > 0 then
+    begin
+      FAnimationPlayState[i-n] := FAnimationPlayState[i];
+      FAnimationStates[i-n] := FAnimationStates[i];
+    end;
+  end;
+  if n > 0 then
+  begin
+    SetLength(FAnimationPlayState, Length(FAnimationPlayState) - n);
+    SetLength(FAnimationStates, Length(FAnimationStates) - n);
+  end;
+
+  inst := Instance;
+  if inst = nil then Exit;
+  inst.SetAnimationPose(FAnimationStates);
+end;
+
+function TavAnimationController.GetInstance: IavMeshInstance;
+//var ref: IUnknown;
+begin
+  Result := FInstance;
+  //Result := nil;
+  //if FInstance = nil then Exit;
+  //Result := IavMeshInstance(FInstance.Intf);
+  //if Result = nil then FInstance := nil;
+end;
+
+procedure TavAnimationController.SetInstance(const AValue: IavMeshInstance);
+begin
+  if FInstance = AValue then Exit;
+  FInstance := AValue;
+  //if FInstance = AValue.WeakRef then Exit;
+  //FInstance := AValue.WeakRef;
+  FAnimationStates   := nil;
+  FAnimationPlayState:= nil;
+end;
+
+procedure TavAnimationController.SetTime(const ATime: Int64);
+begin
+  if FTime = ATime then Exit;
+  FTime := ATime;
+  UpdateAnimationState;
+end;
+
+procedure TavAnimationController.AnimationStartStop(const AAnimationName: string; DoStart: Boolean; GrowSpeed: Single);
+begin
+  if DoStart then
+    AnimationStart(AAnimationName, GrowSpeed)
+  else
+    AnimationStop(AAnimationName, GrowSpeed);
+end;
+
+procedure TavAnimationController.AnimationStart(const AAnimationName: string; GrowSpeed: Single);
+var inst: IavMeshInstance;
+    anim: IavAnimation;
+    animIndex: Integer;
+    n: Integer;
+    i: Integer;
+begin
+  inst := Instance;
+  if inst = nil then Exit;
+  if inst.Armature = nil then Exit;
+  anim := inst.Armature.FindAnim(AAnimationName);
+  if anim = nil then Exit;
+  animIndex := anim.Index;
+
+  for i := 0 to Length(FAnimationStates) - 1 do
+    if FAnimationStates[i].Index = animIndex then Exit;
+
+  n := Length(FAnimationStates);
+
+  SetLength(FAnimationStates, n+1);
+  FAnimationStates[n].Frame := 0;
+  FAnimationStates[n].Index := animIndex;
+  FAnimationStates[n].Weight := 0;
+
+  SetLength(FAnimationPlayState, n+1);
+  FAnimationPlayState[n].StartTime := FTime;
+  FAnimationPlayState[n].GrowSpeed := GrowSpeed;
+  FAnimationPlayState[n].StopTime := -1;
+  FAnimationPlayState[n].FadeSpeed := Default_FadeSpeed;
+end;
+
+procedure TavAnimationController.AnimationStop(const AAnimationName: string; FadeSpeed: Single);
+var anim: IavAnimation;
+    animIndex: Integer;
+    i: Integer;
+    inst: IavMeshInstance;
+begin
+  inst := Instance;
+  if inst = nil then Exit;
+  if inst.Armature = nil then Exit;
+  anim := inst.Armature.FindAnim(AAnimationName);
+  Assert(Assigned(anim), 'Animation with name ' + AAnimationName + ' not found');
+  animIndex := anim.Index;
+
+  for i := 0 to Length(FAnimationStates) - 1 do
+    if FAnimationStates[i].Index = animIndex then
+    begin
+      if FAnimationPlayState[i].StopTime >= 0 then Exit;
+      FAnimationPlayState[i].StopTime := FTime + Math.Ceil(FadeSpeed);
+      FAnimationPlayState[i].FadeSpeed := FadeSpeed;
+      Break;
+    end;
+end;
+
+procedure TavAnimationController.AnimationStartAndStopOther(const AAnimationNames: array of string; GrowFadeSpeed: Single);
+  function InCurrentAnimations(const AAnimName: string): Boolean;
+  var i: Integer;
+  begin
+    Result := False;
+    for i := 0 to Length(AAnimationNames) - 1 do
+      if AAnimationNames[i] = AAnimName then Exit(True);
+  end;
+var i: Integer;
+    s: String;
+    inst: IavMeshInstance;
+begin
+  inst := Instance;
+  if inst = nil then Exit;
+  if inst.Armature = nil then Exit;
+
+  for i := 0 to Length(FAnimationStates) - 1 do
+  begin
+    s := inst.Armature.Anim[FAnimationStates[i].Index].Name;
+    if not InCurrentAnimations(s) then
+      AnimationStop(s, GrowFadeSpeed);
+  end;
+
+  for i := 0 to Length(AAnimationNames) - 1 do
+    AnimationStart(AAnimationNames[i], GrowFadeSpeed);
+end;
+
 { TavMeshInstance }
 
 function TavMeshInstance.GetArmature: IavArmature;
@@ -894,6 +1147,7 @@ end;
 procedure TavMeshInstance.SetParent(const AValue: IavMeshInstance);
 begin
   FParent := Pointer(AValue);
+  Inc(FPoseID);
 end;
 
 procedure TavMeshInstance.SetTransform(const AValue: TMat4);
@@ -901,6 +1155,7 @@ begin
   if FLocalTransform = AValue then Exit;
   FLocalTransform := AValue;
   FPoseAbsValid := False;
+  Inc(FPoseID);
 end;
 
 function TavMeshInstance.ChildsCount: Integer;
@@ -940,6 +1195,12 @@ begin
     SetLength(FPoseTransform, 1);
     FPoseTransform[0] := IdentityMat4;
   end;
+  Inc(FPoseID);
+end;
+
+function TavMeshInstance.PoseID: Int64;
+begin
+  Result := FPoseID;
 end;
 
 function TavMeshInstance.LocalPose: TMat4Arr;
