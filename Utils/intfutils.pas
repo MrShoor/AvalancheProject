@@ -74,9 +74,6 @@ type
     function _Release : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
   end;
 
-implementation
-
-type
   { TWeakRef }
 
   TWeakRef = class (TInterfacedObject, IWeakRef, IWeakRefInternal)
@@ -87,6 +84,10 @@ type
     procedure CleanUp;
     constructor Create(AInstance: TObject);
   end;
+
+implementation
+
+type
 
   { TWeakRefIntf }
 
