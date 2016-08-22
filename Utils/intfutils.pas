@@ -93,11 +93,11 @@ type
 
   TWeakRefIntf = class (TInterfacedObject, IWeakRefIntf)
   private
-    FInstance: IUnknown;
+    FInstance: TWeakedInterfacedObject;
     FInstanceRefCount: Integer;
   public
     function Intf: IUnknown;
-    constructor Create(const AInstance: IUnknown);
+    constructor Create(const AInstance: TWeakedInterfacedObject);
   end;
 
 { TWeakRefIntf }
@@ -107,7 +107,7 @@ begin
   Result := FInstance;
 end;
 
-constructor TWeakRefIntf.Create(const AInstance: IUnknown);
+constructor TWeakRefIntf.Create(const AInstance: TWeakedInterfacedObject);
 begin
   FInstance := AInstance;
 end;
@@ -196,6 +196,7 @@ begin
 end;
 
 class function TWeakedInterfacedObject.NewInstance: Tobject;
+var tmp: TWeakRefIntf;
 begin
   Result := inherited newinstance;
   TWeakedInterfacedObject(Result).FWeakRef := TWeakRefIntf.Create(TWeakedInterfacedObject(Result));
