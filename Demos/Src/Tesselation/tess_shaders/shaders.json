@@ -1,0 +1,29 @@
+{
+    "fxc_params"  : "/nologo /O3 /Zi /Gec",
+    "HLSLcc_lang" : 400,
+    "HLSLcc_flags": ["HLSLCC_FLAG_DISABLE_GLOBALS_STRUCT",
+                     "HLSLCC_FLAG_INOUT_SEMANTIC_NAMES",
+                     "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],
+    "OGLTranslate" : false,
+    "OutDir" : "!Out",
+    "VertexEntry" : "VS",
+    "FragmentEntry" : "PS",
+    "TessControlEntry" : "TC",
+    "TessEvalEntry" : "DS",
+    
+    "VertexTarget" : "vs_5_0",
+    "TessControlTarget" : "hs_5_0",
+    "TessEvalTarget" : "ds_5_0",
+    "FragmentTarget" : "ps_5_0",
+    
+    "Programs":[
+        {
+        "Name"        : "Classic",
+        "Vertex"      : "classic.cpp",
+        "Fragment"    : "classic.cpp",
+        "TessControl" : "classic.cpp",
+        "TessEval"    : "classic.cpp",
+        "Path"        :["Classic"]
+        }
+    ]
+}
