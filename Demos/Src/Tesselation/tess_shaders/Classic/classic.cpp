@@ -8,6 +8,7 @@ struct VS_Input {
 };
 
 struct VS_Output {
+    float4 Pos    : SV_Position;
     float3 Normal : Normal;
     float3 ViewPos: ViewPos;
 };
@@ -15,6 +16,7 @@ struct VS_Output {
 VS_Output VS(VS_Input In) {
     VS_Output Out;
     float4 crd = float4(In.vsCoord, 1.0);
+    Out.Pos = mul(crd, VP_Matrix);
     Out.Normal = mul(In.vsNormal, (float3x3)V_Matrix);
     Out.ViewPos = mul(crd, V_Matrix).xyz;
     return Out;
@@ -24,20 +26,15 @@ VS_Output VS(VS_Input In) {
 #define MAX_POINTS 32
 struct TC_OutConstants {
     float Edges[3]        : SV_TessFactor;
-    float Inside[1]       : SV_InsideTessFactor;    
-//    float3 vTangent[4]    : TANGENT;
-//    float2 vUV[4]         : TEXCOORD;
-//    float3 vTanUCorner[4] : TANUCORNER;
-//    float3 vTanVCorner[4] : TANVCORNER;
-//    float4 vCWts          : TANWEIGHTS;
+    float Inside[1]       : SV_InsideTessFactor;
 };
 
 TC_OutConstants TC_ConstantFunc(InputPatch<VS_Output, MAX_POINTS> In) {
     TC_OutConstants Out;
-    Out.Edges[0] = 1.0;
-    Out.Edges[1] = 1.0;
-    Out.Edges[2] = 1.0;
-    Out.Inside[0] = 1.0;
+    Out.Edges[0] = 5.0;
+    Out.Edges[1] = 5.0;
+    Out.Edges[2] = 5.0;
+    Out.Inside[0] = 5.0;
     return Out;
 }
 
@@ -51,7 +48,7 @@ struct TC_PathParams {
 [domain("tri")]
 [partitioning("integer")]
 [outputtopology("triangle_cw")]
-[outputcontrolpoints(12)]
+[outputcontrolpoints(3)]
 [patchconstantfunc("TC_ConstantFunc")]
 TC_Output TC(InputPatch<VS_Output, MAX_POINTS> ip, TC_PathParams params) {
     VS_Output Out;
@@ -68,15 +65,16 @@ struct DS_Output {
 };
 
 [domain("tri")]
-DS_Output DS(TC_OutConstants input, float3 uvwCoord : SV_DomainLocation, OutputPatch<TC_Output, 3> patch)
+DS_Output DS(TC_OutConstants input, float3 uvwCoord : SV_DomainLocation, OutputPatch<TC_Output, MAX_POINTS> patch)
 {
     DS_Output Out;
 
+    float4 Pos     = uvwCoord.x * patch[0].Pos     + uvwCoord.y * patch[1].Pos     + uvwCoord.z * patch[2].Pos;
     float3 ViewPos = uvwCoord.x * patch[0].ViewPos + uvwCoord.y * patch[1].ViewPos + uvwCoord.z * patch[2].ViewPos;
     float3 Normal  = uvwCoord.x * patch[0].Normal  + uvwCoord.y * patch[1].Normal  + uvwCoord.z * patch[2].Normal;
+    Out.Pos = Pos;
     Out.ViewPos = ViewPos;
     Out.Normal = Normal;
-    Out.Pos = mul(float4(ViewPos, 1.0), P_Matrix);
 
     return Out;
 }

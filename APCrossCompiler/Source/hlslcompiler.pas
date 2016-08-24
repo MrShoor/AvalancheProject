@@ -39,8 +39,8 @@ type
   {$EndIf}
   private type
     {$IfDef fpc}
-    TIncludes = specialize THashMap<string, AnsiString, TMurmur2HashString>;
-    IIncludes = specialize IHashMap<string, AnsiString, TMurmur2HashString>;
+    TIncludes = specialize THashMap<string, AnsiString>;
+    IIncludes = specialize IHashMap<string, AnsiString>;
     {$Else}
     TIncludes = TDictionary<string, AnsiString>;
     IIncludes = TDictionary<string, AnsiString>;
@@ -167,7 +167,7 @@ function ReparseOutput(const str: ID3DBlob; const incl: TIncludeAdapter): string
     begin
       //copy addr str for 32 bit application only
       addrS := '$' + Copy(ALine, addrPos + 3, 8);
-      if not TryStrToInt(addrS, Integer(addr)) then Exit;
+      if not TryStrToInt64(addrS, NativeInt(addr)) then Exit;
       OffsetIndex := addrPos + 3 + 8;
 
       fname := incl.FileNameByPointer(addr);
@@ -293,8 +293,8 @@ const
 
 type
   {$IfDef fpc}
-  TUniformsHash = specialize THashMap<string, TUniform, TMurmur2HashString>;
-  IUniformsHash = specialize IHashMap<string, TUniform, TMurmur2HashString>;
+  TUniformsHash = specialize THashMap<string, TUniform>;
+  IUniformsHash = specialize IHashMap<string, TUniform>;
   {$Else}
   TUniformsHash = TDictionary<string, TUniform>;
   IUniformsHash = TDictionary<string, TUniform>;
@@ -479,7 +479,7 @@ var st: TShaderType;
 begin
   Write('Linking(HLSL): "', prog.Name, '" ... ');
   {$IfDef fpc}
-  UniformHash := TUniformsHash.Create('', EmptyUniform);
+  UniformHash := TUniformsHash.Create;
   {$Else}
   UniformHash := TUniformsHash.Create;
   {$EndIf}
@@ -607,7 +607,7 @@ constructor TIncludeAdapter.Create(const prog: TProgramInfo);
 begin
   FProg := prog;
   {$IfDef fpc}
-  FIncludes := TIncludes.Create('','');
+  FIncludes := TIncludes.Create;
   {$Else}
   FIncludes := TIncludes.Create;
   {$EndIf}

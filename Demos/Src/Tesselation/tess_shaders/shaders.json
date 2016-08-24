@@ -1,4 +1,5 @@
 {
+    "HLSLCC_FLAG_INOUT_SEMANTIC_NAMES" : "",
     "fxc_params"  : "/nologo /O3 /Zi /Gec",
     "HLSLcc_lang" : 400,
     "HLSLcc_flags": ["HLSLCC_FLAG_DISABLE_GLOBALS_STRUCT",

@@ -111,7 +111,8 @@ const
                                                           {ptLines_Adj}         GL_LINES_ADJACENCY,
                                                           {ptLineStrip_Adj}     GL_LINE_STRIP_ADJACENCY,
                                                           {ptTriangles_Adj}     GL_TRIANGLES_ADJACENCY,
-                                                          {ptTriangleStrip_Adj} GL_TRIANGLE_STRIP_ADJACENCY);
+                                                          {ptTriangleStrip_Adj} GL_TRIANGLE_STRIP_ADJACENCY,
+                                                          {ptPatches3}          GL_PATCHES);
   GLIndexSize: array [TIndexSize] of Cardinal = ( {Word}  GL_UNSIGNED_SHORT,
                                                   {DWord} GL_UNSIGNED_INT);
   GLTextureFormat: array [TTextureFormat] of Cardinal = (  {RGBA   } GL_RGBA,
@@ -662,15 +663,6 @@ type
                                                             {DynamicDraw}  GL_DYNAMIC_DRAW,
                                                             {StreamDraw }  GL_STREAM_DRAW
                                                           );
-        GLPrimitiveType: array [TPrimitiveType] of Cardinal = ( {ptPoints}            GL_POINTS,
-                                                                {ptLines}             GL_LINES,
-                                                                {ptLineStrip}         GL_LINE_STRIP,
-                                                                {ptTriangles}         GL_TRIANGLES,
-                                                                {ptTriangleStrip}     GL_TRIANGLE_STRIP,
-                                                                {ptLines_Adj}         GL_LINES_ADJACENCY,
-                                                                {ptLineStrip_Adj}     GL_LINE_STRIP_ADJACENCY,
-                                                                {ptTriangles_Adj}     GL_TRIANGLES_ADJACENCY,
-                                                                {ptTriangleStrip_Adj} GL_TRIANGLE_STRIP_ADJACENCY);
         GLIndexSize: array [TIndexSize] of Cardinal = ( {Word}  GL_UNSIGNED_SHORT,
                                                         {DWord} GL_UNSIGNED_INT);
   private
@@ -1911,8 +1903,12 @@ begin
   Result := 0;
 
   case AType of
-      stVertex  : Result := glCreateShader(GL_VERTEX_SHADER);
-      stFragment: Result := glCreateShader(GL_FRAGMENT_SHADER);
+      stUnknown    : Exit;
+      stVertex     : Result := glCreateShader(GL_VERTEX_SHADER);
+      stTessControl: Result := glCreateShader(GL_TESS_CONTROL_SHADER);
+      stTessEval   : Result := glCreateShader(GL_TESS_EVALUATION_SHADER);
+      stGeometry   : Result := glCreateShader(GL_GEOMETRY_SHADER);
+      stFragment   : Result := glCreateShader(GL_FRAGMENT_SHADER);
   else
     Assert(False, 'unknown shader type');
   end;
@@ -2238,6 +2234,7 @@ var stream: TStream;
     obj: ISuperObject;
     GLShader: Cardinal;
     param: integer;
+    st: TShaderType;
 begin
   stream := nil;
   try
@@ -2267,10 +2264,12 @@ begin
   ClearAttrList;
   ClearVAOList;
 
-  GLShader := CreateShader(AnsiString(obj.S['Vertex']), stVertex);
-  glAttachShader(FHandle, GLShader);
-  GLShader := CreateShader(AnsiString(obj.S['Fragment']), stFragment);
-  glAttachShader(FHandle, GLShader);
+  for st := Low(TShaderType) to High(TShaderType) do
+  begin
+    GLShader := CreateShader(AnsiString(obj.S[ShaderType_Name[st]]), st);
+    if GLShader <> 0 then
+      glAttachShader(FHandle, GLShader);
+  end;
 
   glLinkProgram(FHandle);
   glGetProgramiv(FHandle, GL_LINK_STATUS, @param);

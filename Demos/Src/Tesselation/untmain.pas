@@ -83,7 +83,7 @@ procedure TfrmMain.FormCreate(Sender: TObject);
 begin
   FMain := TavMainRender.Create(nil);
   FMain.Window := Handle;
-  FMain.Init3D();
+  FMain.Init3D(apiDX11);
 //  FMain.Camera.Eye := Vec(-1.6, 1.4,-2.0);
   FMain.Projection.FarPlane := 10.0;
   FMain.Projection.NearPlane := 0.1;
@@ -95,7 +95,7 @@ begin
 
   FMesh := TavVB.Create(FMain);
   FMesh.Vertices := GetTriangleBuffer;
-  FMesh.PrimType := ptTriangles;
+  FMesh.PrimType := ptPatches3;
   FMesh.CullMode := cmNone;
 end;
 
