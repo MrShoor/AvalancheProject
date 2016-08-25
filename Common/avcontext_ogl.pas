@@ -916,7 +916,7 @@ type
     procedure ClearAttrList;
     procedure ClearVAOList;
 
-    function CreateShader(const ACode: AnsiString; AType: TShaderType): Cardinal;
+    function CreateShader(ACode: AnsiString; AType: TShaderType): Cardinal;
     procedure DetachAllShaders;
     procedure ReadUniforms;
     procedure ReadAttributes;
@@ -1882,7 +1882,7 @@ begin
   FVAOList.Clear;
 end;
 
-function TProgram.CreateShader(const ACode: AnsiString; AType: TShaderType): Cardinal;
+function TProgram.CreateShader(ACode: AnsiString; AType: TShaderType): Cardinal;
   function GetShaderCompileLog(const Shader: GLuint): string;
   var Log: AnsiString;
       n, tmplen: GLint;
@@ -1901,6 +1901,17 @@ var n: Integer;
     Log: string;
 begin
   Result := 0;
+  if ACode = '' then Exit;
+
+  if (AType = stTessControl) and (ACode<>'') then
+  begin
+    with TStringList.Create do
+    begin
+      LoadFromFile('tesscontrol.txt');
+      ACode := Text;
+      Free;
+    end;
+  end;
 
   case AType of
       stUnknown    : Exit;
@@ -2277,6 +2288,10 @@ begin
   begin
     ReadUniforms;
     ReadAttributes;
+  end
+  else
+  begin
+    Raise3DError('Program linking failed: '+GetProgramInfoLog);
   end;
 end;
 
@@ -2436,6 +2451,8 @@ begin
 
   ValidateProgram;
   FContext.States.CullMode := CullMode;
+
+  glPatchParameteri(GL_PATCH_VERTICES, 3);
 
   if IndexedGeometry then
   begin

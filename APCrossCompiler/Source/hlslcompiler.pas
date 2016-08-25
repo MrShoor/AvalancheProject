@@ -166,7 +166,15 @@ function ReparseOutput(const str: ID3DBlob; const incl: TIncludeAdapter): string
     if addrPos > 0 then
     begin
       //copy addr str for 32 bit application only
+      {$IfDef WIN32}
       addrS := '$' + Copy(ALine, addrPos + 3, 8);
+      {$Else}
+        {$IfDef WIN64}
+        addrS := '$' + Copy(ALine, addrPos + 3, 16);
+        {$Else}
+          not supproted platform
+        {$EndIf}
+      {$EndIf}
       if not TryStrToInt64(addrS, NativeInt(addr)) then Exit;
       OffsetIndex := addrPos + 3 + 8;
 

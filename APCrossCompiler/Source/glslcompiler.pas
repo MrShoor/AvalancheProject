@@ -99,6 +99,20 @@ begin
     end;
 end;
 
+function GetProgramLinkLog(const AProgram: GLuint): string;
+var Log: AnsiString;
+    n, tmplen: GLint;
+begin
+    glGetProgramiv(AProgram, GL_INFO_LOG_LENGTH, @n);
+    if n>1 then
+    begin
+      tmplen := 0;
+      SetLength(Log, n-1);
+      glGetProgramInfoLog(AProgram, n, tmplen, PAnsiChar(Log));
+      Result := 'Program link log: ' + string(Log);
+    end;
+end;
+
 procedure CompileGLSL(const code: AnsiString; st: TShaderType);
 var Shader: GLuint;
     CompRes: GLint;
@@ -171,7 +185,7 @@ begin
     glLinkProgram(GLProg);
     glGetProgramiv(GLProg, GL_LINK_STATUS, @param);
     if param <> 1 then
-      RaiseGLSL('Link failed');
+      RaiseGLSL(GetProgramLinkLog(GLProg));
 
     sobj := SO();
     for st := Low(TShaderType) to High(TShaderType) do

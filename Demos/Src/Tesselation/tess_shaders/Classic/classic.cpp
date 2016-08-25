@@ -21,26 +21,32 @@ VS_Output VS(VS_Input In) {
     Out.ViewPos = mul(crd, V_Matrix).xyz;
     return Out;
 }
+
 //-------------------------------------------------
 //Tesselation control shader
-#define MAX_POINTS 32
-struct TC_OutConstants {
+#define MAX_POINTS 3
+struct HS_OutConstants {
     float Edges[3]        : SV_TessFactor;
     float Inside[1]       : SV_InsideTessFactor;
 };
 
-TC_OutConstants TC_ConstantFunc(InputPatch<VS_Output, MAX_POINTS> In) {
-    TC_OutConstants Out;
-    Out.Edges[0] = 5.0;
-    Out.Edges[1] = 5.0;
-    Out.Edges[2] = 5.0;
-    Out.Inside[0] = 5.0;
+HS_OutConstants HS_ConstantFunc(InputPatch<VS_Output, MAX_POINTS> In) {
+    HS_OutConstants Out;
+    float tessC = 5.0;
+    Out.Edges[0] = tessC;
+    Out.Edges[1] = tessC;
+    Out.Edges[2] = tessC;
+    Out.Inside[0] = tessC;
     return Out;
 }
 
-typedef VS_Output TC_Output;
+struct HS_Output {
+    float4 Pos     : SV_Position;
+    float3 Normal  : hsNormal;
+    float3 ViewPos : hsViewPos;
+};
 
-struct TC_PathParams {
+struct HS_PathParams {
     uint i : SV_OutputControlPointID;
     uint PatchID : SV_PrimitiveID;    
 };
@@ -49,26 +55,25 @@ struct TC_PathParams {
 [partitioning("integer")]
 [outputtopology("triangle_cw")]
 [outputcontrolpoints(3)]
-[patchconstantfunc("TC_ConstantFunc")]
-TC_Output TC(InputPatch<VS_Output, MAX_POINTS> ip, TC_PathParams params) {
+[patchconstantfunc("HS_ConstantFunc")]
+HS_Output HS(InputPatch<VS_Output, MAX_POINTS> ip, HS_PathParams params) {
     VS_Output Out;
-    Out = ip[params.i];
+    Out = ip[(params.i+1)%3];
     return Out;
 }
 
 //--------------------------------------------------------
 //Tesselation evaluation shader
 struct DS_Output {
-    float4 Pos    : SV_Position;
-    float3 Normal : Normal;
-    float3 ViewPos: ViewPos;
+    float4 Pos     : SV_Position;
+    float3 Normal  : dsNormal;
+    float3 ViewPos : dsViewPos;
 };
 
 [domain("tri")]
-DS_Output DS(TC_OutConstants input, float3 uvwCoord : SV_DomainLocation, OutputPatch<TC_Output, MAX_POINTS> patch)
+DS_Output DS(HS_OutConstants input, float3 uvwCoord : SV_DomainLocation, OutputPatch<HS_Output, MAX_POINTS> patch)
 {
     DS_Output Out;
-
     float4 Pos     = uvwCoord.x * patch[0].Pos     + uvwCoord.y * patch[1].Pos     + uvwCoord.z * patch[2].Pos;
     float3 ViewPos = uvwCoord.x * patch[0].ViewPos + uvwCoord.y * patch[1].ViewPos + uvwCoord.z * patch[2].ViewPos;
     float3 Normal  = uvwCoord.x * patch[0].Normal  + uvwCoord.y * patch[1].Normal  + uvwCoord.z * patch[2].Normal;

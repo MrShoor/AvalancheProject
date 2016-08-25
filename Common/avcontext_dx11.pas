@@ -1182,12 +1182,6 @@ procedure TProgram.Load(const AProgram: string; FromResource: Boolean);
 var stream: TStream;
     st: TShaderType;
 
-    vShader: ID3D11VertexShader;
-    hShader: ID3D11HullShader;
-    dShader: ID3D11DomainShader;
-    gShader: ID3D11GeometryShader;
-    pShader: ID3D11PixelShader;
-
     ShaderIntf: ID3D11DeviceChild;
 
     ChunkID: TFOURCC;

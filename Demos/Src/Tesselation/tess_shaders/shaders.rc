@@ -1,1 +1,2 @@
 DX_Classic RCDATA "!Out\DX_Classic.hlsl"
+OGL_Classic RCDATA "!Out\OGL_Classic.glsl"
