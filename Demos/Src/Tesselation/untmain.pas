@@ -5,7 +5,7 @@ interface
 
 uses
   LCLType, Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
-  avRes, avTypes, mutils, avTess, avContnrs;
+  avRes, avTypes, mutils, avTess, avContnrs, avCameraController;
 
 type
 
@@ -95,8 +95,13 @@ begin
 
   FMesh := TavVB.Create(FMain);
   FMesh.Vertices := GetTriangleBuffer;
-  FMesh.PrimType := ptPatches3;
+  FMesh.PrimType := ptPatches;
   FMesh.CullMode := cmNone;
+
+  with TavCameraController.Create(FMain) do
+  begin
+    CanRotate := True;
+  end;
 end;
 
 procedure TfrmMain.ApplicationProperties1Idle(Sender: TObject; var Done: Boolean);
@@ -127,7 +132,7 @@ begin
 
     FMain.States.DepthTest := True;
     FMain.States.Wireframe := True;
-    FTessProg.Select;
+    FTessProg.Select(3);
     FTessProg.SetAttributes(FMesh, nil, nil);
     FTessProg.Draw();
 

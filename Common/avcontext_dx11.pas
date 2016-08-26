@@ -33,7 +33,7 @@ type
 
     FSamplerMap: ISamplerMap;
 
-    FPrimTopology : TPrimitiveType;
+    FPrimTopology : TD3D11_PrimitiveTopology;
 
     function GetActiveProgram: IctxProgram;
     procedure SetActiveProgram(AValue: IctxProgram);
@@ -144,7 +144,7 @@ const
                                                                           {ptLineStrip_Adj}     D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ,
                                                                           {ptTriangles_Adj}     D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ,
                                                                           {ptTriangleStrip_Adj} D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ,
-                                                                          {ptPatches3}          D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+                                                                          {ptPatches}           D3D11_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST);
 
 procedure Check3DError(hr: HRESULT);
 var s: string;
@@ -669,6 +669,8 @@ type
     FResUniforms: array of TUniformField_DX;
     FUniforms: IUniformMap;
 
+    FSelectedPathSize: Integer;
+
     function ObtainUniformField(const name: string; out WasCreated: Boolean): TUniformField_DX;
     procedure ClearUniformList;
     procedure ClearILList;
@@ -681,7 +683,7 @@ type
     destructor Destroy; override;
 
     procedure SyncCB;
-    procedure Select;
+    procedure Select(const APatchSize: Integer = 0);
     procedure Load(const AProgram: string; FromResource: Boolean = false);
 
     procedure SetAttributes(const AModel, AInstances : IctxVetexBuffer; const AModelIndices: IctxIndexBuffer; InstanceStepRate: Integer = 1);
@@ -1081,7 +1083,7 @@ begin
     FResUniforms[i].BindResource(FContext.FDeviceContext);
 end;
 
-procedure TProgram.Select;
+procedure TProgram.Select(const APatchSize: Integer);
 var st: TShaderType;
     i: Integer;
 begin
@@ -1105,6 +1107,8 @@ begin
     end;
   for i := 0 to Length(FResUniforms) - 1 do
     FResUniforms[i].FResChanged := True;
+  if APatchSize > 0 then
+    FSelectedPathSize := APatchSize;
 end;
 
 procedure TProgram.Load(const AProgram: string; FromResource: Boolean);
@@ -1403,14 +1407,20 @@ end;
 procedure TProgram.Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode;
   IndexedGeometry: Boolean; InstanceCount: Integer; Start: integer;
   Count: integer; BaseVertex: integer; BaseInstance: Integer);
+var newTopology: TD3D11_PrimitiveTopology;
 begin
   SyncCB;
   FContext.States.CullMode := CullMode;
 
   FContext.UpdateStates;
-  if FContext.FPrimTopology <> PrimTopology then
-      FContext.FDeviceContext.IASetPrimitiveTopology(DXPrimitiveType[PrimTopology]);
-  FContext.FPrimTopology := PrimTopology;
+  newTopology := DXPrimitiveType[PrimTopology];
+  if newTopology = D3D11_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST then
+    newTopology := TD3D11_PrimitiveTopology(Integer(newTopology) + FSelectedPathSize - 1);
+  if FContext.FPrimTopology <> newTopology then
+  begin
+      FContext.FDeviceContext.IASetPrimitiveTopology(newTopology);
+      FContext.FPrimTopology := newTopology;
+  end;
 
   if IndexedGeometry then
   begin
@@ -2481,7 +2491,7 @@ begin
   Check3DError(FDevice.CreateRenderTargetView(FBackBuffer, nil, FRenderTarget));
 
   FDeviceContext.OMSetRenderTargets(1, @FRenderTarget, nil);
-  FDeviceContext.IASetPrimitiveTopology(DXPrimitiveType[FPrimTopology]);
+  FDeviceContext.IASetPrimitiveTopology(FPrimTopology);
   ViewPort.TopLeftX := 0;
   ViewPort.TopLeftY := 0;
   ViewPort.Width := AWidth;

@@ -99,7 +99,7 @@ type
                     ptTriangles, ptTriangleStrip,
                     ptLines_Adj, ptLineStrip_Adj,
                     ptTriangles_Adj, ptTriangleStrip_Adj,
-                    ptPatches3);
+                    ptPatches);
   {$SCOPEDENUMS ON}
   TIndexSize = (Word, DWord);
   TTextureFormat = (RGBA, RGBA16, RGBA16f, RGBA32, RGBA32f, RGB, RGB16, RGB16f, RGB32, RGB32f, RG, RG16, RG16f, RG32, RG32f, R, R16, R16f, R32,

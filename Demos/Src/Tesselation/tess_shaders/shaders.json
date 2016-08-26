@@ -18,7 +18,7 @@
     "TessEvalTarget" : "ds_5_0",
     "FragmentTarget" : "ps_5_0",
     
-    "Programs_":[
+    "Programs":[
         {
         "Name"        : "Classic",
         "Vertex"      : "classic.cpp",
@@ -28,7 +28,7 @@
         "Path"        :["Classic"]
         }
     ],
-    "Programs":[
+    "Programs_":[
         {
         "Name"        : "Classic",
         "TessControl" : "classic.cpp",

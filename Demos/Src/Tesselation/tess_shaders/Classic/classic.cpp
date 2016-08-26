@@ -41,9 +41,9 @@ HS_OutConstants HS_ConstantFunc(InputPatch<VS_Output, MAX_POINTS> In) {
 }
 
 struct HS_Output {
-    float4 Pos     : SV_Position;
-    float3 Normal  : hsNormal;
-    float3 ViewPos : hsViewPos;
+    float4 Pos       : SV_Position;
+    float3 hsNormal  : hsNormal;
+    float3 hsViewPos : hsViewPos;
 };
 
 struct HS_PathParams {
@@ -65,9 +65,9 @@ HS_Output HS(InputPatch<VS_Output, MAX_POINTS> ip, HS_PathParams params) {
 //--------------------------------------------------------
 //Tesselation evaluation shader
 struct DS_Output {
-    float4 Pos     : SV_Position;
-    float3 Normal  : dsNormal;
-    float3 ViewPos : dsViewPos;
+    float4 Pos       : SV_Position;
+    float3 dsNormal  : dsNormal;
+    float3 dsViewPos : dsViewPos;
 };
 
 [domain("tri")]
@@ -75,11 +75,11 @@ DS_Output DS(HS_OutConstants input, float3 uvwCoord : SV_DomainLocation, OutputP
 {
     DS_Output Out;
     float4 Pos     = uvwCoord.x * patch[0].Pos     + uvwCoord.y * patch[1].Pos     + uvwCoord.z * patch[2].Pos;
-    float3 ViewPos = uvwCoord.x * patch[0].ViewPos + uvwCoord.y * patch[1].ViewPos + uvwCoord.z * patch[2].ViewPos;
-    float3 Normal  = uvwCoord.x * patch[0].Normal  + uvwCoord.y * patch[1].Normal  + uvwCoord.z * patch[2].Normal;
+    float3 ViewPos = uvwCoord.x * patch[0].hsViewPos + uvwCoord.y * patch[1].hsViewPos + uvwCoord.z * patch[2].hsViewPos;
+    float3 Normal  = uvwCoord.x * patch[0].hsNormal  + uvwCoord.y * patch[1].hsNormal  + uvwCoord.z * patch[2].hsNormal;
     Out.Pos = Pos;
-    Out.ViewPos = ViewPos;
-    Out.Normal = Normal;
+    Out.dsViewPos = ViewPos;
+    Out.dsNormal = Normal;
 
     return Out;
 }
@@ -91,11 +91,12 @@ struct PS_Output {
     float4 Color : SV_Target;
 };
 
-PS_Output PS(VS_Output In) {
+PS_Output PS(DS_Output In) {
     PS_Output Out;
-    float3 n = normalize(In.Normal);
+    float3 n = normalize(In.dsNormal);
     float4 Color = float4(1,1,1,1);
-    Out.Color.xyz = Phong(0.0, 0.0, In.ViewPos, n, Color.xyz);
+    Out.Color.xyz = Phong(0.0, 0.0, In.dsViewPos, n, Color.xyz);
     Out.Color.a = Color.a;
+    //Out.Color = 1.0;
     return Out;
 }

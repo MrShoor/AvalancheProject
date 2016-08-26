@@ -112,7 +112,7 @@ const
                                                           {ptLineStrip_Adj}     GL_LINE_STRIP_ADJACENCY,
                                                           {ptTriangles_Adj}     GL_TRIANGLES_ADJACENCY,
                                                           {ptTriangleStrip_Adj} GL_TRIANGLE_STRIP_ADJACENCY,
-                                                          {ptPatches3}          GL_PATCHES);
+                                                          {ptPatches}           GL_PATCHES);
   GLIndexSize: array [TIndexSize] of Cardinal = ( {Word}  GL_UNSIGNED_SHORT,
                                                   {DWord} GL_UNSIGNED_INT);
   GLTextureFormat: array [TTextureFormat] of Cardinal = (  {RGBA   } GL_RGBA,
@@ -935,7 +935,7 @@ type
     procedure AllocHandle; override;
     procedure FreeHandle; override;
   public //IctxProgram
-    procedure Select;
+    procedure Select(const APatchSize: Integer = 0);
     procedure Load(const AProgram: string; FromResource: Boolean = false);
 
     procedure SetAttributes(const AModel, AInstances : IctxVetexBuffer; const AModelIndices: IctxIndexBuffer; InstanceStepRate: Integer = 1); overload;
@@ -1903,16 +1903,6 @@ begin
   Result := 0;
   if ACode = '' then Exit;
 
-  if (AType = stTessControl) and (ACode<>'') then
-  begin
-    with TStringList.Create do
-    begin
-      LoadFromFile('tesscontrol.txt');
-      ACode := Text;
-      Free;
-    end;
-  end;
-
   case AType of
       stUnknown    : Exit;
       stVertex     : Result := glCreateShader(GL_VERTEX_SHADER);
@@ -2234,9 +2224,11 @@ begin
   FHandle := 0;
 end;
 
-procedure TProgram.Select;
+procedure TProgram.Select(const APatchSize: Integer = 0);
 begin
   glUseProgram(Handle);
+  if APatchSize > 0 then
+    glPatchParameteri(GL_PATCH_VERTICES, APatchSize);
 end;
 
 procedure TProgram.Load(const AProgram: string; FromResource: Boolean);
@@ -2451,8 +2443,6 @@ begin
 
   ValidateProgram;
   FContext.States.CullMode := CullMode;
-
-  glPatchParameteri(GL_PATCH_VERTICES, 3);
 
   if IndexedGeometry then
   begin
