@@ -559,7 +559,7 @@ type
     procedure SetUniform (const AName: string; const m: TMat4);           overload;
     procedure SetUniform (const AName: string; const tex: TavTextureBase; const sampler: TSamplerInfo); overload;
 
-    procedure LoadFromJSON(const AProgram: string; FromResource: boolean = false; const AProgramPath: string = ''); overload;
+    procedure Load(const AProgram: string; FromResource: boolean = false; const AProgramPath: string = ''); overload;
 
     procedure Draw(InstanceCount: Integer = 0;
                    Start: integer = 0; Count: integer = - 1;
@@ -2476,7 +2476,7 @@ begin
   FProgram.SetUniform(GetUniformField(AName), tex.FTexH, sampler);
 end;
 
-procedure TavProgram.LoadFromJSON(const AProgram: string; FromResource: boolean = false; const AProgramPath: string = '');
+procedure TavProgram.Load(const AProgram: string; FromResource: boolean = false; const AProgramPath: string = '');
 begin
   FSrc := AProgram;
   FFromRes := FromResource;

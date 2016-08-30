@@ -10,9 +10,15 @@ uses
 type
   TavInterfacedObject = TInterfacedObject;
 
+  IRenderContext_DX11 = interface
+  ['{E8D0F003-32BD-4F7E-9336-5338770F193E}']
+    function GetDevice: ID3D11Device;
+    function GetDeviceContext: ID3D11DeviceContext;
+  end;
+
   { TContext_DX11 }
 
-  TContext_DX11 = class (TavInterfacedObject, IRenderContext)
+  TContext_DX11 = class (TavInterfacedObject, IRenderContext, IRenderContext_DX11)
   private type
     TSamplerMap = {$IfDef FPC}specialize{$EndIf} THashMap<TSamplerInfo, ID3D11SamplerState>;
     ISamplerMap = {$IfDef FPC}specialize{$EndIf} IHashMap<TSamplerInfo, ID3D11SamplerState>;
@@ -42,6 +48,9 @@ type
     procedure SetFrameBuffer(const AObject: TObject); //TFrameBuffer
     function ObtainSamplerState(const ASampler: TSamplerInfo): ID3D11SamplerState;
   public
+    function GetDevice: ID3D11Device;
+    function GetDeviceContext: ID3D11DeviceContext;
+
     procedure UpdateStates;
 
     function CreateVertexBuffer : IctxVetexBuffer;
@@ -2619,6 +2628,16 @@ begin
   end;
 end;
 
+function TContext_DX11.GetDevice: ID3D11Device;
+begin
+  Result := FDevice;
+end;
+
+function TContext_DX11.GetDeviceContext: ID3D11DeviceContext;
+begin
+  Result := FDeviceContext;
+end;
+
 procedure TContext_DX11.UpdateStates;
 begin
   TStates(FStates).UpdateBlendState;
@@ -2708,7 +2727,7 @@ end;
 
 procedure TContext_DX11.Present;
 begin
-  Check3DError(FSwapChain.Present(1, 0));
+  Check3DError(FSwapChain.Present(0, 0));
 end;
 
 constructor TContext_DX11.Create(const Wnd: TWindow);

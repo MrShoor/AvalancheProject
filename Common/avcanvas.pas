@@ -261,7 +261,7 @@ procedure TavCanvasCommonData.ReloadShaders;
 const LOADFROMRES = False;
       DIR = 'E:\Projects\AvalancheProject\Canvas_Shaders\!Out\';
 begin
-  FLineProg.LoadFromJSON('CanvasLine', LOADFROMRES, DIR);
+  FLineProg.Load('CanvasLine', LOADFROMRES, DIR);
 end;
 
 constructor TavCanvasCommonData.Create(AParent: TavObject);
