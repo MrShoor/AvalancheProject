@@ -13,7 +13,7 @@ type
 
   TV3 = record
   case Byte of
-    0: (f: array [0..2] of Single);
+    0: (f: array [0..2] of TCompType);
     1: (x, y, z: TCompType);
     2: (xy: TV2);
   end;
@@ -23,7 +23,7 @@ type
 
   TV4 = record
   case Byte of
-    0: (f: array [0..3] of Single);
+    0: (f: array [0..3] of TCompType);
     1: (x, y, z, w: TCompType);
     2: (xy, zw: TV2);
     3: (xyz: TV3);

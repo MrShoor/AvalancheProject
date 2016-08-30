@@ -337,6 +337,8 @@ function ToStr(const v: TVec2): string; overload;
 function ToStr(const v: TVec3): string; overload;
 function ToStr(const v: TVec4): string; overload;
 
+function NormalizeAngle(angle: single): single;
+
 {$IfDef FPC}
 operator = (const v1, v2: TRectF): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 operator = (const v1, v2: TRectI): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -1243,6 +1245,13 @@ end;
 function ToStr(const v: TVec4): string;
 begin
   Result := '(' + ToStr(v.x) + '; ' + ToStr(v.y) + '; ' + ToStr(v.z) + '; ' + ToStr(v.w) + ')';
+end;
+
+function NormalizeAngle(angle: single): single;
+const PI2 = 2*Pi;
+begin
+  Result := frac(angle/PI2)*PI2;
+  if Result < 0 then Result := Result + PI2;
 end;
 
 {$IfDef FPC}
