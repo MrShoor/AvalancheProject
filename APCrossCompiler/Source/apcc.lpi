@@ -28,8 +28,8 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="Canvas_Shaders.json"/>
-        <WorkingDirectory Value="E:\Projects\AvalancheProject\Canvas_Shaders\"/>
+        <CommandLineParams Value="shaders.json"/>
+        <WorkingDirectory Value="C:\MyProj\AvalancheProject\Demos\Src\Tesselation\tess_shaders"/>
       </local>
     </RunParams>
     <RequiredPackages Count="1">
@@ -37,7 +37,7 @@
         <PackageName Value="AvalancheUtils"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="13">
+    <Units Count="14">
       <Unit0>
         <Filename Value="apcc.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -96,6 +96,10 @@
         <Filename Value="options.inc"/>
         <IsPartOfProject Value="True"/>
       </Unit12>
+      <Unit13>
+        <Filename Value="..\..\Utils\avConfig.inc"/>
+        <IsPartOfProject Value="True"/>
+      </Unit13>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -105,7 +109,7 @@
       <Filename Value="..\Bin\apcc"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir)"/>
+      <IncludeFiles Value="$(ProjOutDir);..\..\Utils"/>
       <OtherUnitFiles Value="..\..\Common;..\..;..\..\Common\DX_JSB"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>

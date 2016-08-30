@@ -67,8 +67,8 @@ type
     TProgramList = specialize TArray<TProgramInfo>;
     IProgramList = specialize IArray<TProgramInfo>;
 
-    TFLAGS_HLSLcc = specialize THashMap<string, Cardinal, TMurmur2HashString>;
-    IFLAGS_HLSLcc = specialize IHashMap<string, Cardinal, TMurmur2HashString>;
+    TFLAGS_HLSLcc = specialize THashMap<string, Cardinal>;
+    IFLAGS_HLSLcc = specialize IHashMap<string, Cardinal>;
   {$else}
     TProgramList = TList<TProgramInfo>;
     IProgramList = TList<TProgramInfo>;

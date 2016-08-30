@@ -102,7 +102,7 @@ type
 
   IctxProgram = interface
   ['{C17B35BB-A577-4149-BB9E-3F9C9CDEA3D4}']
-    procedure Select;
+    procedure Select(const APatchSize: Integer = 0);
     procedure Load(const AProgram: string; FromResource: Boolean = false);
 
     procedure SetAttributes(const AModel, AInstances : IctxVetexBuffer; const AModelIndices: IctxIndexBuffer; InstanceStepRate: Integer = 1);

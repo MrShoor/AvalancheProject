@@ -531,7 +531,7 @@ type
 
     procedure UpdateMatrices;
   public
-    procedure Select; virtual;
+    procedure Select(const APatchSize: Integer = 0); virtual;
     procedure SetAttributes(Model: TavVerticesBase;
                             ModelIndices: TavIndicesBase;
                             Instance: TavVerticesBase;
@@ -1969,7 +1969,7 @@ begin
   begin
     FActiveProgram := AValue;
     if Assigned(FActiveProgram) then
-      FActiveProgram.Select
+      FActiveProgram.Select()
     else
       if Assigned(FContext) then
         FContext.ActiveProgram := nil;
@@ -2326,12 +2326,12 @@ begin
   FFlipUpdated := True;
 end;
 
-procedure TavProgram.Select;
+procedure TavProgram.Select(const APatchSize: Integer);
 begin
   if Main.ActiveProgram = Self then Exit;
   Build;
   Main.ActiveProgram := Self;
-  FProgram.Select;
+  FProgram.Select(APatchSize);
   UpdateMatrices;
 end;
 

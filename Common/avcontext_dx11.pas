@@ -39,7 +39,7 @@ type
 
     FSamplerMap: ISamplerMap;
 
-    FPrimTopology : TPrimitiveType;
+    FPrimTopology : TD3D11_PrimitiveTopology;
 
     function GetActiveProgram: IctxProgram;
     procedure SetActiveProgram(AValue: IctxProgram);
@@ -152,7 +152,8 @@ const
                                                                           {ptLines_Adj}         D3D11_PRIMITIVE_TOPOLOGY_LINELIST_ADJ,
                                                                           {ptLineStrip_Adj}     D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ,
                                                                           {ptTriangles_Adj}     D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ,
-                                                                          {ptTriangleStrip_Adj} D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ);
+                                                                          {ptTriangleStrip_Adj} D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ,
+                                                                          {ptPatches}           D3D11_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST);
 
 procedure Check3DError(hr: HRESULT);
 var s: string;
@@ -677,6 +678,8 @@ type
     FResUniforms: array of TUniformField_DX;
     FUniforms: IUniformMap;
 
+    FSelectedPathSize: Integer;
+
     function ObtainUniformField(const name: string; out WasCreated: Boolean): TUniformField_DX;
     procedure ClearUniformList;
     procedure ClearILList;
@@ -689,7 +692,7 @@ type
     destructor Destroy; override;
 
     procedure SyncCB;
-    procedure Select;
+    procedure Select(const APatchSize: Integer = 0);
     procedure Load(const AProgram: string; FromResource: Boolean = false);
 
     procedure SetAttributes(const AModel, AInstances : IctxVetexBuffer; const AModelIndices: IctxIndexBuffer; InstanceStepRate: Integer = 1);
@@ -1089,12 +1092,14 @@ begin
     FResUniforms[i].BindResource(FContext.FDeviceContext);
 end;
 
-procedure TProgram.Select;
+procedure TProgram.Select(const APatchSize: Integer);
 var st: TShaderType;
     i: Integer;
 begin
   FContext.FActiveProgram := Self;
   FContext.FDeviceContext.VSSetShader(ID3D11VertexShader(FShader[stVertex]), nil, 0);
+  FContext.FDeviceContext.HSSetShader(ID3D11HullShader(FShader[stTessControl]), nil, 0);
+  FContext.FDeviceContext.DSSetShader(ID3D11DomainShader(FShader[stTessEval]), nil, 0);
   FContext.FDeviceContext.GSSetShader(ID3D11GeometryShader(FShader[stGeometry]), nil, 0);
   FContext.FDeviceContext.PSSetShader(ID3D11PixelShader(FShader[stFragment]), nil, 0);
   for st := stVertex to stFragment do
@@ -1102,14 +1107,17 @@ begin
     begin
       FCB[st].SyncToGPU;
       case st of
-        stUnknown : ;
-        stVertex  : FContext.FDeviceContext.VSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
-        stGeometry: FContext.FDeviceContext.GSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
-        stFragment: FContext.FDeviceContext.PSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+        stVertex     : FContext.FDeviceContext.VSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+        stTessControl: FContext.FDeviceContext.HSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+        stTessEval   : FContext.FDeviceContext.DSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+        stGeometry   : FContext.FDeviceContext.GSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+        stFragment   : FContext.FDeviceContext.PSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
       end;
     end;
   for i := 0 to Length(FResUniforms) - 1 do
     FResUniforms[i].FResChanged := True;
+  if APatchSize > 0 then
+    FSelectedPathSize := APatchSize;
 end;
 
 procedure TProgram.Load(const AProgram: string; FromResource: Boolean);
@@ -1176,12 +1184,19 @@ procedure TProgram.Load(const AProgram: string; FromResource: Boolean);
       end;
     end;
 
+    function GetShaderTypeByChunk(const AChunkID: TFOURCC): TShaderType;
+    var i: TShaderType;
+    begin
+      for i := Low(TShaderType) to High(TShaderType) do
+        if AChunkID = ShaderType_FourCC[i] then Exit(i);
+      Result := stUnknown;
+    end;
+
 var stream: TStream;
     st: TShaderType;
 
-    vShader: ID3D11VertexShader;
-    gShader: ID3D11GeometryShader;
-    pShader: ID3D11PixelShader;
+    ShaderIntf: ID3D11DeviceChild;
+
     ChunkID: TFOURCC;
     ChunkSize: Cardinal;
     NewPos, NewPos2 : Int64;
@@ -1208,97 +1223,39 @@ begin
       NewPos := stream.Position + ChunkSize;
 
       try
-        if ChunkID = ShaderType_FourCC[stVertex] then
+        st := GetShaderTypeByChunk(ChunkID);
+        if st = stUnknown then Continue;
+
+        for i := 0 to 1 do
         begin
-          for i := 0 to 1 do
-          begin
-            stream.ReadBuffer(ChunkID, SizeOf(ChunkID));
-            stream.ReadBuffer(ChunkSize, SizeOf(ChunkSize));
-            NewPos2 := stream.Position + ChunkSize;
-            try
-              if ChunkID = MakeFourCC('C','O','D','E') then
-              begin
-                ReadCodeData(stream, FData[stVertex]);
-                Check3DError(FContext.FDevice.CreateVertexShader(@FData[stVertex][0], Length(FData[stVertex]), nil, vShader));
-                FShader[stVertex] := vShader;
-                Continue;
+          stream.ReadBuffer(ChunkID, SizeOf(ChunkID));
+          stream.ReadBuffer(ChunkSize, SizeOf(ChunkSize));
+          NewPos2 := stream.Position + ChunkSize;
+          try
+            if ChunkID = MakeFourCC('C','O','D','E') then
+            begin
+              ReadCodeData(stream, FData[st]);
+              case st of
+                stVertex     : Check3DError(FContext.FDevice.CreateVertexShader  (@FData[st][0], Length(FData[st]), nil, ID3D11VertexShader  (ShaderIntf)));
+                stTessControl: Check3DError(FContext.FDevice.CreateHullShader    (@FData[st][0], Length(FData[st]), nil, ID3D11HullShader    (ShaderIntf)));
+                stTessEval   : Check3DError(FContext.FDevice.CreateDomainShader  (@FData[st][0], Length(FData[st]), nil, ID3D11DomainShader  (ShaderIntf)));
+                stGeometry   : Check3DError(FContext.FDevice.CreateGeometryShader(@FData[st][0], Length(FData[st]), nil, ID3D11GeometryShader(ShaderIntf)));
+                stFragment   : Check3DError(FContext.FDevice.CreatePixelShader   (@FData[st][0], Length(FData[st]), nil, ID3D11PixelShader   (ShaderIntf)));
               end;
-
-              if ChunkID = MakeFourCC('U','B','L','K') then
-              begin
-                FCB[stVertex] := ReadUniformChunk(stream, stVertex);
-                Continue;
-              end;
-
-              Assert(False, 'Only 2 type of chunk availble');
-            finally
-              stream.Position := NewPos2;
+              FShader[st] := ShaderIntf;
+              Continue;
             end;
-          end;
 
-          Continue;
-        end;
-
-        If ChunkID = ShaderType_FourCC[stGeometry] then
-        begin
-          for i := 0 to 1 do
-          begin
-            stream.ReadBuffer(ChunkID, SizeOf(ChunkID));
-            stream.ReadBuffer(ChunkSize, SizeOf(ChunkSize));
-            NewPos2 := stream.Position + ChunkSize;
-            try
-              if ChunkID = MakeFourCC('C','O','D','E') then
-              begin
-                ReadCodeData(stream, FData[stGeometry]);
-                Check3DError(FContext.FDevice.CreateGeometryShader(@FData[stGeometry][0], Length(FData[stGeometry]), nil, gShader));
-                FShader[stGeometry] := gShader;
-                Continue;
-              end;
-
-              if ChunkID = MakeFourCC('U','B','L','K') then
-              begin
-                FCB[stGeometry] := ReadUniformChunk(stream, stGeometry);
-                Continue;
-              end;
-
-              Assert(False, 'Only 2 type of chunk availble');
-            finally
-              stream.Position := NewPos2;
+            if ChunkID = MakeFourCC('U','B','L','K') then
+            begin
+              FCB[st] := ReadUniformChunk(stream, st);
+              Continue;
             end;
+
+            Assert(False, 'Only 2 type of chunk availble');
+          finally
+            stream.Position := NewPos2;
           end;
-
-          Continue;
-        end;
-
-        if ChunkID = ShaderType_FourCC[stFragment] then
-        begin
-          for i := 0 to 1 do
-          begin
-            stream.ReadBuffer(ChunkID, SizeOf(ChunkID));
-            stream.ReadBuffer(ChunkSize, SizeOf(ChunkSize));
-            NewPos2 := stream.Position + ChunkSize;
-            try
-              if ChunkID = MakeFourCC('C','O','D','E') then
-              begin
-                ReadCodeData(stream, FData[stFragment]);
-                Check3DError(FContext.FDevice.CreatePixelShader(@FData[stFragment][0], Length(FData[stFragment]), nil, pShader));
-                FShader[stFragment] := pShader;
-                Continue;
-              end;
-
-              if ChunkID = MakeFourCC('U','B','L','K') then
-              begin
-                FCB[stFragment] := ReadUniformChunk(stream, stFragment);
-                Continue;
-              end;
-
-              Assert(False, 'Only 2 type of chunk availble');
-            finally
-              stream.Position := NewPos2;
-            end;
-          end;
-
-          Continue;
         end;
 
       finally
@@ -1459,14 +1416,20 @@ end;
 procedure TProgram.Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode;
   IndexedGeometry: Boolean; InstanceCount: Integer; Start: integer;
   Count: integer; BaseVertex: integer; BaseInstance: Integer);
+var newTopology: TD3D11_PrimitiveTopology;
 begin
   SyncCB;
   FContext.States.CullMode := CullMode;
 
   FContext.UpdateStates;
-  if FContext.FPrimTopology <> PrimTopology then
-      FContext.FDeviceContext.IASetPrimitiveTopology(DXPrimitiveType[PrimTopology]);
-  FContext.FPrimTopology := PrimTopology;
+  newTopology := DXPrimitiveType[PrimTopology];
+  if newTopology = D3D11_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST then
+    newTopology := TD3D11_PrimitiveTopology(Integer(newTopology) + FSelectedPathSize - 1);
+  if FContext.FPrimTopology <> newTopology then
+  begin
+      FContext.FDeviceContext.IASetPrimitiveTopology(newTopology);
+      FContext.FPrimTopology := newTopology;
+  end;
 
   if IndexedGeometry then
   begin
@@ -2537,7 +2500,7 @@ begin
   Check3DError(FDevice.CreateRenderTargetView(FBackBuffer, nil, FRenderTarget));
 
   FDeviceContext.OMSetRenderTargets(1, @FRenderTarget, nil);
-  FDeviceContext.IASetPrimitiveTopology(DXPrimitiveType[FPrimTopology]);
+  FDeviceContext.IASetPrimitiveTopology(FPrimTopology);
   ViewPort.TopLeftX := 0;
   ViewPort.TopLeftY := 0;
   ViewPort.Width := AWidth;
