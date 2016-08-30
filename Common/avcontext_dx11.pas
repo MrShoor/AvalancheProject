@@ -14,6 +14,7 @@ type
   ['{E8D0F003-32BD-4F7E-9336-5338770F193E}']
     function GetDevice: ID3D11Device;
     function GetDeviceContext: ID3D11DeviceContext;
+    function GetSwapChain: IDXGISwapChain;
   end;
 
   { TContext_DX11 }
@@ -50,6 +51,7 @@ type
   public
     function GetDevice: ID3D11Device;
     function GetDeviceContext: ID3D11DeviceContext;
+    function GetSwapChain: IDXGISwapChain;
 
     procedure UpdateStates;
 
@@ -2599,6 +2601,11 @@ end;
 function TContext_DX11.GetDeviceContext: ID3D11DeviceContext;
 begin
   Result := FDeviceContext;
+end;
+
+function TContext_DX11.GetSwapChain: IDXGISwapChain;
+begin
+  Result := FSwapChain;
 end;
 
 procedure TContext_DX11.UpdateStates;
