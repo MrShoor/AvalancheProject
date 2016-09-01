@@ -172,13 +172,13 @@ begin
       case CameraType of
         ctFirstPerson: begin
                          Main.Camera.BeginUpdate;
-                         Main.Camera.RotateEyeHorizontal(dpt.x*RotateSens.x);
+                         Main.Camera.RotateEyeHorizontal(-dpt.x*RotateSens.x);
                          Main.Camera.RotateEyeVertical(-dpt.y*RotateSens.y);
                          Main.Camera.EndUpdate;
                        end;
         ctThirdPerson: begin
                          Main.Camera.BeginUpdate;
-                         Main.Camera.RotateAtHorizontal(dpt.x*RotateSens.x);
+                         Main.Camera.RotateAtHorizontal(-dpt.x*RotateSens.x);
                          Main.Camera.RotateAtVertical(-dpt.y*RotateSens.y);
                          Main.Camera.EndUpdate;
                        end;

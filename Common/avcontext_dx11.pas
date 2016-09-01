@@ -77,6 +77,8 @@ type
     destructor Destroy; override;
   end;
 
+procedure Check3DError(hr: HRESULT);
+
 implementation
 
 uses Windows, Math, typinfo;
