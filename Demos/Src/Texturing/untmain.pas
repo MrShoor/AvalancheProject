@@ -162,7 +162,7 @@ begin
   FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
 
   FProgram := TavProgram.Create(FMain);
-  FProgram.LoadFromJSON('base', True);
+  FProgram.Load('base', True);
 
   FTexture := TavTexture.Create(FMain);
   FTexture.TargetFormat := TTextureFormat.RGBA;
