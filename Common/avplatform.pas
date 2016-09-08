@@ -30,7 +30,7 @@ procedure UnregisterHandler(Obj: TObject; Wnd: TWindow);
 implementation
 
 uses
-  avTypes, syncobjs;
+  avTypes;
 
 type
   TwndSubclassInfo = class
@@ -225,6 +225,7 @@ end;
 procedure GetRectOfWindow(Window: TWindow; out Left, Top, Right, Bottom: integer);
 var rct: TRect;
 begin
+  ZeroClear(rct, SizeOf(rct));
   GetClientRect(Window, rct);
   Left  :=rct.Left;
   Top   :=rct.Top;
@@ -235,6 +236,7 @@ end;
 function GetRectOfWindow(Window: TWindow): TRectI;
 var rct: TRect;
 begin
+  ZeroClear(rct, SizeOf(rct));
   GetClientRect(Window, rct);
   Result.Left  :=rct.Left;
   Result.Top   :=rct.Top;
@@ -269,6 +271,7 @@ begin
   Result.Y:=pt.Y;
   if not isAbsolute then exit;
 
+  ZeroClear(rct, SizeOf(rct));
   Windows.GetClientRect(Window, rct);
   Result.x:=(Result.x/(rct.Right - rct.Left) - 0.5)*2;
   Result.y:=-(Result.y/(rct.Bottom - rct.Top) - 0.5)*2;
@@ -277,6 +280,7 @@ end;
 function GetTime64: Int64;
 var currtime: Int64;
 begin
+  currtime := 0;
   QueryPerformanceCounter(currtime);
   Result := (1000 * (currtime - StartTime64)) div Freq;
 end;
@@ -284,6 +288,7 @@ end;
 function GetTime: Double;
 var currtime: Int64;
 begin
+  currtime := 0;
   QueryPerformanceCounter(currtime);
   Result := (currtime - StartTime64) / Freq;
 end;
@@ -309,7 +314,9 @@ begin
 
     sc := TwndSubclassInfo.Create;
     sc.handle := Wnd;
-    sc.PrevWndProc := TFNWndProc(SetWindowLongPtr(Wnd, GWLP_WNDPROC, LONG_PTR(@CommonWndProc)));;
+    {$HINTS OFF}
+    sc.PrevWndProc := TFNWndProc(SetWindowLongPtr(Wnd, GWLP_WNDPROC, LONG_PTR(@CommonWndProc)));
+    {$HINTS ON}
     sc.mains := TList.Create;
     sc.mains.Add(obj);
     lst.Add(sc);
@@ -338,7 +345,9 @@ begin
         if sc.mains.Count = 0 then
         begin
           sc.mains.Free;
+          {$HINTS OFF}
           SetWindowLongPtr(sc.handle, GWLP_WNDPROC, LONG_PTR(sc.PrevWndProc));
+          {$HINTS ON}
           sc.Free;
           lst.Delete(i);
         end;
@@ -376,6 +385,8 @@ begin
 end;
 
 initialization
+  StartTime64 := 0;
+  Freq := 0;
   QueryPerformanceCounter(StartTime64);
   QueryPerformanceFrequency(Freq);
   InitSubClassingList;

@@ -14827,7 +14827,9 @@ const
 function dglLoadLibrary(Name: PChar): Pointer;
 begin
   {$IFDEF DGL_WIN}
+  {$HINTS OFF}
   Result := Pointer(LoadLibrary(Name));
+  {$HINTS ON}
   {$ENDIF}
 
   {$IFDEF DGL_LINUX}
@@ -14850,7 +14852,9 @@ begin
     Result := False
   else
     {$IFDEF DGL_WIN}
+    {$HINTS OFF}
     Result := FreeLibrary(HMODULE(LibHandle));
+    {$HINTS ON}
     {$ENDIF}
 
     {$IFDEF DGL_LINUX}
@@ -14875,7 +14879,9 @@ begin
   Result :=  nil;
 
   {$IFDEF DGL_WIN}
+    {$HINTS OFF}
     Result := GetProcAddress(HMODULE(LibHandle), ProcName);
+    {$HINTS ON}
 
     if result <> nil then
       exit;
@@ -19047,7 +19053,7 @@ var
   Buffer: String;
   MajorVersion, MinorVersion: Integer;
 
-  procedure TrimAndSplitVersionString(Buffer: String; var Max, Min: Integer);
+  procedure TrimAndSplitVersionString(Buffer: String; out Max, Min: Integer);
     // Peels out the X.Y form from the given Buffer which must contain a version string like "text Minor.Major.Build text"
     // at least however "Major.Minor".
   var
@@ -19816,7 +19822,7 @@ begin
   if GL_LibHandle = nil then
     InitOpenGL;
 
-  FillChar(PFDescriptor, SizeOf(PFDescriptor), 0);
+  ZeroMemory(@PFDescriptor, SizeOf(PFDescriptor));
 
   with PFDescriptor do
   begin
@@ -19914,7 +19920,7 @@ begin
   if not Assigned(GL_LibHandle) then
   	raise Exception.Create('GL_LibHandle is NIL. Could not load OpenGL library!');
 
-  FillChar(PFDescriptor, SizeOf(PFDescriptor), 0);
+  ZeroMemory(@PFDescriptor, SizeOf(PFDescriptor));
 
   with PFDescriptor do
     begin

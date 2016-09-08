@@ -75,6 +75,8 @@
 
 {$IFDEF FPC}
   {$MODE OBJFPC}{$H+}
+  {$HINTS OFF} //temporary workaround
+  {$WARNINGS OFF} //temporary workaround
 {$ENDIF}
 
 {$DEFINE SUPER_METHOD}

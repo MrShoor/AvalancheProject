@@ -4,8 +4,7 @@ unit avBase;
 interface
 
 uses
-  Classes, SysUtils, intfUtils,
-  avContnrs;
+  Classes, SysUtils, intfUtils;
 
 type
   EavError = class (EAbort);

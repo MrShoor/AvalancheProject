@@ -11,13 +11,15 @@ OW = 3
 MaxWeightsCount = 4;
 
 #outfilename = 'E:\\Projects\\AvalancheProject\\avm_export\\test.txt'
-outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Media\\WhipperNude\\WhipperNude.avm'
+#outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Media\\WhipperNude\\WhipperNude.avm'
 #outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Media\\NewI\\mesh.avm'
+outfilename = 'D:\\Character\\Out\\char.avm'
 #outfilename = 'C:\\MyProj\\AvalancheProject\\Demos\\Src\\avm_Import\\test.txt'
         
 def Export(WFloat, WInt, WStr, WBool):
     poseBoneIndices = {}
     imgToCopy = {}
+    meshToVertexGroup = {}
     
     def GetPoseBoneIndex(arm, boneName):
         boneDic = poseBoneIndices.get(arm, None)
@@ -121,7 +123,15 @@ def Export(WFloat, WInt, WStr, WBool):
             WFloat(specularPower)
             WStr(diffuseMap)
             WStr(normalMap)
-
+            
+        #write vertex groups
+        vg = meshToVertexGroup[mesh]
+        if (not vg is None):
+            WInt(len(vg))
+            for g in vg:
+                WStr(g.name)
+        else:
+            WInt(0);
         #write vertices data
         WInt(len(mesh.vertices))
         for v in mesh.vertices:
@@ -171,9 +181,6 @@ def Export(WFloat, WInt, WStr, WBool):
             WStr(obj.parent.name)
         WriteMatrix(obj.matrix_local)
         WStr(obj.data.name)
-        WInt(len(obj.vertex_groups))
-        for vg in obj.vertex_groups:
-            WStr(vg.name)
     
     def GetPoseBoneAbsTransform(bone):
         #return bone.id_data.matrix_world*bone.matrix_channel*bone.id_data.matrix_world.inverted()
@@ -248,16 +255,20 @@ def Export(WFloat, WInt, WStr, WBool):
                 obj.animation_data.action = oldAction
 
     armatures = [a for a in bpy.data.objects if (a.type=='ARMATURE') and (len(a.users_scene)>0)]
+    meshes = bpy.data.meshes
+    inst = [m for m in bpy.data.objects if (m.type=='MESH') and (len(m.users_scene)>0)]    
+    #init vertex groups for meshes
+    for obj in inst:
+        meshToVertexGroup[obj.data] = obj.vertex_groups
+    
     WInt(len(armatures))
     for a in armatures:
         WriteArmature(a)
 
-    meshes = bpy.data.meshes
     WInt(len(meshes))
     for m in meshes:
         WriteMesh(m);
-        
-    inst = [m for m in bpy.data.objects if (m.type=='MESH') and (len(m.users_scene)>0)]    
+
     WInt(len(inst))
     for obj in inst:
         WriteMeshInstance(obj)
@@ -313,5 +324,5 @@ def ExportToConsole():
     print('---------')
     Export(WFloat, WInt, WStr, WBool)
             
-#ExportToFile(outfilename)
+ExportToFile(outfilename)
 #ExportToConsole()

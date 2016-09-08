@@ -77,6 +77,7 @@ type
   TByteArr = array of Byte;
   TIntArr = array of Integer;
   TWordArr = array of Word;
+  TStringArr = array of String;
 
   T3DAPI = (apiOGL, apiDX11);
 const

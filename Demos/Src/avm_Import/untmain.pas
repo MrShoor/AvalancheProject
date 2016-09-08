@@ -15,7 +15,7 @@ uses
   Vcl.AppEvnts,
   {$EndIf}
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, StdCtrls, avRes, avTypes, mutils, avCameraController, avModel;
+  ExtCtrls, StdCtrls, avRes, avTypes, mutils, avCameraController, avModel, avMesh;
 
 const ObjInd = 0;
 
@@ -77,7 +77,8 @@ type
 
     FProg: TavProgram;
 
-    FInstances: IModelInstanceArr;
+    FInstances: IavModelInstanceArr;
+    FAnimC: IavAnimationController;
 
     procedure LoadModels(const AFileName: string);
   end;
@@ -150,7 +151,7 @@ begin
   FModels := TavModelCollection.Create(FMain);
 
   FProg := TavProgram.Create(FMain);
-  FProg.LoadFromJSON('avMesh', True);
+  FProg.Load('avMesh', True);
 
   with TavCameraController.Create(FMain) do
   begin
@@ -159,7 +160,8 @@ begin
     MovePlane := Plane(0,0,1,0);
   end;
 
-  LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\WhipperNude\WhipperNude.avm');
+  LoadModels('D:\Character\Out\char.avm');
+//  LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\WhipperNude\WhipperNude.avm');
 //  LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\NewI\mesh.avm');
 end;
 
@@ -209,32 +211,32 @@ begin
 end;
 
 procedure TfrmMain.RenderScene;
-  function GetVisibleInstances(const AllInstances: IModelInstanceArr): IModelInstanceArr;
+  function GetVisibleInstances(const AllInstances: IavModelInstanceArr): IavModelInstanceArr;
   var i: Integer;
   begin
     if AllInstances = nil then Exit;
-    Result := TModelInstanceArr.Create();
+    Result := TavModelInstanceArr.Create();
     for i := 0 to min(AllInstances.Count, lbNames.Count) - 1 do
       if lbNames.Selected[i] then
         Result.Add(AllInstances[i]);
   end;
-  procedure SyncAnimations(const Instances: IModelInstanceArr);
-  var i, j: Integer;
-  begin
-    if Instances = nil then Exit;
-    for i := 0 to Instances.Count - 1 do
-    begin
-      for j := 0 to lbAnimations.Count - 1 do
-      begin
-        if lbAnimations.Selected[j] then
-          Instances[i].AnimationStart(lbAnimations.Items[j])
-        else
-          Instances[i].AnimationStop(lbAnimations.Items[j]);
-      end;
-    end;
-  end;
+  //procedure SyncAnimations(const Instances: IavModelInstanceArr);
+  //var i, j: Integer;
+  //begin
+  //  if Instances = nil then Exit;
+  //  for i := 0 to Instances.Count - 1 do
+  //  begin
+  //    for j := 0 to lbAnimations.Count - 1 do
+  //    begin
+  //      if lbAnimations.Selected[j] then
+  //        Instances[i].AnimationStart(lbAnimations.Items[j])
+  //      else
+  //        Instances[i].AnimationStop(lbAnimations.Items[j]);
+  //    end;
+  //  end;
+  //end;
 
-var visInst: IModelInstanceArr;
+var visInst: IavModelInstanceArr;
 begin
   Sync3DApi;
 
@@ -243,7 +245,7 @@ begin
 
   if FMain.Bind then
   try
-    SyncAnimations(FInstances);
+    //SyncAnimations(FInstances);
     visInst := GetVisibleInstances(FInstances);
 
     FMain.States.DepthTest := True;
@@ -284,9 +286,14 @@ procedure TfrmMain.LoadModels(const AFileName: string);
 var newInst: IavModelInstance;
     animations: TStringList;
     i: Integer;
+
+    meshes: IavMeshes;
+    meshInstances: IavMeshInstances;
 begin
-  FModels.AddFromFile(AFileName);
-  FInstances := TModelInstanceArr.Create;
+  avMesh.LoadFromFile(AFileName, meshes, meshInstances);
+
+  FModels.AddFromMeshInstances(meshInstances);
+  FInstances := TavModelInstanceArr.Create;
   lbNames.Clear;
   lbAnimations.Clear;
 
@@ -300,8 +307,8 @@ begin
     begin
       FInstances.Add(newInst);
       lbNames.Items.Add(newInst.Name);
-      for i := 0 to newInst.AnimationCount - 1 do
-        animations.Add(newInst.AnimationName(i));
+      //for i := 0 to newInst.AnimationCount - 1 do
+      //  animations.Add(newInst.AnimationName(i));
     end;
     lbNames.SelectAll;
 
