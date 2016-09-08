@@ -26,7 +26,7 @@
             <Filename Value="..\..\Bin\Instancing"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir)"/>
+            <IncludeFiles Value="$(ProjOutDir);..\..\..\Utils"/>
             <OtherUnitFiles Value="..\Common"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -70,7 +70,7 @@
             <Filename Value="..\..\Bin\Instancing"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir)"/>
+            <IncludeFiles Value="$(ProjOutDir);..\..\..\Utils"/>
             <OtherUnitFiles Value="..\Common"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -118,7 +118,7 @@
         <PackageName Value="LCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="4">
+    <Units Count="5">
       <Unit0>
         <Filename Value="Instancing.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -139,6 +139,10 @@
         <Filename Value="..\Common\contextswitcher.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit3>
+      <Unit4>
+        <Filename Value="..\..\..\Utils\avConfig.inc"/>
+        <IsPartOfProject Value="True"/>
+      </Unit4>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -148,7 +152,7 @@
       <Filename Value="..\..\Bin\Instancing"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir)"/>
+      <IncludeFiles Value="$(ProjOutDir);..\..\..\Utils"/>
       <OtherUnitFiles Value="..\Common"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>

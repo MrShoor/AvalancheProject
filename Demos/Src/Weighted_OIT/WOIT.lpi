@@ -26,7 +26,7 @@
             <Filename Value="..\..\Bin\WOIT"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir)"/>
+            <IncludeFiles Value="$(ProjOutDir);..\..\..\Utils"/>
             <OtherUnitFiles Value="..\Common"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -70,7 +70,7 @@
             <Filename Value="..\..\Bin\WOIT"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir)"/>
+            <IncludeFiles Value="$(ProjOutDir);..\..\..\Utils"/>
             <OtherUnitFiles Value="..\Common"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -121,7 +121,7 @@
         <PackageName Value="LCL"/>
       </Item4>
     </RequiredPackages>
-    <Units Count="4">
+    <Units Count="5">
       <Unit0>
         <Filename Value="WOIT.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -143,6 +143,10 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="ContextSwitcher"/>
       </Unit3>
+      <Unit4>
+        <Filename Value="..\..\..\Utils\avConfig.inc"/>
+        <IsPartOfProject Value="True"/>
+      </Unit4>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -152,7 +156,7 @@
       <Filename Value="..\..\Bin\WOIT"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir)"/>
+      <IncludeFiles Value="$(ProjOutDir);..\..\..\Utils"/>
       <OtherUnitFiles Value="..\Common"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>

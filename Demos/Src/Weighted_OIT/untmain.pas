@@ -253,11 +253,11 @@ begin
   FWOIT_FrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA16f, TTextureFormat.R16f]);
 
   FClassic_Program := TavProgram.Create(FMain);
-  FClassic_Program.LoadFromJSON('Classic', True);
+  FClassic_Program.Load('Classic', True);
   FWOIT_AccumProgram := TavProgram.Create(FMain);
-  FWOIT_AccumProgram.LoadFromJSON('WOIT_Accum', True);
+  FWOIT_AccumProgram.Load('WOIT_Accum', True);
   FWOIT_ResolveProgram := TavProgram.Create(FMain);
-  FWOIT_ResolveProgram.LoadFromJSON('WOIT_Resolve', True);
+  FWOIT_ResolveProgram.Load('WOIT_Resolve', True);
 
   GenCube(H, H, H, 0, 0, vert, ind);
 

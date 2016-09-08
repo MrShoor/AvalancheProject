@@ -91,7 +91,7 @@ begin
   FFrame := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
 
   FTessProg := TavProgram.Create(FMain);
-  FTessProg.LoadFromJSON('Classic', True);
+  FTessProg.Load('Classic', True);
 
   FMesh := TavVB.Create(FMain);
   FMesh.Vertices := GetTriangleBuffer;
