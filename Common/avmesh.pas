@@ -54,6 +54,7 @@ type
     Frame : Single;
     Weight: Single;
   end;
+  TMeshAnimationStateArr = array of TMeshAnimationState;
 
   { IavMesh }
 
@@ -86,19 +87,12 @@ type
 
   IavPose = interface
     function Armature : IavArmature;
-    function Instance : IavMeshInstance;
-
-    function GetTransform: TMat4;
-    procedure SetTransform(const Value: TMat4);
 
     procedure SetAnimationState(const AnimState: array of TMeshAnimationState);
 
-    procedure BumpPoseID;
-    function  PoseID   : Int64;
-    function  LocalPose: TMat4Arr;
+    procedure BumpPoseStateID;
+    function  PoseStateID : Int64;
     function  AbsPose: TMat4Arr;
-
-    property  Transfrom: TMat4 read GetTransform write SetTransform;
   end;
 
   { IavMeshInstance }
@@ -125,7 +119,9 @@ type
     procedure AddChild(const AChild: IavMeshInstance);
     function IndexOf(const AChild: IavMeshInstance): Integer;
 
+    function PoseStateID: Int64;
     property Pose: IavPose read GetPose write SetPose;
+    function PoseArray: TMat4Arr;
 
     function Clone(const NewInstanceName: string): IavMeshInstance;
   end;
@@ -155,6 +151,7 @@ type
 
     function AbsTransform: TMat4;
   end;
+  TavBoneArr = array of IavBone;
 
   { IavAnimation }
 
@@ -190,6 +187,7 @@ type
 
     property BonesCount: Integer read GetBonesCount;
     property Bone[index: Integer]: IavBone read GetBone;
+    function RootBones: TavBoneArr;
 
     property AnimCount: Integer read GetAnimCount;
     property Anim[index: Integer]: IavAnimation read GetAnim;
@@ -204,9 +202,11 @@ type
   { IavAnimationController }
 
   IavAnimationController = interface
-    function GetArmature: IavArmature;
-    procedure SetArmature(const AValue: IavArmature);
-    property Armature: IavArmature read GetArmature write SetArmature;
+    function GetPose: IavPose;
+    procedure SetPose(const AValue: IavPose);
+    property Pose: IavPose read GetPose write SetPose;
+
+    function AnimationState: TMeshAnimationStateArr;
 
     procedure SetTime(const ATime: Int64);
     procedure AnimationStartStop(const AAnimationName: string; DoStart: Boolean; GrowSpeed: Single = Default_GrowSpeed);
@@ -221,7 +221,7 @@ type
 procedure LoadFromStream(const stream: TStream; out meshes: IavMeshes; out meshInst: IavMeshInstances; TexManager: ITextureManager = Nil);
 procedure LoadFromFile(const FileName: string; out meshes: IavMeshes; out meshInst: IavMeshInstances; const TexManager: ITextureManager = Nil);
 
-function Create_IavAnimationController(const AArmature: IavArmature; const ATime: Int64): IavAnimationController;
+function Create_IavAnimationController(const APose: IavPose; const ATime: Int64): IavAnimationController;
 
 implementation
 
@@ -294,7 +294,7 @@ type
   end;
 
   IavPoseInternal = interface (IavPose)
-    function CloneTo(const ANewInstance: IavMeshInstance): IavPose;
+    function Clone(): IavPose;
   end;
 
   { TavBone }
@@ -335,7 +335,6 @@ type
 
   TavArmature = class (TWeakedInterfacedObject, IavArmature, IavArmatureInternal)
   private type
-    TavBoneArr = array of IavBone;
     IBoneHash = {$IfDef FPC}specialize{$EndIf} IHashMap<string, Integer>;
     TBoneHash = {$IfDef FPC}specialize{$EndIf} THashMap<string, Integer>;
   private
@@ -352,13 +351,10 @@ type
     function GetBonesCount: Integer;
     function GetName: string;
     procedure SetName(const AValue: String);
-
-    function GetRootBones: TavBoneArr;
-
-    property RootBones: TavBoneArr read GetRootBones;
   public
     property BonesCount: Integer read GetBonesCount;
     property Bone[index: Integer]: IavBone read GetBone;
+    function RootBones: TavBoneArr;
 
     property AnimCount: Integer read GetAnimCount;
     property Anim[index: Integer]: IavAnimation read GetAnim;
@@ -380,35 +376,20 @@ type
   TavPose = class (TInterfacedObjectEx, IavPose, IavPoseInternal)
   private
     FArmature : IavArmature;
-    FInst     : IWeakRefIntf;//IavMeshInstance;
 
-    FRootBones: array of IavBone;
-
-    FBonePreTransform: TMat4;
-    FBoneRemap: TIntArr;
-    FTransform: TMat4;
-
-    FLocalPose: TMat4Arr;
-
-    FAbsPoseValid: Boolean;
-    FAbsPose  : TMat4Arr;
-    FPoseID   : Int64;
+    FBoneTransform: TMat4Arr;
+    FPoseStateID   : Int64;
 
     function Armature : IavArmature;
-    function Instance : IavMeshInstance;
-
-    function GetTransform: TMat4;
-    procedure SetTransform(const Value: TMat4);
 
     procedure SetAnimationState(const AnimState: array of TMeshAnimationState);
 
-    procedure BumpPoseID;
-    function  PoseID   : Int64;
-    function  LocalPose: TMat4Arr;
-    function  AbsPose  : TMat4Arr;
+    procedure BumpPoseStateID;
+    function  PoseStateID : Int64;
+    function  AbsPose     : TMat4Arr;
   public
-    constructor Create(const AInst: IavMeshInstance; const AArmature: IavArmature; const APreTransform: TMat4);
-    function CloneTo(const ANewInstance: IavMeshInstance): IavPose;
+    constructor Create(const AArmature: IavArmature);
+    function Clone(): IavPose;
   end;
 
   { TavMesh }
@@ -462,7 +443,19 @@ type
     FMesh: IavMesh;
     FChilds: IChildList;
     FName: string;
-    FPose   : IavPose;
+
+    FTransform: TMat4;
+    FPoseArray: TMat4Arr;
+    FPoseStateID : Int64;
+
+    FPose : IavPose;
+    FSavedPoseStateID: Int64;
+    FBoneRemap: TIntArr;
+    FBonePreTransform: TMat4;
+
+    procedure BumpPoseStateID;
+    function PoseStateID: Int64;
+    function PoseArray: TMat4Arr;
   public
     function GetChild(const AIndex: Integer): IavMeshInstance;
     function GetMesh: IavMesh;
@@ -548,17 +541,19 @@ type
       procedure Calc(const ATime: Int64; out AFrame: Single; out AWeight: Single; out AComplete: Boolean);
     end;
   private
-    FArmature: IWeakRefIntf;//IWeakRefIntf;// ref to IavArmature;
+    FPose: IavPose;
 
     FTime : Int64;
-    FAnimationStates   : array of TMeshAnimationState;
+    FAnimationStates   : TMeshAnimationStateArr;
     FAnimationPlayState: array of TAnimationPlayState;
 
     procedure UpdateAnimationState;
   private
-    function GetArmature: IavArmature;
-    procedure SetArmature(const AValue: IavArmature);
-    property Armature: IavArmature read GetArmature write SetArmature;
+    function GetPose: IavPose;
+    procedure SetPose(const AValue: IavPose);
+    property Pose: IavPose read GetPose write SetPose;
+
+    function AnimationState: TMeshAnimationStateArr;
 
     procedure SetTime(const ATime: Int64);
     procedure AnimationStartStop(const AAnimationName: string; DoStart: Boolean; GrowSpeed: Single = Default_GrowSpeed);
@@ -593,11 +588,14 @@ const
 
 procedure LoadFromStream(const stream: TStream; out meshes: IavMeshes; out meshInst: IavMeshInstances; TexManager: ITextureManager);
 type
+  IavPoses = {$IfDef FPC}specialize{$EndIf} IHashMap<string, IavPose>; //armatureName -> pose
+  TavPoses = {$IfDef FPC}specialize{$EndIf} THashMap<string, IavPose>; //armatureName -> pose
+
   TMeshInstInfo = packed record
     Inst: IavMeshInstanceInternal;
     Parent: string;
     Mesh: string;
-    Transform: TMat4;
+    //Transform: TMat4;
   end;
 
   procedure LoadMeshFromStream(const stream: TStream; out mesh: IavMeshInternal);
@@ -756,7 +754,7 @@ type
     StreamReadString(stream, s);
     instInfo.Parent := s;
     stream.ReadBuffer(m, SizeOf(m));
-    instInfo.Transform := m;
+    instInfo.Inst.Transform := m;
     StreamReadString(stream, s);
     instInfo.Mesh := s;
   end;
@@ -860,6 +858,8 @@ type
 var i, n: Integer;
 
     armatures: IavArmatures;
+    poses: IavPoses;
+    pose: IavPose;
 
     arm: IavArmatureInternal;
     mesh: IavMeshInternal;
@@ -871,6 +871,7 @@ begin
   n := 0;
 
   armatures := TavArmatures.Create;
+  poses := TavPoses.Create();
   stream.ReadBuffer(n, SizeOf(n));
   for i := 0 to n - 1 do
   begin
@@ -908,14 +909,16 @@ begin
         inst.AddChild(instArr[i].Inst)
       else
         if armatures.TryGetValue(instArr[i].Parent, IavArmature(arm)) then
-          instArr[i].Inst.SetPose(TavPose.Create(instArr[i].Inst, arm, instArr[i].Transform))
+        begin
+          if not poses.TryGetValue(instArr[i].Parent, pose) then
+          begin
+            pose := TavPose.Create(arm);
+            poses.Add(instArr[i].Parent, pose);
+          end;
+          instArr[i].Inst.SetPose(pose)
+        end
         else
           Assert(False, 'Parent "'+instArr[i].Parent+'" not found for object "'+instArr[i].Inst.Name+'"');
-      if instArr[i].Inst.Pose = nil then
-      begin
-        instArr[i].Inst.Pose := TavPose.Create(instArr[i].Inst, nil, IdentityMat4);
-        instArr[i].Inst.Transform := instArr[i].Transform;
-      end;
     end;
   end;
 end;
@@ -936,10 +939,11 @@ begin
   end;
 end;
 
-function Create_IavAnimationController(const AArmature: IavArmature; const ATime: Int64): IavAnimationController;
+function Create_IavAnimationController(const APose: IavPose; const ATime: Int64
+  ): IavAnimationController;
 begin
   Result := TavAnimationController.Create;
-  Result.Armature := AArmature;
+  Result.Pose := APose;
   Result.SetTime(ATime);
 end;
 
@@ -948,26 +952,6 @@ end;
 function TavPose.Armature: IavArmature;
 begin
   Result := FArmature;
-end;
-
-function TavPose.Instance: IavMeshInstance;
-begin
-  Result := nil;
-  if FInst <> nil then
-    Result := IavMeshInstance(FInst.Intf);
-end;
-
-function TavPose.GetTransform: TMat4;
-begin
-  Result := FTransform;
-end;
-
-procedure TavPose.SetTransform(const Value: TMat4);
-begin
-  if FTransform = Value then Exit;
-  FTransform := Value;
-  FAbsPoseValid := False;
-  Inc(FPoseID);
 end;
 
 procedure TavPose.SetAnimationState(const AnimState: array of TMeshAnimationState);
@@ -983,7 +967,7 @@ var ArmBoneCnt: Integer;
     m: TMat4;
 
     boneWeight: TSingleArr;
-    boneTransform: TMat4Arr;
+    rootBones : TavBoneArr;
 
     currAnim: IavAnimation;
     w: Single;
@@ -993,11 +977,11 @@ begin
 
   SetLength(boneWeight, ArmBoneCnt);
   ZeroClear(boneWeight[0], Length(boneWeight)*SizeOf(boneWeight[0]));
-  SetLength(boneTransform, ArmBoneCnt);
-  ZeroClear(boneTransform[0], Length(boneTransform)*SizeOf(boneTransform[0]));
+  SetLength(FBoneTransform, ArmBoneCnt);
+  ZeroClear(FBoneTransform[0], Length(FBoneTransform)*SizeOf(FBoneTransform[0]));
 
   for i := 0 to ArmBoneCnt - 1 do
-    boneTransform[i] := FArmature.Bone[i].Transform;
+    FBoneTransform[i] := FArmature.Bone[i].Transform;
 
   for i := 0 to Length(AnimState) - 1 do
   begin
@@ -1010,114 +994,54 @@ begin
       currAnim.GetBoneTransform(j, AnimState[i].Frame, BoneInd, m);
 
       if boneWeight[BoneInd] = 0 then
-        boneTransform[BoneInd] := m*w
+        FBoneTransform[BoneInd] := m*w
       else
-        boneTransform[BoneInd] := boneTransform[BoneInd] + m*w;
+        FBoneTransform[BoneInd] := FBoneTransform[BoneInd] + m*w;
 
       boneWeight[BoneInd] := boneWeight[BoneInd] + w;
     end;
   end;
 
-  for i := 0 to Length(boneTransform) - 1 do
+  for i := 0 to Length(FBoneTransform) - 1 do
     if (boneWeight[i] > 0.001) then
-      boneTransform[i] := boneTransform[i] * (1 / boneWeight[i]);
+      FBoneTransform[i] := FBoneTransform[i] * (1 / boneWeight[i]);
 
-  for i := 0 to Length(FRootBones) - 1 do
-    FillBoneData_Recursive(boneTransform, boneTransform, FRootBones[i], FBonePreTransform);
+  rootBones := FArmature.RootBones;
+  for i := 0 to Length(rootBones) - 1 do
+    FillBoneData_Recursive(FBoneTransform, FBoneTransform, rootBones[i], IdentityMat4);
 
-  for i := 0 to Length(FLocalPose) - 1 do
-  begin
-    j := FBoneRemap[i];
-    if j < 0 then
-      FLocalPose[i] := FBonePreTransform
-    else
-      FLocalPose[i] := boneTransform[j];
-  end;
-
-  Inc(FPoseID);
-{
-  if Length(Matrices) <> Length(boneTransform) then
-    SetLength(Matrices, Length(boneTransform));
-
-  for i := 0 to Length(Matrices) - 1 do
-    Matrices[i] := Matrices[i]*MeshTransform;
-}
+  BumpPoseStateID;
 end;
 
-procedure TavPose.BumpPoseID;
+procedure TavPose.BumpPoseStateID;
 begin
-  Inc(FPoseID);
+  Inc(FPoseStateID);
 end;
 
-function TavPose.PoseID: Int64;
+function TavPose.PoseStateID: Int64;
 begin
-  Result := FPoseID;
-end;
-
-function TavPose.LocalPose: TMat4Arr;
-begin
-  Result := FLocalPose;
+  Result := FPoseStateID;
 end;
 
 function TavPose.AbsPose: TMat4Arr;
-var
-  i: Integer;
 begin
-  if not FAbsPoseValid then
-  begin
-    FAbsPoseValid := True;
-    for i := 0 to Length(FAbsPose) - 1 do
-      FAbsPose[i] := FLocalPose[i] * FTransform;
-  end;
-  Result := FAbsPose;
+  Result := FBoneTransform;
 end;
 
-constructor TavPose.Create(const AInst: IavMeshInstance; const AArmature: IavArmature; const APreTransform: TMat4);
-var
-  i: Integer;
+constructor TavPose.Create(const AArmature: IavArmature);
 begin
   FArmature := AArmature;
-  FInst := AInst.WeakRef;
-  FTransform := IdentityMat4;
-
-  FBonePreTransform := APreTransform;
-  if Assigned(FArmature) then
-  begin
-    SetLength(FBoneRemap, AInst.Mesh.BonesCount);
-    for i := 0 to AInst.Mesh.BonesCount - 1 do
-      FBoneRemap[i] := FArmature.IndexOfBone(AInst.Mesh.GetBoneName(i));
-
-    for i := 0 to FArmature.BonesCount - 1 do
-      if FArmature.Bone[i].Parent = nil then
-      begin
-        SetLength(FRootBones, Length(FRootBones)+1);
-        FRootBones[High(FRootBones)] := FArmature.Bone[i];
-      end;
-  end;
-
-  SetLength(FLocalPose, Max(1, Length(FBoneRemap)));
-  SetLength(FAbsPose, Length(FLocalPose));
-  for i := 0 to Length(FLocalPose) - 1 do
-  begin
-    FLocalPose[i] := FBonePreTransform;
-    FAbsPose[i] := FTransform;
-  end;
 end;
 
-function TavPose.CloneTo(const ANewInstance: IavMeshInstance): IavPose;
+function TavPose.Clone(): IavPose;
 var pObj: TavPose;
     pIntf: IavPose;
 begin
-  pObj := TavPose.Create(ANewInstance, FArmature, FBonePreTransform);
+  pObj := TavPose.Create(FArmature);
   pIntf := pObj;
 
-  pObj.FRootBones := FRootBones;
-  pObj.FBoneRemap := FBoneRemap;
-  pObj.FTransform := FTransform;
-  pObj.FLocalPose := Copy(FLocalPose, 1, Length(FLocalPose));
-  pObj.FAbsPoseValid := FAbsPoseValid;
-  pObj.FAbsPose := Copy(FAbsPose, 1, Length(FLocalPose));
-  pObj.FPoseID := 0;
+  pObj.FBoneTransform := Copy(FBoneTransform, 1, Length(FBoneTransform));
+  pObj.FPoseStateID := 0;
 end;
 
 { TavAnimationController.TAnimationPlayState }
@@ -1189,21 +1113,22 @@ begin
   end;
 end;
 
-function TavAnimationController.GetArmature: IavArmature;
+function TavAnimationController.GetPose: IavPose;
 begin
-  Result := nil;
-  if FArmature = nil then Exit;
-  Result := IavArmature(FArmature.Intf);
+  Result := FPose;
 end;
 
-procedure TavAnimationController.SetArmature(const AValue: IavArmature);
-var newRef: IWeakRefIntf;
+procedure TavAnimationController.SetPose(const AValue: IavPose);
 begin
-  newRef := AValue.WeakRef;
-  if FArmature = newRef then Exit;
-  FArmature := newRef;
+  if FPose = AValue then Exit;
+  FPose := AValue;
   FAnimationStates   := nil;
   FAnimationPlayState:= nil;
+end;
+
+function TavAnimationController.AnimationState: TMeshAnimationStateArr;
+begin
+  Result := FAnimationStates;
 end;
 
 procedure TavAnimationController.SetTime(const ATime: Int64);
@@ -1211,6 +1136,7 @@ begin
   if FTime = ATime then Exit;
   FTime := ATime;
   UpdateAnimationState;
+  FPose.SetAnimationState(FAnimationStates);
 end;
 
 procedure TavAnimationController.AnimationStartStop(const AAnimationName: string; DoStart: Boolean; GrowSpeed: Single);
@@ -1229,7 +1155,7 @@ var inst: IavMeshInstance;
     n: Integer;
     i: Integer;
 begin
-  arm := Armature;
+  arm := Pose.Armature;
   if arm = nil then Exit;
   anim := arm.FindAnim(AAnimationName);
   if anim = nil then Exit;
@@ -1258,7 +1184,7 @@ var anim: IavAnimation;
     i: Integer;
     arm : IavArmature;
 begin
-  arm := Armature;
+  arm := Pose.Armature;
   if arm = nil then Exit;
   anim := arm.FindAnim(AAnimationName);
   Assert(Assigned(anim), 'Animation with name ' + AAnimationName + ' not found');
@@ -1286,7 +1212,7 @@ var i: Integer;
     s: String;
     arm: IavArmature;
 begin
-  arm := Armature;
+  arm := Pose.Armature;
   if arm = nil then Exit;
 
   for i := 0 to Length(FAnimationStates) - 1 do
@@ -1301,6 +1227,48 @@ begin
 end;
 
 { TavMeshInstance }
+
+function TavMeshInstance.PoseStateID: Int64;
+begin
+  Result := FPoseStateID;
+  if Assigned(FPose) then Inc(Result, FPose.PoseStateID);
+end;
+
+function TavMeshInstance.PoseArray: TMat4Arr;
+var newID: Int64;
+    poseArr: TMat4Arr;
+    i, boneIndex: Integer;
+begin
+  if FPose = nil then
+  begin
+    if Length(FPoseArray) <> 1 then SetLength(FPoseArray, 1);
+    FPoseArray[0] := FTransform;
+  end
+  else
+  begin
+    newID := FPose.PoseStateID;
+    if newID <> FSavedPoseStateID then
+    begin
+      FSavedPoseStateID := newID;
+      if Length(FPoseArray) <> Length(FBoneRemap) then SetLength(FPoseArray, Length(FBoneRemap));
+      poseArr := FPose.AbsPose;
+      for i := 0 to Length(FPoseArray) - 1 do
+      begin
+        boneIndex := FBoneRemap[i];
+        if boneIndex >= 0 then
+          FPoseArray[i] := FBonePreTransform * poseArr[boneIndex] * FTransform
+        else
+          FPoseArray[i] := FBonePreTransform * FTransform;
+      end;
+    end;
+  end;
+  Result := FPoseArray;
+end;
+
+procedure TavMeshInstance.BumpPoseStateID;
+begin
+  Inc(FPoseStateID);
+end;
 
 function TavMeshInstance.GetChild(const AIndex: Integer): IavMeshInstance;
 begin
@@ -1329,13 +1297,23 @@ end;
 
 function TavMeshInstance.GetTransform: TMat4;
 begin
-  Result := FPose.Transfrom
+  Result := FTransform;
 end;
 
 procedure TavMeshInstance.SetPose(const AValue: IavPose);
+var
+  i: Integer;
 begin
   if FPose = AValue then Exit;
   FPose := AValue;
+  if Length(FBoneRemap) <> FMesh.BonesCount then
+    SetLength(FBoneRemap, FMesh.BonesCount);
+  for i := 0 to Length(FBoneRemap) - 1 do
+    FBoneRemap[i] := FPose.Armature.IndexOfBone(FMesh.GetBoneName(i));
+  FBonePreTransform := FTransform;
+  FTransform := IdentityMat4;
+
+  FSavedPoseStateID := FPose.PoseStateID - 1;
 end;
 
 procedure TavMeshInstance.SetMesh(const AValue: IavMesh);
@@ -1351,12 +1329,14 @@ end;
 procedure TavMeshInstance.SetParent(const AValue: IavMeshInstance);
 begin
   FParent := Pointer(AValue);
-  FPose.BumpPoseID;
+  FPose.BumpPoseStateID;
 end;
 
 procedure TavMeshInstance.SetTransform(const AValue: TMat4);
 begin
-  FPose.Transfrom := AValue;
+  if FTransform = AValue then Exit;
+  FTransform := AValue;
+  BumpPoseStateID;
 end;
 
 function TavMeshInstance.ChildsCount: Integer;
@@ -1395,7 +1375,7 @@ begin
   if Assigned(Parent) then
     Parent.AddChild(inst);
   if Assigned(FPose) then
-    inst.FPose := IavPoseInternal(FPose).CloneTo(inst);
+    inst.FPose := IavPoseInternal(FPose).Clone();
   Result := intf;
 end;
 
@@ -1623,7 +1603,7 @@ begin
   FName := AValue;
 end;
 
-function TavArmature.GetRootBones: TavBoneArr;
+function TavArmature.RootBones: TavBoneArr;
 var i, n: Integer;
 begin
   if FRootBones = nil then

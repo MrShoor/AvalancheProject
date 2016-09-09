@@ -125,7 +125,7 @@ def Export(WFloat, WInt, WStr, WBool):
             WStr(normalMap)
             
         #write vertex groups
-        vg = meshToVertexGroup[mesh]
+        vg = meshToVertexGroup.get(mesh, None)
         if (not vg is None):
             WInt(len(vg))
             for g in vg:
@@ -212,7 +212,7 @@ def Export(WFloat, WInt, WStr, WBool):
         #indexing bones
         i = 0
         for b in obj.pose.bones:
-            AddPoseBoneIndex(obj, b.name, i)
+            AddPoseBoneIndex(obj, b.name, i)            
             i += 1
             
         #saving bone
@@ -222,7 +222,15 @@ def Export(WFloat, WInt, WStr, WBool):
             
         #saving animations
         def GetAffectedBones(action):
-            return [g.name for g in action.groups if GetPoseBoneIndex(obj, g.name)>=0]
+            def GetChannelName(channel):
+                return channel.data_path.split('["')[1].split('"]')[0]
+            affectedNames = {}
+            for g in action.groups:
+                for c in g.channels:
+                    CName = GetChannelName(c)
+                    if (GetPoseBoneIndex(obj, CName)>=0):
+                        affectedNames[CName] = True
+            return affectedNames.keys()
         
         actionsCount = 0
         for act in bpy.data.actions:
@@ -324,5 +332,5 @@ def ExportToConsole():
     print('---------')
     Export(WFloat, WInt, WStr, WBool)
             
-ExportToFile(outfilename)
+#ExportToFile(outfilename)
 #ExportToConsole()

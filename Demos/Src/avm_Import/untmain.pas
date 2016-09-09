@@ -142,8 +142,8 @@ begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := RenderPanel.Handle;
 //  FMain.Projection.Ortho := True;
-  FMain.Camera.At := Vec(0,2.5,0);
-  FMain.Camera.Eye := Vec(0,2.5,-4);
+  FMain.Camera.At := Vec(0,0.5,0);
+  FMain.Camera.Eye := Vec(-3,0.5,0);
   FMain.Projection.OrthoHeight := 4;
 
   FFBO := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
@@ -160,9 +160,8 @@ begin
     MovePlane := Plane(0,0,1,0);
   end;
 
-  LoadModels('D:\Character\Out\char.avm');
 //  LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\WhipperNude\WhipperNude.avm');
-//  LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\NewI\mesh.avm');
+  LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\Char\char.avm');
 end;
 
 procedure TfrmMain.ApplicationProperties1Idle(Sender: TObject; var Done: Boolean);
@@ -220,21 +219,19 @@ procedure TfrmMain.RenderScene;
       if lbNames.Selected[i] then
         Result.Add(AllInstances[i]);
   end;
-  //procedure SyncAnimations(const Instances: IavModelInstanceArr);
-  //var i, j: Integer;
-  //begin
-  //  if Instances = nil then Exit;
-  //  for i := 0 to Instances.Count - 1 do
-  //  begin
-  //    for j := 0 to lbAnimations.Count - 1 do
-  //    begin
-  //      if lbAnimations.Selected[j] then
-  //        Instances[i].AnimationStart(lbAnimations.Items[j])
-  //      else
-  //        Instances[i].AnimationStop(lbAnimations.Items[j]);
-  //    end;
-  //  end;
-  //end;
+  procedure SyncAnimations();
+  var i, j: Integer;
+  begin
+    if FAnimC = nil then Exit;
+    FAnimC.SetTime(FMain.Time64);
+    for j := 0 to lbAnimations.Count - 1 do
+    begin
+      if lbAnimations.Selected[j] then
+        FAnimC.AnimationStart(lbAnimations.Items[j])
+      else
+        FAnimC.AnimationStop(lbAnimations.Items[j]);
+    end;
+  end;
 
 var visInst: IavModelInstanceArr;
 begin
@@ -245,7 +242,7 @@ begin
 
   if FMain.Bind then
   try
-    //SyncAnimations(FInstances);
+    SyncAnimations();
     visInst := GetVisibleInstances(FInstances);
 
     FMain.States.DepthTest := True;
@@ -289,8 +286,20 @@ var newInst: IavModelInstance;
 
     meshes: IavMeshes;
     meshInstances: IavMeshInstances;
+    meshInst: IavMeshInstance;
 begin
   avMesh.LoadFromFile(AFileName, meshes, meshInstances);
+
+  FAnimC := nil;
+  meshInstances.Reset;
+  while meshInstances.NextValue(meshInst) do
+  begin
+    if meshInst.Pose <> nil then
+    begin
+      FAnimC := Create_IavAnimationController(meshInst.Pose, FMain.Time64);
+      break;
+    end;
+  end;
 
   FModels.AddFromMeshInstances(meshInstances);
   FInstances := TavModelInstanceArr.Create;
@@ -300,15 +309,15 @@ begin
   animations := TStringList.Create;
   animations.Sorted := True;
   animations.Duplicates := dupIgnore;
+  if Assigned(FAnimC) then
+    for i := 0 to FAnimC.Pose.Armature.AnimCount - 1 do
+      animations.Add(FAnimC.Pose.Armature.Anim[i].Name);
   try
     FModels.Reset;
-
     while FModels.NextInstance(newInst) do
     begin
       FInstances.Add(newInst);
       lbNames.Items.Add(newInst.Name);
-      //for i := 0 to newInst.AnimationCount - 1 do
-      //  animations.Add(newInst.AnimationName(i));
     end;
     lbNames.SelectAll;
 

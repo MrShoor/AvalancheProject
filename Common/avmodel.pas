@@ -108,7 +108,7 @@ type
       TTransformNode = class (TInterfacedObject, IBoneTransformHandle)
         Owner     : TavBoneTransformMap;
         Range     : IMemRange;
-        Pose      : IavPose;
+        Instance  : IavMeshInstance;
         DirtyIndex: Integer;
 
         procedure Invalidate;
@@ -143,7 +143,7 @@ type
 
       function DoBuild: Boolean; override;
     public
-      function  AddPose(const APose: IavPose): IBoneTransformHandle;
+      function  AddPose(const AInstance: IavMeshInstance): IBoneTransformHandle;
 
       procedure AfterConstruction; override;
       destructor Destroy; override;
@@ -268,7 +268,7 @@ end;
 
 function TavModelCollection.TavBoneTransformMap.TTransformNode.GetMatrices: TMat4Arr;
 begin
-  Result := Pose.AbsPose;
+  Result := Instance.PoseArray;
 end;
 
 function TavModelCollection.TavBoneTransformMap.TTransformNode.Size: Integer;
@@ -332,13 +332,14 @@ begin
   Result := True;
 end;
 
-function TavModelCollection.TavBoneTransformMap.AddPose(const APose: IavPose): IBoneTransformHandle;
+function TavModelCollection.TavBoneTransformMap.AddPose(
+  const AInstance: IavMeshInstance): IBoneTransformHandle;
 var node: TTransformNode;
 begin
   Result := nil;
   node := TTransformNode.Create;
   node.Owner := Self;
-  node.Pose := APose;
+  node.Instance := AInstance;
   FNodes.Add(node);
   if FNodes.DirtyCount > 0 then
     Invalidate;
@@ -443,7 +444,7 @@ end;
 procedure TavModelCollection.TavModelInstance.UpdateBoneTransform;
 var newID: Int64;
 begin
-  newID := FMeshInst.Pose.PoseID;
+  newID := FMeshInst.PoseStateID;
   if FBoneTransformID <> newID then
   begin
     FBoneTransformID := newID;
@@ -766,7 +767,7 @@ begin
   modelInst := TavModelInstance.Create;
   modelInst.FMeshInst := AMeshInstance;
   modelInst.FMeshInst.Pose.SetAnimationState([]);
-  modelInst.FBoneTransformHandle := FBoneTransform.AddPose(modelInst.FMeshInst.Pose);
+  modelInst.FBoneTransformHandle := FBoneTransform.AddPose(modelInst.FMeshInst);
   instGPU := TModelInstanceGPUData.Create;
   instGPU.aiBoneMatDifNormOffset := Vec(modelInst.FBoneTransformHandle.Offset,
                                         model.MaterialOffset,
