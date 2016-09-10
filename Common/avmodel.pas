@@ -123,13 +123,12 @@ type
       {$IfDef DCC}
       TTransformNode = class (TDefaultNode, IBoneTransformHandle)
         Owner     : TavBoneTransformMap;
-        Mat       : TMat4Arr;
+        Instance  : IavMeshInstance;
 
         procedure Invalidate;
         function Offset: Integer;
         function GetMatrices: TMat4Arr;
-        procedure SetMatrices(const AValue: TMat4Arr);
-        property Matrices: TMat4Arr read GetMatrices write SetMatrices;
+        property Matrices: TMat4Arr read GetMatrices;
 
         function Size: Integer; override;
         destructor Destroy; override;
