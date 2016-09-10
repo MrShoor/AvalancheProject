@@ -142,6 +142,7 @@ begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := RenderPanel.Handle;
 //  FMain.Projection.Ortho := True;
+  FMain.Projection.NearPlane := 0.1;
   FMain.Camera.At := Vec(0,0.5,0);
   FMain.Camera.Eye := Vec(-3,0.5,0);
   FMain.Projection.OrthoHeight := 4;

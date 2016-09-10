@@ -432,8 +432,13 @@ type
   { TColorSpaceConverter }
 
   TColorSpaceConverter = class
+  private type
+    TConvertMethod = function (ASrc: PByte; ASrcSize: Integer; ASrcFormat: TImageFormat; ADstFormat: TTextureFormat; out ADst: PByte; out ADstSize: Integer): Boolean of object;
+    class var FSpecConvertes : array [TImageFormat] of array [TTextureFormat] of TConvertMethod;
   public
+    class function Convert_A8R8G8B8_RGBA(ASrc: PByte; ASrcSize: Integer; ASrcFormat: TImageFormat; ADstFormat: TTextureFormat; out ADst: PByte; out ADstSize: Integer): Boolean;
     class function Convert(ASrc: PByte; ASrcSize: Integer; ASrcFormat: TImageFormat; ADstFormat: TTextureFormat; out ADst: PByte; out ADstSize: Integer): Boolean;
+    class constructor Create;
   end;
 
 
@@ -1889,6 +1894,31 @@ end;
 
 { TColorSpaceConverter }
 
+class function TColorSpaceConverter.Convert_A8R8G8B8_RGBA(ASrc: PByte;
+  ASrcSize: Integer; ASrcFormat: TImageFormat; ADstFormat: TTextureFormat; out
+  ADst: PByte; out ADstSize: Integer): Boolean;
+var pSrc, pDst: PVec4b;
+    PixelCount: Integer;
+    i, j: Integer;
+begin
+  PixelCount := ASrcSize div 4;
+  ADstSize := ASrcSize;
+  GetMem(ADst, ADstSize);
+  ZeroMemory(ADst, ADstSize);
+
+  pSrc := PVec4b(ASrc);
+  pDst := PVec4b(ADst);
+  for i := 0 to PixelCount - 1 do
+  begin
+    pDst^.x := pSrc^.z;
+    pDst^.y := pSrc^.y;
+    pDst^.z := pSrc^.x;
+    pDst^.w := pSrc^.w;
+    Inc(pDst);
+    Inc(pSrc);
+  end;
+end;
+
 class function TColorSpaceConverter.Convert(ASrc: PByte; ASrcSize: Integer; ASrcFormat: TImageFormat; ADstFormat: TTextureFormat; out ADst: PByte; out ADstSize: Integer): Boolean;
 type
   TComponentInfo = record
@@ -2056,12 +2086,16 @@ type
       end;
   end;
 
-var ImgFormat: TImageFormatDesc;
+var SpecMethod: TConvertMethod;
+    ImgFormat: TImageFormatDesc;
     TexFormat: TImageFormatDesc;
     PixelCount: Integer;
     SrcPixel, DstPixel: PByte;
     i, j: Integer;
 begin
+  SpecMethod := FSpecConvertes[ASrcFormat][ADstFormat];
+  if Assigned(SpecMethod) then Exit(SpecMethod(ASrc, ASrcSize, ASrcFormat, ADstFormat, ADst, ADstSize));
+
   ImgFormat := DecodeImageFormat(ASrcFormat);
   TexFormat := DecodeTextureFormat(ADstFormat);
 
@@ -2093,6 +2127,16 @@ begin
     Inc(DstPixel, TexFormat.StrideSize);
   end;
   Result := True;
+end;
+
+class constructor TColorSpaceConverter.Create;
+var i: TImageFormat;
+    j: TTextureFormat;
+begin
+  for i := Low(TImageFormat) to High(TImageFormat) do
+    for j := Low(TTextureFormat) to High(TTextureFormat) do
+      FSpecConvertes[i][j] := nil;
+  FSpecConvertes[TImageFormat.A8R8G8B8][TTextureFormat.RGBA] := {$IfDef FPC}@{$EndIf}Convert_A8R8G8B8_RGBA;
 end;
 
 { TTexture }
