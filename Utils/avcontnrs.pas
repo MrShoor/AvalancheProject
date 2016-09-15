@@ -324,7 +324,7 @@ type
   {$IfDef FPC}generic{$EndIf}
   IBase_LooseTreeNode<TItem, TBox> = interface
     function Level: Integer;
-    function Child(const AIndex: Integer): specialize IBase_LooseTreeNode<TItem, TBox>;
+    function Child(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TBox>;
 
     function TotalCount: Integer;
     function ItemsCount: Integer;
@@ -352,11 +352,11 @@ type
   end;
 
   {$IfDef FPC}generic{$EndIf}
-  ILooseOctTreeNode<TItem> = interface (specialize IBase_LooseTreeNode<TItem, TAABB>)
+  ILooseOctTreeNode<TItem> = interface ({$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TAABB>)
   end;
 
   {$IfDef FPC}generic{$EndIf}
-  IOctNodeInternal<TItem> = interface (specialize ILooseOctTreeNode<TItem>)
+  IOctNodeInternal<TItem> = interface ({$IfDef FPC}specialize{$EndIf} ILooseOctTreeNode<TItem>)
     function Place: TVec3i;
     function Parent: {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
 
@@ -393,7 +393,7 @@ type
     FItems       : IItems;
   private
     function Level: Integer;
-    function Child(const AIndex: Integer): specialize IBase_LooseTreeNode<TItem, TAABB>;
+    function Child(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TAABB>;
 
     function TotalCount: Integer;
     function ItemsCount: Integer;
@@ -422,7 +422,7 @@ type
   end;
 
   {$IfDef FPC}generic{$EndIf}
-  ILooseOctTree<TItem> = interface (specialize IBase_LooseTree<TItem, TAABB>)
+  ILooseOctTree<TItem> = interface ({$IfDef FPC}specialize{$EndIf} IBase_LooseTree<TItem, TAABB>)
   end;
 
   { TLooseOctTree }
@@ -469,22 +469,22 @@ uses
 
 { TLooseOctTreeNode }
 
-function TLooseOctTreeNode.Level: Integer;
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.Level: Integer;
 begin
   Result := FLevel;
 end;
 
-function TLooseOctTreeNode.Child(const AIndex: Integer): specialize IBase_LooseTreeNode<TItem, TAABB>;
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.Child(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TAABB>;
 begin
   Result := FChilds[AIndex];
 end;
 
-function TLooseOctTreeNode.TotalCount: Integer;
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.TotalCount: Integer;
 begin
   Result := FTotalCounter;
 end;
 
-function TLooseOctTreeNode.ItemsCount: Integer;
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.ItemsCount: Integer;
 begin
   if FItems = nil then
     Result := 0
@@ -492,12 +492,12 @@ begin
     Result := FItems.Count;
 end;
 
-function TLooseOctTreeNode.Item(const AIndex: Integer): TItem;
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.Item(const AIndex: Integer): TItem;
 begin
   Result := FItems[AIndex];
 end;
 
-function TLooseOctTreeNode.CalcChildIndex(const AParentPlace: TVec3i; const AParentLevel: Integer; const AChildPlace: TVec3i): Integer;
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.CalcChildIndex(const AParentPlace: TVec3i; const AParentLevel: Integer; const AChildPlace: TVec3i): Integer;
 var offset: Integer;
 begin
   Assert(AParentLevel > 0);
@@ -508,7 +508,7 @@ begin
   if AChildPlace.z >= AParentPlace.z+offset then Result := Result or 4;
 end;
 
-function TLooseOctTreeNode.InNode(const AMinBound, AMaxBound: TVec3i): Boolean;
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.InNode(const AMinBound, AMaxBound: TVec3i): Boolean;
 var offset: Integer;
 begin
   Result := False;
@@ -522,7 +522,7 @@ begin
   Result := True;
 end;
 
-procedure TLooseOctTreeNode.TryDetachFromParent;
+procedure TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.TryDetachFromParent;
 var selfIntf: INode;
     i: Integer;
 begin
@@ -539,50 +539,50 @@ begin
   end;
 end;
 
-procedure TLooseOctTreeNode.AddItem(const AItem: TItem);
+procedure TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.AddItem(const AItem: TItem);
 begin
   FItems.Add(AItem);
   IncTotalCounter;
 end;
 
-procedure TLooseOctTreeNode.DelItem(const AItem: TItem);
+procedure TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.DelItem(const AItem: TItem);
 begin
   DecTotalCounter;
   FItems.Delete(FItems.IndexOf(AItem));
 end;
 
-procedure TLooseOctTreeNode.IncTotalCounter;
+procedure TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.IncTotalCounter;
 begin
   Inc(FTotalCounter);
 end;
 
-procedure TLooseOctTreeNode.DecTotalCounter;
+procedure TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.DecTotalCounter;
 begin
   Dec(FTotalCounter);
   TryDetachFromParent;
 end;
 
-procedure TLooseOctTreeNode.ClearParentLink;
+procedure TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.ClearParentLink;
 begin
   FParent := nil;
 end;
 
-function TLooseOctTreeNode.Place: TVec3i;
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.Place: TVec3i;
 begin
   Result := FPlace;
 end;
 
-function TLooseOctTreeNode.Parent: INode;
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.Parent: INode;
 begin
   Result := FParent;
 end;
 
-function TLooseOctTreeNode.CalcChildIndex(const AChildPlace: TVec3i): Integer;
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.CalcChildIndex(const AChildPlace: TVec3i): Integer;
 begin
   Result := CalcChildIndex(FPlace, FLevel, AChildPlace);
 end;
 
-function TLooseOctTreeNode.ObtainChild(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.ObtainChild(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
 var childPlace: TVec3i;
     offset: Integer;
 begin
@@ -596,11 +596,11 @@ begin
   childPlace.y := FPlace.y + ((AIndex and 2) shr 1)*offset;
   childPlace.z := FPlace.z + ((AIndex and 4) shr 2)*offset;
 
-  FChilds[AIndex] := TLooseOctTreeNode.Create(Self, FLevel - 1, childPlace);
+  FChilds[AIndex] := TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.Create(Self, FLevel - 1, childPlace);
   Result := FChilds[AIndex];
 end;
 
-function TLooseOctTreeNode.CreateParent: {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.CreateParent: {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
 var offset: TVec3i;
     parentLevel: Integer;
     parentPlace: TVec3i;
@@ -612,13 +612,13 @@ begin
   parentPlace.y := (FPlace.y shr parentLevel) shl parentLevel;
   parentPlace.z := (FPlace.z shr parentLevel) shl parentLevel;
 
-  FParent := TLooseOctTreeNode.Create(nil, parentLevel, parentPlace);
+  FParent := TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.Create(nil, parentLevel, parentPlace);
   FParent.FTotalCounter := FTotalCounter;
   Result := FParent;
   FParent.FChilds[CalcChildIndex(parentPlace, parentLevel, FPlace)] := Self;
 end;
 
-constructor TLooseOctTreeNode.Create(const AParent: TNode; const ALevel: Integer; const APlace: TVec3i);
+constructor TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.Create(const AParent: TNode; const ALevel: Integer; const APlace: TVec3i);
 begin
   FParent := AParent;
   FPlace := APlace;
@@ -629,7 +629,7 @@ end;
 
 { TLooseOctTree }
 
-function TLooseOctTree.Add(const AItem: TItem; const ABox: TAABB): Boolean;
+function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.Add(const AItem: TItem; const ABox: TAABB): Boolean;
 var KMin, KMax: TVec3i;
     Level: Integer;
     Place: TVec3i;
@@ -666,12 +666,12 @@ begin
   FItemToNode.Add(AItem, node);
 end;
 
-function TLooseOctTree.Contains(const AItem: TItem): Boolean;
+function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.Contains(const AItem: TItem): Boolean;
 begin
   Result := FItemToNode.Contains(AItem);
 end;
 
-function TLooseOctTree.Delete(const AItem: TItem): Boolean;
+function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.Delete(const AItem: TItem): Boolean;
 var node, parent, nextParent: INode;
 begin
   if FItemToNode.TryGetValue(AItem, node) then
@@ -690,7 +690,7 @@ begin
   end;
 end;
 
-function TLooseOctTree.AABB(const ANode: IInterface; const APlaceArea: Boolean): TAABB;
+function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.AABB(const ANode: IInterface; const APlaceArea: Boolean): TAABB;
 var size: Integer;
 begin
   Result.min := INode(ANode).Place * FMinNodeSize;
@@ -703,17 +703,17 @@ begin
   Result.max.z := Result.min.z + FMinNodeSize.z*size;
 end;
 
-function TLooseOctTree.GetItems(const ARange: TAABB): IInterface;
+function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.GetItems(const ARange: TAABB): IInterface;
 begin
 
 end;
 
-function TLooseOctTree.RootNode: {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TAABB>;
+function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.RootNode: {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TAABB>;
 begin
   Result := FRoot;
 end;
 
-procedure TLooseOctTree.EnumNodesRecursive(const ANode: IBaseNode; const ACallbackIterator: ILooseNodeCallBackIterator);
+procedure TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.EnumNodesRecursive(const ANode: IBaseNode; const ACallbackIterator: ILooseNodeCallBackIterator);
 var EnumChilds: Boolean;
     Child: IBaseNode;
     i: Integer;
@@ -729,13 +729,13 @@ begin
     end;
 end;
 
-procedure TLooseOctTree.EnumNodes(const ACallbackIterator: ILooseNodeCallBackIterator);
+procedure TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.EnumNodes(const ACallbackIterator: ILooseNodeCallBackIterator);
 begin
   if FRoot = nil then Exit;
   EnumNodesRecursive(FRoot, ACallbackIterator);
 end;
 
-function TLooseOctTree.GetNewRoot(out NewRoot: INode): boolean;
+function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.GetNewRoot(out NewRoot: INode): boolean;
 var i: Integer;
     chld: INode;
 begin
@@ -752,7 +752,7 @@ begin
   Result := NewRoot <> nil;
 end;
 
-procedure TLooseOctTree.CleanUnused;
+procedure TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.CleanUnused;
 var newRoot, chld: INode;
     i: Integer;
 begin
@@ -772,7 +772,7 @@ begin
   end;
 end;
 
-constructor TLooseOctTree.Create(const AMinNodeSize: TVec3);
+constructor TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.Create(const AMinNodeSize: TVec3);
 begin
   FMinNodeSize := AMinNodeSize;
   FMinNodeSizeInv.x := 1.0/FMinNodeSize.x;
