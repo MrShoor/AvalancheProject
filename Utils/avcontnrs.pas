@@ -343,8 +343,6 @@ type
 
     function AABB(const ANode: IInterface; const APlaceArea: Boolean = False): TBox;
 
-    function GetItems(const ARange: TBox): IInterface;
-
     function RootNode: {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TBox>;
 
     procedure EnumNodes(const ACallbackIterator: ILooseNodeCallBackIterator);
@@ -448,8 +446,6 @@ type
     function Delete(const AItem: TItem): Boolean;
 
     function AABB(const ANode: IInterface; const APlaceArea: Boolean = False): TAABB;
-
-    function GetItems(const ARange: TAABB): IInterface; //IArray<TItem>
 
     function RootNode: {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TAABB>;
 
@@ -664,6 +660,8 @@ begin
 
   node.AddItem(AItem);
   FItemToNode.Add(AItem, node);
+
+  Result := True;
 end;
 
 function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.Contains(const AItem: TItem): Boolean;
@@ -674,6 +672,7 @@ end;
 function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.Delete(const AItem: TItem): Boolean;
 var node, parent, nextParent: INode;
 begin
+  Result := False;
   if FItemToNode.TryGetValue(AItem, node) then
   begin
     parent := node.Parent;
@@ -687,25 +686,30 @@ begin
     end;
 
     CleanUnused;
+    Result := True;
   end;
 end;
 
 function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.AABB(const ANode: IInterface; const APlaceArea: Boolean): TAABB;
 var size: Integer;
+    offset: Single;
 begin
-  Result.min := INode(ANode).Place * FMinNodeSize;
-  if APlaceArea then
-    size := 1 shl INode(ANode).Level
-  else
-    size := 2 shl INode(ANode).Level;
-  Result.max.x := Result.min.x + FMinNodeSize.x*size;
-  Result.max.y := Result.min.y + FMinNodeSize.y*size;
-  Result.max.z := Result.min.z + FMinNodeSize.z*size;
-end;
+  Result.min := INode(ANode).Place;
+  size := 1 shl INode(ANode).Level;
+  if not APlaceArea then
+  begin
+    offset := -size * 0.5;
+    Result.min.x := Result.min.x + offset;
+    Result.min.y := Result.min.y + offset;
+    Result.min.z := Result.min.z + offset;
+    size := size shl 1;
+  end;
+  Result.max.x := Result.min.x + size;
+  Result.max.y := Result.min.y + size;
+  Result.max.z := Result.min.z + size;
 
-function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.GetItems(const ARange: TAABB): IInterface;
-begin
-
+  Result.min := Result.min * FMinNodeSize;
+  Result.max := Result.max * FMinNodeSize;
 end;
 
 function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.RootNode: {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TAABB>;
