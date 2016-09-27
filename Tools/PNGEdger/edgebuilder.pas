@@ -44,6 +44,7 @@ var src, dst: TImageData;
 begin
   InitImage(src);
   InitImage(dst);
+  df := nil;
   try
     if not LoadImageFromFile(SrcImage, src) then
       raise ELoadError.Create('Can''t load image "'+SrcImage+'"');
@@ -67,6 +68,7 @@ begin
     if not SaveImageToFile(DstImage, dst) then
       raise EConvertError.Create('Can''t save dst image at "'+DstImage+'"');
   finally
+    FreeAndNil(df);
     FreeImage(src);
     FreeImage(dst);
   end;
@@ -95,9 +97,19 @@ begin
 end;
 
 procedure TDistField.GetNearestPixel(x, y: Integer; out nx, ny: Integer);
-var v: TVec2;
+var v: TVec3;
 begin
-  v := Vec(x,y) + GetPixel(x,y).xy;
+  v := Vec(x,y,0) + GetPixel(x,y);
+  if IsInfinite(v.z) then
+  begin
+    nx := x;
+    ny := y;
+    Exit;
+  end;
+  if v.x < 0 then v.x := v.x + FWidth;
+  if v.y < 0 then v.y := v.y + FHeight;
+  if v.x >= FWidth then v.x := v.x - FWidth;
+  if v.y >= FHeight then v.y := v.y - FHeight;
   nx := Round(v.x);
   ny := Round(v.y);
 end;
@@ -136,8 +148,8 @@ begin
           SetPixel(i,j, Vec(0,0,0));
       end;
 
-  for j := 0 to FHeight - 1 do
-    for i := 0 to FWidth - 1 do
+  for j := 0 to 2*FHeight - 1 do  //multiplying to 2 requires only for wrapping
+    for i := 0 to 2*FWidth - 1 do //multiplying to 2 requires only for wrapping
     begin
       MinSrc := GetPixel(i, j).z;
       UpdateMinDistance(i, j, -1, -1, MinSrc);
@@ -146,8 +158,8 @@ begin
       UpdateMinDistance(i, j, -1,  0, MinSrc);
     end;
 
-  for j := FHeight - 1 downto 0 do
-    for i := FWidth - 1 downto 0 do
+  for j := 2*FHeight - 1 downto 0 do  //multiplying to 2 requires only for wrapping
+    for i := 2*FWidth - 1 downto 0 do //multiplying to 2 requires only for wrapping
     begin
       MinSrc := GetPixel(i, j).z;
       UpdateMinDistance(i, j,  1,  0, MinSrc);
