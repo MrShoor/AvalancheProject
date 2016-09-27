@@ -741,11 +741,10 @@ type
   procedure LoadMeshInstanceFromStream(const stream: TStream; out instInfo: TMeshInstInfo);
   var s: AnsiString;
       m: TMat4;
-      i, n: Integer;
+      i: Integer;
   begin
     //prevent warnings
     m := IdentityMat4;
-    n := 0;
     //
 
     instInfo.Inst := TavMeshInstance.Create;
@@ -1035,10 +1034,9 @@ end;
 
 function TavPose.Clone(): IavPose;
 var pObj: TavPose;
-    pIntf: IavPose;
 begin
   pObj := TavPose.Create(FArmature);
-  pIntf := pObj;
+  Result := pObj;
 
   pObj.FBoneTransform := Copy(FBoneTransform, 1, Length(FBoneTransform));
   pObj.FPoseStateID := 0;

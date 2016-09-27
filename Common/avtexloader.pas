@@ -313,7 +313,7 @@ function ConvertMip(const srcMip: ITextureMip; const w, h: Integer; const format
   end;
 var img, img2: TImageData;
     col: TColorFPRec;
-    pcol: Pointer;
+    pcol: Int64;
 begin
   if (srcMip.Width = w) and (srcMip.Height=h) and (srcMip.PixelFormat = format) then
     Exit(srcMip);
@@ -338,8 +338,8 @@ begin
       col.B := FillColor.z;
       col.A := FillColor.w;
       SetPixelFP(img, 0, 0, col);
-      GetPixelDirect(img, 0, 0, pcol);
-      FillRect(img, 0, 0, img.Width, img.Height, pcol);
+      GetPixelDirect(img, 0, 0, @pcol);
+      FillRect(img, 0, 0, img.Width, img.Height, @pcol);
 
       CopyRect(img2, 0, 0, srcMip.Width, srcMip.Height, img, 0, 0);
     end;
