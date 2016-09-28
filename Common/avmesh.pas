@@ -153,6 +153,14 @@ type
   end;
   TavBoneArr = array of IavBone;
 
+  { IavSingleBoneAnimation }
+
+  IavSingleBoneAnimation = interface
+    function BoneName       : string;
+    function AnimationName  : string;
+    function Frames: TMat4Arr;
+  end;
+
   { IavAnimation }
 
   IavAnimation = interface
@@ -168,6 +176,8 @@ type
 
     function BonesCount: Integer;
     procedure GetBoneTransform(const AIndex: Integer; const AFrame: Single; out BoneIndex: Integer; out Transform: TMat4);
+
+    function ExtractAnimation(const ABoneName: string): IavSingleBoneAnimation;
 
     property Armature: IavArmature read GetArmature;
     property Name: String read GetName;
@@ -377,7 +387,7 @@ type
   private
     FArmature : IavArmature;
 
-    FBoneTransform: TMat4Arr;
+    FBoneTransform : TMat4Arr;
     FPoseStateID   : Int64;
 
     function Armature : IavArmature;
@@ -487,6 +497,20 @@ type
     procedure AfterConstruction; override;
   end;
 
+  { TavSingleBoneAnimation }
+
+  TavSingleBoneAnimation = class (TInterfacedObjectEx, IavSingleBoneAnimation)
+  private
+    FBoneName: string;
+    FAnimationName: string;
+    FFrames: TMat4Arr;
+    function BoneName: string;
+    function AnimationName: string;
+    function Frames: TMat4Arr;
+  public
+    constructor Create(const ABoneName, AAnimationName: string; const AFrames: TMat4Arr);
+  end;
+
   { TavAnimation }
 
   TavAnimation = class (TInterfacedObjectEx, IavAnimation, IavAnimationInternal)
@@ -521,13 +545,14 @@ type
     function BonesCount: Integer;
     procedure GetBoneTransform(const AIndex: Integer; const AFrame: Single; out BoneIndex: Integer; out Transform: TMat4);
 
+    function ExtractAnimation(const ABoneName: string): IavSingleBoneAnimation;
+
     property Armature: IavArmature read GetArmature write SetArmature;
     property Name: String read GetName;
     property Enabled: Boolean read GetEnabled write SetEnabled;
     property FrameCount: Integer read GetFrameCount;
     property Frame: Single read GetFrame write SetFrame;
   end;
-
 
   { TavAnimationController }
 
@@ -946,6 +971,31 @@ begin
   Result.SetTime(ATime);
 end;
 
+{ TavSingleBoneAnimation }
+
+function TavSingleBoneAnimation.BoneName: string;
+begin
+  Result := FBoneName;
+end;
+
+function TavSingleBoneAnimation.AnimationName: string;
+begin
+  Result := FAnimationName;
+end;
+
+function TavSingleBoneAnimation.Frames: TMat4Arr;
+begin
+  Result := FFrames;
+end;
+
+constructor TavSingleBoneAnimation.Create(const ABoneName,
+  AAnimationName: string; const AFrames: TMat4Arr);
+begin
+  FBoneName := ABoneName;
+  FAnimationName := AAnimationName;
+  FFrames := AFrames;
+end;
+
 { TavPose }
 
 function TavPose.Armature: IavArmature;
@@ -1030,6 +1080,7 @@ end;
 constructor TavPose.Create(const AArmature: IavArmature);
 begin
   FArmature := AArmature;
+  SetAnimationState([]);
 end;
 
 function TavPose.Clone(): IavPose;
@@ -1266,6 +1317,8 @@ end;
 procedure TavMeshInstance.BumpPoseStateID;
 begin
   Inc(FPoseStateID);
+  if FPose <> nil then
+    Dec(FSavedPoseStateID);
 end;
 
 function TavMeshInstance.GetChild(const AIndex: Integer): IavMeshInstance;
@@ -1373,7 +1426,8 @@ begin
   if Assigned(Parent) then
     Parent.AddChild(inst);
   if Assigned(FPose) then
-    inst.FPose := IavPoseInternal(FPose).Clone();
+    inst.SetPose(IavPoseInternal(FPose).Clone());
+  inst.FTransform := FTransform;
   Result := intf;
 end;
 
@@ -1381,6 +1435,7 @@ procedure TavMeshInstance.AfterConstruction;
 begin
   inherited AfterConstruction;
   FChilds := TChildList.Create;
+  FTransform := IdentityMat4;
 end;
 
 { TavAnimation }
@@ -1476,6 +1531,27 @@ begin
   if Frame2 < 0 then Inc(Frame2, FrameCnt);
 
   Transform := Lerp(FFrames[Frame1][AIndex], FFrames[Frame2][AIndex], FrameWeight);
+end;
+
+function TavAnimation.ExtractAnimation(const ABoneName: string): IavSingleBoneAnimation;
+var idx, idx2, i: Integer;
+    frms: TMat4Arr;
+begin
+  Result := nil;
+  idx := Armature.IndexOfBone(ABoneName);
+  if idx < 0 then Exit;
+  idx2 := -1;
+  for i := 0 to Length(FBones) - 1 do
+    if FBones[i] = idx then
+    begin
+      idx2 := i;
+      break;
+    end;
+  if idx2 < 0 then Exit;
+  SetLength(frms, Length(FFrames));
+  for i := 0 to Length(FFrames) - 1 do
+    frms[i] := FFrames[i][idx2];
+  Result := TavSingleBoneAnimation.Create(ABoneName, FName, frms);
 end;
 
 { TavMesh }
