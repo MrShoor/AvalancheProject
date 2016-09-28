@@ -27,6 +27,7 @@ struct float4 {
 #define SamplerState int
 
 template<gentype> struct Texture2D{
+    float4 Load(gentype pixelcoord);
     float4 Sample(SamplerState, gentype texcoord);
     float4 SampleLevel(SamplerState, gentype texcoord, int mipLevel);
     void GetDimensions(int mipLevel, out float Width, out float Height, out float NumberOfLevels);

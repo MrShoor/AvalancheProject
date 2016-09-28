@@ -1,3 +1,6 @@
 DX_prepare RCDATA "!Out\DX_prepare.hlsl"
+OGL_prepare RCDATA "!Out\OGL_prepare.glsl"
 DX_JFPass RCDATA "!Out\DX_JFPass.hlsl"
+OGL_JFPass RCDATA "!Out\OGL_JFPass.glsl"
 DX_resolve RCDATA "!Out\DX_resolve.hlsl"
+OGL_resolve RCDATA "!Out\OGL_resolve.glsl"

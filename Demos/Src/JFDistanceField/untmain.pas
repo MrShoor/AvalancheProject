@@ -213,6 +213,7 @@ begin
 
     FJumpProg.Select();
     FJumpProg.SetAttributes(FQuad, nil, nil);
+    FJumpProg.SetUniform('Aspect', fbSize.x/fbSize.y);
     FJumpProg.SetUniform('JumpStep', JumpStep);
     FJumpProg.SetUniform('SrcDistanceField', FDFTexure[FDFIndex], Sampler_NoFilter);
     FJumpProg.Draw();
@@ -230,6 +231,7 @@ begin
 
   FResolveProg.Select();
   FResolveProg.SetAttributes(FQuad, nil, nil);
+  FResolveProg.SetUniform('Time', FMain.Time64/1000.0);
   FResolveProg.SetUniform('SrcTex', FSrcTexture, Sampler_NoFilter);
   FResolveProg.SetUniform('SrcDistanceField', FDFTexure[FDFIndex], Sampler_NoFilter);
   FResolveProg.Draw();
@@ -253,7 +255,7 @@ begin
     Inc(FFPSCounter);
     CurrentTime := FMain.Time64;
     DTime := CurrentTime - FLastFPSTime;
-    if DTime > 500 then
+    if DTime > 250 then
     begin
       Caption := 'FPS: ' + IntToStr(FFPSCounter*1000 div DTime);
       FFPSCounter := 0;

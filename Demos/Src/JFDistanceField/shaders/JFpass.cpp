@@ -6,6 +6,7 @@ struct PS_Output {
 };
 
 float2 JumpStep;
+float Aspect;
 Texture2D SrcDistanceField; SamplerState SrcDistanceFieldSampler;
 
 PS_Output PS(VS_Output In) {
@@ -17,7 +18,7 @@ PS_Output PS(VS_Output In) {
         for (int i = -1; i < 2; i++) {
             float2 JumpOffset = JumpStep * float2(i, j);
             float2 DistVec = JumpOffset + SrcDistanceField.Sample(SrcDistanceFieldSampler, In.TexCoord + JumpOffset).rg;
-            float DistLenSqr = dot(DistVec, DistVec);
+            float DistLenSqr = dot(DistVec*float2(Aspect, 1.0), DistVec*float2(Aspect, 1.0));
             if (DistLenSqr<minDistSqr) {
                 minVec = DistVec;
                 minDistSqr = DistLenSqr;
