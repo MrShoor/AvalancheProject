@@ -1,0 +1,3 @@
+DX_prepare RCDATA "!Out\DX_prepare.hlsl"
+DX_JFPass RCDATA "!Out\DX_JFPass.hlsl"
+DX_resolve RCDATA "!Out\DX_resolve.hlsl"

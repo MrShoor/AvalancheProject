@@ -24,7 +24,7 @@ type
   TUnsignedInteger64=UInt64;
   PLongBool=^LongBool;
   PHRESULT=^HRESULT;
-  SIZE_T=LongWord; // 32 bit Delphi only!
+  SIZE_T=NativeUInt; // 32 bit Delphi only!
   PSIZE_T=^SIZE_T;
   HANDLE=THandle;
   RECT=TRect;
