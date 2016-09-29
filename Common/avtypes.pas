@@ -331,7 +331,7 @@ const
       MinFilter  : tfNearest;
       MagFilter  : tfNearest;
       MipFilter  : tfNone;
-      Anisotropy : 0;
+      Anisotropy : 1;
       Wrap_X     : twRepeat;
       Wrap_Y     : twRepeat;
       Border     : (x: 0; y: 0; z: 0; w: 0);
@@ -340,7 +340,7 @@ const
       MinFilter  : tfNearest;
       MagFilter  : tfNearest;
       MipFilter  : tfNone;
-      Anisotropy : 0;
+      Anisotropy : 1;
       Wrap_X     : twClamp;
       Wrap_Y     : twClamp;
       Border     : (x: 0; y: 0; z: 0; w: 0);
