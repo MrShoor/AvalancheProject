@@ -19866,7 +19866,6 @@ begin
   end;
 
   PixelFormat := ChoosePixelFormat(DC, @PFDescriptor);
-
   if PixelFormat = 0 then
     RaiseLastOSError;
 
@@ -19874,7 +19873,7 @@ begin
     if not SetPixelFormat(DC, PixelFormat, @PFDescriptor) then
       RaiseLastOSError;
 
-  DescribePixelFormat(DC, PixelFormat, SizeOf(PFDescriptor), PFDescriptor);
+  //DescribePixelFormat(DC, PixelFormat, SizeOf(PFDescriptor), PFDescriptor);
 
   Result := wglCreateContext(DC);
 

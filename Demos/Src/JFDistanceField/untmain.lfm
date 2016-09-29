@@ -4,13 +4,36 @@ object frmMain: TfrmMain
   Top = 16
   Width = 797
   Caption = 'frmMain'
+  ClientHeight = 571
+  ClientWidth = 797
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnPaint = FormPaint
   LCLVersion = '1.6.0.4'
+  object Panel1: TPanel
+    Left = 0
+    Height = 24
+    Top = 0
+    Width = 48
+    ClientHeight = 24
+    ClientWidth = 48
+    TabOrder = 0
+    object btnGAPI: TSpeedButton
+      Left = 1
+      Height = 22
+      Top = 1
+      Width = 46
+      Align = alClient
+      AllowAllUp = True
+      Caption = 'DX11'
+      Down = True
+      GroupIndex = 1
+      OnClick = btnGAPIClick
+    end
+  end
   object ApplicationProperties1: TApplicationProperties
     OnIdle = ApplicationIdle
-    left = 64
-    top = 13
+    left = 112
+    top = 64
   end
 end

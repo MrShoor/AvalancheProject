@@ -16,6 +16,31 @@ object frmMain: TfrmMain
   OnPaint = FormPaint
   PixelsPerInch = 96
   TextHeight = 13
+  object Panel1: TPanel
+    Left = 0
+    Top = 0
+    Width = 49
+    Height = 25
+    DoubleBuffered = False
+    ParentDoubleBuffered = False
+    TabOrder = 0
+    object btnGAPI: TSpeedButton
+      Left = 1
+      Top = 1
+      Width = 47
+      Height = 23
+      Align = alClient
+      AllowAllUp = True
+      GroupIndex = 1
+      Down = True
+      Caption = 'DX11'
+      OnClick = btnGAPIClick
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 49
+      ExplicitHeight = 22
+    end
+  end
   object ApplicationEvents1: TApplicationEvents
     OnIdle = ApplicationIdle
     Left = 96

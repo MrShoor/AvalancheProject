@@ -13,7 +13,7 @@ uses
   Messages,
   Vcl.AppEvnts,
   {$EndIf}
-  Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, Buttons,
   avRes, avTypes, avTexLoader, avTess, avContnrs, mutils;
 
 type
@@ -30,6 +30,8 @@ type
   { TfrmMain }
 
   TfrmMain = class(TForm)
+    Panel1: TPanel;
+    btnGAPI: TSpeedButton;
     {$IfDef DCC}
     ApplicationEvents1: TApplicationEvents;
     {$EndIf}
@@ -40,6 +42,7 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure FormPaint(Sender: TObject);
     procedure ApplicationIdle(Sender: TObject; var Done: Boolean);
+    procedure btnGAPIClick(Sender: TObject);
   private
     FMain: TavMainRender;
 
@@ -67,6 +70,7 @@ type
     procedure BuildDistanceField;
     procedure ResolveDistanceField;
 
+    procedure Sync3DAPI;
     procedure RenderScene;
   public
     {$IfDef FPC}
@@ -136,7 +140,6 @@ procedure TfrmMain.Init;
 begin
   FMain := TavMainRender.Create(nil);
   FMain.Window := Handle;
-  FMain.Init3D(apiDX11);
 
   FPrepareProg := TavProgram.Create(FMain);
   FPrepareProg.Load('prepare', True);
@@ -194,6 +197,14 @@ begin
   if FMain <> nil then FMain.InvalidateWindow;
 end;
 
+procedure TfrmMain.btnGAPIClick(Sender: TObject);
+begin
+  if btnGAPI.Down then
+    btnGAPI.Caption := 'DX11'
+  else
+    btnGAPI.Caption := 'OGL';
+end;
+
 procedure TfrmMain.BuildDistanceField;
 var fbSize: TVec2i;
     JumpDist: Integer;
@@ -240,10 +251,27 @@ begin
   FResolveFBO.BlitToWindow(0);
 end;
 
+procedure TfrmMain.Sync3DAPI;
+var targetAPI: T3DAPI;
+begin
+  if btnGAPI.Down then
+    targetAPI := apiDX11
+  else
+    targetAPI := apiOGL;
+
+  if FMain.Inited3D then
+    if FMain.ActiveApi <> targetAPI then
+      FMain.Free3D;
+
+  if not FMain.Inited3D then
+    FMain.Init3D(targetAPI);
+end;
+
 procedure TfrmMain.RenderScene;
 var CurrentTime, DTime: Int64;
 begin
   if FMain = nil then Exit;
+  Sync3DAPI;
 
   if FMain.Bind then
   try
@@ -253,8 +281,8 @@ begin
 
     FMain.Present;
 
-    Inc(FFPSCounter);
     CurrentTime := FMain.Time64;
+    Inc(FFPSCounter);
     DTime := CurrentTime - FLastFPSTime;
     if DTime > 250 then
     begin
