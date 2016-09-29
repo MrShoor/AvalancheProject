@@ -2425,7 +2425,7 @@ begin
   glTexParameteri(TexTarget, GL_TEXTURE_MIN_FILTER, GLMinTextureFilter[MipFilter, Sampler.MinFilter]);
   glTexParameteri(TexTarget, GL_TEXTURE_WRAP_S, GLWrap[Sampler.Wrap_X]);
   glTexParameteri(TexTarget, GL_TEXTURE_WRAP_T, GLWrap[Sampler.Wrap_Y]);
-  glTexParameterf(TexTarget, GL_TEXTURE_MAX_ANISOTROPY_EXT, Sampler.Anisotropy);
+  glTexParameterf(TexTarget, GL_TEXTURE_MAX_ANISOTROPY_EXT, Max(Sampler.Anisotropy, 1.0));
   glTexParameterfv(TexTarget, GL_TEXTURE_BORDER_COLOR, @Sampler.Border);
 end;
 
