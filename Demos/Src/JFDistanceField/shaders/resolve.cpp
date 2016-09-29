@@ -11,9 +11,11 @@ Texture2D SrcDistanceField; SamplerState SrcDistanceFieldSampler;
 
 PS_Output PS(VS_Output In) {
     PS_Output Out;
-    float2 offset = SrcDistanceField.Sample(SrcDistanceFieldSampler, In.TexCoord).rg;
+    float2 TexCoord = In.TexCoord;
+    
+    float2 offset = SrcDistanceField.Sample(SrcDistanceFieldSampler, TexCoord).rg;
     Out.Color.a = 1.0;
-    Out.Color.rgb = SrcTex.Sample(SrcTexSampler, In.TexCoord + offset).rgb;
+    Out.Color.rgb = SrcTex.Sample(SrcTexSampler, TexCoord + offset).rgb;
     float2 TexSize;
     SrcTex.GetDimensions(TexSize.x, TexSize.y);
     offset *= TexSize;

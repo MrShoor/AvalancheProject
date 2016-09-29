@@ -231,6 +231,7 @@ begin
 
   FResolveProg.Select();
   FResolveProg.SetAttributes(FQuad, nil, nil);
+  FPrepareProg.SetUniform('FBOFlip', Vec(1.0,1.0));
   FResolveProg.SetUniform('Time', FMain.Time64/1000.0);
   FResolveProg.SetUniform('SrcTex', FSrcTexture, Sampler_NoFilter);
   FResolveProg.SetUniform('SrcDistanceField', FDFTexure[FDFIndex], Sampler_NoFilter);

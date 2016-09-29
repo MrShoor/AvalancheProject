@@ -1,6 +1,6 @@
 {
     "fxc_params"  : "/nologo /O3 /Zi /Gec",
-    "HLSLcc_lang" : 330,
+    "HLSLcc_lang" : 430,
     "HLSLcc_flags": ["HLSLCC_FLAG_DISABLE_GLOBALS_STRUCT",
                      "HLSLCC_FLAG_INOUT_SEMANTIC_NAMES",
                      "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],
@@ -12,6 +12,12 @@
     "FragmentTarget" : "ps_4_0",      
     "Programs":[
         {
+        "Name"     : "resolve",
+        "Vertex"   : "SSQuad.cpp",
+        "Fragment" : "resolve.cpp",
+        "Path"     :[""]
+        },
+        {
         "Name"     : "prepare",
         "Vertex"   : "SSQuad.cpp",
         "Fragment" : "prepare.cpp",
@@ -21,12 +27,6 @@
         "Name"     : "JFPass",
         "Vertex"   : "SSQuad.cpp",
         "Fragment" : "JFPass.cpp",
-        "Path"     :[""]
-        },
-        {
-        "Name"     : "resolve",
-        "Vertex"   : "SSQuad.cpp",
-        "Fragment" : "resolve.cpp",
         "Path"     :[""]
         }
     ]

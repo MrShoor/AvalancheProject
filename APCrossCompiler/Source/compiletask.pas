@@ -46,6 +46,8 @@ type
       OGLCompileStatus   : Boolean;
 
       function FullFileName(const FileName: string): string;
+
+      constructor Create;
   end;
 
   ICompileTask = interface
@@ -96,6 +98,7 @@ begin
     FLAGS_HLSLcc.Add('HLSLCC_FLAG_COMBINE_TEXTURE_SAMPLERS', $200);
     FLAGS_HLSLcc.Add('HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS', $400);
     FLAGS_HLSLcc.Add('HLSLCC_FLAG_DISABLE_GLOBALS_STRUCT', $800);
+    FLAGS_HLSLcc.add('HLSLCC_FLAG_DISABLE_VULKAN_DUMMIES', $1000);
   end;
   if not FLAGS_HLSLcc.TryGetValue(s, Result) then Result := 0;
 end;
@@ -217,6 +220,7 @@ begin
     sarr := flags.AsArray;
     for I := 0 to sarr.Length - 1 do
       Result.HLSLcc_flags :=  Result.HLSLcc_flags or GetHLSLccFlag(sarr.S[I]);
+    Result.HLSLcc_flags := Result.HLSLcc_flags or $1000; //forced HLSLCC_FLAG_DISABLE_VULKAN_DUMMIES flag
   end
   else
     if not IsDefaultProgram then
@@ -305,6 +309,11 @@ begin
 end;
 
 { TProgramInfo }
+
+constructor TProgramInfo.Create;
+begin
+  HLSLcc_flags := 7296;
+end;
 
 function TProgramInfo.FullFileName(const FileName: string): string;
 var I: Integer;
