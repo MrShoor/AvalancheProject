@@ -138,11 +138,15 @@ type
     function GetIndex: Integer;
     function GetName: String;
     function GetParent: IavBone;
+    function GetHead: TVec3;
+    function GetTail: TVec3;
     function GetTransform: TMat4;
     procedure SetTransform(AValue: TMat4);
 
     property Name: String read GetName;
     property Index: Integer read GetIndex;
+    property Head: TVec3 read GetHead;
+    property Tail: TVec3 read GetTail;
     property Transform: TMat4 read GetTransform write SetTransform;
 
     property Parent: IavBone read GetParent;
@@ -245,6 +249,8 @@ type
     procedure SetIndex(AValue: Integer);
     procedure SetName(AValue: String);
     procedure SetParent(AValue: IavBone);
+    procedure SetTail(const AValue: TVec3);
+    procedure SetHead(const AValue: TVec3);
 
     property Name: String read GetName write SetName;
     property Index: Integer read GetIndex write SetIndex;
@@ -315,6 +321,8 @@ type
     FChilds   : Array Of IavBone;
     FName     : String;
     FIndex    : Integer;
+    FHead     : TVec3;
+    FTail     : TVec3;
     FTransform: TMat4;
 
     function GetChild(index: Integer): IavBone;
@@ -322,10 +330,14 @@ type
     function GetIndex: Integer;
     function GetName: String;
     function GetParent: IavBone;
+    function GetHead: TVec3;
+    function GetTail: TVec3;
     function GetTransform: TMat4;
     procedure SetIndex(AValue: Integer);
     procedure SetName(AValue: String);
     procedure SetParent(AValue: IavBone);
+    procedure SetTail(const AValue: TVec3);
+    procedure SetHead(const AValue: TVec3);
     procedure SetTransform(AValue: TMat4);
   public
     property Name: String read GetName write SetName;
@@ -793,11 +805,13 @@ type
     end;
     procedure LoadBoneFromStream(const stream: TStream; out bone: IavBoneInternal; out parent: String);
     var s: AnsiString;
+        v: TVec3;
         m: TMat4;
         n: Integer;
     begin
       n := 0;
       ZeroClear(m, SizeOf(m));
+      ZeroClear(v, SizeOf(v));
 
       bone := TavBone.Create;
 
@@ -812,6 +826,12 @@ type
 
       stream.ReadBuffer(m, SizeOf(m));
       bone.Transform := m;
+
+      stream.ReadBuffer(v, SizeOf(v));
+      bone.SetHead(v);
+
+      stream.ReadBuffer(v, SizeOf(v));
+      bone.SetTail(v);
     end;
     procedure LoadAnimationFromStream(const stream: TStream; out anim: IavAnimationInternal);
     var s: AnsiString;
@@ -1776,6 +1796,16 @@ begin
   Result := IavBone(FParent);
 end;
 
+function TavBone.GetHead: TVec3;
+begin
+  Result := FHead;
+end;
+
+function TavBone.GetTail: TVec3;
+begin
+  Result := FTail;
+end;
+
 function TavBone.GetTransform: TMat4;
 begin
   Result := FTransform;
@@ -1794,6 +1824,16 @@ end;
 procedure TavBone.SetParent(AValue: IavBone);
 begin
   FParent := Pointer(AValue);
+end;
+
+procedure TavBone.SetTail(const AValue: TVec3);
+begin
+  FTail := AValue;
+end;
+
+procedure TavBone.SetHead(const AValue: TVec3);
+begin
+  FHead := AValue;
 end;
 
 procedure TavBone.SetTransform(AValue: TMat4);

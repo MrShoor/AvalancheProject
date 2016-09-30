@@ -13,7 +13,7 @@ MaxWeightsCount = 4;
 #outfilename = 'E:\\Projects\\AvalancheProject\\avm_export\\test.txt'
 #outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Media\\WhipperNude\\WhipperNude.avm'
 #outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Media\\NewI\\mesh.avm'
-outfilename = 'D:\\Character\\Out\\char.avm'
+outfilename = 'D:\\Projects\\AvalancheProject\\Demos\\Media\\Char\char.avm'
 #outfilename = 'C:\\MyProj\\AvalancheProject\\Demos\\Src\\avm_Import\\test.txt'
         
 def Export(WFloat, WInt, WStr, WBool):
@@ -203,6 +203,8 @@ def Export(WFloat, WInt, WStr, WBool):
             WStr(bone.parent.name)
         WInt(GetPoseBoneIndex(bone.id_data, bone.name))
         WriteMatrix(GetPoseBoneTransform(bone))
+        WriteVec(bone.head)
+        WriteVec(bone.tail)
         #WriteMatrix( bone.id_data.children[0].convert_space(bone, bone.matrix_channel, 'WORLD', 'WORLD') )        
     
     def WriteArmature(obj):
