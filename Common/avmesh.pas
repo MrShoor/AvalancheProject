@@ -477,7 +477,7 @@ type
     FPose : IavPose;
     FSavedPoseStateID: Int64;
     FBoneRemap: TIntArr;
-    FBonePreTransform: TMat4;
+    FBoneBindTransform: TMat4;
 
     procedure BumpPoseStateID;
     function PoseStateID: Int64;
@@ -1331,9 +1331,9 @@ begin
       begin
         boneIndex := FBoneRemap[i];
         if boneIndex >= 0 then
-          FPoseArray[i] := FBonePreTransform * poseArr[boneIndex] * FTransform
+          FPoseArray[i] := FBoneBindTransform * poseArr[boneIndex] * FTransform
         else
-          FPoseArray[i] := FBonePreTransform * FTransform;
+          FPoseArray[i] := FBoneBindTransform * FTransform;
       end;
     end;
   end;
@@ -1387,7 +1387,7 @@ begin
     SetLength(FBoneRemap, FMesh.BonesCount);
   for i := 0 to Length(FBoneRemap) - 1 do
     FBoneRemap[i] := FPose.Armature.IndexOfBone(FMesh.GetBoneName(i));
-  FBonePreTransform := FTransform;
+  FBoneBindTransform := FTransform;
   FTransform := IdentityMat4;
 
   FSavedPoseStateID := FPose.PoseStateID - 1;
@@ -1443,7 +1443,7 @@ end;
 
 function TavMeshInstance.GetSingleBoneTransform(const ABoneRemapedIndex: Integer): TMat4;
 begin
-  Result := FBonePreTransform * FPose.AbsPose[ABoneRemapedIndex];
+  Result := FBoneBindTransform * FPose.AbsPose[ABoneRemapedIndex];
 end;
 
 function TavMeshInstance.Clone(const NewInstanceName: string): IavMeshInstance;
