@@ -72,6 +72,7 @@ type
 
     function BonesCount: Integer;
     function GetBoneName(const AIndex: Integer): string;
+    function FindBone(const ABoneRemapedName: string): Integer;
 
     property Name: String read GetName;
     property BBox: TAABB read GetBBox;
@@ -118,6 +119,8 @@ type
     procedure DelChild(const AIndex: Integer);
     procedure AddChild(const AChild: IavMeshInstance);
     function IndexOf(const AChild: IavMeshInstance): Integer;
+
+    function GetSingleBoneTransform(const ABoneRemapedIndex: Integer): TMat4;
 
     function PoseStateID: Int64;
     property Pose: IavPose read GetPose write SetPose;
@@ -438,6 +441,7 @@ type
 
     function BonesCount: Integer;
     function GetBoneName(const AIndex: Integer): string;
+    function FindBone(const ABoneRemapedName: string): Integer;
     procedure SetBones(const ABones: TStringArr);
   public
     function MaterialsCount: Integer;
@@ -503,6 +507,8 @@ type
     procedure DelChild(const AIndex: Integer);
     procedure AddChild(const AChild: IavMeshInstance);
     function IndexOf(const AChild: IavMeshInstance): Integer;
+
+    function GetSingleBoneTransform(const ABoneRemapedIndex: Integer): TMat4;
 
     function Clone(const NewInstanceName: string): IavMeshInstance;
   public
@@ -1435,6 +1441,11 @@ begin
   Result := FChilds.IndexOf(AChild);
 end;
 
+function TavMeshInstance.GetSingleBoneTransform(const ABoneRemapedIndex: Integer): TMat4;
+begin
+  Result := FBonePreTransform * FPose.AbsPose[ABoneRemapedIndex];
+end;
+
 function TavMeshInstance.Clone(const NewInstanceName: string): IavMeshInstance;
 var inst: TavMeshInstance;
     intf: IavMeshInstance;
@@ -1624,6 +1635,14 @@ end;
 function TavMesh.GetBoneName(const AIndex: Integer): string;
 begin
   Result := FBones[AIndex];
+end;
+
+function TavMesh.FindBone(const ABoneRemapedName: string): Integer;
+var i: Integer;
+begin
+  Result := -1;
+  for i := 0 to Length(FBones) - 1 do
+    if FBones[i] = ABoneRemapedName then Exit(i);;
 end;
 
 procedure TavMesh.SetBones(const ABones: TStringArr);
