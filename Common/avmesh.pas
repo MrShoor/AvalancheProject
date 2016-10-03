@@ -182,7 +182,8 @@ type
     function Index: Integer;
 
     function BonesCount: Integer;
-    procedure GetBoneTransform(const AIndex: Integer; const AFrame: Single; out BoneIndex: Integer; out Transform: TMat4);
+    function GetLocalBoneIndex(const AArmatureBoneIndex: Integer): Integer;
+    procedure GetBoneTransform(const ALocalBoneIndex: Integer; const AFrame: Single; out ArmatureBoneIndex: Integer; out Transform: TMat4);
 
     function ExtractAnimation(const ABoneName: string): IavSingleBoneAnimation;
 
@@ -561,7 +562,8 @@ type
     procedure SetAnimationIndex(const AAnimIndex: Integer);
 
     function BonesCount: Integer;
-    procedure GetBoneTransform(const AIndex: Integer; const AFrame: Single; out BoneIndex: Integer; out Transform: TMat4);
+    function GetLocalBoneIndex(const AArmatureBoneIndex: Integer): Integer;
+    procedure GetBoneTransform(const ALocalBoneIndex: Integer; const AFrame: Single; out ArmatureBoneIndex: Integer; out Transform: TMat4);
 
     function ExtractAnimation(const ABoneName: string): IavSingleBoneAnimation;
 
@@ -1545,11 +1547,19 @@ begin
   Result := Length(FBones);
 end;
 
-procedure TavAnimation.GetBoneTransform(const AIndex: Integer; const AFrame: Single; out BoneIndex: Integer; out Transform: TMat4);
+function TavAnimation.GetLocalBoneIndex(const AArmatureBoneIndex: Integer): Integer;
+var i: Integer;
+begin
+  Result := -1;
+  for i := 0 to Length(FBones) - 1 do
+    if FBones[i] = AArmatureBoneIndex then Exit(i);
+end;
+
+procedure TavAnimation.GetBoneTransform(const ALocalBoneIndex: Integer; const AFrame: Single; out ArmatureBoneIndex: Integer; out Transform: TMat4);
 var Frame1, Frame2, FrameCnt: Integer;
     FrameWeight: Single;
 begin
-  BoneIndex := FBones[AIndex];
+  ArmatureBoneIndex := FBones[ALocalBoneIndex];
 
   Frame1 := Math.Floor(AFrame);
   Frame2 := Math.Ceil(AFrame);
@@ -1561,7 +1571,7 @@ begin
   if Frame1 < 0 then Inc(Frame1, FrameCnt);
   if Frame2 < 0 then Inc(Frame2, FrameCnt);
 
-  Transform := Lerp(FFrames[Frame1][AIndex], FFrames[Frame2][AIndex], FrameWeight);
+  Transform := Lerp(FFrames[Frame1][ALocalBoneIndex], FFrames[Frame2][ALocalBoneIndex], FrameWeight);
 end;
 
 function TavAnimation.ExtractAnimation(const ABoneName: string): IavSingleBoneAnimation;
