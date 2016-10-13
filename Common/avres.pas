@@ -232,7 +232,7 @@ type
   { TavRes }
 
   TavRes = class(TavMainRenderChild)
-  strict private
+  private
     FDirty   : Boolean;
   protected
     procedure AfterInit3D; virtual;
@@ -452,6 +452,8 @@ type
     function Width: Integer;
     function Height: Integer;
     function Size: TVec2;
+
+    procedure CopyFrom(const ASrc: TavTextureBase; SrcMipLevel: Integer; const ASrcRect: TRectI);
 
     property TargetFormat: TTextureFormat read FTargetFormat write FTargetFormat;
   end;
@@ -802,6 +804,24 @@ begin
     Result.x := 0;
     Result.y := 0;
   end;
+end;
+
+procedure TavTextureBase.CopyFrom(const ASrc: TavTextureBase; SrcMipLevel: Integer; const ASrcRect: TRectI);
+var w, h: Integer;
+begin
+  if ASrc.FTexH = nil then Exit;
+  if FTexH = Nil then FTexH := Main.Context.CreateTexture;
+
+  w := Abs(ASrcRect.Right - ASrcRect.Left);
+  h := Abs(ASrcRect.Bottom - ASrcRect.Top);
+  if ( FTexH.Width  <> w ) or
+     ( FTexH.Height <> h ) or
+     ( FTexH.Format <> ASrc.FTexH.Format ) then
+  begin
+    FTexH.AllocMem(w, h, 1, False);
+  end;
+  FTexH.CopyFrom(0, Vec(0,0), ASrc.FTexH, SrcMipLevel, ASrcRect);
+  FDirty := False;
 end;
 
 

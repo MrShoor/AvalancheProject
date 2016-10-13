@@ -848,6 +848,9 @@ type
     procedure SetMipImage(DestRect: TRect; MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
 
     procedure GenerateMips;
+
+    procedure CopyFrom(const DstMipLevel: Integer; const DstPos: TVec2I;
+                       const ASrcRes: IctxTexture; const SrcMipLevel: Integer; const SrcRect: TRectI);
   end;
 
   { TProgram }
@@ -1334,6 +1337,12 @@ begin
   glBindTexture(FGLTexTarget, FHandle);
   glGenerateMipmap(FGLTexTarget);
   glBindTexture(FGLTexTarget, oldH);
+end;
+
+procedure TTexture.CopyFrom(const DstMipLevel: Integer; const DstPos: TVec2I; const ASrcRes: IctxTexture;
+  const SrcMipLevel: Integer; const SrcRect: TRectI);
+begin
+  Assert(False, 'Not implemented yet');
 end;
 
 { TOGLStates }

@@ -82,6 +82,9 @@ type
     procedure SetMipImage(DestRect: TRect; MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
 
     procedure GenerateMips;
+
+    procedure CopyFrom(const DstMipLevel: Integer; const DstPos: TVec2I;
+                       const ASrcRes: IctxTexture; const SrcMipLevel: Integer; const SrcRect: TRectI);
   end;
 
   TDataClass = (dcScalar, dcVector, dcMatrix, dcSampler);

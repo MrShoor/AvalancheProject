@@ -501,6 +501,9 @@ type
     procedure SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
     procedure SetMipImage(DestRect: TRect; MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
 
+    procedure CopyFrom(const DstMipLevel: Integer; const DstPos: TVec2I;
+                       const ASrcRes: IctxTexture; const SrcMipLevel: Integer; const SrcRect: TRectI);
+
     procedure GenerateMips;
   end;
 
@@ -2350,6 +2353,21 @@ begin
     finally
       if texShouldFree then FreeMem(tex);
     end;
+end;
+
+procedure TTexture.CopyFrom(const DstMipLevel: Integer; const DstPos: TVec2I; const ASrcRes: IctxTexture;
+  const SrcMipLevel: Integer; const SrcRect: TRectI);
+var box: TD3D11_Box;
+begin
+  box.Left := SrcRect.Left;
+  box.Top := SrcRect.Top;
+  box.Right := SrcRect.Right;
+  box.Bottom := SrcRect.Bottom;
+  box.Front := 0;
+  box.Back := 1;
+  FContext.FDeviceContext.CopySubresourceRegion(
+      FTexture, D3D11CalcSubresource(DstMipLevel, 0, 1), DstPos.x, DstPos.y, 0,
+      IctxTexture_DX11(ASrcRes).GetHandle, D3D11CalcSubresource(SrcMipLevel, 0, 1), @box);
 end;
 
 procedure TTexture.GenerateMips;
