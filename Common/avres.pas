@@ -1551,7 +1551,7 @@ begin
 end;
 
 function TavProjection.DepthRangeMinMax: TVec2;
-const APIToRange: array [T3DAPI] of TVec2 = ( {OGL}(x: -1; y: 1), {DX11} (x: 0; y: 1) );
+const APIToRange: array [T3DAPI] of TVec2 = ( {OGL}(x: -1; y: 1), {DX11} (x: 0; y: 1), {apiDX11_WARP} (X: 0; y: 1) );
 begin
   Result := Vec(0.0, 0.0);
   if Parent is TavMainRender then
@@ -1997,9 +1997,9 @@ begin
                 FContext := TContext_OGL.Create(FWindow);
                 FProjection.DepthRange := Vec(-1.0, 1.0);
               end;
-            apiDX11:
+            apiDX11, apiDX11_WARP:
               begin
-                FContext := TContext_DX11.Create(FWindow);
+                FContext := TContext_DX11.Create(FWindow, api = apiDX11_WARP);
                 FProjection.DepthRange := Vec(0, 1.0);
               end;
         end;

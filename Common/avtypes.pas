@@ -79,10 +79,10 @@ type
   TWordArr = array of Word;
   TStringArr = array of AnsiString;
 
-  T3DAPI = (apiOGL, apiDX11);
+  T3DAPI = (apiOGL, apiDX11, apiDX11_WARP);
 const
-  API_Prefix : array [T3DAPI] of string = ('OGL_', 'DX_');
-  API_Suffix : array [T3DAPI] of string = ('.glsl', '.hlsl');
+  API_Prefix : array [T3DAPI] of string = ('OGL_', 'DX_', 'DX_');
+  API_Suffix : array [T3DAPI] of string = ('.glsl', '.hlsl', '.hlsl');
 
 type
   TShaderType = (stUnknown, stVertex, stTessControl, stTessEval, stGeometry, stFragment);

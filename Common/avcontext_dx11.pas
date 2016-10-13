@@ -73,7 +73,7 @@ type
                           stencil: Byte   = 0; doStencil: Boolean = False);
     procedure Present;
 
-    constructor Create(Const Wnd: TWindow);
+    constructor Create(Const Wnd: TWindow; Const WARP: Boolean = False);
     destructor Destroy; override;
   end;
 
@@ -2746,8 +2746,9 @@ begin
   Check3DError(FSwapChain.Present(0, 0));
 end;
 
-constructor TContext_DX11.Create(const Wnd: TWindow);
+constructor TContext_DX11.Create(const Wnd: TWindow; const WARP: Boolean);
 var SwapChainDesc: TDXGI_SwapChainDesc;
+    DriverType : TD3D_DriverType;
 begin
   FStates := TStates.Create(Self);
   FStatesIntf := TStates(FStates);
@@ -2768,9 +2769,14 @@ begin
   SwapChainDesc.SwapEffect := DXGI_SWAP_EFFECT_DISCARD;
   SwapChainDesc.Flags := 0;
 
+  if WARP then
+    DriverType := D3D_DRIVER_TYPE_WARP
+  else
+    DriverType := D3D_DRIVER_TYPE_HARDWARE;
+
   Check3DError(
     D3D11CreateDeviceAndSwapChain(nil,
-                                  D3D_DRIVER_TYPE_HARDWARE, 0, LongWord(D3D11_CREATE_DEVICE_SINGLETHREADED) {Or LongWord(D3D11_CREATE_DEVICE_DEBUG)}, nil, 0, D3D11_SDK_VERSION,
+                                  DriverType, 0, LongWord(D3D11_CREATE_DEVICE_SINGLETHREADED) {Or LongWord(D3D11_CREATE_DEVICE_DEBUG)}, nil, 0, D3D11_SDK_VERSION,
                                   @SwapChainDesc, FSwapChain, FDevice, nil, FDeviceContext)
   );
 end;
