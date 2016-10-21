@@ -321,6 +321,39 @@ type
     constructor Create(const AComparer: IEqualityComparer); overload;
   end;
 
+  { IHashMapWithBuckets }
+
+  TOnBucketIndexChange = procedure (const Key, Value; OldBucketIndex, NewBucketIndex: Integer) of object;
+
+  {$IfDef FPC}generic{$EndIf} IHashMapWithBuckets<TKey, TValue> = interface ({$IfDef FPC}specialize{$EndIf} IHashMap<TKey, TValue>)
+    function AddOrSetWithBucketIndex(const AKey: TKey; const AValue: TValue): Integer; //return bucket index
+    function AddOrGetBucketIndex(const AKey: TKey; const AValue: TValue): Integer; //return bucket index
+    function GetPKeyByBucketIndex(ABucketIndex: Integer): Pointer;
+    function GetPValueByBucketIndex(ABucketIndex: Integer): Pointer;
+
+    function GetOnBucketIndexChange: TOnBucketIndexChange;
+    procedure SetOnBucketIndexChange(const AValue: TOnBucketIndexChange);
+
+    property OnBucketIndexChange: TOnBucketIndexChange read GetOnBucketIndexChange write SetOnBucketIndexChange;
+  end;
+
+  { THashMapWithBuckets }
+
+  {$IfDef FPC}generic{$EndIf} THashMapWithBuckets<TKey, TValue> = class ({$IfDef FPC}specialize{$EndIf} THashMap<TKey, TValue>, {$IfDef FPC}specialize{$EndIf} IHashMapWithBuckets<TKey, TValue>)
+  protected
+    procedure SetCapacity(const cap: Integer); override;
+  private
+    FOnBucketIndexChange: TOnBucketIndexChange;
+
+    function AddOrSetWithBucketIndex(const AKey: TKey; const AValue: TValue): Integer; //return bucket index
+    function AddOrGetBucketIndex(const AKey: TKey; const AValue: TValue): Integer; //return bucket index
+    function GetPKeyByBucketIndex(ABucketIndex: Integer): Pointer;
+    function GetPValueByBucketIndex(ABucketIndex: Integer): Pointer;
+
+    function GetOnBucketIndexChange: TOnBucketIndexChange;
+    procedure SetOnBucketIndexChange(const AValue: TOnBucketIndexChange);
+  end;
+
   {$IfDef FPC}generic{$EndIf}
   IBase_LooseTreeNode<TItem, TBox> = interface
     function Level: Integer;
@@ -462,6 +495,67 @@ implementation
 
 uses
   rtlconsts, math;
+
+{ THashMapWithBuckets }
+
+procedure THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.SetCapacity(const cap: Integer);
+var OldItems: {$IfDef DCC}THashMap<TKey, TValue>.{$EndIf}TItems;
+    i, bIndex: Integer;
+begin
+  OldItems := FData;
+  FData := nil;
+  FCount := 0;
+  SetLength(FData, cap);
+  for i := 0 to Length(OldItems)-1 do
+    if OldItems[i].Hash <> 0 then
+    begin
+      CalcBucketIndex(OldItems[i].Key, OldItems[i].Hash, bIndex);
+      DoAddOrSet(bIndex, OldItems[i].Hash, OldItems[i].Key, OldItems[i].Value);
+
+      if Assigned(FOnBucketIndexChange) then
+        FOnBucketIndexChange(OldItems[i].Key, OldItems[i].Value, i, bIndex);
+    end;
+  FGrowLimit := cap div 2;
+end;
+
+function THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.AddOrSetWithBucketIndex(const AKey: TKey; const AValue: TValue): Integer;
+var hash: Cardinal;
+begin
+  GrowIfNeeded;
+  hash := FComparer.Hash(AKey);
+  CalcBucketIndex(AKey, hash, Result);
+  DoAddOrSet(Result, hash, AKey, AValue);
+end;
+
+function THashMapWithBuckets.AddOrGetBucketIndex(const AKey: TKey; const AValue: TValue): Integer;
+var hash: Cardinal;
+begin
+  GrowIfNeeded;
+  hash := FComparer.Hash(AKey);
+  if not CalcBucketIndex(AKey, hash, Result) then
+    DoAddOrSet(Result, hash, AKey, AValue);
+end;
+
+function THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.GetPKeyByBucketIndex(ABucketIndex: Integer): Pointer;
+begin
+  Result := @FData[ABucketIndex].Key;
+end;
+
+function THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.GetPValueByBucketIndex(ABucketIndex: Integer): Pointer;
+begin
+  Result := @FData[ABucketIndex].Value;
+end;
+
+function THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.GetOnBucketIndexChange: TOnBucketIndexChange;
+begin
+  Result := FOnBucketIndexChange;
+end;
+
+procedure THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.SetOnBucketIndexChange(
+  const AValue: TOnBucketIndexChange);
+begin
+  FOnBucketIndexChange := AValue;
+end;
 
 { TLooseOctTreeNode }
 
