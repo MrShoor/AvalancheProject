@@ -4,5 +4,7 @@ object Form1: TForm1
   Top = 137
   Width = 601
   Caption = 'Form1'
+  OnCreate = FormCreate
+  OnPaint = FormPaint
   LCLVersion = '1.6.0.4'
 end

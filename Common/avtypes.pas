@@ -74,6 +74,7 @@ type
 type
   ECreateContextFailed = Class(Exception);
 
+  TBoolArr = array of Boolean;
   TByteArr = array of Byte;
   TIntArr = array of Integer;
   TWordArr = array of Word;

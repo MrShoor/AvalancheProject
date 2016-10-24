@@ -6,7 +6,7 @@ unit avQuantumWorldGen;
 interface
 
 uses
-  Classes, SysUtils, avContnrs, avContnrsDefaults, Math;
+  Classes, SysUtils, avContnrs, avContnrsDefaults, Math, avTypes;
 
 type
   TTilesSPosition = array of Integer;
@@ -15,7 +15,7 @@ type
 
   TSuperPosition = packed record
     count: Integer; //-1 = any value; -2 = no value; count>=0 = superposition counts or single state
-    data : array of Boolean; //nil = single state or spec values, <>nil = superposition
+    data : TBoolArr; //nil = single state or spec values, <>nil = superposition
     function InSuperPosition: Boolean; inline;
     function InSingleState: Boolean; inline;
     function InAnyPosition: Boolean; inline;
@@ -76,6 +76,7 @@ type
     procedure SiftDown(Index: Integer);
     procedure SiftUp(Index: Integer);
     procedure ExtractTop(out ANode: TNode; out ASP: TSuperPosition);
+    procedure BucketIndexChange(const Key, Value; OldBucketIndex, NewBucketIndex: Integer);
     //end heap stuff
 
     function ExtendSuperPosition(const Direction: Integer; const ASP: TSuperPosition): TSuperPosition;
@@ -198,6 +199,14 @@ begin
     pInfo^.HeapIndex := 0;
     SiftDown(0);
   end;
+end;
+
+procedure TQGen.BucketIndexChange(const Key, Value; OldBucketIndex, NewBucketIndex: Integer);
+var pInfo: TWaveFrontInfo absolute Value;
+begin
+  if FOpenHeap = nil then Exit;
+  if pInfo.HeapIndex < 0 then Exit;
+  FOpenHeap.Item[pInfo.HeapIndex] := NewBucketIndex;
 end;
 
 function TQGen.ExtendSuperPosition(const Direction: Integer; const ASP: TSuperPosition): TSuperPosition;
@@ -423,6 +432,7 @@ begin
   end;
 
   FFront := TWaveFront.Create(FMap.NodeComparer);
+  FFront.OnBucketIndexChange := {$IfDef FPC}@{$EndIf}BucketIndexChange;
 end;
 
 end.
