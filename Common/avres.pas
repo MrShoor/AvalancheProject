@@ -1893,7 +1893,8 @@ begin
   if Inited3D then
   begin
     Free3D;
-    Init3D(FActiveAPI);
+    if IsValidWindow(FWindow) then
+      Init3D(FActiveAPI);
   end;
 end;
 
