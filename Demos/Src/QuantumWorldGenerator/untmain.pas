@@ -61,7 +61,13 @@ var
 
 implementation
 
-{$R *.lfm}
+{$IfnDef notDCC}
+  {$R *.dfm}
+{$EndIf}
+
+{$IfDef FPC}
+  {$R *.lfm}
+{$EndIf}
 
 { TForm1 }
 
