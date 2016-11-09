@@ -1,11 +1,10 @@
-unit untMain;
-
-{$mode objfpc}{$H+}
+unit untmain;
+{$I avConfig.inc}
 
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, mutils,
+  Classes, SysUtils, {FileUtil,} Forms, Controls, Graphics, Dialogs, mutils,
   avTileSplitter, avQuantumWorldGen, avTypes, avContnrsDefaults;
 
 const
@@ -14,7 +13,7 @@ const
   TILE_SIZE = 3;
 
 type
-  IMap = specialize IQMap<TVec2i>;
+  IMap = {$IfDef FPC}specialize{$EndIf} IQMap<TVec2i>;
   ITiledMapDesc = interface(IMap)
     function GetTile(const AIndex: Integer): TTileDesc;
   end;
@@ -42,8 +41,8 @@ type
     constructor Create(const AFileName: string; const AreaSize: TVec2i; wrappedX, wrappedY: Boolean);
   end;
 
-  IWorld = specialize IQGen<TVec2i>;
-  TWorld = specialize TQGen<TVec2i>;
+  IWorld = {$IfDef FPC}specialize{$EndIf} IQGen<TVec2i>;
+  TWorld = {$IfDef FPC}specialize{$EndIf} TQGen<TVec2i>;
 
   { TForm1 }
 

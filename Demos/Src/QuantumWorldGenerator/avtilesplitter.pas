@@ -1,7 +1,6 @@
 unit avTileSplitter;
 
-{$mode objfpc}{$H+}
-{$ModeSwitch advancedrecords}
+{$I avConfig.inc}
 
 interface
 
@@ -11,6 +10,10 @@ uses
 type
   TRGBA = packed record
     r, g, b, a: Byte;
+    {$IfDef DCC}
+    class operator Equal(const a, b: TRGBA): Boolean;
+    class operator NotEqual(const a, b: TRGBA): Boolean;
+    {$EndIf}
   end;
   TRGBA_array = array of TRGBA;
   PRGBA = ^TRGBA;
@@ -58,11 +61,11 @@ uses
 
 type
 
-  ITileImageArr = specialize IArray<ITileImage>;
-  TTileImageArr = specialize TArray<ITileImage>;
+  ITileImageArr = {$IfDef FPC}specialize{$EndIf} IArray<ITileImage>;
+  TTileImageArr = {$IfDef FPC}specialize{$EndIf} TArray<ITileImage>;
 
-  ITileArr = specialize IArray<TTileDesc>;
-  TTileArr = specialize TArray<TTileDesc>;
+  ITileArr = {$IfDef FPC}specialize{$EndIf} IArray<TTileDesc>;
+  TTileArr = {$IfDef FPC}specialize{$EndIf} TArray<TTileDesc>;
 
   { TTileImage }
 
@@ -99,12 +102,30 @@ type
     constructor Create(const AFileName: string; ATileSize, ASplitStep: Integer; AGenOptions: TTileGenOptions);
   end;
 
+{$IfDef FPC}
 operator = (const a, b: TRGBA): Boolean;
 var ia: Cardinal absolute a;
     ib: Cardinal absolute b;
 begin
   Result := ia = ib;
 end;
+{$EndIf}
+
+{$IfDef DCC}
+class operator TRGBA.Equal(const a, b: TRGBA): Boolean;
+var ia: Cardinal absolute a;
+    ib: Cardinal absolute b;
+begin
+  Result := ia = ib;
+end;
+
+class operator TRGBA.NotEqual(const a, b: TRGBA): Boolean;
+var ia: Cardinal absolute a;
+    ib: Cardinal absolute b;
+begin
+  Result := ia <> ib;
+end;
+{$EndIf}
 
 function SplitTilesFromFile(const AFileName: string; ATileSize, ASplitStep: Integer; AGenOptions: TTileGenOptions): ITileSet;
 begin

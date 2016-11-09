@@ -527,7 +527,7 @@ begin
   DoAddOrSet(Result, hash, AKey, AValue);
 end;
 
-function THashMapWithBuckets.AddOrGetBucketIndex(const AKey: TKey; const AValue: TValue): Integer;
+function THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.AddOrGetBucketIndex(const AKey: TKey; const AValue: TValue): Integer;
 var hash: Cardinal;
 begin
   GrowIfNeeded;

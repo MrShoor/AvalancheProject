@@ -1,7 +1,6 @@
 unit avQuantumWorldGen;
 
-{$mode objfpc}{$H+}
-{$ModeSwitch advancedrecords}
+{$I avConfig.inc}
 
 interface
 
@@ -119,12 +118,12 @@ end;
 
 { TQGen }
 
-function TQGen.StatesCountInHeap(I: Integer): Integer;
+function TQGen{$IfDef DCC}<TNode>{$EndIf}.StatesCountInHeap(I: Integer): Integer;
 begin
   Result := StatesCount(PWaveFrontInfo(FFront.GetPValueByBucketIndex(FOpenHeap[I]))^.SP);
 end;
 
-procedure TQGen.Swap(I1, I2: Integer);
+procedure TQGen{$IfDef DCC}<TNode>{$EndIf}.Swap(I1, I2: Integer);
 var bucketIndex: Integer;
     wInfo: PWaveFrontInfo;
 begin
@@ -139,7 +138,7 @@ begin
   wInfo^.HeapIndex := I2;
 end;
 
-procedure TQGen.SiftDown(Index: Integer);
+procedure TQGen{$IfDef DCC}<TNode>{$EndIf}.SiftDown(Index: Integer);
 var leftIdx, rightIdx: Integer;
     minChild: Integer;
 begin
@@ -165,7 +164,7 @@ begin
   end;
 end;
 
-procedure TQGen.SiftUp(Index: Integer);
+procedure TQGen{$IfDef DCC}<TNode>{$EndIf}.SiftUp(Index: Integer);
 var parentIdx: Integer;
 //    cmpResult: Single;
 begin
@@ -181,7 +180,7 @@ begin
   end;
 end;
 
-procedure TQGen.ExtractTop(out ANode: TNode; out ASP: TSuperPosition);
+procedure TQGen{$IfDef DCC}<TNode>{$EndIf}.ExtractTop(out ANode: TNode; out ASP: TSuperPosition);
 var bIndex: Integer;
     pInfo: PWaveFrontInfo;
 begin
@@ -201,7 +200,7 @@ begin
   end;
 end;
 
-procedure TQGen.BucketIndexChange(const Key, Value; OldBucketIndex, NewBucketIndex: Integer);
+procedure TQGen{$IfDef DCC}<TNode>{$EndIf}.BucketIndexChange(const Key, Value; OldBucketIndex, NewBucketIndex: Integer);
 var pInfo: TWaveFrontInfo absolute Value;
 begin
   if FOpenHeap = nil then Exit;
@@ -209,7 +208,7 @@ begin
   FOpenHeap.Item[pInfo.HeapIndex] := NewBucketIndex;
 end;
 
-function TQGen.ExtendSuperPosition(const Direction: Integer; const ASP: TSuperPosition): TSuperPosition;
+function TQGen{$IfDef DCC}<TNode>{$EndIf}.ExtendSuperPosition(const Direction: Integer; const ASP: TSuperPosition): TSuperPosition;
 var j, i: Integer;
 begin
   if ASP.InSuperPosition then
@@ -253,7 +252,7 @@ begin
   end;
 end;
 
-function TQGen.IntersectSuperPosition(const SP1, SP2: TSuperPosition): TSuperPosition;
+function TQGen{$IfDef DCC}<TNode>{$EndIf}.IntersectSuperPosition(const SP1, SP2: TSuperPosition): TSuperPosition;
 var
   i: Integer;
 begin
@@ -302,7 +301,7 @@ begin
   end;
 end;
 
-function TQGen.IsLessSuperPosition(const Left, Right: TSuperPosition): Boolean;
+function TQGen{$IfDef DCC}<TNode>{$EndIf}.IsLessSuperPosition(const Left, Right: TSuperPosition): Boolean;
 begin
   if Left.InAnyPosition then
   begin
@@ -325,7 +324,7 @@ begin
   end;
 end;
 
-function TQGen.StatesCount(const SP: TSuperPosition): Integer;
+function TQGen{$IfDef DCC}<TNode>{$EndIf}.StatesCount(const SP: TSuperPosition): Integer;
 begin
   if SP.InAnyPosition then Exit(FMaxTilesCount);
   if SP.InNoPosition then Exit(0);
@@ -333,7 +332,7 @@ begin
   Result := SP.count;
 end;
 
-function TQGen.Collapse(const ANode: TNode; const SP: TSuperPosition): TSuperPosition;
+function TQGen{$IfDef DCC}<TNode>{$EndIf}.Collapse(const ANode: TNode; const SP: TSuperPosition): TSuperPosition;
 var i, n: Integer;
 begin
   if SP.InAnyPosition then
@@ -358,7 +357,7 @@ begin
     end;
 end;
 
-procedure TQGen.Resolve(const ANodes: array of TNode);
+procedure TQGen{$IfDef DCC}<TNode>{$EndIf}.Resolve(const ANodes: array of TNode);
 var i: Integer;
     currNode: TNode;
     waveInfo: TWaveFrontInfo;
@@ -382,19 +381,19 @@ begin
   end;
 end;
 
-function TQGen.Get(const ANode: TNode): TSuperPosition;
+function TQGen{$IfDef DCC}<TNode>{$EndIf}.Get(const ANode: TNode): TSuperPosition;
 begin
   Result := FFront[ANode].SP;
 end;
 
-procedure TQGen.Reduce(const ANode: TNode; const ATiles: TSuperPosition);
+procedure TQGen{$IfDef DCC}<TNode>{$EndIf}.Reduce(const ANode: TNode; const ATiles: TSuperPosition);
 var waveInfo: PWaveFrontInfo;
     waveInfo_new: TWaveFrontInfo;
     newSP : TSuperPosition;
     NNode : TNode;
     direction: Integer;
 begin
-  if FFront.TryGetPValue(ANode, waveInfo) then
+  if FFront.TryGetPValue(ANode, Pointer(waveInfo)) then
   begin
     newSP := IntersectSuperPosition(ATiles, waveInfo^.SP);
     if IsLessSuperPosition(newSP, waveInfo^.SP) then
@@ -416,7 +415,7 @@ begin
   end;
 end;
 
-constructor TQGen.Create(const AMap: IMap);
+constructor TQGen{$IfDef DCC}<TNode>{$EndIf}.Create(const AMap: IMap);
 var
   direction, tile: Integer;
 begin
