@@ -7,7 +7,7 @@ object frmMain: TfrmMain
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnPaint = FormPaint
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.6.2.0'
   object ApplicationProperties1: TApplicationProperties
     OnIdle = ApplicationProperties1Idle
     left = 58

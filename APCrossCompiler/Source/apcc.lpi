@@ -29,7 +29,7 @@
       <local>
         <FormatVersion Value="1"/>
         <CommandLineParams Value="shaders.json"/>
-        <WorkingDirectory Value="C:\MyProj\AvalancheProject\Demos\Src\Tesselation\tess_shaders"/>
+        <WorkingDirectory Value="D:\OthProj\AvalancheProject\Demos\Src\avm_Import\MeshShader"/>
       </local>
     </RunParams>
     <RequiredPackages Count="1">
