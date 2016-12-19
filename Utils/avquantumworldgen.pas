@@ -37,9 +37,14 @@ type
   end;
 
   {$IfDef FPC}generic{$EndIf} IQGen<TNode> = interface
+    function GetOnReduce: TNotifyEvent;
+    procedure SetOnReduce(const AValue: TNotifyEvent);
+
     procedure Resolve(const ANodes: array of TNode);
     function  Get(const ANode: TNode) : TSuperPosition;
     procedure Reduce(const ANode: TNode; const ATiles: TSuperPosition); overload;
+
+    property OnReduce: TNotifyEvent read GetOnReduce write SetOnReduce;
   end;
 
 
@@ -69,6 +74,11 @@ type
     FFront: IWaveFront;
     FOpenHeap: IOpenHeap;
 
+    FOnReduce: TNotifyEvent;
+
+    function GetOnReduce: TNotifyEvent;
+    procedure SetOnReduce(const AValue: TNotifyEvent);
+
     //heap stuff
     function StatesCountInHeap(I: Integer): Integer;
     procedure Swap(I1, I2: Integer);
@@ -88,6 +98,8 @@ type
     procedure Resolve(const ANodes: array of TNode);
     function Get(const ANode: TNode) : TSuperPosition;
     procedure Reduce(const ANode: TNode; const ATiles: TSuperPosition); overload;
+
+    property OnReduce: TNotifyEvent read GetOnReduce write SetOnReduce;
 
     constructor Create(const AMap: IMap);
   end;
@@ -117,6 +129,16 @@ begin
 end;
 
 { TQGen }
+
+function TQGen{$IfDef DCC}<TNode>{$EndIf}.GetOnReduce: TNotifyEvent;
+begin
+  Result := FOnReduce;
+end;
+
+procedure TQGen{$IfDef DCC}<TNode>{$EndIf}.SetOnReduce(const AValue: TNotifyEvent);
+begin
+  FOnReduce := AValue;
+end;
 
 function TQGen{$IfDef DCC}<TNode>{$EndIf}.StatesCountInHeap(I: Integer): Integer;
 begin
@@ -297,6 +319,18 @@ begin
       Result.data[i] := SP1.data[i] and SP2.data[i];
       if Result.data[i] then Inc(Result.count);
     end;
+    case Result.count of
+      0: Result := NoSuperPosition;
+      1: begin
+           for i := 0 to High(Result.data) - 1 do
+             if Result.data[i] then
+             begin
+               Result.count := i;
+               Result.data := nil;
+               Break;
+             end;
+         end;
+    end;
     Exit;
   end;
 end;
@@ -382,8 +416,12 @@ begin
 end;
 
 function TQGen{$IfDef DCC}<TNode>{$EndIf}.Get(const ANode: TNode): TSuperPosition;
+var wfInfo: PWaveFrontInfo;
 begin
-  Result := FFront[ANode].SP;
+  if not FFront.TryGetPValue(ANode, Pointer(wfInfo)) then
+    Exit(AnySuperPosition)
+  else
+    Result := wfInfo.SP;
 end;
 
 procedure TQGen{$IfDef DCC}<TNode>{$EndIf}.Reduce(const ANode: TNode; const ATiles: TSuperPosition);
@@ -402,9 +440,14 @@ begin
       if waveInfo^.HeapIndex >= 0 then
         SiftUp(waveInfo^.HeapIndex);
 
-      for direction := 0 to FDirectionsCount - 1 do
-        if FMap.GetQNeighbour(direction, ANode, NNode) then
-          Reduce(NNode, ExtendSuperPosition(direction, newSP));
+      if not newSP.InNoPosition then
+      begin
+          for direction := 0 to FDirectionsCount - 1 do
+            if FMap.GetQNeighbour(direction, ANode, NNode) then
+              Reduce(NNode, ExtendSuperPosition(direction, newSP));
+      end;
+
+      If assigned(FOnReduce) Then FOnReduce(Self);
     end;
   end
   else

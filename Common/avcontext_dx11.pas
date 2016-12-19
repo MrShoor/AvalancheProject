@@ -148,6 +148,38 @@ const
   {D32f} DXGI_FORMAT_D32_FLOAT
   );
 
+  D3D11ShaderViewFormat: array [TTextureFormat] of TDXGI_Format = (
+  {RGBA} DXGI_FORMAT_R8G8B8A8_UNORM,
+  {RGBA16} DXGI_FORMAT_R16G16B16A16_UNORM,
+  {RGBA16f} DXGI_FORMAT_R16G16B16A16_FLOAT,
+  {RGBA32} DXGI_FORMAT_R32G32B32A32_SINT,
+  {RGBA32f} DXGI_FORMAT_R32G32B32A32_FLOAT,
+  {RGB} DXGI_FORMAT_UNKNOWN,
+  {RGB16} DXGI_FORMAT_UNKNOWN,
+  {RGB16f} DXGI_FORMAT_UNKNOWN,
+  {RGB32} DXGI_FORMAT_R32G32B32_SINT,
+  {RGB32f} DXGI_FORMAT_R32G32B32_FLOAT,
+  {RG} DXGI_FORMAT_R8G8_UNORM,
+  {RG16} DXGI_FORMAT_R16G16_UNORM,
+  {RG16f} DXGI_FORMAT_R16G16_FLOAT,
+  {RG32} DXGI_FORMAT_R32G32_SINT,
+  {RG32f} DXGI_FORMAT_R32G32_FLOAT,
+  {R} DXGI_FORMAT_R8_UNORM,
+  {R16} DXGI_FORMAT_R16_UNORM,
+  {R16f} DXGI_FORMAT_R16_FLOAT,
+  {R32} DXGI_FORMAT_R32_SINT,
+  {R32f} DXGI_FORMAT_R32_FLOAT,
+  {DXT1} DXGI_FORMAT_UNKNOWN,
+  {DXT3} DXGI_FORMAT_UNKNOWN,
+  {DXT5} DXGI_FORMAT_UNKNOWN,
+  {D24_S8} DXGI_FORMAT_UNKNOWN,
+  {D32f_S8} DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS,
+  {D16} DXGI_FORMAT_R16_FLOAT,
+  {D24} DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
+  {D32} DXGI_FORMAT_R32_SINT,
+  {D32f} DXGI_FORMAT_R32_FLOAT
+  );
+
   DXPrimitiveType: array [TPrimitiveType] of TD3D11_PrimitiveTopology = ( {ptPoints}            D3D11_PRIMITIVE_TOPOLOGY_POINTLIST,
                                                                           {ptLines}             D3D11_PRIMITIVE_TOPOLOGY_LINELIST,
                                                                           {ptLineStrip}         D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP,
@@ -1904,6 +1936,7 @@ var pSrc, pDst: PVec4b;
     PixelCount: Integer;
     i, j: Integer;
 begin
+  Result := True;
   PixelCount := ASrcSize div 4;
   ADstSize := ASrcSize;
   GetMem(ADst, ADstSize);
@@ -2190,7 +2223,7 @@ var desc: TD3D11_ShaderResourceViewDesc;
 begin
   if FResView = nil then
   begin
-    desc.Format := D3D11TextureFormat[FFormat];
+    desc.Format := D3D11ShaderViewFormat[FFormat];
     if (FDeep > 1) or FForcedArray then
     begin
       desc.ViewDimension := D3D10_SRV_DIMENSION_TEXTURE2DARRAY;
@@ -2358,16 +2391,37 @@ end;
 procedure TTexture.CopyFrom(const DstMipLevel: Integer; const DstPos: TVec2I; const ASrcRes: IctxTexture;
   const SrcMipLevel: Integer; const SrcRect: TRectI);
 var box: TD3D11_Box;
+    wholeCopy: Boolean;
 begin
-  box.Left := SrcRect.Left;
-  box.Top := SrcRect.Top;
-  box.Right := SrcRect.Right;
-  box.Bottom := SrcRect.Bottom;
-  box.Front := 0;
-  box.Back := 1;
-  FContext.FDeviceContext.CopySubresourceRegion(
-      FTexture, D3D11CalcSubresource(DstMipLevel, 0, 1), DstPos.x, DstPos.y, 0,
-      IctxTexture_DX11(ASrcRes).GetHandle, D3D11CalcSubresource(SrcMipLevel, 0, 1), @box);
+  case IctxTexture_DX11(ASrcRes).Format of
+    TTextureFormat.D24_S8,
+    TTextureFormat.D32f_S8,
+    TTextureFormat.D16,
+    TTextureFormat.D24,
+    TTextureFormat.D32,
+    TTextureFormat.D32f: wholeCopy := True;
+  else
+    wholeCopy := False;
+  end;
+
+  if wholeCopy then
+  begin
+    FContext.FDeviceContext.CopySubresourceRegion(
+        FTexture, D3D11CalcSubresource(DstMipLevel, 0, 1), 0, 0, 0,
+        IctxTexture_DX11(ASrcRes).GetHandle, D3D11CalcSubresource(SrcMipLevel, 0, 1), nil);
+  end
+  else
+  begin
+    box.Left := SrcRect.Left;
+    box.Top := SrcRect.Top;
+    box.Right := SrcRect.Right;
+    box.Bottom := SrcRect.Bottom;
+    box.Front := 0;
+    box.Back := 1;
+    FContext.FDeviceContext.CopySubresourceRegion(
+        FTexture, D3D11CalcSubresource(DstMipLevel, 0, 1), DstPos.x, DstPos.y, 0,
+        IctxTexture_DX11(ASrcRes).GetHandle, D3D11CalcSubresource(SrcMipLevel, 0, 1), @box);
+  end;
 end;
 
 procedure TTexture.GenerateMips;

@@ -2,6 +2,7 @@ unit untMain;
 {$I avConfig.inc}
 
 {$Define AllowDiagonals}
+{$Define CalcTurnCosts}
 //{$Define DebugOut}
 
 interface
@@ -35,7 +36,7 @@ type
     function IsEqual(const Left, Right): Boolean;
 
     function MaxNeighbourCount(const ANode: TPoint): Integer;
-    function GetNeighbour(Index: Integer; const ACurrent, ATarget: TPoint; out ANeighbour: TPoint; out MoveWeight, DistWeight: Single): Boolean;
+    function GetNeighbour(Index: Integer; const AFrom, ACurrent, ATarget: TPoint; out ANeighbour: TPoint; out MoveWeight, DistWeight: Single): Boolean;
 
     function NodeComparer: IEqualityComparer;
 
@@ -116,8 +117,23 @@ begin
   {$EndIf}
 end;
 
-function TInteractiveMap.GetNeighbour(Index: Integer; const ACurrent, ATarget: TPoint;
+function TInteractiveMap.GetNeighbour(Index: Integer; const AFrom, ACurrent, ATarget: TPoint;
   out ANeighbour: TPoint; out MoveWeight, DistWeight: Single): Boolean;
+  {$IfDef CalcTurnCosts}
+  function CalcTurnCost(const MoveDir: TPoint): Single;
+  var vprev: TPoint;
+      mult: Double;
+  begin
+    vprev.X := ACurrent.X - AFrom.X;
+    vprev.Y := ACurrent.Y - AFrom.Y;
+    mult := 1;
+    if abs(vprev.X)+abs(vprev.Y) > 1 then
+    mult := mult * 1/sqrt(2);
+    if abs(MoveDir.X)+abs(MoveDir.Y) > 1 then
+    mult := mult * 1/sqrt(2);
+    Result := 0.001 - (vprev.X*MoveDir.X*mult + vprev.Y*MoveDir.Y*mult)*0.001;
+  end;
+  {$EndIf}
 var v: TPoint;
     minDelta: Integer;
 begin
@@ -145,6 +161,9 @@ begin
   if not CellFree(ANeighbour.x, ANeighbour.y) then Exit;
 
   MoveWeight := sqrt(v.x*v.x + v.y*v.y);
+  {$IfDef CalcTurnCosts}
+  MoveWeight := MoveWeight + CalcTurnCost(v);
+  {$EndIf}
 
   v.x := abs(ATarget.x - ANeighbour.x);
   v.y := abs(ATarget.y - ANeighbour.y);
@@ -211,12 +230,12 @@ var i: Integer;
 begin
   Canvas.CopyRect(Rect(0, 0, FMap.Bmp.Width*SCALE, FMap.Bmp.Height*SCALE), FMap.Bmp.Canvas, Rect(0, 0, FMap.Bmp.Width, FMap.Bmp.Height));
 
+  DrawQuad(FStartPt, clBlue);
+  DrawQuad(FEndPt, clBlue);
+
   if Assigned(FPath) then
     for i := 0 to FPath.Count - 1 do
       DrawQuad(FPath[i], clRed);
-
-  DrawQuad(FStartPt, clBlue);
-  DrawQuad(FEndPt, clBlue);
 end;
 
 procedure TForm1.FindPath;

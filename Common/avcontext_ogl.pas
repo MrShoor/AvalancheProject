@@ -2489,7 +2489,7 @@ begin
   end
   else
   begin
-    StrideSize := FSelectedVAOKey.ModelVertex.Layout.Size;
+    //StrideSize := FSelectedVAOKey.ModelVertex.Layout.Size;
     Start := Start;
     Count := Count;
     if InstanceCount = 0 then
@@ -2661,6 +2661,7 @@ begin
   if FBindCount = 0 then
   begin
     wglMakeCurrent(FDC, FRC);
+    CleanUpHandles;
     if not DEFAULT_BackBuffer then
       glDrawBuffer(GL_FRONT);
   end;

@@ -1170,6 +1170,7 @@ end;
 function TavFrameBuffer.GetColor(Index: Integer): TavTextureBase;
 var ref: IWeakRef;
 begin
+  Result := nil;
   if (Index >= 0) and (Index < FColors.Count) then
     ref := FColors.Item[Index].tex
   else

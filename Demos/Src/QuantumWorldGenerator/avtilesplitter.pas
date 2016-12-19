@@ -269,15 +269,15 @@ begin
   //prepare images
   img := LoadTexture(AFileName, SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.A8R8G8B8).MipData(0, 0);
   j := 0;
-  while j < img.Width - ATileSize - 1 do
+  while j <= img.Height - ATileSize do
   begin
     i := 0;
-    while i < img.Height - ATileSize - 1 do
+    while i <= img.Width - ATileSize do
     begin
       FImages.Add(CreateTileAtXY(img, i, j));
       Inc(i, ASplitStep);
-      Inc(j, ASplitStep);
     end;
+    Inc(j, ASplitStep);
   end;
 
   //prepare tiles

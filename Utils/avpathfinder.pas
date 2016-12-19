@@ -9,11 +9,21 @@ uses
   Classes, SysUtils, avContnrs, avContnrsDefaults, Math;
 
 type
-  {$IfDef FPC}generic{$EndIf} IMap<TNode> = interface
+  {$IfDef FPC}generic{$EndIf} IGraphBase<TNode> = interface
     function MaxNeighbourCount(const ANode: TNode): Integer;
-    function GetNeighbour(Index: Integer; const ACurrent, ATarget: TNode; out ANeighbour: TNode; out MoveWeight, DistWeight: Single): Boolean;
-
     function NodeComparer: IEqualityComparer;
+  end;
+
+  {$IfDef FPC}generic{$EndIf} INonWeightedGraph<TNode> = interface ({$IfDef FPC}specialize{$EndIf} IGraphBase<TNode>)
+    function GetNeighbour(Index: Integer; const ACurrent: TNode; out ANeighbour: TNode): Boolean; overload;
+  end;
+
+  {$IfDef FPC}generic{$EndIf} IWeightedGraph<TNode> = interface ({$IfDef FPC}specialize{$EndIf} IGraphBase<TNode>)
+    function GetNeighbour(Index: Integer; const ACurrent: TNode; out ANeighbour: TNode; out MoveWeight: Single): Boolean; overload;
+  end;
+
+  {$IfDef FPC}generic{$EndIf} IMap<TNode> = interface ({$IfDef FPC}specialize{$EndIf} IGraphBase<TNode>)
+    function GetNeighbour(Index: Integer; const AFrom, ACurrent, ATarget: TNode; out ANeighbour: TNode; out MoveWeight, DistWeight: Single): Boolean; overload;
   end;
 
   IDebugOut = interface
@@ -54,6 +64,8 @@ type
   private
     FMap: IFindMap;
 
+    FNodeComparer: IEqualityComparer;
+
     FOpenSet : IOpenSet;
     FOpenHeap: IOpenHeap;
 
@@ -75,7 +87,84 @@ type
     destructor Destroy; override;
   end;
 
+  {$IfDef FPC}generic{$EndIf} IBFS_Iterator<TNode> = interface
+      procedure Reset(const ANode: TNode);
+      function Next(out ANode: TNode): Boolean; overload;
+      function Next(out ANode: TNode; out ADepth: Integer): Boolean; overload;
+  end;
+
+  { TBFS_Iterator }
+
+  {$IfDef FPC}generic{$EndIf} TBFS_Iterator<TNode> = class (TInterfacedObjectEx, {$IfDef FPC}specialize{$EndIf} IBFS_Iterator<TNode>)
+  private type
+    TBFSItem = packed record
+      node : TNode;
+      depth: Integer;
+    end;
+    IGraph = {$IfDef FPC}specialize{$EndIf} INonWeightedGraph<TNode>;
+    INodeQueue = {$IfDef FPC}specialize{$EndIf} IQueue<TBFSItem>;
+    TNodeQueue = {$IfDef FPC}specialize{$EndIf} TQueue<TBFSItem>;
+    IVisitedHash = {$IfDef FPC}specialize{$EndIf} IHashSet<TNode>;
+    TVisitedHash = {$IfDef FPC}specialize{$EndIf} THashSet<TNode>;
+  private
+    FGraph: IGraph;
+    FQueue: INodeQueue;
+    FVisited: IVisitedHash;
+    FComparer: IEqualityComparer;
+  public
+    procedure Reset(const ANode: TNode);
+    function Next(out ANode: TNode): Boolean; overload;
+    function Next(out ANode: TNode; out ADepth: Integer): Boolean; overload;
+    constructor Create(const AGraph: IGraph);
+  end;
+
 implementation
+
+{ TBFS_Iterator }
+
+procedure TBFS_Iterator{$IfDef DCC}<TNode>{$EndIf}.Reset(const ANode: TNode);
+var item: TBFSItem;
+begin
+  item.node := ANode;
+  item.depth := 0;
+  FQueue := TNodeQueue.Create();
+  FQueue.Push(item);
+  FVisited := TVisitedHash.Create(FComparer);
+end;
+
+function TBFS_Iterator{$IfDef DCC}<TNode>{$EndIf}.Next(out ANode: TNode): Boolean;
+var dummy: Integer;
+begin
+  Result := Next(ANode, dummy);
+end;
+
+function TBFS_Iterator{$IfDef DCC}<TNode>{$EndIf}.Next(out ANode: TNode; out ADepth: Integer): Boolean;
+var n, i: Integer;
+    topItem, neighbourItem: TBFSItem;
+    ANeighbour: TNode;
+begin
+  if FQueue.Count = 0 then Exit(False);
+  Result := True;
+  topItem := FQueue.Pop;
+  ANode := topItem.node;
+  ADepth := topItem.depth;
+  n := FGraph.MaxNeighbourCount(ANode);
+  for i := 0 to n-1 do
+    if FGraph.GetNeighbour(i, ANode, ANeighbour) then
+      if not FVisited.Contains(ANeighbour) then
+      begin
+        FVisited.Add(ANeighbour);
+        neighbourItem.node := ANeighbour;
+        neighbourItem.depth:= topItem.depth+1;
+        FQueue.Push(neighbourItem);
+      end;
+end;
+
+constructor TBFS_Iterator{$IfDef DCC}<TNode>{$EndIf}.Create(const AGraph: IGraph);
+begin
+  FGraph := AGraph;
+  FComparer := FGraph.NodeComparer;
+end;
 
 { TAStar }
 
@@ -203,11 +292,10 @@ end;
 function TAStar{$IfDef DCC}<TNode>{$EndIf}.ConstructPath(const ATarget, AStartNode: TNode): {$IfDef FPC}specialize{$EndIf} IArray<TNode>;
 var nextNode: TNode;
     i: Integer;
-    startTime, endTime, freq: Int64;
 begin
   Result := TPath.Create;
   nextNode := ATarget;
-  while not FMap.NodeComparer.IsEqual(nextNode, AStartNode) do
+  while not FNodeComparer.IsEqual(nextNode, AStartNode) do
   begin
     Result.Add(nextNode);
     nextNode := FOpenSet[nextNode].From;
@@ -229,13 +317,13 @@ var currStepInfo: TOpenSetInfo;
     minDistW: Single;
 begin
   Result := nil;
-  if FMap.NodeComparer.IsEqual(AEndNode, AStartNode) then
+  if FNodeComparer.IsEqual(AEndNode, AStartNode) then
   begin
     Result := TPath.Create;
     Exit;
   end;
 
-  AddToOpen(AStartNode, Default(TNode), 0, Infinity);
+  AddToOpen(AStartNode, AStartNode, 0, Infinity);
 
   while FOpenHeap.Count > 0 do
   begin
@@ -245,7 +333,7 @@ begin
       ADebugOut.OpeninigNode(currNode, currStepInfo.MoveWeight, currStepInfo.AllWeight);
     {$EndIf}
 
-    if FMap.NodeComparer.IsEqual(currNode, AEndNode) then // path found, reconstuct
+    if FNodeComparer.IsEqual(currNode, AEndNode) then // path found, reconstuct
     begin
       Result := ConstructPath(currStepInfo.From, AStartNode);
       Exit;
@@ -257,7 +345,7 @@ begin
     while i > 0 do
     begin
       Dec(i);
-      if FMap.GetNeighbour(i, currNode, AEndNode, nextNode, moveW, distW) then
+      if FMap.GetNeighbour(i, currStepInfo.From, currNode, AEndNode, nextNode, moveW, distW) then
         AddToOpen(nextNode, currNode, currStepInfo.MoveWeight+moveW, distW);
     end;
   end;
@@ -284,7 +372,9 @@ constructor TAStar{$IfDef DCC}<TNode>{$EndIf}.Create(const AMap: IFindMap);
 begin
   FMap := AMap;
 
-  FOpenSet := TOpenSet.Create(FMap.NodeComparer);
+  FNodeComparer := FMap.NodeComparer;
+
+  FOpenSet := TOpenSet.Create(FNodeComparer);
   {$IfDef FPC}
   FOpenSet.OnBucketIndexChange := @BucketIndexChange;
   {$Else}

@@ -155,6 +155,51 @@ type
   IObjArr = {$IfDef FPC}specialize{$EndIf} IArray<TObject>;
   TObjArr = {$IfDef FPC}specialize{$EndIf} TArray<TObject>;
 
+  { IQueue }
+
+  {$IfDef FPC}generic{$EndIf}
+  IQueue<TValue> = interface
+    function GetCapacity: Integer;
+    procedure SetCapacity(cap: Integer);
+
+    function Count: Integer;
+
+    procedure Push(const item: TValue); overload;
+    //procedure Push(const items: specialize IArray<TValue>); overload;
+    function Pop: TValue;
+
+    procedure Clear(const TrimCapacity: Boolean = False);
+
+    property Capacity: Integer read GetCapacity write SetCapacity;
+  end;
+
+  { TQueue }
+
+  {$IfDef FPC}generic{$EndIf}
+  TQueue<TValue> = class (TInterfacedObjectEx, {$IfDef FPC}specialize{$EndIf} IQueue<TValue>)
+  private type
+    TDataArr = array of TValue;
+  private
+    FData: TDataArr;
+    FSeek: Cardinal;
+    FEnd : Cardinal;
+  private
+    function GetCapacity: Integer;
+    procedure SetCapacity(cap: Integer);
+
+    function Count: Integer;
+
+    procedure Push(const item: TValue); overload;
+    //procedure Push(const items: specialize IArray<TValue>); overload;
+    function Pop: TValue;
+
+    procedure Clear(const TrimCapacity: Boolean = False);
+
+    property Capacity: Integer read GetCapacity write SetCapacity;
+  public
+    constructor Create;
+  end;
+
   { IHashMap }
 
   {$IfDef FPC}generic{$EndIf}
@@ -495,6 +540,94 @@ implementation
 
 uses
   rtlconsts, math;
+
+{ TQueue }
+
+{$IFOPT R+}
+  {$DEFINE RANGEON}
+  {$R-}
+{$ENDIF}
+function TQueue{$IfDef DCC}<TValue>{$EndIf}.GetCapacity: Integer;
+begin
+  Result := Length(FData);
+end;
+
+procedure TQueue{$IfDef DCC}<TValue>{$EndIf}.SetCapacity(cap: Integer);
+var data: TDataArr;
+    j, i: Integer;
+begin
+  Assert(cap >= Count);
+  SetLength(data, cap);
+  j := 0;
+  if Length(FData) > 0 then
+  begin
+    for i := FSeek to FEnd-1 do
+    begin
+      data[j] := FData[i mod Length(FData)];
+      Inc(j);
+    end;
+  end;
+  FEnd := j;
+  FSeek := 0;
+  FData := data;
+end;
+
+function TQueue{$IfDef DCC}<TValue>{$EndIf}.Count: Integer;
+begin
+  Result := FEnd - FSeek;
+end;
+
+procedure TQueue{$IfDef DCC}<TValue>{$EndIf}.Push(const item: TValue);
+var n: Integer;
+begin
+  if Count = Length(FData) then
+    Capacity := Max(16, Capacity*2);
+  n := Length(FData);
+  if FEnd >= n then
+    FData[FEnd - n] := item
+  else
+    FData[FEnd] := item;
+  Inc(FEnd);
+end;
+
+function TQueue{$IfDef DCC}<TValue>{$EndIf}.Pop: TValue;
+var n: Integer;
+begin
+  if FSeek = FEnd then
+    raise EListError.Create('No items in queue.');
+
+  Result := FData[FSeek];
+  FData[FSeek] := Default(TValue);
+  Inc(FSeek);
+  if FSeek >= Length(FData) then
+  begin
+    Dec(FSeek, Length(FData));
+    Dec(FEnd, Length(FData));
+  end;
+end;
+
+procedure TQueue{$IfDef DCC}<TValue>{$EndIf}.Clear(const TrimCapacity: Boolean);
+var
+  i: Integer;
+begin
+  if TrimCapacity then
+    FData := nil
+  else
+    for i := FSeek to FEnd-1 do
+      FData[i mod Length(FData)] := Default(TValue);
+  FSeek := 0;
+  FEnd := 0;
+end;
+
+constructor TQueue{$IfDef DCC}<TValue>{$EndIf}.Create;
+begin
+  FSeek := 0;
+  FEnd := 0;
+end;
+{$IFDEF RANGEON}
+  {$R+}
+  {$UNDEF RANGEON}
+{$ENDIF}
 
 { THashMapWithBuckets }
 
@@ -1253,6 +1386,7 @@ function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Add(const AKey: TKey; const 
 var hash: Cardinal;
     bIndex: Integer;
 begin
+  bIndex := 0;
   Result := False;
   GrowIfNeeded;
   hash := FComparer.Hash(AKey);
@@ -1287,6 +1421,7 @@ procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Delete(const AKey: TKey);
 var hash: Cardinal;
     bIndex, curInd: Integer;
 begin
+  bIndex := 0;
   hash := FComparer.Hash(AKey);
   if not CalcBucketIndex(AKey, hash, bIndex) then
     Exit;
@@ -1341,6 +1476,7 @@ end;
 function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Contains(const AKey: TKey): Boolean;
 var bIndex: Integer;
 begin
+  bIndex := 0;
   Result := CalcBucketIndex(AKey, FComparer.Hash(AKey), bIndex);
 end;
 

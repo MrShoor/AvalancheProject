@@ -577,7 +577,7 @@ begin
       lastDiffuse := mInst.GetTexMap;
       prog.SetUniform('Maps', lastDiffuse, Sampler_Linear);
     end;
-    DrawManaged(prog, mInst.FModel.VBHandle, mInst.FModel.IBHandle, mInst.FInstGPUData, ptTriangles, cmBack);
+    DrawManaged(prog, mInst.FModel.VBHandle, mInst.FModel.IBHandle, mInst.FInstGPUData, ptTriangles, Main.States.CullMode);
   end;
 end;
 
@@ -695,7 +695,6 @@ var
 
   modelInst: TavModelInstance;
   instGPU : TModelInstanceGPUData;
-  m: TMat4Arr;
 begin
   Assert(not FModelInstances.Contains(AMeshInstance), 'Instance "'+AMeshInstance.Name+'" already in set');
 
@@ -765,7 +764,8 @@ begin
 
   modelInst := TavModelInstance.Create;
   modelInst.FMeshInst := AMeshInstance;
-  modelInst.FMeshInst.Pose.SetAnimationState([]);
+  if modelInst.FMeshInst.Pose <> nil then
+    modelInst.FMeshInst.Pose.SetAnimationState([]);
   modelInst.FBoneTransformHandle := FBoneTransform.AddPose(modelInst.FMeshInst);
   instGPU := TModelInstanceGPUData.Create;
   instGPU.aiBoneMatDifNormOffset := Vec(modelInst.FBoneTransformHandle.Offset,

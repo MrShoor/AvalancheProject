@@ -444,6 +444,7 @@ end;
 
 function CalcPrimCount(const ItemsCount: Integer; const PrimType: TPrimitiveType): Integer;
 begin
+  Result := 0;
   case PrimType of
       ptPoints           : Result := ItemsCount;
       ptLines            : Result := ItemsCount div 2;
@@ -461,6 +462,7 @@ end;
 
 function ComponentTypeSize(const AType: TComponentType): Integer;
 begin
+  Result := 0;
   case AType of
     ctBool  : Assert(False, 'Not implemented yet');
     ctByte  : Result := 1;

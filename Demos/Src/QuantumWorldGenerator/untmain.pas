@@ -4,13 +4,14 @@ unit untmain;
 interface
 
 uses
+    Windows,
   Classes, SysUtils, {FileUtil,} Forms, Controls, Graphics, Dialogs, mutils,
   avTileSplitter, avQuantumWorldGen, avTypes, avContnrsDefaults;
 
 const
-  WORLD_SIZE_X = 400;
-  WORLD_SIZE_Y = 400;
-  TILE_SIZE = 3;
+  WORLD_SIZE_X = 40;
+  WORLD_SIZE_Y = 20;
+  TILE_SIZE = 9;
 
 type
   IMap = {$IfDef FPC}specialize{$EndIf} IQMap<TVec2i>;
@@ -49,9 +50,14 @@ type
   TForm1 = class(TForm)
     procedure FormCreate(Sender: TObject);
     procedure FormPaint(Sender: TObject);
+    procedure FormMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
   private
+    FBackBmp : TBitmap;
     FMapDesc: ITiledMapDesc;
     FWorld  : IWorld;
+    procedure ReduceEvent(ASender: TObject);
+    procedure ResolveWorld;
   public
     { public declarations }
   end;
@@ -72,17 +78,17 @@ implementation
 { TForm1 }
 
 procedure TForm1.FormCreate(Sender: TObject);
-var i, j: Integer;
-    area: TVec2iArr;
 begin
   FMapDesc := TMap.Create('pattern.bmp', Vec(WORLD_SIZE_X, WORLD_SIZE_Y), True, True);
   FWorld := TWorld.Create(FMapDesc);
+  FWorld.OnReduce := ReduceEvent;
+end;
 
-  SetLength(area, WORLD_SIZE_X*WORLD_SIZE_Y);
-  for j := 0 to WORLD_SIZE_Y - 1 do
-    for i := 0 to WORLD_SIZE_X - 1 do
-      area[j*WORLD_SIZE_X+i] := Vec(i, j);
-  FWorld.Resolve(area);
+procedure TForm1.FormMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  ResolveWorld;
+  Invalidate;
 end;
 
 procedure TForm1.FormPaint(Sender: TObject);
@@ -135,7 +141,7 @@ var
         begin
           if not data[k] then Continue;
           tile := FMapDesc.GetTile(k+offset);
-          pSrc := tile.Pixel(i, j);
+          pSrc := tile.Pixel(i, TILE_SIZE-1-j);
           Inc(r, pSrc.r);
           Inc(g, pSrc.g);
           Inc(b, pSrc.b);
@@ -155,7 +161,7 @@ var
   end;
 
 var
-  FBackBmp: TBitmap;
+//  FBackBmp: TBitmap;
   i, j: Integer;
 begin
   SetLength(anyData, FMapDesc.TilesCount);
@@ -163,15 +169,39 @@ begin
   singleData[0] := True;
   for i := 0 to Length(anyData) - 1 do anyData[i] := True;
 
-  FBackBmp := TBitmap.Create;
-  FBackBmp.Width := WORLD_SIZE_X*TILE_SIZE;
-  FBackBmp.Height := WORLD_SIZE_Y*TILE_SIZE;
-  FBackBmp.PixelFormat := pf24bit;
+  if FBackBmp = nil then
+  begin
+      FBackBmp := TBitmap.Create;
+      FBackBmp.Width := WORLD_SIZE_X*TILE_SIZE;
+      FBackBmp.Height := WORLD_SIZE_Y*TILE_SIZE;
+      FBackBmp.PixelFormat := pf24bit;
+  end;
   for j := 0 to WORLD_SIZE_Y - 1 do
     for i := 0 to WORLD_SIZE_X - 1 do
       DrawTile(FBackBmp, i, j, FWorld.Get(Vec(i,j)));
 
   Canvas.StretchDraw(Rect(0,0,FBackBmp.Width*4,FBackBmp.Height*4), FBackBmp);
+end;
+
+procedure TForm1.ReduceEvent(ASender: TObject);
+begin
+  if Random(3) = 0 then
+  begin
+      Invalidate;
+      UpdateWindow(Handle);
+  end;
+end;
+
+procedure TForm1.ResolveWorld;
+var i, j: Integer;
+    area: TVec2iArr;
+begin
+  SetLength(area, WORLD_SIZE_X*WORLD_SIZE_Y);
+  for j := 0 to WORLD_SIZE_Y - 1 do
+    for i := 0 to WORLD_SIZE_X - 1 do
+      area[j*WORLD_SIZE_X+i] := Vec(i, j);
+    FWorld.Resolve(area);
+//  FWorld.Resolve([area[0], area[1], area[7], area[8]]);
 end;
 
 { TMap }
@@ -226,10 +256,10 @@ end;
 function TMap.GetQNeighbour(const ADirection: Integer; const ANode: TVec2i; out ANeighbour: TVec2i): Boolean;
 begin
   case ADirection of
-    0 : ANeighbour := Vec(ANode.x + 1, ANode.y);
-    1 : ANeighbour := Vec(ANode.x, ANode.y - 1);
-    2 : ANeighbour := Vec(ANode.x - 1, ANode.y);
-    3 : ANeighbour := Vec(ANode.x, ANode.y + 1);
+    0 : ANeighbour := Vec(ANode.x, ANode.y + 1);
+    1 : ANeighbour := Vec(ANode.x + 1, ANode.y);
+    2 : ANeighbour := Vec(ANode.x, ANode.y - 1);
+    3 : ANeighbour := Vec(ANode.x - 1, ANode.y);
   else
     Exit(False);
   end;
@@ -261,7 +291,8 @@ end;
 constructor TMap.Create(const AFileName: string; const AreaSize: TVec2i;
   wrappedX, wrappedY: Boolean);
 begin
-  FTileSet := SplitTilesFromFile(AFileName, TILE_SIZE, 1);
+  //FTileSet := SplitTilesFromFile(AFileName, TILE_SIZE, 1);
+  FTileSet := SplitTilesFromFile(AFileName, TILE_SIZE, 9, [tgoAllowRotate]);
   FTilesCount := FTileSet.TilesCount;
   FWrappedX := wrappedX;
   FWrappedY := wrappedY;
