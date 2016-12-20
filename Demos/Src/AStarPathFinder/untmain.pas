@@ -119,6 +119,8 @@ end;
 
 function TInteractiveMap.GetNeighbour(Index: Integer; const AFrom, ACurrent, ATarget: TPoint;
   out ANeighbour: TPoint; out MoveWeight, DistWeight: Single): Boolean;
+const SQRT2 = 1.4142135623730950488016887242097;
+      SQRT2_INV = 1.0 / SQRT2;
   {$IfDef CalcTurnCosts}
   function CalcTurnCost(const MoveDir: TPoint): Single;
   var vprev: TPoint;
@@ -128,9 +130,9 @@ function TInteractiveMap.GetNeighbour(Index: Integer; const AFrom, ACurrent, ATa
     vprev.Y := ACurrent.Y - AFrom.Y;
     mult := 1;
     if abs(vprev.X)+abs(vprev.Y) > 1 then
-    mult := mult * 1/sqrt(2);
+    mult := mult * SQRT2_INV;
     if abs(MoveDir.X)+abs(MoveDir.Y) > 1 then
-    mult := mult * 1/sqrt(2);
+    mult := mult * SQRT2_INV;
     Result := 0.001 - (vprev.X*MoveDir.X*mult + vprev.Y*MoveDir.Y*mult)*0.001;
   end;
   {$EndIf}
@@ -169,7 +171,7 @@ begin
   v.y := abs(ATarget.y - ANeighbour.y);
   {$IfDef AllowDiagonals}
   minDelta := Min(v.x, v.y);
-  DistWeight := Max(v.x, v.y) - minDelta + minDelta*sqrt(2);
+  DistWeight := Max(v.x, v.y) - minDelta + minDelta*SQRT2;
   {$Else}
   DistWeight := v.x+v.y;
   {$EndIf}

@@ -324,7 +324,9 @@ function IsPow2(Num: LongInt): Boolean; overload;
 function IsPow2(Vec: TVec2i): Boolean; overload;
 function NextPow2(Num: LongInt): LongInt; overload;
 function NextPow2(Vec: TVec2i): TVec2i; overload;
-function Log2Int(v: Integer): Integer;
+function Log2Int(v: Integer): Integer; overload;
+function Log2Int(v: UInt64): Integer; overload;
+function BitsCount(x: UInt64): Integer; overload;
 function GetMipsCount(Width, Height: Integer): Integer;
 
 function Bezier3(const pt1, pt2, pt3, pt4: TVec2; t: single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -1141,6 +1143,58 @@ begin
     Result := Result or 2;
   end;
   Result := Result or (v shr 1);
+end;
+
+function Log2Int(v: UInt64): Integer;
+begin
+  if (v > $FFFFFFFF) then
+  begin
+    Result := 32;
+    v := v shr Result;
+  end
+  else
+    Result := 0;
+
+  if (v > $FFFF) then
+  begin
+    v := v shr 16;
+    Result := Result or 16;
+  end;
+
+  if (v > $FF) then
+  begin
+    v := v shr 8;
+    Result := Result or 8;
+  end;
+
+  if (v > $F) then
+  begin
+    v := v shr 4;
+    Result := Result or 4;
+  end;
+
+  if (v > $3) then
+  begin
+    v := v shr 2;
+    Result := Result or 2;
+  end;
+  Result := Result or (v shr 1);
+end;
+
+function BitsCount(x: UInt64): Integer;
+    const m1  : UInt64 = $5555555555555555; //binary: 0101...
+    const m2  : UInt64 = $3333333333333333; //binary: 00110011..
+    const m4  : UInt64 = $0f0f0f0f0f0f0f0f; //binary:  4 zeros,  4 ones ...
+    const m8  : UInt64 = $00ff00ff00ff00ff; //binary:  8 zeros,  8 ones ...
+    const m16 : UInt64 = $0000ffff0000ffff; //binary: 16 zeros, 16 ones ...
+    const m32 : UInt64 = $00000000ffffffff; //binary: 32 zeros, 32 ones
+    const hff : UInt64 = $ffffffffffffffff; //binary: all ones
+    const h01 : UInt64 = $0101010101010101; //the sum of 256 to the power of 0,1,2,3...
+begin
+  Dec(x, (x shr 1) and m1);             //put count of each 2 bits into those 2 bits
+  x := (x and m2) + ((x shr 2) and m2); //put count of each 4 bits into those 4 bits
+  x := (x + (x shr 4)) and m4;          //put count of each 8 bits into those 8 bits
+  Result := (x * h01) shr 56;           //returns left 8 bits of x + (x<<8) + (x<<16) + (x<<24) + ...
 end;
 
 function GetMipsCount(Width, Height: Integer): Integer;

@@ -167,6 +167,7 @@ type
     procedure Push(const item: TValue); overload;
     //procedure Push(const items: specialize IArray<TValue>); overload;
     function Pop: TValue;
+    function Peek: TValue;
 
     procedure Clear(const TrimCapacity: Boolean = False);
 
@@ -192,6 +193,7 @@ type
     procedure Push(const item: TValue); overload;
     //procedure Push(const items: specialize IArray<TValue>); overload;
     function Pop: TValue;
+    function Peek: TValue;
 
     procedure Clear(const TrimCapacity: Boolean = False);
 
@@ -215,6 +217,7 @@ type
 
     function Count: Integer;
     function Add(const AKey: TKey; const AValue: TValue): Boolean;
+    function AddIfNotContains(const AKey: TKey; const AValue: TValue): Boolean;
     procedure AddOrSet(const AKey: TKey; const AValue: TValue);
     procedure Delete(const AKey: TKey);
     function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
@@ -244,7 +247,7 @@ type
     procedure SetCapacity(const cap: Integer);
 
     function Count: Integer;
-    procedure Add(const AKey: TKey); overload;
+    function Add(const AKey: TKey): Boolean; overload; //Return True if new item added, False if item already in set
     //procedure Add(const Arr : {$IfDef FPC}specialize{$EndIf} IArray<TKey>); overload;
     procedure AddOrSet(const AKey: TKey);
     procedure Delete(const AKey: TKey);
@@ -308,6 +311,7 @@ type
 
     function Count: Integer;
     function Add(const AKey: TKey; const AValue: TValue): Boolean;
+    function AddIfNotContains(const AKey: TKey; const AValue: TValue): Boolean;
     procedure AddOrSet(const AKey: TKey; const AValue: TValue);
     procedure Delete(const AKey: TKey);
     function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
@@ -349,7 +353,7 @@ type
     procedure SetCapacity(const cap: Integer);
 
     function Count: Integer;
-    procedure Add(const AKey: TKey); overload;
+    function Add(const AKey: TKey): Boolean; overload;
     procedure AddOrSet(const AKey: TKey);
     procedure Delete(const AKey: TKey);
     function Contains(const AKey: TKey): Boolean;
@@ -591,7 +595,6 @@ begin
 end;
 
 function TQueue{$IfDef DCC}<TValue>{$EndIf}.Pop: TValue;
-var n: Integer;
 begin
   if FSeek = FEnd then
     raise EListError.Create('No items in queue.');
@@ -604,6 +607,13 @@ begin
     Dec(FSeek, Length(FData));
     Dec(FEnd, Length(FData));
   end;
+end;
+
+function TQueue{$IfDef DCC}<TValue>{$EndIf}.Peek: TValue;
+begin
+  if FSeek = FEnd then
+    raise EListError.Create('No items in queue.');
+  Result := FData[FSeek];
 end;
 
 procedure TQueue{$IfDef DCC}<TValue>{$EndIf}.Clear(const TrimCapacity: Boolean);
@@ -1228,9 +1238,9 @@ begin
   Result := FHash.Count;
 end;
 
-procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.Add(const AKey: TKey);
+function THashSet{$IfDef DCC}<TKey>{$EndIf}.Add(const AKey: TKey): Boolean;
 begin
-  FHash.Add(AKey, False);
+  Result := FHash.AddIfNotContains(AKey, False);
 end;
 
 procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.AddOrSet(const AKey: TKey);
@@ -1415,6 +1425,22 @@ begin
   hash := FComparer.Hash(AKey);
   CalcBucketIndex(AKey, hash, bIndex);
   DoAddOrSet(bIndex, hash, AKey, AValue);
+end;
+
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.AddIfNotContains(const AKey: TKey; const AValue: TValue): Boolean;
+var hash: Cardinal;
+    bIndex: Integer;
+begin
+  bIndex := 0;
+  Result := False;
+  GrowIfNeeded;
+  hash := FComparer.Hash(AKey);
+
+  if CalcBucketIndex(AKey, hash, bIndex) then
+    Exit;
+
+  DoAddOrSet(bIndex, hash, AKey, AValue);
+  Result := True;
 end;
 
 procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Delete(const AKey: TKey);

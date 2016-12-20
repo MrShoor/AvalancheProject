@@ -5,7 +5,7 @@ unit avQuantumWorldGen;
 interface
 
 uses
-  Classes, SysUtils, avContnrs, avContnrsDefaults, Math, avTypes;
+  Classes, SysUtils, avContnrs, avContnrsDefaults, avPathFinder, Math, avTypes, mutils;
 
 type
   TTilesSPosition = array of Integer;
@@ -21,19 +21,47 @@ type
     function InNoPosition: Boolean; inline;
   end;
 
+  TSuperPosition2 = packed record
+  private type
+    TBitIndices = packed record
+      arrIndex: Cardinal;
+      bitIndex: Cardinal;
+    end;
+  private const
+    UInt64_Size = 8;
+    UInt64_SizePow = 3;
+  private
+    FCount: Integer; //-1 = any value; -2 = no value; count>=0 = superposition counts or single state
+    FCap  : Integer;
+    FData : array of UInt64; //nil = single state or spec values, <>nil = superposition
+    function CalcBitIndices(const N: Cardinal): TBitIndices; inline;
+    function BitIsSet(const Ind: TBitIndices): Boolean; inline;
+  public
+    function VariantsCount: Integer; inline;
+
+    function InSuperPosition: Boolean; inline;
+    function InSingleState: Boolean; inline;
+    function InAnyPosition: Boolean; inline;
+    function InNoPosition: Boolean; inline;
+
+    function Union(const s: TSuperPosition2): TSuperPosition2;
+    function Intersection(const s: TSuperPosition2): TSuperPosition2;
+
+    procedure Init(const AMaxBitsCount: Integer; const ABits: array of Integer);
+  end;
+
 const
   AnySuperPosition: TSuperPosition = (count: -1; data: nil);
   NoSuperPosition : TSuperPosition = (count: -2; data: nil);
+  AnySuperPosition2: TSuperPosition2 = (FCount: -1; FData: nil);
+  NoSuperPosition2 : TSuperPosition2 = (FCount: -2; FData: nil);
+
 
 type
-  {$IfDef FPC}generic{$EndIf} IQMap<TNode> = interface
-    function TilesCount      : Integer;
+  {$IfDef FPC}generic{$EndIf} IQMap<TNode> = interface (INonWeightedGraph<TNode>)
     function DirectionsCount : Integer;
+    function TilesCount      : Integer;
     function GetPossibleTiles(const ADirection, FromTile: Integer): TSuperPosition;
-
-    function GetQNeighbour(const ADirection: Integer; const ANode: TNode; out ANeighbour: TNode): Boolean;
-
-    function NodeComparer: IEqualityComparer;
   end;
 
   {$IfDef FPC}generic{$EndIf} IQGen<TNode> = interface
@@ -56,6 +84,9 @@ type
 
     IOpenHeap = {$IfDef FPC}specialize{$EndIf} IArray<Integer>;
     TOpenHeap = {$IfDef FPC}specialize{$EndIf} TArray<Integer>;
+
+    IMapBFS_Iterator = {$IfDef FPC}specialize{$EndIf} IBFS_Iterator<TNode>;
+    TMapBFS_Iterator = {$IfDef FPC}specialize{$EndIf} TBFS_Iterator<TNode>;
 
     TWaveFrontInfo = packed record
       HeapIndex: Integer;
@@ -126,6 +157,235 @@ end;
 function TSuperPosition.InNoPosition: Boolean;
 begin
   Result := (count = -2);
+end;
+
+{ TSuperPosition2 }
+
+function TSuperPosition2.CalcBitIndices(const N: Cardinal): TBitIndices;
+begin
+  Result.arrIndex := N div 64;
+  Result.bitIndex := N mod 64;
+end;
+
+function TSuperPosition2.BitIsSet(const Ind: TBitIndices): Boolean;
+begin
+  Result := FData[Ind.arrIndex] And (1 shl Ind.bitIndex) > 0;
+end;
+
+function TSuperPosition2.VariantsCount: Integer;
+begin
+  case FCount of
+    -1 : Result := FCap;
+    -2 : Result := 0;
+  else
+    if FData = nil then
+      Result := 1
+    else
+      Result := Length(FData);
+  end;
+end;
+
+function TSuperPosition2.InSuperPosition: Boolean;
+begin
+  Result := (FCount >= 0) and (FData <> nil);
+end;
+
+function TSuperPosition2.InSingleState: Boolean;
+begin
+  Result := (FCount >= 0) and (FData = nil);
+end;
+
+function TSuperPosition2.InAnyPosition: Boolean;
+begin
+  Result := (FCount = -1);
+end;
+
+function TSuperPosition2.InNoPosition: Boolean;
+begin
+  Result := (FCount = -2);
+end;
+
+function TSuperPosition2.Union(const s: TSuperPosition2): TSuperPosition2;
+var i: Integer;
+    bind: TBitIndices;
+begin
+  if InSuperPosition then
+  begin
+    Assert(FCount > 0);
+    Assert(FCap = s.FCap);
+
+    if s.InAnyPosition then Exit(s);
+    if s.InNoPosition then  Exit(s);
+    if s.InSingleState then
+    begin
+      Result := Self;
+      bind := CalcBitIndices(s.FCount);
+      if not Result.BitIsSet(bind) then
+      begin
+        SetLength(Result.FData, Length(Result.FData));
+        Result.FData[bind.arrIndex] := Result.FData[bind.arrIndex] or (1 shl bind.bitIndex);
+      end;
+    end
+    else
+    begin
+      SetLength(Result.FData, Length(FData));
+      Result.FCap := FCap;
+      Result.FCount := 0;
+      for i := 0 to Length(Result.FData) - 1 do
+      begin
+        Result.FData[i] := FData[i] or s.FData[i];
+        Inc(Result.FCount, BitsCount(Result.FData[i]));
+      end;
+      Assert(Result.FCount > 0);
+
+      if Result.FCount = 1 then
+      begin
+        for i := 0 to Length(Result.FData) - 1 do
+          if Result.FData[i] > 0 then
+          begin
+            Result.FCount := Log2Int(Result.FData[i]);
+            Break;
+          end;
+        Result.FData := nil;
+      end;
+      if Result.FCount = Result.FCap then
+      begin
+        Result := AnySuperPosition2;
+        Result.FCap := FCap;
+        Exit;
+      end;
+    end;
+  end
+  else
+  begin
+    if InSingleState then
+    begin
+      Result := s;
+      bind := CalcBitIndices(FCount);
+      if not Result.BitIsSet(bind) then
+      begin
+        SetLength(Result.FData, Length(Result.FData));
+        Result.FData[bind.arrIndex] := Result.FData[bind.arrIndex] or (1 shl bind.bitIndex);
+      end;
+    end;
+    if InAnyPosition then Exit(Self);
+    if InNoPosition  then Exit(Self);
+    Assert(False);
+  end;
+end;
+
+function TSuperPosition2.Intersection(const s: TSuperPosition2): TSuperPosition2;
+var
+  i: Integer;
+begin
+  Assert(FCap = s.FCap);
+
+  if InAnyPosition then Exit(s);
+  if InNoPosition then Exit(Self);
+  if s.InAnyPosition then Exit(Self);
+  if s.InNoPosition then Exit(s);
+
+  if InSingleState then
+  begin
+    if s.InSingleState then
+    begin
+      if FCount = s.FCount then
+        Exit(s)
+      else
+      begin
+        Result := NoSuperPosition2;
+        Result.FCap := FCap;
+        Exit;
+      end;
+    end
+    else //s in SuperPositionState
+    begin
+      if s.BitIsSet(s.CalcBitIndices(FCount)) then
+        Exit(Self)
+      else
+      begin
+        Result := NoSuperPosition2;
+        Result.FCap := FCap;
+        Exit;
+      end;
+    end;
+  end;
+
+  //self in SuperPositionState
+  if s.InSingleState then
+  begin
+    if BitIsSet(CalcBitIndices(s.FCount)) then
+      Exit(s)
+    else
+    begin
+      Result := NoSuperPosition2;
+      Result.FCap := FCap;
+      Exit;
+    end;
+  end
+  else //SP2 in SuperPositionState too
+  begin
+    SetLength(Result.FData, Length(FData));
+    Result.FCap := FCap;
+    Result.FCount := 0;
+    for i := 0 to Length(Result.FData) - 1 do
+    begin
+      Result.FData[i] := FData[i] and s.FData[i];
+      Inc(Result.FCount, BitsCount(Result.FData[i]));
+    end;
+    Assert(Result.FCount > 0);
+
+    if Result.FCount = 1 then
+    begin
+      for i := 0 to Length(Result.FData) - 1 do
+        if Result.FData[i] > 0 then
+        begin
+          Result.FCount := Log2Int(Result.FData[i]);
+          Break;
+        end;
+      Result.FData := nil;
+    end;
+    if Result.FCount = Result.FCap then
+    begin
+      Result := AnySuperPosition2;
+      Result.FCap := FCap;
+    end;
+  end;
+end;
+
+procedure TSuperPosition2.Init(const AMaxBitsCount: Integer; const ABits: array of Integer);
+var i, n: Integer;
+begin
+  FCap := AMaxBitsCount;
+  case Length(ABits) of
+    0 : begin
+          FCount := NoSuperPosition2.FCount;
+          FData := NoSuperPosition2.FData;
+          Exit;
+        end;
+    1 : begin
+          FCount := ABits[Low(ABits)];
+          FData := nil;
+          Exit;
+        end;
+  end;
+  if AMaxBitsCount = Length(ABits) then
+  begin
+    FCount := AnySuperPosition2.FCount;
+    FData := AnySuperPosition2.FData;
+    Exit;
+  end;
+
+  SetLength(FData, (AMaxBitsCount+63) div 64);
+  for i := 0 to Length(ABits) - 1 do
+  begin
+    n := ABits[i] div 64;
+    FData[n] := FData[n] or (1 shl (ABits[i] mod 64));
+  end;
+
+  FCount := 0;
+  for i := 0 to Length(FData) - 1 do
+    Inc(FCount, BitsCount(FData[i]));
 end;
 
 { TQGen }
@@ -430,6 +690,8 @@ var waveInfo: PWaveFrontInfo;
     newSP : TSuperPosition;
     NNode : TNode;
     direction: Integer;
+
+    bfs: IMapBFS_Iterator;
 begin
   if FFront.TryGetPValue(ANode, Pointer(waveInfo)) then
   begin
@@ -441,9 +703,12 @@ begin
         SiftUp(waveInfo^.HeapIndex);
 
       if not newSP.InNoPosition then
-      begin
+      begin //qwe
+//          bfs := TMapBFS.Create(FMap);
+//          bfs.Reset();
+
           for direction := 0 to FDirectionsCount - 1 do
-            if FMap.GetQNeighbour(direction, ANode, NNode) then
+            if FMap.GetNeighbour(direction, ANode, NNode) then
               Reduce(NNode, ExtendSuperPosition(direction, newSP));
       end;
 

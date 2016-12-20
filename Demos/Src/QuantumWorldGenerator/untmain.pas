@@ -9,9 +9,12 @@ uses
   avTileSplitter, avQuantumWorldGen, avTypes, avContnrsDefaults;
 
 const
-  WORLD_SIZE_X = 40;
-  WORLD_SIZE_Y = 20;
+  WORLD_SIZE_X = 50;
+  WORLD_SIZE_Y = 30;
   TILE_SIZE = 9;
+  TILE_STEP = 9;
+//  TILE_SIZE = 3;
+//  TILE_STEP = 1;
 
 type
   IMap = {$IfDef FPC}specialize{$EndIf} IQMap<TVec2i>;
@@ -33,7 +36,8 @@ type
     function DirectionsCount : Integer;
     function GetPossibleTiles(const ADirection, FromTile: Integer): TSuperPosition;
 
-    function GetQNeighbour(const ADirection: Integer; const ANode: TVec2i; out ANeighbour: TVec2i): Boolean;
+    function MaxNeighbourCount(const ANode: TVec2i): Integer;
+    function GetNeighbour(ADirection: Integer; const ANode: TVec2i; out ANeighbour: TVec2i): Boolean;
 
     function NodeComparer: IEqualityComparer;
 
@@ -185,7 +189,7 @@ end;
 
 procedure TForm1.ReduceEvent(ASender: TObject);
 begin
-  if Random(3) = 0 then
+  if Random(300) = 0 then
   begin
       Invalidate;
       UpdateWindow(Handle);
@@ -200,8 +204,7 @@ begin
   for j := 0 to WORLD_SIZE_Y - 1 do
     for i := 0 to WORLD_SIZE_X - 1 do
       area[j*WORLD_SIZE_X+i] := Vec(i, j);
-    FWorld.Resolve(area);
-//  FWorld.Resolve([area[0], area[1], area[7], area[8]]);
+  FWorld.Resolve(area);
 end;
 
 { TMap }
@@ -253,7 +256,7 @@ begin
   end;
 end;
 
-function TMap.GetQNeighbour(const ADirection: Integer; const ANode: TVec2i; out ANeighbour: TVec2i): Boolean;
+function TMap.GetNeighbour(ADirection: Integer; const ANode: TVec2i; out ANeighbour: TVec2i): Boolean;
 begin
   case ADirection of
     0 : ANeighbour := Vec(ANode.x, ANode.y + 1);
@@ -263,6 +266,19 @@ begin
   else
     Exit(False);
   end;
+
+  if ANeighbour.x < 0 then
+    if FWrappedX then
+      ANeighbour.x := ANeighbour.x + FAreaSize.x
+    else
+      Exit(False);
+
+  if ANeighbour.y < 0 then
+    if FWrappedX then
+      ANeighbour.y := ANeighbour.y + FAreaSize.y
+    else
+      Exit(False);
+
   if ANeighbour.x >= FAreaSize.x then
     if FWrappedX then
       ANeighbour.x := ANeighbour.x - FAreaSize.x
@@ -288,11 +304,15 @@ begin
   Result := FTileSet.GetTileDesc(AIndex);
 end;
 
+function TMap.MaxNeighbourCount(const ANode: TVec2i): Integer;
+begin
+  Result := 4;
+end;
+
 constructor TMap.Create(const AFileName: string; const AreaSize: TVec2i;
   wrappedX, wrappedY: Boolean);
 begin
-  //FTileSet := SplitTilesFromFile(AFileName, TILE_SIZE, 1);
-  FTileSet := SplitTilesFromFile(AFileName, TILE_SIZE, 9, [tgoAllowRotate]);
+  FTileSet := SplitTilesFromFile(AFileName, TILE_SIZE, TILE_STEP, [tgoAllowRotate]);
   FTilesCount := FTileSet.TilesCount;
   FWrappedX := wrappedX;
   FWrappedY := wrappedY;

@@ -151,9 +151,8 @@ begin
   n := FGraph.MaxNeighbourCount(ANode);
   for i := 0 to n-1 do
     if FGraph.GetNeighbour(i, ANode, ANeighbour) then
-      if not FVisited.Contains(ANeighbour) then
+      if FVisited.Add(ANeighbour) then
       begin
-        FVisited.Add(ANeighbour);
         neighbourItem.node := ANeighbour;
         neighbourItem.depth:= topItem.depth+1;
         FQueue.Push(neighbourItem);
