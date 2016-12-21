@@ -9,8 +9,8 @@ uses
   avTileSplitter, avQuantumWorldGen, avTypes, avContnrsDefaults;
 
 const
-  WORLD_SIZE_X = 50;
-  WORLD_SIZE_Y = 30;
+  WORLD_SIZE_X = 800;
+  WORLD_SIZE_Y = 400;
   TILE_SIZE = 9;
   TILE_STEP = 9;
 //  TILE_SIZE = 3;
@@ -34,7 +34,7 @@ type
 
     function TilesCount      : Integer;
     function DirectionsCount : Integer;
-    function GetPossibleTiles(const ADirection, FromTile: Integer): TSuperPosition;
+    function GetPossibleTiles(const ADirection, FromTile: Integer): TSuperPosition2;
 
     function MaxNeighbourCount(const ANode: TVec2i): Integer;
     function GetNeighbour(ADirection: Integer; const ANode: TVec2i; out ANeighbour: TVec2i): Boolean;
@@ -111,28 +111,29 @@ var
   anyData   : TBoolArr;
   singleData: TBoolArr;
 
-  procedure DrawTile(const bmp: TBitmap; const X, Y: Integer; SP: TSuperPosition);
+  procedure DrawTile(const bmp: TBitmap; const X, Y: Integer; SP: TSuperPosition2);
   var k, i, j, offset: Integer;
       pCol: PRGB;
       pSrc: TRGBA;
-      data: TBoolArr;
+      data: TTilesSPosition;
       r,g,b,n: Integer;
       tile: TTileDesc;
   begin
     offset := 0;
-    if SP.InSingleState then
-    begin
-      data := singleData;
-      offset := SP.count;
-    end
-    else
-      if SP.InAnyPosition then
-        data := anyData
-      else
-        if SP.InNoPosition then
-          data := nil
-        else
-          data := SP.data;
+//    if SP.InSingleState then
+//    begin
+//      data := singleData;
+//      offset := SP.count;
+//    end
+//    else
+//      if SP.InAnyPosition then
+//        data := anyData
+//      else
+//        if SP.InNoPosition then
+//          data := nil
+//        else
+//          data := SP.data;
+    data := SP.AsBitsArray;
 
     for j := 0 to TILE_SIZE - 1 do
       for i := 0 to TILE_SIZE - 1 do
@@ -143,8 +144,8 @@ var
         n := 0;
         for k := 0 to Length(data) - 1 do
         begin
-          if not data[k] then Continue;
-          tile := FMapDesc.GetTile(k+offset);
+          //if not data[k] then Continue;
+          tile := FMapDesc.GetTile(data[k]);
           pSrc := tile.Pixel(i, TILE_SIZE-1-j);
           Inc(r, pSrc.r);
           Inc(g, pSrc.g);
@@ -184,12 +185,13 @@ begin
     for i := 0 to WORLD_SIZE_X - 1 do
       DrawTile(FBackBmp, i, j, FWorld.Get(Vec(i,j)));
 
-  Canvas.StretchDraw(Rect(0,0,FBackBmp.Width*4,FBackBmp.Height*4), FBackBmp);
+  Canvas.StretchDraw(Rect(0,0,FBackBmp.Width,FBackBmp.Height), FBackBmp);
 end;
 
 procedure TForm1.ReduceEvent(ASender: TObject);
 begin
-  if Random(300) = 0 then
+    Exit;
+  if Random(3) = 0 then
   begin
       Invalidate;
       UpdateWindow(Handle);
@@ -219,7 +221,7 @@ begin
   Result := 4;
 end;
 
-function TMap.GetPossibleTiles(const ADirection, FromTile: Integer): TSuperPosition;
+function TMap.GetPossibleTiles(const ADirection, FromTile: Integer): TSuperPosition2;
 var arr: TIntArr;
     dir: TDirection;
     i: Integer;
@@ -234,6 +236,8 @@ begin
   end;
   arr := FTileSet.PossibleNeighbours(FromTile, dir);
 
+  Result.Init(FTilesCount, arr);
+  {
   Result.count := Length(arr);
   case Result.count of
     0 : Exit(NoSuperPosition);
@@ -254,6 +258,7 @@ begin
         Result.data[arr[i]] := True;
     end;
   end;
+  }
 end;
 
 function TMap.GetNeighbour(ADirection: Integer; const ANode: TVec2i; out ANeighbour: TVec2i): Boolean;

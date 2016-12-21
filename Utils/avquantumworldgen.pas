@@ -12,7 +12,7 @@ type
 
   { TSuperPosition }
 
-  TSuperPosition = packed record
+  TSuperPosition_ = packed record
     count: Integer; //-1 = any value; -2 = no value; count>=0 = superposition counts or single state
     data : TBoolArr; //nil = single state or spec values, <>nil = superposition
     function InSuperPosition: Boolean; inline;
@@ -27,16 +27,16 @@ type
       arrIndex: Cardinal;
       bitIndex: Cardinal;
     end;
-  private const
-    UInt64_Size = 8;
-    UInt64_SizePow = 3;
   private
     FCount: Integer; //-1 = any value; -2 = no value; count>=0 = superposition counts or single state
     FCap  : Integer;
     FData : array of UInt64; //nil = single state or spec values, <>nil = superposition
     function CalcBitIndices(const N: Cardinal): TBitIndices; inline;
-    function BitIsSet(const Ind: TBitIndices): Boolean; inline;
+    function BitIsSet(const Ind: TBitIndices): Boolean; overload; inline;
   public
+    function BitIsSet(const I: Integer): Boolean; overload; inline;
+
+    function SingleBitValue: Integer; inline;
     function VariantsCount: Integer; inline;
 
     function InSuperPosition: Boolean; inline;
@@ -47,12 +47,15 @@ type
     function Union(const s: TSuperPosition2): TSuperPosition2;
     function Intersection(const s: TSuperPosition2): TSuperPosition2;
 
+    function AsBitsArray: TTilesSPosition;
+    function ToString: string;
+
     procedure Init(const AMaxBitsCount: Integer; const ABits: array of Integer);
   end;
 
 const
-  AnySuperPosition: TSuperPosition = (count: -1; data: nil);
-  NoSuperPosition : TSuperPosition = (count: -2; data: nil);
+  AnySuperPosition: TSuperPosition_ = (count: -1; data: nil);
+  NoSuperPosition : TSuperPosition_ = (count: -2; data: nil);
   AnySuperPosition2: TSuperPosition2 = (FCount: -1; FData: nil);
   NoSuperPosition2 : TSuperPosition2 = (FCount: -2; FData: nil);
 
@@ -61,7 +64,7 @@ type
   {$IfDef FPC}generic{$EndIf} IQMap<TNode> = interface (INonWeightedGraph<TNode>)
     function DirectionsCount : Integer;
     function TilesCount      : Integer;
-    function GetPossibleTiles(const ADirection, FromTile: Integer): TSuperPosition;
+    function GetPossibleTiles(const ADirection, FromTile: Integer): TSuperPosition2;
   end;
 
   {$IfDef FPC}generic{$EndIf} IQGen<TNode> = interface
@@ -69,8 +72,8 @@ type
     procedure SetOnReduce(const AValue: TNotifyEvent);
 
     procedure Resolve(const ANodes: array of TNode);
-    function  Get(const ANode: TNode) : TSuperPosition;
-    procedure Reduce(const ANode: TNode; const ATiles: TSuperPosition); overload;
+    function  Get(const ANode: TNode) : TSuperPosition2;
+    procedure Reduce(const ANode: TNode; const ATiles: TSuperPosition2); overload;
 
     property OnReduce: TNotifyEvent read GetOnReduce write SetOnReduce;
   end;
@@ -90,7 +93,7 @@ type
 
     TWaveFrontInfo = packed record
       HeapIndex: Integer;
-      SP : TSuperPosition;
+      SP : TSuperPosition2;
     end;
     PWaveFrontInfo = ^TWaveFrontInfo;
 
@@ -100,7 +103,7 @@ type
     FMap: IMap;
     FMaxTilesCount  : Integer;
     FDirectionsCount: Integer;
-    FIndexToSP : array of array of TSuperPosition; //[direction][fromtile]
+    FIndexToSP : array of array of TSuperPosition2; //[direction][fromtile]
 
     FFront: IWaveFront;
     FOpenHeap: IOpenHeap;
@@ -115,20 +118,20 @@ type
     procedure Swap(I1, I2: Integer);
     procedure SiftDown(Index: Integer);
     procedure SiftUp(Index: Integer);
-    procedure ExtractTop(out ANode: TNode; out ASP: TSuperPosition);
+    procedure ExtractTop(out ANode: TNode; out ASP: TSuperPosition2);
     procedure BucketIndexChange(const Key, Value; OldBucketIndex, NewBucketIndex: Integer);
     //end heap stuff
 
-    function ExtendSuperPosition(const Direction: Integer; const ASP: TSuperPosition): TSuperPosition;
-    function IntersectSuperPosition(const SP1, SP2: TSuperPosition): TSuperPosition;
-    function IsLessSuperPosition(const Left, Right: TSuperPosition): Boolean;
-    function StatesCount(const SP: TSuperPosition): Integer;
+    function ExtendSuperPosition(const Direction: Integer; const ASP: TSuperPosition2): TSuperPosition2;
+    function IntersectSuperPosition(const SP1, SP2: TSuperPosition2): TSuperPosition2;
+    function IsLessSuperPosition(const Left, Right: TSuperPosition2): Boolean;
+    function StatesCount(const SP: TSuperPosition2): Integer;
 
-    function Collapse(const ANode: TNode; const SP: TSuperPosition): TSuperPosition;
+    function Collapse(const ANode: TNode; const SP: TSuperPosition2): TSuperPosition2;
   public
     procedure Resolve(const ANodes: array of TNode);
-    function Get(const ANode: TNode) : TSuperPosition;
-    procedure Reduce(const ANode: TNode; const ATiles: TSuperPosition); overload;
+    function Get(const ANode: TNode) : TSuperPosition2;
+    procedure Reduce(const ANode: TNode; const ATiles: TSuperPosition2); overload;
 
     property OnReduce: TNotifyEvent read GetOnReduce write SetOnReduce;
 
@@ -137,24 +140,24 @@ type
 
 implementation
 
-{ TSuperPosition }
+{ TSuperPosition_ }
 
-function TSuperPosition.InSuperPosition: Boolean;
+function TSuperPosition_.InSuperPosition: Boolean;
 begin
   Result := (count >= 0) and (data <> nil);
 end;
 
-function TSuperPosition.InSingleState: Boolean;
+function TSuperPosition_.InSingleState: Boolean;
 begin
   Result := (count >= 0) and (data = nil);
 end;
 
-function TSuperPosition.InAnyPosition: Boolean;
+function TSuperPosition_.InAnyPosition: Boolean;
 begin
   Result := (count = -1);
 end;
 
-function TSuperPosition.InNoPosition: Boolean;
+function TSuperPosition_.InNoPosition: Boolean;
 begin
   Result := (count = -2);
 end;
@@ -172,6 +175,18 @@ begin
   Result := FData[Ind.arrIndex] And (1 shl Ind.bitIndex) > 0;
 end;
 
+function TSuperPosition2.BitIsSet(const I: Integer): Boolean;
+begin
+  Result := BitIsSet(CalcBitIndices(I));
+end;
+
+function TSuperPosition2.SingleBitValue: Integer;
+begin
+  Assert(FData = nil);
+  Assert(FCount >= 0);
+  Result := FCount;
+end;
+
 function TSuperPosition2.VariantsCount: Integer;
 begin
   case FCount of
@@ -181,7 +196,7 @@ begin
     if FData = nil then
       Result := 1
     else
-      Result := Length(FData);
+      Result := FCount;
   end;
 end;
 
@@ -333,7 +348,13 @@ begin
       Result.FData[i] := FData[i] and s.FData[i];
       Inc(Result.FCount, BitsCount(Result.FData[i]));
     end;
-    Assert(Result.FCount > 0);
+
+    if Result.FCount = 0 then
+    begin
+      Result.FCount := -2;
+      Result.FData := nil;
+      Exit;
+    end;
 
     if Result.FCount = 1 then
     begin
@@ -344,11 +365,14 @@ begin
           Break;
         end;
       Result.FData := nil;
+      Exit;
     end;
+
     if Result.FCount = Result.FCap then
     begin
       Result := AnySuperPosition2;
       Result.FCap := FCap;
+      Exit;
     end;
   end;
 end;
@@ -377,6 +401,7 @@ begin
   end;
 
   SetLength(FData, (AMaxBitsCount+63) div 64);
+  FillChar(FData[0], SizeOf(FData[0])*Length(FData), 0);
   for i := 0 to Length(ABits) - 1 do
   begin
     n := ABits[i] div 64;
@@ -386,6 +411,88 @@ begin
   FCount := 0;
   for i := 0 to Length(FData) - 1 do
     Inc(FCount, BitsCount(FData[i]));
+end;
+
+function TSuperPosition2.AsBitsArray: TTilesSPosition;
+var i, j, n: Integer;
+    x: UInt64;
+begin
+  case FCount of
+    -1: begin
+      SetLength(Result, FCap);
+      for i := 0 to Length(Result) - 1 do
+        Result[i] := i;
+      Exit;
+    end;
+    -2: begin
+      Result := nil;
+      Exit;
+    end;
+  end;
+
+  if FData = nil then
+  begin
+    SetLength(Result, 1);
+    Result[0] := FCount;
+    Exit;
+  end;
+
+  SetLength(Result, FCount);
+  n := 0;
+  for i := 0 to Length(FData)-1 do
+  begin
+    x := FData[i];
+    for j := 0 to 63 do
+    begin
+      if x and 1 = 1 then
+      begin
+          Result[n] := i * 64 + j;
+          Inc(n);
+      end;
+      x := x shr 1;
+    end;
+  end;
+end;
+
+function TSuperPosition2.ToString: string;
+var i, j, n: Integer;
+    x: UInt64;
+begin
+  SetLength(Result, FCap);
+  case FCount of
+    -1: begin
+      for i := 1 to Length(Result) do Result[i] := '1';
+      Exit;
+    end;
+    -2: begin
+      for i := 1 to Length(Result) do Result[i] := '0';
+      Exit;
+    end;
+  end;
+
+  if FData = nil then
+  begin
+    for i := 1 to Length(Result) do
+      Result[i] := '0';
+    Result[FCount+1] := '1';
+    Exit;
+  end;
+
+  n := 1;
+  for i := 0 to Length(FData)-1 do
+  begin
+    x := FData[i];
+    for j := 0 to 63 do
+    begin
+      if x and 1 = 1 then
+        Result[n] := '1'
+      else
+        Result[n] := '0';
+      Inc(n);
+      if n > FCap then Exit;
+      x := x shr 1;
+    end;
+  end;
 end;
 
 { TQGen }
@@ -462,7 +569,7 @@ begin
   end;
 end;
 
-procedure TQGen{$IfDef DCC}<TNode>{$EndIf}.ExtractTop(out ANode: TNode; out ASP: TSuperPosition);
+procedure TQGen{$IfDef DCC}<TNode>{$EndIf}.ExtractTop(out ANode: TNode; out ASP: TSuperPosition2);
 var bIndex: Integer;
     pInfo: PWaveFrontInfo;
 begin
@@ -490,11 +597,16 @@ begin
   FOpenHeap.Item[pInfo.HeapIndex] := NewBucketIndex;
 end;
 
-function TQGen{$IfDef DCC}<TNode>{$EndIf}.ExtendSuperPosition(const Direction: Integer; const ASP: TSuperPosition): TSuperPosition;
+function TQGen{$IfDef DCC}<TNode>{$EndIf}.ExtendSuperPosition(const Direction: Integer; const ASP: TSuperPosition2): TSuperPosition2;
 var j, i: Integer;
 begin
   if ASP.InSuperPosition then
   begin
+    Result := ASP;
+    for I := 0 to FMaxTilesCount - 1 do
+      Result := Result.Union(FIndexToSP[Direction][i]);
+
+  {
     Assert(ASP.count > 0);
 
     SetLength(Result.data, FMaxTilesCount);
@@ -524,20 +636,23 @@ begin
 
     if Result.count = 0 then
       Exit(NoSuperPosition);
+      }
   end
   else
   begin
-    if ASP.InSingleState then Exit(FIndexToSP[Direction][ASP.count]);
-    if ASP.InAnyPosition then Exit(AnySuperPosition);
-    if ASP.InNoPosition  then Exit(NoSuperPosition);
+    if ASP.InSingleState then Exit(FIndexToSP[Direction][ASP.SingleBitValue]);
+    if ASP.InAnyPosition then Exit(ASP);
+    if ASP.InNoPosition  then Exit(ASP);
     Assert(False);
   end;
 end;
 
-function TQGen{$IfDef DCC}<TNode>{$EndIf}.IntersectSuperPosition(const SP1, SP2: TSuperPosition): TSuperPosition;
-var
-  i: Integer;
+function TQGen{$IfDef DCC}<TNode>{$EndIf}.IntersectSuperPosition(const SP1, SP2: TSuperPosition2): TSuperPosition2;
+//var
+//  i: Integer;
 begin
+  Result := SP1.Intersection(SP2);
+  {
   if SP1.InAnyPosition then Exit(SP2);
   if SP1.InNoPosition then Exit(SP1);
   if SP2.InAnyPosition then Exit(SP1);
@@ -593,10 +708,13 @@ begin
     end;
     Exit;
   end;
+  }
 end;
 
-function TQGen{$IfDef DCC}<TNode>{$EndIf}.IsLessSuperPosition(const Left, Right: TSuperPosition): Boolean;
+function TQGen{$IfDef DCC}<TNode>{$EndIf}.IsLessSuperPosition(const Left, Right: TSuperPosition2): Boolean;
 begin
+  Result := Left.VariantsCount < Right.VariantsCount;
+{
   if Left.InAnyPosition then
   begin
     Exit(False);
@@ -616,52 +734,47 @@ begin
     if Right.InSingleState then Exit(False);
     Exit(Left.count < Right.count);
   end;
+}
 end;
 
-function TQGen{$IfDef DCC}<TNode>{$EndIf}.StatesCount(const SP: TSuperPosition): Integer;
+function TQGen{$IfDef DCC}<TNode>{$EndIf}.StatesCount(const SP: TSuperPosition2): Integer;
 begin
+  Result := SP.VariantsCount;
+  {
   if SP.InAnyPosition then Exit(FMaxTilesCount);
   if SP.InNoPosition then Exit(0);
   if SP.InSingleState then Exit(1);
   Result := SP.count;
+  }
 end;
 
-function TQGen{$IfDef DCC}<TNode>{$EndIf}.Collapse(const ANode: TNode; const SP: TSuperPosition): TSuperPosition;
+function TQGen{$IfDef DCC}<TNode>{$EndIf}.Collapse(const ANode: TNode; const SP: TSuperPosition2): TSuperPosition2;
 var i, n: Integer;
 begin
   if SP.InAnyPosition then
   begin
-    Result.count := Random(FMaxTilesCount);
-    Result.data := nil;
+    Result.Init(FMaxTilesCount, [Random(FMaxTilesCount)]);
     Exit;
   end;
   if SP.InSingleState then Exit(SP);
   if SP.InNoPosition then Exit(SP);
 
-  n := Random(SP.count);
-  for i := 0 to High(SP.data) do
-    if SP.data[i] then
-    begin
-      if n = 0 then
-      begin
-        Result.count := i;
-        Result.data := nil;
-      end;
-      Dec(n);
-    end;
+  n := Random(SP.VariantsCount);
+  Result.Init(FMaxTilesCount, [SP.AsBitsArray[n]]);
 end;
 
 procedure TQGen{$IfDef DCC}<TNode>{$EndIf}.Resolve(const ANodes: array of TNode);
 var i: Integer;
     currNode: TNode;
     waveInfo: TWaveFrontInfo;
-    sp: TSuperPosition;
+    sp: TSuperPosition2;
 begin
   FOpenHeap := TOpenHeap.Create();
   for i := Low(ANodes) to High(ANodes) do
   begin
     waveInfo.HeapIndex := FOpenHeap.Count;
-    waveInfo.SP := AnySuperPosition;
+    waveInfo.SP := AnySuperPosition2;
+    waveInfo.SP.FCap := FMaxTilesCount;
     FOpenHeap.Add(FFront.AddOrGetBucketIndex(ANodes[i], waveInfo));
   end;
 
@@ -675,19 +788,24 @@ begin
   end;
 end;
 
-function TQGen{$IfDef DCC}<TNode>{$EndIf}.Get(const ANode: TNode): TSuperPosition;
+function TQGen{$IfDef DCC}<TNode>{$EndIf}.Get(const ANode: TNode): TSuperPosition2;
 var wfInfo: PWaveFrontInfo;
 begin
   if not FFront.TryGetPValue(ANode, Pointer(wfInfo)) then
-    Exit(AnySuperPosition)
+  begin
+    Result := AnySuperPosition2;
+    Result.FCap := FMaxTilesCount;
+    Exit;
+//    Exit(AnySuperPosition2)
+  end
   else
     Result := wfInfo.SP;
 end;
 
-procedure TQGen{$IfDef DCC}<TNode>{$EndIf}.Reduce(const ANode: TNode; const ATiles: TSuperPosition);
+procedure TQGen{$IfDef DCC}<TNode>{$EndIf}.Reduce(const ANode: TNode; const ATiles: TSuperPosition2);
 var waveInfo: PWaveFrontInfo;
     waveInfo_new: TWaveFrontInfo;
-    newSP : TSuperPosition;
+    newSP : TSuperPosition2;
     NNode : TNode;
     direction: Integer;
 
