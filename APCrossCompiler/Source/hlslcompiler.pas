@@ -438,6 +438,7 @@ var
           Check3DError( ID3D11ShaderReflectionVariable(CBufferReflect.GetVariableByIndex(I)).GetDesc(ShaderVarDesc) );
           Check3DError( ID3D11ShaderReflectionType(ID3D11ShaderReflectionVariable(CBufferReflect.GetVariableByIndex(I)).GetType).GetDesc(ShaderTypeDesc) );
           if ShaderVarDesc.Flags And Cardinal(D3D10_SVF_USED) = 0 then Continue;
+          if ShaderTypeDesc._Class = D3D_SVC_STRUCT then Continue;;
           SetLength(Result, Length(Result) + 1);
           Result[Length(Result)-1] := CreateUniformByDescs(ShaderVarDesc, ShaderTypeDesc);
       end;

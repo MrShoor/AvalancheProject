@@ -49,6 +49,7 @@ type
     function CreateProgram : IctxProgram;
     function CreateTexture : IctxTexture;
     function CreateFrameBuffer : IctxFrameBuffer;
+    function CreateUAV(const AElementsCount, AStrideSize: Cardinal): IctxUAV;
 
     function States : IRenderStates;
     property ActiveProgram: IctxProgram read GetActiveProgram write SetActiveProgram;
@@ -984,9 +985,11 @@ type
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
+    procedure SetUAV(index: Integer; UAV: IctxUAV);
 
     procedure Clear(index: Integer; color: TVec4);
     procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
+    procedure ResetUAVCounters;
 
     procedure BlitToWindow(index: Integer; const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
   public
@@ -997,6 +1000,11 @@ type
 procedure TFrameBuffer.Invalidate;
 begin
   FValid := False;
+end;
+
+procedure TFrameBuffer.ResetUAVCounters;
+begin
+  Assert(False, 'qwe not implemented');
 end;
 
 procedure TFrameBuffer.AllocHandle;
@@ -1136,6 +1144,11 @@ begin
     if ActiveObject <> FHandle then glBindFramebuffer(GL_DRAW_FRAMEBUFFER, ActiveObject);
   end;
   Invalidate;
+end;
+
+procedure TFrameBuffer.SetUAV(index: Integer; UAV: IctxUAV);
+begin
+  Assert(False, 'qwe not implemented');
 end;
 
 procedure TFrameBuffer.Clear(index: Integer; color: TVec4);
@@ -2639,6 +2652,12 @@ end;
 function TContext_OGL.CreateTexture: IctxTexture;
 begin
   Result := TTexture.Create(Self);
+end;
+
+function TContext_OGL.CreateUAV(const AElementsCount, AStrideSize: Cardinal): IctxUAV;
+begin
+  Result := nil;
+  Assert(False, 'qwe not implemented');
 end;
 
 function TContext_OGL.CreateFrameBuffer: IctxFrameBuffer;

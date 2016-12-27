@@ -500,6 +500,26 @@ type
     property TargetSampleCount: Integer read FTargetSampleCount write FTargetSampleCount;
   end;
 
+  { TavUAV }
+
+  TavUAV = class(TavRes)
+  private
+    FElementsCount: Integer;
+    FStrideSize   : Integer;
+    FBufH         : IctxUAV;
+  protected
+    procedure BeforeFree3D; override;
+    function DoBuild: Boolean; override;
+  public
+    function ElementsCount: Cardinal;
+    function StrideSize: Cardinal;
+
+    function ReadCounter: Cardinal;
+    function ReadRAWData: TByteArr;
+
+    procedure SetSize(const AElementsCount, AStrideSize: Integer);
+  end;
+
   { TavProgram }
 
   TavProgram = class(TavRes)
@@ -587,9 +607,12 @@ type
   private type
     TColorsList = {$IfDef FPC}specialize{$EndIf} TArray<TAttachInfo>;
     IColorsList = {$IfDef FPC}specialize{$EndIf} IArray<TAttachInfo>;
+    TUAVList = {$IfDef FPC}specialize{$EndIf} TArray<IWeakRef>;
+    IUAVList = {$IfDef FPC}specialize{$EndIf} IArray<IWeakRef>;
   private
     FFrameBuf: IctxFrameBuffer;
     FColors  : IColorsList;
+    FUAVs    : IUAVList;
     FDepth   : TAttachInfo;
     FFrameRect: TRectI;
     FForcedPOT: Boolean;
@@ -604,10 +627,12 @@ type
     property ForcedPOT: Boolean read FForcedPOT write FForcedPOT;
 
     procedure ClearColorList;
+    procedure ClearUAVList;
 
     function GetColor(Index: Integer): TavTextureBase;
     function GetColorMipLevel(Index: Integer): Integer;
     procedure SetColor(Index: Integer; AValue: TavTextureBase; mipLevel: Integer = 0);
+    procedure SetUAV(Index: Integer; AValue: TavUAV);
 
     function GetDepth: TavTextureBase;
     procedure SetDepth(AValue: TavTextureBase; mipLevel: Integer);
@@ -743,6 +768,59 @@ begin
   end;
 
   AProg.Draw(PrimTopology, CullMode, Assigned(IndNode), InstCount, Start, Count, BaseVertex, BaseInst);
+end;
+
+{ TavUAV }
+
+procedure TavUAV.BeforeFree3D;
+begin
+  inherited;
+  if FBufH <> nil then Invalidate;
+  FBufH := nil;
+end;
+
+function TavUAV.DoBuild: Boolean;
+begin
+  Result := inherited DoBuild;
+  FBufH := Main.Context.CreateUAV(FElementsCount, FStrideSize);
+end;
+
+function TavUAV.ElementsCount: Cardinal;
+begin
+  Result := FElementsCount;
+end;
+
+function TavUAV.StrideSize: Cardinal;
+begin
+  Result := FStrideSize;
+end;
+
+function TavUAV.ReadCounter: Cardinal;
+begin
+  if FBufH = nil then
+    Result := 0
+  else
+    Result := FBufH.ReadCounter;
+end;
+
+function TavUAV.ReadRAWData: TByteArr;
+begin
+  if FBufH = nil then Exit(Nil);
+  Result := FBufH.ReadRAWData;
+end;
+
+procedure TavUAV.SetSize(const AElementsCount, AStrideSize: Integer);
+begin
+  if FElementsCount <> AElementsCount then
+  begin
+    FElementsCount := AElementsCount;
+    Invalidate;
+  end;
+  if FStrideSize <> AStrideSize then
+  begin
+    FStrideSize := AStrideSize;
+    Invalidate;
+  end;
 end;
 
 { TavMultiSampleTexture }
@@ -1211,6 +1289,18 @@ begin
   Invalidate;
 end;
 
+procedure TavFrameBuffer.SetUAV(Index: Integer; AValue: TavUAV);
+var oldCount: Integer;
+    i: Integer;
+begin
+  oldCount := FUAVs.Count;
+  for i := oldCount to Index do
+    FUAVs.Add(nil);
+  if Assigned(AValue) then
+    FUAVs.Item[index] := AValue.WeakRef;
+  Invalidate;
+end;
+
 procedure TavFrameBuffer.SetDepth(AValue: TavTextureBase; mipLevel: Integer);
 begin
   if Assigned(AValue) then
@@ -1290,6 +1380,7 @@ function TavFrameBuffer.DoBuild: Boolean;
 
 var ainfo: TAttachInfo;
     tex: TavTextureBase;
+    uav: TavUAV;
     i: Integer;
     FrameSize: TVec2i;
 begin
@@ -1312,6 +1403,16 @@ begin
     end
     else
       FFrameBuf.SetColor(i, nil, ainfo.mipLevel);
+  end;
+
+  for i := 0 to FUAVs.Count - 1 do
+  begin
+    uav := TavUAV(FUAVs[i].Obj);
+    uav.Build;
+    if Assigned(uav) then
+      FFrameBuf.SetUAV(i, uav.FBufH)
+    else
+      FFrameBuf.SetUAV(i, nil);
   end;
 
   tex := GetTex(FDepth);
@@ -1339,10 +1440,17 @@ begin
   Invalidate;
 end;
 
+procedure TavFrameBuffer.ClearUAVList;
+begin
+  FUAVs.Clear;
+  Invalidate;
+end;
+
 procedure TavFrameBuffer.AfterConstruction;
 begin
   inherited AfterConstruction;
   FColors := TColorsList.Create;
+  FUAVs := TUAVList.Create;
 end;
 
 { TavTexture }

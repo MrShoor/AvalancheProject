@@ -9,8 +9,8 @@ uses
   avTileSplitter, avQuantumWorldGen, avTypes, avContnrsDefaults;
 
 const
-  WORLD_SIZE_X = 800;
-  WORLD_SIZE_Y = 400;
+  WORLD_SIZE_X = 50;
+  WORLD_SIZE_Y = 30;
   TILE_SIZE = 9;
   TILE_STEP = 9;
 //  TILE_SIZE = 3;
@@ -83,7 +83,7 @@ implementation
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
-  FMapDesc := TMap.Create('pattern.bmp', Vec(WORLD_SIZE_X, WORLD_SIZE_Y), True, True);
+  FMapDesc := TMap.Create('pattern__.bmp', Vec(WORLD_SIZE_X, WORLD_SIZE_Y), True, True);
   FWorld := TWorld.Create(FMapDesc);
   FWorld.OnReduce := ReduceEvent;
 end;
@@ -185,7 +185,7 @@ begin
     for i := 0 to WORLD_SIZE_X - 1 do
       DrawTile(FBackBmp, i, j, FWorld.Get(Vec(i,j)));
 
-  Canvas.StretchDraw(Rect(0,0,FBackBmp.Width,FBackBmp.Height), FBackBmp);
+  Canvas.StretchDraw(Rect(0,0,FBackBmp.Width*4,FBackBmp.Height*4), FBackBmp);
 end;
 
 procedure TForm1.ReduceEvent(ASender: TObject);

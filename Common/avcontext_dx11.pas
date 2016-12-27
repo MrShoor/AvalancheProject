@@ -60,6 +60,7 @@ type
     function CreateProgram : IctxProgram;
     function CreateTexture : IctxTexture;
     function CreateFrameBuffer : IctxFrameBuffer;
+    function CreateUAV(const AElementsCount, AStrideSize: Cardinal): IctxUAV;
 
     function States : IRenderStates;
     property ActiveProgram: IctxProgram read GetActiveProgram write SetActiveProgram;
@@ -423,6 +424,8 @@ type
     procedure UpdateBlendState;
     procedure UpdateRasterState;
     procedure UpdateDepthState;
+
+    procedure SetupViewPort();
   protected
     // getters/setters
     function GetBlendSrc (RenderTargetIndex: Integer = AllTargets): TBlendFunc;
@@ -546,6 +549,12 @@ type
     function GetObj: TFrameBuffer;
   end;
 
+  IctxUAV_DX11 = interface (IctxUAV)
+  ['{7CF255BF-6B18-49E9-927A-8C2D59D36A0C}']
+    procedure InvalidateCounter;
+    function GetView: ID3D11UnorderedAccessView;
+  end;
+
   { TFrameBuffer }
 
   TFrameBuffer = class (THandleObject, IctxFrameBuffer, IctxFrameBuffer_DX11)
@@ -555,9 +564,16 @@ type
       Mip    : Integer;
       Enabled: Boolean;
     end;
+    TUAVInfo = record
+      UAV : IctxUAV_DX11;
+    end;
   private
     FTex   : array of TTexInfo;
     FViews : array of ID3D11RenderTargetView;
+
+    FUAV : array of TUAVInfo;
+    FUAVViews : array of ID3D11UnorderedAccessView;
+    FUAVInitials : array of Cardinal;
 
     FDepthView: ID3D11DepthStencilView;
     FDepthTex : IctxTexture;
@@ -571,10 +587,12 @@ type
     procedure ClearColorList;
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0);
+    procedure SetUAV(index: Integer; UAV: IctxUAV);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0);
 
     procedure Clear(index: Integer; color: TVec4);
     procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
+    procedure ResetUAVCounters;
 
     procedure BlitToWindow(index: Integer; const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
   end;
@@ -657,6 +675,31 @@ type
     Property IndexSize: TIndexSize Read GetIndexSize Write SetIndexSize;
 
     procedure Select();
+  end;
+
+  { TUAV }
+
+  TUAV = class(THandleObject, IctxUAV, IctxUAV_DX11)
+  private
+    FElementsCount: Cardinal;
+    FStrideSize: Cardinal;
+    FBuffer: ID3D11Buffer;
+    FView: ID3D11UnorderedAccessView;
+
+    FLastCounterValid: Boolean;
+    FLastCounter: Cardinal;
+
+    function ElementsCount: Cardinal;
+    function StrideSize: Cardinal;
+
+    procedure InvalidateCounter;
+    function ReadCounter: Cardinal;
+    function ReadRAWData: TByteArr;
+
+    function GetView: ID3D11UnorderedAccessView;
+  public
+    constructor Create(const AContext: TContext_DX11; const AElementsCount, AStrideSize: Cardinal); reintroduce;
+    //destructor Destroy; override;
   end;
 
   { TConstantBuffer }
@@ -1581,7 +1624,7 @@ begin
   begin
     if not FRasterStates.TryGetValue(FRDesc, State) then
     begin
-      FContext.FDevice.CreateRasterizerState(FRDesc, State);
+      Check3DError( FContext.FDevice.CreateRasterizerState(FRDesc, State) );
       FRasterStates.Add(FRDesc, State);
     end;
     if FRasterStateLast <> State then
@@ -1600,7 +1643,7 @@ begin
   begin
     if not FDepthStates.TryGetValue(FDDesc, State) then
     begin
-      FContext.FDevice.CreateDepthStencilState(FDDesc, State);
+      Check3DError( FContext.FDevice.CreateDepthStencilState(FDDesc, State) );
       FDepthStates.Add(FDDesc, State);
     end;
     if (FDepthStateLast <> State) Or (FDStencilRefLast <> FDStencilRef) then
@@ -1792,7 +1835,6 @@ begin
 end;
 
 procedure TStates.SetViewport(const Value: TRectI);
-var vp: TD3D11_Viewport;
 begin
   if (FViewport.Left <> Value.Left) or
      (FViewport.Top <> Value.Top) or
@@ -1800,13 +1842,7 @@ begin
      (FViewport.Bottom <> Value.Bottom) then
   begin
     FViewport := Value;
-    vp.TopLeftX := Value.Left;
-    vp.TopLeftY := Value.Top;
-    vp.Width := Value.Right - Value.Left;
-    vp.Height := Value.Bottom - Value.Top;
-    vp.MinDepth := 0;
-    vp.MaxDepth := 1;
-    FContext.FDeviceContext.RSSetViewports(1, @vp);
+    SetupViewPort;
   end;
 end;
 
@@ -1856,6 +1892,18 @@ begin
   FDDesc.BackFace.StencilFunc := DXCompareFunc[StencilFunc];
   FDStencilRef := Ref;
   FDDescDirty := True;
+end;
+
+procedure TStates.SetupViewPort();
+var vp: TD3D11_Viewport;
+begin
+  vp.TopLeftX := FViewport.Left;
+  vp.TopLeftY := FViewport.Top;
+  vp.Width := FViewport.Right - FViewport.Left;
+  vp.Height := FViewport.Bottom - FViewport.Top;
+  vp.MinDepth := 0;
+  vp.MaxDepth := 1;
+  FContext.FDeviceContext.RSSetViewports(1, @vp);
 end;
 
 procedure TStates.SetBlendFunctions(Src, Dest: TBlendFunc; RenderTargetIndex: Integer);
@@ -2436,6 +2484,13 @@ begin
   Result := Self;
 end;
 
+procedure TFrameBuffer.ResetUAVCounters;
+var i: Integer;
+begin
+  for i := 0 to Length(FUAV) - 1 do FUAV[i].UAV.InvalidateCounter;
+  FContext.SetFrameBuffer(Self);
+end;
+
 procedure TFrameBuffer.Select;
 var i: Integer;
     RTDesc: TD3D11_RenderTargetViewDesc;
@@ -2486,6 +2541,7 @@ begin
 
     FValid := True;
   end;
+  for i := 0 to Length(FUAV) - 1 do FUAV[i].UAV.InvalidateCounter;
   FContext.SetFrameBuffer(Self);
 end;
 
@@ -2530,6 +2586,24 @@ begin
   FDepthMip := mipLevel;
 
   FValid := False;
+end;
+
+procedure TFrameBuffer.SetUAV(index: Integer; UAV: IctxUAV);
+begin
+  if index <= Length(FUAV) then
+  begin
+    SetLength(FUAV, index + 1);
+    SetLength(FUAVViews, index + 1);
+    SetLength(FUAVInitials, index + 1);
+  end;
+
+  if FUAV[index].UAV = UAV then Exit;
+
+  FUAV[index].UAV := IctxUAV_DX11(UAV);
+  FUAVViews[index] := IctxUAV_DX11(UAV).GetView;
+  FUAVInitials[index] := 0;
+
+//  FValid := False;
 end;
 
 procedure TFrameBuffer.Clear(index: Integer; color: TVec4);
@@ -2613,6 +2687,7 @@ begin
   FBackBuffer := nil;
 
   FDeviceContext.ClearState;
+  TStates(FStates).SetupViewPort;
   TStates(FStates).InvalidateAllStates;
   FSwapChain.ResizeBuffers(SwapChainDesc.BufferCount, AWidth, AHeight, SwapChainDesc.BufferDesc.Format, SwapChainDesc.Flags);
 
@@ -2621,13 +2696,6 @@ begin
 
   FDeviceContext.OMSetRenderTargets(1, @FRenderTarget, nil);
   FDeviceContext.IASetPrimitiveTopology(FPrimTopology);
-  ViewPort.TopLeftX := 0;
-  ViewPort.TopLeftY := 0;
-  ViewPort.Width := AWidth;
-  ViewPort.Height := AHeight;
-  ViewPort.MinDepth := 0;
-  ViewPort.MaxDepth := 1;
-  FDeviceContext.RSSetViewports(1, @ViewPort);
 end;
 
 procedure TContext_DX11.SetFrameBuffer(const AObject: TObject);
@@ -2637,7 +2705,18 @@ procedure TContext_DX11.SetFrameBuffer(const AObject: TObject);
   begin
       dummy := nil;
       FDeviceContext.OMSetRenderTargets(1, @dummy, nil);
-      FDeviceContext.OMSetRenderTargets(Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView);
+      if Length(FBO.FUAVViews) = 0 then
+      begin
+          FDeviceContext.OMSetRenderTargets(Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView);
+      end
+      else
+      begin
+      //FDeviceContext.OMSetRenderTargetsAndUnorderedAccessViews(Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView);
+          FDeviceContext.OMSetRenderTargetsAndUnorderedAccessViews(
+            Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView,
+            Length(FBO.FViews), Length(FBO.FUAVViews), @FBO.FUAVViews[0], @FBO.FUAVInitials[0]
+          );
+      end;
   end;
   procedure SetDefaultRenderTargets;
   var
@@ -2753,6 +2832,11 @@ begin
   Result := TTexture.Create(Self);
 end;
 
+function TContext_DX11.CreateUAV(const AElementsCount, AStrideSize: Cardinal): IctxUAV;
+begin
+  Result := TUAV.Create(Self, AElementsCount, AStrideSize);
+end;
+
 function TContext_DX11.CreateFrameBuffer: IctxFrameBuffer;
 begin
   Result := TFrameBuffer.Create(Self);
@@ -2804,7 +2888,8 @@ begin
   begin
     for i := 0 to Length(FBO.FViews) - 1 do
       FBO.Clear(i, color);
-    FBO.ClearDS(depth, doDepth, stencil, doStencil);
+    if doDepth or doStencil then
+      FBO.ClearDS(depth, doDepth, stencil, doStencil);
   end
   Else
   begin
@@ -2864,6 +2949,111 @@ begin
   FStatesIntf := nil;
   FreeAndNil(FStates);
   inherited Destroy;
+end;
+
+{ TUAV }
+
+constructor TUAV.Create(const AContext: TContext_DX11; const AElementsCount, AStrideSize: Cardinal);
+var bufdesc: TD3D11_BufferDesc;
+    uavdesc: TD3D11_UnorderedAccessViewDesc;
+begin
+  inherited Create(AContext);
+  FElementsCount := AElementsCount;
+  FStrideSize := AStrideSize;
+
+  // create sbuf + view
+  bufdesc.ByteWidth := FElementsCount*FStrideSize;
+  bufdesc.Usage := D3D11_USAGE_DEFAULT;
+  bufdesc.BindFlags := Cardinal(D3D11_BIND_UNORDERED_ACCESS);
+  bufdesc.CPUAccessFlags := 0;
+  bufdesc.MiscFlags := Cardinal(D3D11_RESOURCE_MISC_BUFFER_STRUCTURED);
+  bufdesc.StructureByteStride := (2*SizeOf(TVec2));
+  Check3DError( FContext.GetDevice.CreateBuffer(bufdesc, nil, FBuffer) );
+
+  uavdesc.Format := DXGI_FORMAT_UNKNOWN;
+  uavdesc.ViewDimension := D3D11_UAV_DIMENSION_BUFFER;
+  uavdesc.Buffer.FirstElement := 0;
+  uavdesc.Buffer.NumElements := FElementsCount;
+  uavdesc.Buffer.Flags := Cardinal(D3D11_BUFFER_UAV_FLAG_APPEND);//Cardinal(D3D11_BUFFER_UAV_FLAG_COUNTER);
+  Check3DError( FContext.GetDevice.CreateUnorderedAccessView(FBuffer, @uavdesc, FView) );
+  //FContext.GetDeviceContext.
+end;
+
+function TUAV.ElementsCount: Cardinal;
+begin
+  Result := FElementsCount;
+end;
+
+function TUAV.GetView: ID3D11UnorderedAccessView;
+begin
+  Result := FView;
+end;
+
+procedure TUAV.InvalidateCounter;
+begin
+  FLastCounterValid := False;
+end;
+
+function TUAV.ReadCounter: Cardinal;
+var bufdesc: TD3D11_BufferDesc;
+    cpubuf: ID3D11Buffer;
+    mapdata: TD3D11_MappedSubresource;
+begin
+  if FLastCounterValid then Exit(FLastCounter);
+
+  bufdesc.ByteWidth := 4;
+  bufdesc.Usage := D3D11_USAGE_STAGING;
+  bufdesc.BindFlags := 0;
+  bufdesc.CPUAccessFlags := Cardinal(D3D11_CPU_ACCESS_READ);
+  bufdesc.MiscFlags := 0;
+  bufdesc.StructureByteStride := 0;
+  Check3DError( FContext.GetDevice.CreateBuffer(bufdesc, nil, cpubuf) );
+
+  FContext.GetDeviceContext.CopyStructureCount(cpubuf, 0, FView);
+
+  Check3DError( FContext.GetDeviceContext.Map(cpubuf, 0, D3D11_MAP_READ, 0, mapdata) );
+  FLastCounterValid := True;
+  FLastCounter := PCardinal(mapdata.pData)^;
+  FContext.GetDeviceContext.Unmap(cpubuf, 0);
+
+  Result := FLastCounter;
+end;
+
+function TUAV.ReadRAWData: TByteArr;
+var count: Integer;
+    bufdesc: TD3D11_BufferDesc;
+    copybox: TD3D11_Box;
+    mapdata: TD3D11_MappedSubresource;
+    cpubuf: ID3D11Buffer;
+begin
+  count := ReadCounter;
+  if count = 0 then Exit(nil);
+  SetLength(Result, count*FStrideSize);
+
+  bufdesc.ByteWidth := Length(Result);
+  bufdesc.Usage := D3D11_USAGE_STAGING;
+  bufdesc.BindFlags := 0;
+  bufdesc.CPUAccessFlags := Cardinal(D3D11_CPU_ACCESS_READ);
+  bufdesc.MiscFlags := 0;
+  bufdesc.StructureByteStride := 0;
+  Check3DError( FContext.GetDevice.CreateBuffer(bufdesc, nil, cpubuf) );
+
+  copybox.Left := 0;
+  copybox.Right := Length(Result);
+  copybox.Top := 0;
+  copybox.Bottom := 1;
+  copybox.Front := 0;
+  copybox.Back := 1;
+  FContext.GetDeviceContext.CopySubresourceRegion(cpubuf, 0, 0, 0, 0, FBuffer, 0, @copybox);
+
+  Check3DError( FContext.GetDeviceContext.Map(cpubuf, 0, D3D11_MAP_READ, 0, mapdata) );
+  Move(mapdata.pData^, Result[0], Length(Result));
+  FContext.GetDeviceContext.Unmap(cpubuf, 0);
+end;
+
+function TUAV.StrideSize: Cardinal;
+begin
+  Result := FStrideSize;
 end;
 
 end.

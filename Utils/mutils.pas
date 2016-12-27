@@ -112,14 +112,14 @@ type
   function Abs(const V: ShortInt): ShortInt; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   function Abs(const V: Integer): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
-  function Trunc(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-  function Trunc(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-  function Round(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-  function Round(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-  function Ceil(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-  function Ceil(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-  function Floor(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
-  function Floor(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Trunc(const V: Single): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Trunc(const V: Double): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Round(const V: Single): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Round(const V: Double): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Ceil(const V: Single): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Ceil(const V: Double): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Floor(const V: Single): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Floor(const V: Double): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 {$EndIf}
 
 type
@@ -155,11 +155,12 @@ type
 
   { TSegment2D }
 
-  TSegment2D = record
+  TSegment2D = packed record
   public
     Pt1, Pt2: TVec2;
     function Line(normalized: Boolean = False): TLine2D;
   end;
+  PSegment2D = ^TSegment2D;
 
   { TRectF }
 
@@ -220,6 +221,7 @@ type
 
 const
   Black: TVec4 = (x: 0; y: 0; z: 0; w: 0);
+  Green: TVec4 = (x: 0; y: 0.5; z: 0; w: 1.0);
 
   IdentityMat3: TMat3 = (f: ((1,0,0), (0,1,0), (0,0,1)));
   ZeroMat3: TMat3 = (f: ((0,0,0), (0,0,0), (0,0,0)));
@@ -568,37 +570,45 @@ end;
     Result := System.Abs(V);
   end;
 
-  function Trunc(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Trunc(const V: Single): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   begin
     Result := System.Trunc(V);
   end;
-  function Trunc(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Trunc(const V: Double): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   begin
     Result := System.Trunc(V);
   end;
-  function Round(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Round(const V: Single): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   begin
     Result := System.Round(V);
   end;
-  function Round(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Round(const V: Double): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   begin
     Result := System.Round(V);
   end;
-  function Ceil(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Ceil(const V: Single): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   begin
-    Result := Math.Ceil(V);
+    Result := System.Trunc(V);
+    if Frac(V) > 0 then
+      Inc(Result);
   end;
-  function Ceil(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Ceil(const V: Double): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   begin
-    Result := Math.Ceil(V);
+    Result := System.Trunc(V);
+    if Frac(V) > 0 then
+      Inc(Result);
   end;
-  function Floor(const V: Single): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Floor(const V: Single): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   begin
-    Result := Math.Floor(V);
+    Result := System.Trunc(V);
+    if Frac(V) < 0 then
+      Dec(Result);
   end;
-  function Floor(const V: Double): Integer; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Floor(const V: Double): Int64; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   begin
-    Result := Math.Floor(V);
+    Result := System.Trunc(V);
+    if Frac(V) < 0 then
+      Dec(Result);
   end;
 {$EndIf}
 

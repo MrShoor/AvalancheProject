@@ -87,6 +87,16 @@ type
                        const ASrcRes: IctxTexture; const SrcMipLevel: Integer; const SrcRect: TRectI);
   end;
 
+  IctxUAV = interface
+  ['{8CA32553-D7C1-4A87-9AFA-3D348CAC64AB}']
+    function ElementsCount: Cardinal;
+    function StrideSize: Cardinal;
+
+    function ReadCounter: Cardinal;
+    function ReadRAWData: TByteArr;
+//    function Appendable
+  end;
+
   TDataClass = (dcScalar, dcVector, dcMatrix, dcSampler);
 
   { TUniformField }
@@ -137,9 +147,11 @@ type
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0);
+    procedure SetUAV(index: Integer; UAV: IctxUAV);
 
     procedure Clear(index: Integer; color: TVec4);
     procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
+    procedure ResetUAVCounters;
 
     procedure BlitToWindow(index: Integer; const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
   end;
@@ -204,6 +216,7 @@ type
     function CreateProgram     : IctxProgram;
     function CreateTexture     : IctxTexture;
     function CreateFrameBuffer : IctxFrameBuffer;
+    function CreateUAV(const AElementsCount, AStrideSize: Cardinal) : IctxUAV;
 
     function States: IRenderStates;
     function GetActiveProgram: IctxProgram;

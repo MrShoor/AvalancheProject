@@ -45,6 +45,7 @@ type
     function Count: Integer;
 
     function  Add(const item: TValue): Integer; //index of new added element
+    procedure AddArray(const arr: IArray{$IfDef DCC}<TValue>{$EndIf});
     procedure Delete(const index: Integer);
     procedure DeleteWithSwap(const index: Integer);
     function  IndexOf(const item: TValue): Integer;
@@ -113,6 +114,7 @@ type
   private type
     THeapSrt = {$IfDef FPC}specialize{$EndIf} THeap<TValue>;
     TData = {$IfDef FPC}specialize{$EndIf} TArrData<TValue>;
+    IArr = {$IfDef FPC}specialize{$EndIf} IArray<TValue>;
   private
     FData : TData;
     FCount: Integer;
@@ -134,6 +136,7 @@ type
     function Count: Integer;
 
     function Add(const item: TValue): Integer; //return index of new added element
+    procedure AddArray(const arr: IArr); //index of new added element
     procedure Delete(const index: Integer);
     procedure DeleteWithSwap(const index: Integer);
     function IndexOf(const item: TValue): Integer;
@@ -219,7 +222,7 @@ type
     function Add(const AKey: TKey; const AValue: TValue): Boolean;
     function AddIfNotContains(const AKey: TKey; const AValue: TValue): Boolean;
     procedure AddOrSet(const AKey: TKey; const AValue: TValue);
-    procedure Delete(const AKey: TKey);
+    function Delete(const AKey: TKey): Boolean;
     function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
     function TryGetPValue(const AKey: TKey; out Value: Pointer): Boolean;
     function Contains(const AKey: TKey): Boolean;
@@ -250,7 +253,7 @@ type
     function Add(const AKey: TKey): Boolean; overload; //Return True if new item added, False if item already in set
     //procedure Add(const Arr : {$IfDef FPC}specialize{$EndIf} IArray<TKey>); overload;
     procedure AddOrSet(const AKey: TKey);
-    procedure Delete(const AKey: TKey);
+    function Delete(const AKey: TKey): Boolean;
     function Contains(const AKey: TKey): Boolean;
     procedure Clear;
 
@@ -313,7 +316,7 @@ type
     function Add(const AKey: TKey; const AValue: TValue): Boolean;
     function AddIfNotContains(const AKey: TKey; const AValue: TValue): Boolean;
     procedure AddOrSet(const AKey: TKey; const AValue: TValue);
-    procedure Delete(const AKey: TKey);
+    function Delete(const AKey: TKey): Boolean;
     function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
     function TryGetPValue(const AKey: TKey; out AValue: Pointer): Boolean;
     function Contains(const AKey: TKey): Boolean;
@@ -355,7 +358,7 @@ type
     function Count: Integer;
     function Add(const AKey: TKey): Boolean; overload;
     procedure AddOrSet(const AKey: TKey);
-    procedure Delete(const AKey: TKey);
+    function Delete(const AKey: TKey): Boolean;
     function Contains(const AKey: TKey): Boolean;
     procedure Clear;
 
@@ -1248,9 +1251,9 @@ begin
  FHash.AddOrSet(AKey, False);
 end;
 
-procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.Delete(const AKey: TKey);
+function THashSet{$IfDef DCC}<TKey>{$EndIf}.Delete(const AKey: TKey): Boolean;
 begin
- FHash.Delete(AKey);
+ Result := FHash.Delete(AKey);
 end;
 
 function THashSet{$IfDef DCC}<TKey>{$EndIf}.Contains(const AKey: TKey): Boolean;
@@ -1443,10 +1446,11 @@ begin
   Result := True;
 end;
 
-procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Delete(const AKey: TKey);
+function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Delete(const AKey: TKey): Boolean;
 var hash: Cardinal;
     bIndex, curInd: Integer;
 begin
+  Result := False;
   bIndex := 0;
   hash := FComparer.Hash(AKey);
   if not CalcBucketIndex(AKey, hash, bIndex) then
@@ -1470,6 +1474,7 @@ begin
   FData[bIndex].Hash := EMPTY_HASH;
   FData[bIndex].Key := FEmptyKey;
   FData[bIndex].Value := FEmptyValue;
+  Result := True;
 end;
 
 function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
@@ -1677,6 +1682,16 @@ begin
       Capacity := Capacity * 2;
   FData[FCount] := item;
   Inc(FCount);
+end;
+
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.AddArray(const arr: IArr);
+var i: Integer;
+begin
+  if Capacity < FCount + arr.Count then
+    Capacity := NextPow2(FCount + arr.Count);
+  for i := 0 to arr.Count - 1 do
+    FData[FCount+i] := arr[i];
+  Inc(FCount, arr.Count);
 end;
 
 procedure TArray{$IfDef DCC}<TValue>{$EndIf}.Delete(const index: Integer);

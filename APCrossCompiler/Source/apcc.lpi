@@ -29,7 +29,7 @@
       <local>
         <FormatVersion Value="1"/>
         <CommandLineParams Value="shaders.json"/>
-        <WorkingDirectory Value="D:\OthProj\AvalancheProject\Demos\Src\avm_Import\MeshShader"/>
+        <WorkingDirectory Value="D:\SVN\platform_edp\ADVPCB\Source code\GPUPour\GPUPour_shaders"/>
       </local>
     </RunParams>
     <RequiredPackages Count="1">
