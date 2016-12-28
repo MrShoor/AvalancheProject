@@ -67,6 +67,7 @@ type
     procedure Clear(const color  : TVec4;      doColor  : Boolean = True;
                           depth  : Single = 1; doDepth  : Boolean = False;
                           stencil: Byte   = 0; doStencil: Boolean = False);
+    procedure Flush;
     procedure Present;
     procedure InvalidateWindow;
 
@@ -2206,6 +2207,11 @@ procedure TavMainRender.Clear(const color  : TVec4;      doColor  : Boolean = Tr
                               stencil: Byte   = 0; doStencil: Boolean = False);
 begin
   FContext.Clear(color, doColor, depth, doDepth, stencil, doStencil);
+end;
+
+procedure TavMainRender.Flush;
+begin
+  FContext.Flush;
 end;
 
 procedure TavMainRender.Present;

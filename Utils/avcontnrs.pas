@@ -585,7 +585,7 @@ begin
 end;
 
 procedure TQueue{$IfDef DCC}<TValue>{$EndIf}.Push(const item: TValue);
-var n: Integer;
+var n: Cardinal;
 begin
   if Count = Length(FData) then
     Capacity := Max(16, Capacity*2);

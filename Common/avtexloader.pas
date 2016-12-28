@@ -348,6 +348,12 @@ begin
     FreeImage(img);
   end;
 end;
+{$Else}
+function ConvertMip(const srcMip: ITextureMip; const w, h: Integer; const format: TImageFormat; AutoStretch: Boolean; Const FillColor: TVec4): ITextureMip;
+begin
+  Assert(False, 'Not implemented');
+  Result := Nil;
+end;
 {$EndIf}
 
 {$IfDef VAMPYRE}
@@ -364,6 +370,14 @@ begin
     FreeImagesInArray(imgs);
   end;
 end;
+{$Else}
+function LoadTexture(const data                      : TByteArr;
+                     const targetWidth, targetHeight : Integer;
+                     const targetFormat              : TImageFormat): ITextureData;
+begin
+  Assert(False, 'Not implemented');
+  Result := Nil;
+end;
 {$EndIf}
 
 {$IfDef VAMPYRE}
@@ -379,7 +393,16 @@ begin
     FreeImagesInArray(imgs);
   end;
 end;
+{$Else}
+function LoadTexture(const FileName: string; const targetWidth: Integer;
+  const targetHeight: Integer; const targetFormat: TImageFormat): ITextureData;
+begin
+  Assert(False, 'Not implemented');
+  Result := Nil;
+end;
+{$EndIf}
 
+{$IfDef VAMPYRE}
 function LoadTextures(const Files: array of string; const targetWidth: Integer;
   const targetHeight: Integer; const targetFormat: TImageFormat): ITextureData;
 var imgs: array of TDynImageDataArray;
@@ -395,11 +418,27 @@ begin
       FreeImagesInArray(imgs[i]);
   end;
 end;
+{$Else}
+function LoadTextures(const Files: array of string; const targetWidth: Integer;
+  const targetHeight: Integer; const targetFormat: TImageFormat): ITextureData;
+begin
+  Assert(False, 'Not implemented');
+  Result := Nil;
+end;
+{$EndIf}
 
+{$IfDef VAMPYRE}
 function Create_ITextureManager: ITextureManager;
 begin
   Result := TTextureManager.Create;
 end;
+{$Else}
+function Create_ITextureManager: ITextureManager;
+begin
+  Assert(False, 'Not implemented');
+  Result := Nil;
+end;
+{$EndIf}
 
 { TMipImage }
 
@@ -549,8 +588,6 @@ begin
   inherited AfterConstruction;
   FTexHash := TTexHash.Create;
 end;
-
-{$EndIf}
 
 { TTextureData }
 
@@ -830,6 +867,7 @@ begin
     end;
   end;
 end;
+{$EndIf}
 
 constructor TTextureData.CreateEmpty(AWidth, AHeight: Integer; AFormat: TImageFormat; withMips: Boolean; AllocateTextureMemory: Boolean);
 var i: Integer;
@@ -856,8 +894,6 @@ begin
     AHeight := AHeight shr 1;
   end;
 end;
-
-{$EndIf}
 
 destructor TTextureData.Destroy;
 begin

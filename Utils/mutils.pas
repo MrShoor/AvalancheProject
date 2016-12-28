@@ -168,6 +168,8 @@ type
     function Center  : TVec2;
     function Size    : TVec2;
     function IsEmpty : Boolean;
+    function Expand(const ASize: Single) : TRectF; overload;
+    function Expand(const ASize: TVec2) : TRectF; overload;
   case Byte of
     0: (Left, Top, Right, Bottom: Single);
     1: (LeftTop, RightBottom: TVec2);
@@ -1486,6 +1488,22 @@ end;
 function TRectF.Size: TVec2;
 begin
   Result := RightBottom - LeftTop;
+end;
+
+function TRectF.Expand(const ASize: Single): TRectF;
+begin
+  Result.min.x := min.x - ASize;
+  Result.min.y := min.y - ASize;
+  Result.max.x := max.x + ASize;
+  Result.max.y := max.y + ASize;
+end;
+
+function TRectF.Expand(const ASize: TVec2): TRectF;
+begin
+  Result.min.x := min.x - ASize.x;
+  Result.min.y := min.y - ASize.y;
+  Result.max.x := max.x + ASize.x;
+  Result.max.y := max.y + ASize.y;
 end;
 
 function TRectF.IsEmpty: Boolean;

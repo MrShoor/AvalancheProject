@@ -72,6 +72,7 @@ type
     procedure Clear(const color  : TVec4;      doColor  : Boolean = True;
                           depth  : Single = 1; doDepth  : Boolean = False;
                           stencil: Byte   = 0; doStencil: Boolean = False);
+    procedure Flush;
     procedure Present;
 
     constructor Create(Const Wnd: TWindow; Const WARP: Boolean = False);
@@ -1982,7 +1983,7 @@ class function TColorSpaceConverter.Convert_A8R8G8B8_RGBA(ASrc: PByte;
   ADst: PByte; out ADstSize: Integer): Boolean;
 var pSrc, pDst: PVec4b;
     PixelCount: Integer;
-    i, j: Integer;
+    i: Integer;
 begin
   Result := True;
   PixelCount := ASrcSize div 4;
@@ -2677,7 +2678,6 @@ end;
 
 procedure TContext_DX11.RebuildViews(const AWidth, AHeight: Cardinal);
 var SwapChainDesc: TDXGI_SwapChainDesc;
-    ViewPort: TD3D11_Viewport;
 begin
   FSwapChain.GetDesc(SwapChainDesc);
   if (SwapChainDesc.BufferDesc.Width = AWidth) and
@@ -2896,6 +2896,11 @@ begin
     FDeviceContext.ClearRenderTargetView(FRenderTarget, TColorArray(color));
     //FDeviceContext.ClearDepthStencilView();
   end;
+end;
+
+procedure TContext_DX11.Flush;
+begin
+  FDeviceContext.Flush;
 end;
 
 procedure TContext_DX11.Present;

@@ -61,6 +61,7 @@ type
     procedure Clear(const color  : TVec4;      doColor  : Boolean = True;
                           depth  : Single = 1; doDepth  : Boolean = False;
                           stencil: Byte   = 0; doStencil: Boolean = False);
+    procedure Flush;
     procedure Present;
 
     constructor Create(Const Wnd: TWindow);
@@ -2723,6 +2724,11 @@ begin
     GLClearBits := GLClearBits or GL_STENCIL_BUFFER_BIT;
   end;
   glClear(GLClearBits);
+end;
+
+procedure TContext_OGL.Flush;
+begin
+  glFlush();
 end;
 
 procedure TContext_OGL.Present;

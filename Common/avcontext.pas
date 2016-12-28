@@ -229,6 +229,7 @@ type
     procedure Clear(const color  : TVec4;      doColor  : Boolean = True;
                           depth  : Single = 1; doDepth  : Boolean = False;
                           stencil: Byte   = 0; doStencil: Boolean = False);
+    procedure Flush;
     procedure Present;
     property ActiveProgram: IctxProgram read GetActiveProgram write SetActiveProgram;
   end;
