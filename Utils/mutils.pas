@@ -278,6 +278,8 @@ function Plane(const normal, point: TVec3): TPlane; overload; {$IFNDEF NoInline}
 function Plane(A,B,C,D: single): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Plane(const pt1, pt2, pt3: TVec3): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function AABB(const AMin, AMax: TVec3): TAABB; overload;
+function Line2D(const APt1, APt2: TVec2): TLine2D; {$IFNDEF NoInline} inline; {$ENDIF}
+function Line2D_normalized(const APt1, APt2: TVec2): TLine2D; {$IFNDEF NoInline} inline; {$ENDIF}
 
 function Len(const v: TVec2): Single; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Len(const v: TVec3): Single; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -907,6 +909,24 @@ function AABB(const AMin, AMax: TVec3): TAABB;
 begin
   Result.min := AMin;
   Result.max := AMax;
+end;
+
+function Line2D(const APt1, APt2: TVec2): TLine2D; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.Norm.x := APt1.y + APt2.y;
+  Result.Norm.y := APt2.x - APt1.x;
+  Result.Offset := - Result.Norm.x*APt1.x - Result.Norm.y*APt1.y;
+end;
+
+function Line2D_normalized(const APt1, APt2: TVec2): TLine2D; {$IFNDEF NoInline} inline; {$ENDIF}
+var nLen: Single;
+begin
+  Result.Norm.x := APt1.y - APt2.y;
+  Result.Norm.y := APt2.x - APt1.x;
+  nLen := 1.0/Len(Result.Norm);
+  Result.Norm.x := Result.Norm.x*nLen;
+  Result.Norm.y := Result.Norm.y*nLen;
+  Result.Offset := - Result.Norm.x*APt1.x - Result.Norm.y*APt1.y;
 end;
 
 function Len(const v: TVec2): Single; overload; {$IFNDEF NoInline} inline; {$ENDIF}

@@ -21,7 +21,8 @@ type
     function Layout: IDataLayout;
     function Data: TPointerData;
   public
-    constructor Create;
+    constructor Create; overload;
+    constructor Create(const ALayout: IDataLayout); overload;
   end;
 
   { ILayoutBuilder }
@@ -1032,6 +1033,11 @@ begin
     end;
 end;
 {$EndIf}
+
+constructor TVerticesRec{$IfDef DCC}<TRec>{$EndIf}.Create(Const ALayout: IDataLayout);
+begin
+  FLayout := ALayout;
+end;
 
 end.
 
