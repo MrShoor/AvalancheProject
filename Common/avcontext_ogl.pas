@@ -49,7 +49,7 @@ type
     function CreateProgram : IctxProgram;
     function CreateTexture : IctxTexture;
     function CreateFrameBuffer : IctxFrameBuffer;
-    function CreateUAV(const AElementsCount, AStrideSize: Cardinal): IctxUAV;
+    function CreateUAV(const AElementsCount, AStrideSize: Cardinal; const Appendable: Boolean; const AInitialData: Pointer): IctxUAV;
 
     function States : IRenderStates;
     property ActiveProgram: IctxProgram read GetActiveProgram write SetActiveProgram;
@@ -2655,7 +2655,7 @@ begin
   Result := TTexture.Create(Self);
 end;
 
-function TContext_OGL.CreateUAV(const AElementsCount, AStrideSize: Cardinal): IctxUAV;
+function TContext_OGL.CreateUAV(const AElementsCount, AStrideSize: Cardinal; const Appendable: Boolean; const AInitialData: Pointer): IctxUAV;
 begin
   Result := nil;
   Assert(False, 'qwe not implemented');

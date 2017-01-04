@@ -60,7 +60,7 @@ type
     function CreateProgram : IctxProgram;
     function CreateTexture : IctxTexture;
     function CreateFrameBuffer : IctxFrameBuffer;
-    function CreateUAV(const AElementsCount, AStrideSize: Cardinal): IctxUAV;
+    function CreateUAV(const AElementsCount, AStrideSize: Cardinal; const Appendable: Boolean; const AInitialData: Pointer): IctxUAV;
 
     function States : IRenderStates;
     property ActiveProgram: IctxProgram read GetActiveProgram write SetActiveProgram;
@@ -695,11 +695,11 @@ type
 
     procedure InvalidateCounter;
     function ReadCounter: Cardinal;
-    function ReadRAWData: TByteArr;
+    function ReadRAWData(AElementsCount: Integer = -1): TByteArr;
 
     function GetView: ID3D11UnorderedAccessView;
   public
-    constructor Create(const AContext: TContext_DX11; const AElementsCount, AStrideSize: Cardinal); reintroduce;
+    constructor Create(const AContext: TContext_DX11; const AElementsCount, AStrideSize: Cardinal; const Appendable: Boolean; const AInitialData: Pointer); reintroduce;
     //destructor Destroy; override;
   end;
 
@@ -2832,9 +2832,9 @@ begin
   Result := TTexture.Create(Self);
 end;
 
-function TContext_DX11.CreateUAV(const AElementsCount, AStrideSize: Cardinal): IctxUAV;
+function TContext_DX11.CreateUAV(const AElementsCount, AStrideSize: Cardinal; const Appendable: Boolean; const AInitialData: Pointer): IctxUAV;
 begin
-  Result := TUAV.Create(Self, AElementsCount, AStrideSize);
+  Result := TUAV.Create(Self, AElementsCount, AStrideSize, Appendable, AInitialData);
 end;
 
 function TContext_DX11.CreateFrameBuffer: IctxFrameBuffer;
@@ -2958,9 +2958,10 @@ end;
 
 { TUAV }
 
-constructor TUAV.Create(const AContext: TContext_DX11; const AElementsCount, AStrideSize: Cardinal);
+constructor TUAV.Create(const AContext: TContext_DX11; const AElementsCount, AStrideSize: Cardinal; const Appendable: Boolean; const AInitialData: Pointer);
 var bufdesc: TD3D11_BufferDesc;
     uavdesc: TD3D11_UnorderedAccessViewDesc;
+    initData: TD3D11_SubresourceData;
 begin
   inherited Create(AContext);
   FElementsCount := AElementsCount;
@@ -2972,14 +2973,25 @@ begin
   bufdesc.BindFlags := Cardinal(D3D11_BIND_UNORDERED_ACCESS);
   bufdesc.CPUAccessFlags := 0;
   bufdesc.MiscFlags := Cardinal(D3D11_RESOURCE_MISC_BUFFER_STRUCTURED);
-  bufdesc.StructureByteStride := (2*SizeOf(TVec2));
-  Check3DError( FContext.GetDevice.CreateBuffer(bufdesc, nil, FBuffer) );
+  bufdesc.StructureByteStride := AStrideSize;
+  if AInitialData = nil then
+    Check3DError( FContext.GetDevice.CreateBuffer(bufdesc, nil, FBuffer) )
+  else
+  begin
+    initData.pSysMem := AInitialData;
+    initData.SysMemPitch := AElementsCount * AStrideSize;
+    initData.SysMemSlicePitch := AElementsCount * AStrideSize;
+    Check3DError( FContext.GetDevice.CreateBuffer(bufdesc, @initData, FBuffer) );
+  end;
 
   uavdesc.Format := DXGI_FORMAT_UNKNOWN;
   uavdesc.ViewDimension := D3D11_UAV_DIMENSION_BUFFER;
   uavdesc.Buffer.FirstElement := 0;
   uavdesc.Buffer.NumElements := FElementsCount;
-  uavdesc.Buffer.Flags := Cardinal(D3D11_BUFFER_UAV_FLAG_APPEND);//Cardinal(D3D11_BUFFER_UAV_FLAG_COUNTER);
+  if Appendable then
+    uavdesc.Buffer.Flags := Cardinal(D3D11_BUFFER_UAV_FLAG_APPEND)
+  else
+    uavdesc.Buffer.Flags := Cardinal(D3D11_BUFFER_UAV_FLAG_COUNTER);
   Check3DError( FContext.GetDevice.CreateUnorderedAccessView(FBuffer, @uavdesc, FView) );
   //FContext.GetDeviceContext.
 end;
@@ -3024,16 +3036,16 @@ begin
   Result := FLastCounter;
 end;
 
-function TUAV.ReadRAWData: TByteArr;
-var count: Integer;
-    bufdesc: TD3D11_BufferDesc;
+function TUAV.ReadRAWData(AElementsCount: Integer = -1): TByteArr;
+var bufdesc: TD3D11_BufferDesc;
     copybox: TD3D11_Box;
     mapdata: TD3D11_MappedSubresource;
     cpubuf: ID3D11Buffer;
 begin
-  count := ReadCounter;
-  if count = 0 then Exit(nil);
-  SetLength(Result, count*FStrideSize);
+  if AElementsCount < 0 then
+      AElementsCount := ReadCounter;
+  if AElementsCount = 0 then Exit(nil);
+  SetLength(Result, AElementsCount*FStrideSize);
 
   bufdesc.ByteWidth := Length(Result);
   bufdesc.Usage := D3D11_USAGE_STAGING;

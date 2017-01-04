@@ -505,9 +505,11 @@ type
 
   TavUAV = class(TavRes)
   private
-    FElementsCount: Integer;
-    FStrideSize   : Integer;
-    FBufH         : IctxUAV;
+    FElementsCount : Integer;
+    FStrideSize    : Integer;
+    FAppendable    : Boolean;
+    FBufH          : IctxUAV;
+    FInitialElement: TByteArr;
   protected
     procedure BeforeFree3D; override;
     function DoBuild: Boolean; override;
@@ -516,9 +518,9 @@ type
     function StrideSize: Cardinal;
 
     function ReadCounter: Cardinal;
-    function ReadRAWData: TByteArr;
+    function ReadRAWData(const AElementsCount: Integer = -1): TByteArr;
 
-    procedure SetSize(const AElementsCount, AStrideSize: Integer);
+    procedure SetSize(const AElementsCount, AStrideSize: Integer; const AAppendable: Boolean; AInitialElement: Pointer = Nil);
   end;
 
   { TavProgram }
@@ -781,9 +783,20 @@ begin
 end;
 
 function TavUAV.DoBuild: Boolean;
+var initData: TByteArr;
+    initDataPtr: Pointer;
+    i: Integer;
 begin
   Result := inherited DoBuild;
-  FBufH := Main.Context.CreateUAV(FElementsCount, FStrideSize);
+  initDataPtr := nil;
+  if FInitialElement <> nil then
+  begin
+    SetLength(initData, FElementsCount*FStrideSize);
+    for i := 0 to FElementsCount - 1 do
+      Move(FInitialElement[0], initData[i*FStrideSize], FStrideSize);
+    initDataPtr := @initData[0];
+  end;
+  FBufH := Main.Context.CreateUAV(FElementsCount, FStrideSize, FAppendable, initDataPtr);
 end;
 
 function TavUAV.ElementsCount: Cardinal;
@@ -804,13 +817,13 @@ begin
     Result := FBufH.ReadCounter;
 end;
 
-function TavUAV.ReadRAWData: TByteArr;
+function TavUAV.ReadRAWData(const AElementsCount: Integer = -1): TByteArr;
 begin
   if FBufH = nil then Exit(Nil);
-  Result := FBufH.ReadRAWData;
+  Result := FBufH.ReadRAWData(AElementsCount);
 end;
 
-procedure TavUAV.SetSize(const AElementsCount, AStrideSize: Integer);
+procedure TavUAV.SetSize(const AElementsCount, AStrideSize: Integer; const AAppendable: Boolean; AInitialElement: Pointer);
 begin
   if FElementsCount <> AElementsCount then
   begin
@@ -822,7 +835,24 @@ begin
     FStrideSize := AStrideSize;
     Invalidate;
   end;
+  if FAppendable <> AAppendable then
+  begin
+    FAppendable := AAppendable;
+    Invalidate;
+  end;
+
+  if AInitialElement = nil then
+    FInitialElement := nil
+  else
+  begin
+    if (Length(FInitialElement)=AStrideSize) then
+        if CompareMem(AInitialElement, @FInitialElement[0], AStrideSize) then Exit;
+    SetLength(FInitialElement, AStrideSize);
+    Move(AInitialElement^, FInitialElement[0], AStrideSize);
+    Invalidate;
+  end;
 end;
+
 
 { TavMultiSampleTexture }
 

@@ -302,6 +302,7 @@ function Lerp(const m1, m2: TMat3; s: Single): TMat3; overload; {$IFNDEF NoInlin
 function Lerp(const m1, m2: TMat4; s: Single): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
 function Rotate(const v: TVec2; const Angle: Single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Rotate(const v: TVec2; const ASin, ACos: Single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Rotate90(const v: TVec2; const CW: Boolean): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
 function Intersect(const Line1, Line2: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
@@ -1370,6 +1371,12 @@ begin
   sincos(Angle, sn, cs);
   Result.x := cs * v.x - sn * v.y;
   Result.y := cs * v.y + sn * v.x;
+end;
+
+function Rotate(const v: TVec2; const ASin, ACos: Single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.x := ACos * v.x - ASin * v.y;
+  Result.y := ACos * v.y + ASin * v.x;
 end;
 
 function Rotate90(const v: TVec2; const CW: Boolean): TVec2;

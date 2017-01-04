@@ -93,7 +93,7 @@ type
     function StrideSize: Cardinal;
 
     function ReadCounter: Cardinal;
-    function ReadRAWData: TByteArr;
+    function ReadRAWData(AElementsCount: Integer = -1): TByteArr;
 //    function Appendable
   end;
 
@@ -216,7 +216,7 @@ type
     function CreateProgram     : IctxProgram;
     function CreateTexture     : IctxTexture;
     function CreateFrameBuffer : IctxFrameBuffer;
-    function CreateUAV(const AElementsCount, AStrideSize: Cardinal) : IctxUAV;
+    function CreateUAV(const AElementsCount, AStrideSize: Cardinal; const Appendable: Boolean; const AInitialData: Pointer) : IctxUAV;
 
     function States: IRenderStates;
     function GetActiveProgram: IctxProgram;
