@@ -196,7 +196,6 @@ begin
 end;
 
 class function TWeakedInterfacedObject.NewInstance: Tobject;
-var tmp: TWeakRefIntf;
 begin
   Result := inherited newinstance;
   TWeakedInterfacedObject(Result).FWeakRef := TWeakRefIntf.Create(TWeakedInterfacedObject(Result));

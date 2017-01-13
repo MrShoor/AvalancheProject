@@ -572,7 +572,7 @@ type
     procedure SetUniform (const Field: TUniformField; const values: TSingleArr); overload;
     procedure SetUniform (const Field: TUniformField; const v: TVec4arr);        overload;
     procedure SetUniform (const Field: TUniformField; const m: TMat4);           overload;
-    procedure SetUniform (const Field: TUniformField; const tex: TavTexture; const sampler: TSamplerInfo); overload;
+    procedure SetUniform (const Field: TUniformField; const tex: TavTextureBase; const sampler: TSamplerInfo); overload;
 
     procedure SetUniform (const AName: string; const value: integer);     overload;
     procedure SetUniform (const AName: string; const value: single);      overload;
@@ -2588,7 +2588,7 @@ begin
   FProgram.SetUniform(Field, m);
 end;
 
-procedure TavProgram.SetUniform(const Field: TUniformField; const tex: TavTexture; const sampler: TSamplerInfo);
+procedure TavProgram.SetUniform(const Field: TUniformField; const tex: TavTextureBase; const sampler: TSamplerInfo);
 begin
   if tex = nil then Exit;
   tex.Build;
