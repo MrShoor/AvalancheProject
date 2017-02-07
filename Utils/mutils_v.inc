@@ -104,6 +104,7 @@ type
   TM3Arr = array of TM3;
   TM4Arr = array of TM4;
 
+  {$IfDef FPC}
   Operator = (const v1, v2: TV2): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator + (const v1, v2: TV2): TV2; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator - (const v1, v2: TV2): TV2; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -150,6 +151,7 @@ type
   Operator * (const v: TV3; const m: TM4): TV3; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator * (const m: TM4; s: TCompType): TM4; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator - (const m: TM4): TM4; {$IFNDEF NoInline} inline; {$ENDIF}
+  {$EndIf}
 
   function Abs(const V: TV2): TV2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   function Abs(const V: TV3): TV3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -203,6 +205,13 @@ type
   procedure Swap(var v1, v2: TM2); overload; {$IFNDEF NoInline} inline; {$ENDIF}
   procedure Swap(var v1, v2: TM3); overload; {$IFNDEF NoInline} inline; {$ENDIF}
   procedure Swap(var v1, v2: TM4); overload; {$IFNDEF NoInline} inline; {$ENDIF}
+
+  procedure StreamWriteVecArr(const AStream: TStream; const AArr: TV2Arr); overload;
+  procedure StreamWriteVecArr(const AStream: TStream; const AArr: TV3Arr); overload;
+  procedure StreamWriteVecArr(const AStream: TStream; const AArr: TV4Arr); overload;
+  procedure StreamReadVecArr(const AStream: TStream; out AArr: TV2Arr); overload;
+  procedure StreamReadVecArr(const AStream: TStream; out AArr: TV3Arr); overload;
+  procedure StreamReadVecArr(const AStream: TStream; out AArr: TV4Arr); overload;
 {$ENDIF}
 
 {$IFDEF IMPL}
@@ -918,4 +927,65 @@ type
               m.f[0, 2] * (m.f[1, 0] * (m.f[2, 1] * m.f[3, 3] - m.f[2, 3] * m.f[3, 1]) - m.f[1, 1] * (m.f[2, 0] * m.f[3, 3] - m.f[2, 3] * m.f[3, 0]) + m.f[1, 3] * (m.f[2, 0] * m.f[3, 1] - m.f[2, 1] * m.f[3, 0])) -
               m.f[0, 3] * (m.f[1, 0] * (m.f[2, 1] * m.f[3, 2] - m.f[2, 2] * m.f[3, 1]) - m.f[1, 1] * (m.f[2, 0] * m.f[3, 2] - m.f[2, 2] * m.f[3, 0]) + m.f[1, 2] * (m.f[2, 0] * m.f[3, 1] - m.f[2, 1] * m.f[3, 0]));
   end;
+
+  procedure StreamWriteVecArr(const AStream: TStream; const AArr: TV2Arr);
+  var n: Integer;
+  begin
+    n := Length(AArr);
+    AStream.WriteBuffer(n, SizeOf(n));
+    if n > 0 then
+      AStream.WriteBuffer(AArr[0], n*SizeOf(AArr[0]));
+  end;
+
+  procedure StreamWriteVecArr(const AStream: TStream; const AArr: TV3Arr);
+  var n: Integer;
+  begin
+    n := Length(AArr);
+    AStream.WriteBuffer(n, SizeOf(n));
+    if n > 0 then
+      AStream.WriteBuffer(AArr[0], n*SizeOf(AArr[0]));
+  end;
+
+  procedure StreamWriteVecArr(const AStream: TStream; const AArr: TV4Arr);
+  var n: Integer;
+  begin
+    n := Length(AArr);
+    AStream.WriteBuffer(n, SizeOf(n));
+    if n > 0 then
+      AStream.WriteBuffer(AArr[0], n*SizeOf(AArr[0]));
+  end;
+
+  procedure StreamReadVecArr(const AStream: TStream; out AArr: TV2Arr);
+  var n: Integer;
+  begin
+    n := 0;
+    AStream.ReadBuffer(n, SizeOf(n));
+    AArr := nil;
+    SetLength(AArr, n);
+    if n > 0 then
+      AStream.ReadBuffer(AArr[0], n*SizeOf(AArr[0]));
+  end;
+
+  procedure StreamReadVecArr(const AStream: TStream; out AArr: TV3Arr);
+  var n: Integer;
+  begin
+    n := 0;
+    AStream.ReadBuffer(n, SizeOf(n));
+    AArr := nil;
+    SetLength(AArr, n);
+    if n > 0 then
+      AStream.ReadBuffer(AArr[0], n*SizeOf(AArr[0]));
+  end;
+
+  procedure StreamReadVecArr(const AStream: TStream; out AArr: TV4Arr);
+  var n: Integer;
+  begin
+    n := 0;
+    AStream.ReadBuffer(n, SizeOf(n));
+    AArr := nil;
+    SetLength(AArr, n);
+    if n > 0 then
+      AStream.ReadBuffer(AArr[0], n*SizeOf(AArr[0]));
+  end;
+
 {$ENDIF}
