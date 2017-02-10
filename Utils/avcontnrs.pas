@@ -543,10 +543,314 @@ type
     constructor Create(const AMinNodeSize: TVec3);
   end;
 
+procedure StreamAutoWrite(const AStream: TStream; const AData; ATypeInfo: PTypeInfo);
+procedure StreamAutoRead (const AStream: TStream; var   AData; ATypeInfo: PTypeInfo);
+
 implementation
 
 uses
   rtlconsts, math;
+
+function IsManagedRecord(mf: PManagedField; fieldsCount: Integer): Boolean;
+var i, n: Integer;
+    mf2: PManagedField;
+    td: PTypeData;
+begin
+  Result := False;
+  for i := 0 to fieldsCount - 1 do
+  begin
+    case mf^.TypeRef^.Kind of
+      tkLString,{$IfDef FPC}tkAString,{$EndIf}tkWString,tkVariant,tkInterface,tkDynArray,tkUString: Exit(True);
+      tkRecord:
+      begin
+        {$IfDef FPC}
+        td := GetTypeData(mf^.TypeRef);
+        {$Else}
+        td := GetTypeData(mf^.TypeRef^);
+        {$EndIf}
+        n := td^.ManagedFldCount;
+        mf2 := PManagedField(@td^.ManagedFldCount);
+        Inc(PByte(mf2), SizeOf(td^.ManagedFldCount));
+        if IsManagedRecord(mf2, n) then Exit(True);
+      end;
+    end;
+    Inc(mf);
+  end;
+end;
+
+procedure StreamRawAutoWrite(const AStream: TStream; const AData; AType: PTypeInfo);
+var td, td2: PTypeData;
+    mf: PManagedField;
+    n, i: Integer;
+    pB: PByte;
+begin
+   td := GetTypeData(AType);
+   case AType^.Kind of
+    tkInteger,tkChar,tkEnumeration,{$IfDef FPC}tkBool,{$EndIf}tkWChar,tkSet:
+      begin
+        case td^.OrdType of
+          otSByte,otUByte : AStream.WriteBuffer(AData, 1);
+          otSWord,otUWord : AStream.WriteBuffer(AData, 2);
+          otSLong,otULong : AStream.WriteBuffer(AData, 4);
+        else
+          raise EContnrsError.Create('Can''t be streamed');
+        end;
+      end;
+
+    tkFloat:
+      begin
+        case td^.FloatType of
+          ftSingle : AStream.WriteBuffer(AData, SizeOf(Single));
+          ftDouble : AStream.WriteBuffer(AData, SizeOf(Double));
+        else
+          raise EContnrsError.Create('Can''t be streamed');
+        end;
+      end;
+
+    tkInt64{$IfDef FPC}, tkQWord{$EndIf}: AStream.WriteBuffer(AData, SizeOf(Int64));
+
+    {$IfDef FPC}
+    tkAString:
+      begin
+        n := Length(AnsiString(AData));
+        AStream.WriteBuffer(n, SizeOf(n));
+        if n > 0 then
+          AStream.WriteBuffer(AnsiString(AData)[1], n);
+      end;
+    {$EndIf}
+    tkUString:
+      begin
+        n := Length(UnicodeString(AData));
+        AStream.WriteBuffer(n, SizeOf(n));
+        if n > 0 then
+          AStream.WriteBuffer(UnicodeString(AData)[1], n*2);
+      end;
+    tkWString:
+      begin
+        n := Length(WideString(AData));
+        AStream.WriteBuffer(n, SizeOf(n));
+        if n > 0 then
+          AStream.WriteBuffer(WideString(AData)[1], n*2);
+      end;
+
+    tkRecord:
+     begin
+       td := GetTypeData(AType);
+       n := td^.ManagedFldCount;
+       mf := PManagedField(@td^.ManagedFldCount);
+       Inc(PByte(mf), SizeOf(td^.ManagedFldCount));
+
+       if IsManagedRecord(mf, td^.ManagedFldCount) then
+       begin
+         for i := 0 to n-1 do
+         begin
+           {$IfDef FPC}
+           StreamRawAutoWrite(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef);
+           {$EndIf}
+           {$IfDef DCC}
+           StreamRawAutoWrite(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef^);
+           {$EndIf}
+           Inc(mf);
+         end;
+       end
+       else
+         AStream.WriteBuffer(AData, td^.RecSize);
+     end;
+
+    tkArray:
+     begin
+       if td^.ArrayData.ElType^.Kind in [tkInteger,tkChar,tkEnumeration,{$IfDef FPC}tkBool,tkQWord,{$EndIf}tkWChar,tkSet,tkFloat,tkInt64] then
+         AStream.WriteBuffer(AData, td^.ArrayData.Size)
+       else
+         raise EContnrsError.Create('Can''t be streamed');
+     end;
+
+    tkDynArray:
+     begin
+       pB := PByte(AData);
+       n := DynArraySize(pB);
+       AStream.WriteBuffer(n, SizeOf(n));
+       if n > 0 then
+         case td^.elType2^.Kind of
+           tkInteger,tkChar,tkEnumeration,{$IfDef FPC}tkBool,tkQWord,{$EndIf}tkWChar,tkSet,tkFloat,tkInt64:
+             begin
+               AStream.WriteBuffer(PInteger(AData)^, td^.elSize * DynArraySize(Pointer(AData)));
+             end;
+
+           tkRecord:
+             begin
+               td2 := GetTypeData(AType);
+               n := td2^.ManagedFldCount;
+               mf := PManagedField(@td2^.ManagedFldCount);
+               Inc(PByte(mf), SizeOf(td2^.ManagedFldCount));
+               if IsManagedRecord(mf, td2^.ManagedFldCount) then
+               begin
+                 n := DynArraySize(pB);
+                 for i := 0 to n - 1 do
+                 begin
+                   {$IfDef FPC}
+                   StreamRawAutoWrite(AStream, pB^, td^.elType2);
+                   {$Else}
+                   StreamRawAutoWrite(AStream, pB^, td^.elType2^);
+                   {$EndIf}
+                   Inc(pB^, td^.elSize);
+                 end;
+               end
+               else
+               begin
+                 AStream.WriteBuffer(PInteger(AData)^, td^.elSize * DynArraySize(Pointer(AData)));
+               end;
+             end;
+         else
+           raise EContnrsError.Create('Can''t be streamed');
+         end;
+     end;
+
+   end;
+end;
+
+procedure StreamRawAutoRead(const AStream: TStream; var AData; AType: PTypeInfo);
+var td, td2: PTypeData;
+    mf: PManagedField;
+    n, i: Integer;
+    n64: Int64;
+    pB: PByte;
+begin
+   td := GetTypeData(AType);
+   case AType^.Kind of
+    tkInteger,tkChar,tkEnumeration,{$IfDef FPC}tkBool,{$EndIf}tkWChar,tkSet:
+      begin
+        case td^.OrdType of
+          otSByte,otUByte : AStream.ReadBuffer(AData, 1);
+          otSWord,otUWord : AStream.ReadBuffer(AData, 2);
+          otSLong,otULong : AStream.ReadBuffer(AData, 4);
+        else
+          raise EContnrsError.Create('Can''t be streamed');
+        end;
+      end;
+
+    tkFloat:
+      begin
+        case td^.FloatType of
+          ftSingle : AStream.ReadBuffer(AData, SizeOf(Single));
+          ftDouble : AStream.ReadBuffer(AData, SizeOf(Double));
+        else
+          raise EContnrsError.Create('Can''t be streamed');
+        end;
+      end;
+
+    tkInt64{$IfDef FPC},tkQWord{$EndIf}: AStream.ReadBuffer(AData, SizeOf(Int64));
+
+    {$IfDef FPC}
+    tkAString:
+      begin
+        AStream.ReadBuffer(n, SizeOf(n));
+        SetLength(AnsiString(AData), n);
+        if n > 0 then
+          AStream.ReadBuffer(AnsiString(AData)[1], n);
+      end;
+    {$EndIf}
+    tkUString:
+      begin
+        AStream.ReadBuffer(n, SizeOf(n));
+        SetLength(UnicodeString(AData), n);
+        if n > 0 then
+          AStream.ReadBuffer(UnicodeString(AData)[1], n*2);
+      end;
+    tkWString:
+      begin
+        AStream.ReadBuffer(n, SizeOf(n));
+        SetLength(WideString(AData), n);
+        if n > 0 then
+          AStream.ReadBuffer(WideString(AData)[1], n*2);
+      end;
+
+    tkRecord:
+     begin
+       td := GetTypeData(AType);
+       n := td^.ManagedFldCount;
+       mf := PManagedField(@td^.ManagedFldCount);
+       Inc(PByte(mf), SizeOf(td^.ManagedFldCount));
+
+       if IsManagedRecord(mf, td^.ManagedFldCount) then
+       begin
+         for i := 0 to n-1 do
+         begin
+           {$IfDef FPC}
+           StreamRawAutoRead(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef);
+           {$EndIf}
+           {$IfDef DCC}
+           StreamRawAutoRead(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef^);
+           {$EndIf}
+           Inc(mf);
+         end;
+       end
+       else
+         AStream.ReadBuffer(AData, td^.RecSize);
+     end;
+
+    tkArray:
+     begin
+       if td^.ArrayData.ElType^.Kind in [tkInteger,tkChar,tkEnumeration,{$IfDef FPC}tkBool,tkQWord,{$EndIf}tkWChar,tkSet,tkFloat,tkInt64] then
+         AStream.ReadBuffer(AData, td^.ArrayData.Size)
+       else
+         raise EContnrsError.Create('Can''t be streamed');
+     end;
+
+    tkDynArray:
+     begin
+       AStream.ReadBuffer(n, SizeOf(n));
+       n64 := n;
+       DynArraySetLength(Pointer(AData), AType, 1, @n64);
+       pB := PByte(AData);
+       if n > 0 then
+         case td^.elType2^.Kind of
+           tkInteger,tkChar,tkEnumeration,{$IfDef FPC}tkBool,tkQWord,{$EndIf}tkWChar,tkSet,tkFloat,tkInt64:
+             begin
+               AStream.ReadBuffer(PInteger(AData)^, td^.elSize * DynArraySize(Pointer(AData)));
+             end;
+
+           tkRecord:
+             begin
+               td2 := GetTypeData(AType);
+               n := td2^.ManagedFldCount;
+               mf := PManagedField(@td2^.ManagedFldCount);
+               Inc(PByte(mf), SizeOf(td2^.ManagedFldCount));
+               if IsManagedRecord(mf, td2^.ManagedFldCount) then
+               begin
+                 n := DynArraySize(pB);
+                 for i := 0 to n - 1 do
+                 begin
+                   {$IfDef FPC}
+                   StreamRawAutoRead(AStream, pB^, td^.elType2);
+                   {$Else}
+                   StreamRawAutoRead(AStream, pB^, td^.elType2^);
+                   {$EndIf}
+                   Inc(pB^, td^.elSize);
+                 end;
+               end
+               else
+               begin
+                 AStream.ReadBuffer(PInteger(AData)^, td^.elSize * DynArraySize(Pointer(AData)));
+               end;
+             end;
+         else
+           raise EContnrsError.Create('Can''t be streamed');
+         end;
+     end;
+
+   end;
+end;
+
+procedure StreamAutoWrite(const AStream: TStream; const AData; ATypeInfo: PTypeInfo);
+begin
+  StreamRawAutoWrite(AStream, AData, ATypeInfo);
+end;
+
+procedure StreamAutoRead (const AStream: TStream; var AData; ATypeInfo: PTypeInfo);
+begin
+  StreamRawAutoRead(AStream, AData, ATypeInfo);
+end;
 
 { TQueue }
 
