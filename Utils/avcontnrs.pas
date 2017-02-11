@@ -552,16 +552,14 @@ uses
   rtlconsts, math;
 
 function IsManagedRecord(td: PTypeData): Boolean;
-var n: Integer;
-    {$IfDef FPC}
-    i, n2 : Integer;
+{$IfDef FPC}
+var i, n2 : Integer;
     td2: PTypeData;
     mf, mf2: PManagedField;
-    {$EndIf}
+{$EndIf}
 begin
-  n := td^.ManagedFldCount;
   {$IfDef DCC}
-    Result := n > 0;
+    Result := td^.ManagedFldCount > 0;
   {$Else}
     {$IfDef FPC}
       mf := PManagedField(@td^.ManagedFldCount);
@@ -600,14 +598,14 @@ procedure StreamRawAutoWrite(const AStream: TStream; const AData; AType: PTypeIn
        size := mf^.FldOffset - offset;
        if size > 0 then
        begin
-         AStream.WriteBuffer(Pointer(NativeInt(@AData)+offset)^, size);
+         AStream.WriteBuffer(TBytes(AData)[offset], size);
          Inc(offset, size);
        end;
        {$IfDef FPC}
-       StreamRawAutoWrite(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef);
+       StreamRawAutoWrite(AStream, TBytes(AData)[mf^.FldOffset], mf^.TypeRef);
        {$EndIf}
        {$IfDef DCC}
-       StreamRawAutoWrite(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef^);
+       StreamRawAutoWrite(AStream, TBytes(AData)[mf^.FldOffset], mf^.TypeRef^);
        {$EndIf}
        Inc(offset, SizeOf(Pointer));
        Inc(mf);
@@ -680,7 +678,7 @@ begin
        if td^.ArrayData.ElType^.Kind in [tkInteger,tkChar,tkEnumeration,{$IfDef FPC}tkBool,tkQWord,{$EndIf}tkWChar,tkSet,tkFloat,tkInt64] then
          AStream.WriteBuffer(AData, td^.ArrayData.Size)
        else
-         raise EContnrsError.Create('Can''t be streamed');
+         raise EContnrsError.Create('Not implemented yet');
      end;
 
     tkDynArray:
@@ -717,10 +715,11 @@ begin
                end;
              end;
          else
-           raise EContnrsError.Create('Can''t be streamed');
+           raise EContnrsError.Create('Not implemented yet');
          end;
      end;
-
+   else
+     raise EContnrsError.Create('Can''t be streamed');
    end;
 end;
 
@@ -741,14 +740,14 @@ procedure StreamRawAutoRead(const AStream: TStream; var AData; AType: PTypeInfo)
        size := mf^.FldOffset - offset;
        if size > 0 then
        begin
-         AStream.ReadBuffer(Pointer(NativeInt(@AData)+offset)^, size);
+         AStream.ReadBuffer(TBytes(AData)[offset], size);
          Inc(offset, size);
        end;
        {$IfDef FPC}
-       StreamRawAutoRead(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef);
+       StreamRawAutoRead(AStream, TBytes(AData)[mf^.FldOffset], mf^.TypeRef);
        {$EndIf}
        {$IfDef DCC}
-       StreamRawAutoRead(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef^);
+       StreamRawAutoRead(AStream, TBytes(AData)[mf^.FldOffset], mf^.TypeRef^);
        {$EndIf}
        Inc(offset, SizeOf(Pointer));
        Inc(mf);
@@ -788,6 +787,7 @@ begin
     {$IfDef FPC}
     tkAString:
       begin
+        n := 0;
         AStream.ReadBuffer(n, SizeOf(n));
         SetLength(AnsiString(AData), n);
         if n > 0 then
@@ -796,6 +796,7 @@ begin
     {$EndIf}
     tkUString:
       begin
+        n := 0;
         AStream.ReadBuffer(n, SizeOf(n));
         SetLength(UnicodeString(AData), n);
         if n > 0 then
@@ -803,6 +804,7 @@ begin
       end;
     tkWString:
       begin
+        n := 0;
         AStream.ReadBuffer(n, SizeOf(n));
         SetLength(WideString(AData), n);
         if n > 0 then
@@ -822,11 +824,12 @@ begin
        if td^.ArrayData.ElType^.Kind in [tkInteger,tkChar,tkEnumeration,{$IfDef FPC}tkBool,tkQWord,{$EndIf}tkWChar,tkSet,tkFloat,tkInt64] then
          AStream.ReadBuffer(AData, td^.ArrayData.Size)
        else
-         raise EContnrsError.Create('Can''t be streamed');
+         raise EContnrsError.Create('Not implemented yet');
      end;
 
     tkDynArray:
      begin
+       n := 0;
        AStream.ReadBuffer(n, SizeOf(n));
        nNative := n;
        DynArraySetLength(Pointer(AData), AType, 1, @nNative);
@@ -860,10 +863,11 @@ begin
                end;
              end;
          else
-           raise EContnrsError.Create('Can''t be streamed');
+           raise EContnrsError.Create('Not implemented yet');
          end;
      end;
-
+   else
+     raise EContnrsError.Create('Can''t be streamed');
    end;
 end;
 
