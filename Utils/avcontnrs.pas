@@ -551,36 +551,70 @@ implementation
 uses
   rtlconsts, math;
 
-function IsManagedRecord(mf: PManagedField; fieldsCount: Integer): Boolean;
-var i, n: Integer;
-    mf2: PManagedField;
-    td: PTypeData;
+function IsManagedRecord(td: PTypeData): Boolean;
+var n: Integer;
+    {$IfDef FPC}
+    i, n2 : Integer;
+    td2: PTypeData;
+    mf, mf2: PManagedField;
+    {$EndIf}
 begin
-  Result := False;
-  for i := 0 to fieldsCount - 1 do
-  begin
-    case mf^.TypeRef^.Kind of
-      tkLString,{$IfDef FPC}tkAString,{$EndIf}tkWString,tkVariant,tkInterface,tkDynArray,tkUString: Exit(True);
-      tkRecord:
+  n := td^.ManagedFldCount;
+  {$IfDef DCC}
+    Result := n > 0;
+  {$Else}
+    {$IfDef FPC}
+      mf := PManagedField(@td^.ManagedFldCount);
+      Inc(PByte(mf), SizeOf(td^.ManagedFldCount));
+
+      Result := False;
+      for i := 0 to td^.ManagedFldCount - 1 do
       begin
-        {$IfDef FPC}
-        td := GetTypeData(mf^.TypeRef);
-        {$Else}
-        td := GetTypeData(mf^.TypeRef^);
-        {$EndIf}
-        n := td^.ManagedFldCount;
-        mf2 := PManagedField(@td^.ManagedFldCount);
-        Inc(PByte(mf2), SizeOf(td^.ManagedFldCount));
-        if IsManagedRecord(mf2, n) then Exit(True);
+        case mf^.TypeRef^.Kind of
+          tkLString,tkAString,tkWString,tkVariant,tkInterface,tkDynArray,tkUString: Exit(True);
+          tkRecord:
+            if IsManagedRecord(GetTypeData(mf^.TypeRef)) then Exit(True);
+        end;
+        Inc(mf);
       end;
-    end;
-    Inc(mf);
-  end;
+    {$Else}
+      error
+    {$EndIf}
+  {$EndIf}
 end;
 
 procedure StreamRawAutoWrite(const AStream: TStream; const AData; AType: PTypeInfo);
-var td, td2: PTypeData;
-    mf: PManagedField;
+  procedure WriteManagedRecord();
+  var td: PTypeData;
+      i, n, offset, size : Integer;
+      mf: PManagedField;
+  begin
+     td := GetTypeData(AType);
+     n := td^.ManagedFldCount;
+     mf := PManagedField(@td^.ManagedFldCount);
+     Inc(PByte(mf), SizeOf(td^.ManagedFldCount));
+
+     offset := 0;
+     for i := 0 to n-1 do
+     begin
+       size := mf^.FldOffset - offset;
+       if size > 0 then
+       begin
+         AStream.WriteBuffer(Pointer(NativeInt(@AData)+offset)^, size);
+         Inc(offset, size);
+       end;
+       {$IfDef FPC}
+       StreamRawAutoWrite(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef);
+       {$EndIf}
+       {$IfDef DCC}
+       StreamRawAutoWrite(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef^);
+       {$EndIf}
+       Inc(offset, SizeOf(Pointer));
+       Inc(mf);
+     end;
+  end;
+var type2: PTypeInfo;
+    td: PTypeData;
     n, i: Integer;
     pB: PByte;
 begin
@@ -635,24 +669,8 @@ begin
 
     tkRecord:
      begin
-       td := GetTypeData(AType);
-       n := td^.ManagedFldCount;
-       mf := PManagedField(@td^.ManagedFldCount);
-       Inc(PByte(mf), SizeOf(td^.ManagedFldCount));
-
-       if IsManagedRecord(mf, td^.ManagedFldCount) then
-       begin
-         for i := 0 to n-1 do
-         begin
-           {$IfDef FPC}
-           StreamRawAutoWrite(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef);
-           {$EndIf}
-           {$IfDef DCC}
-           StreamRawAutoWrite(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef^);
-           {$EndIf}
-           Inc(mf);
-         end;
-       end
+       if IsManagedRecord(GetTypeData(AType)) then
+         WriteManagedRecord()
        else
          AStream.WriteBuffer(AData, td^.RecSize);
      end;
@@ -679,20 +697,17 @@ begin
 
            tkRecord:
              begin
-               td2 := GetTypeData(AType);
-               n := td2^.ManagedFldCount;
-               mf := PManagedField(@td2^.ManagedFldCount);
-               Inc(PByte(mf), SizeOf(td2^.ManagedFldCount));
-               if IsManagedRecord(mf, td2^.ManagedFldCount) then
+               {$IfDef FPC}
+               type2 := td^.elType2;
+               {$Else}
+               type2 := td^.elType2^;
+               {$EndIf}
+               if IsManagedRecord(GetTypeData(type2)) then
                begin
                  n := DynArraySize(pB);
                  for i := 0 to n - 1 do
                  begin
-                   {$IfDef FPC}
-                   StreamRawAutoWrite(AStream, pB^, td^.elType2);
-                   {$Else}
-                   StreamRawAutoWrite(AStream, pB^, td^.elType2^);
-                   {$EndIf}
+                   StreamRawAutoWrite(AStream, pB^, type2);
                    Inc(pB^, td^.elSize);
                  end;
                end
@@ -710,10 +725,39 @@ begin
 end;
 
 procedure StreamRawAutoRead(const AStream: TStream; var AData; AType: PTypeInfo);
-var td, td2: PTypeData;
-    mf: PManagedField;
+  procedure ReadManagedRecord();
+  var td: PTypeData;
+      i, n, offset, size : Integer;
+      mf: PManagedField;
+  begin
+     td := GetTypeData(AType);
+     n := td^.ManagedFldCount;
+     mf := PManagedField(@td^.ManagedFldCount);
+     Inc(PByte(mf), SizeOf(td^.ManagedFldCount));
+
+     offset := 0;
+     for i := 0 to n-1 do
+     begin
+       size := mf^.FldOffset - offset;
+       if size > 0 then
+       begin
+         AStream.ReadBuffer(Pointer(NativeInt(@AData)+offset)^, size);
+         Inc(offset, size);
+       end;
+       {$IfDef FPC}
+       StreamRawAutoRead(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef);
+       {$EndIf}
+       {$IfDef DCC}
+       StreamRawAutoRead(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef^);
+       {$EndIf}
+       Inc(offset, SizeOf(Pointer));
+       Inc(mf);
+     end;
+  end;
+var type2: PTypeInfo;
+    td: PTypeData;
     n, i: Integer;
-    n64: Int64;
+    nNative: NativeInt;
     pB: PByte;
 begin
    td := GetTypeData(AType);
@@ -767,24 +811,8 @@ begin
 
     tkRecord:
      begin
-       td := GetTypeData(AType);
-       n := td^.ManagedFldCount;
-       mf := PManagedField(@td^.ManagedFldCount);
-       Inc(PByte(mf), SizeOf(td^.ManagedFldCount));
-
-       if IsManagedRecord(mf, td^.ManagedFldCount) then
-       begin
-         for i := 0 to n-1 do
-         begin
-           {$IfDef FPC}
-           StreamRawAutoRead(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef);
-           {$EndIf}
-           {$IfDef DCC}
-           StreamRawAutoRead(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef^);
-           {$EndIf}
-           Inc(mf);
-         end;
-       end
+       if IsManagedRecord(GetTypeData(AType)) then
+         ReadManagedRecord()
        else
          AStream.ReadBuffer(AData, td^.RecSize);
      end;
@@ -800,8 +828,8 @@ begin
     tkDynArray:
      begin
        AStream.ReadBuffer(n, SizeOf(n));
-       n64 := n;
-       DynArraySetLength(Pointer(AData), AType, 1, @n64);
+       nNative := n;
+       DynArraySetLength(Pointer(AData), AType, 1, @nNative);
        pB := PByte(AData);
        if n > 0 then
          case td^.elType2^.Kind of
@@ -812,20 +840,17 @@ begin
 
            tkRecord:
              begin
-               td2 := GetTypeData(AType);
-               n := td2^.ManagedFldCount;
-               mf := PManagedField(@td2^.ManagedFldCount);
-               Inc(PByte(mf), SizeOf(td2^.ManagedFldCount));
-               if IsManagedRecord(mf, td2^.ManagedFldCount) then
+               {$IfDef FPC}
+               type2 := td^.elType2;
+               {$Else}
+               type2 := td^.elType2^;
+               {$EndIf}
+               if IsManagedRecord(GetTypeData(type2)) then
                begin
                  n := DynArraySize(pB);
                  for i := 0 to n - 1 do
                  begin
-                   {$IfDef FPC}
-                   StreamRawAutoRead(AStream, pB^, td^.elType2);
-                   {$Else}
-                   StreamRawAutoRead(AStream, pB^, td^.elType2^);
-                   {$EndIf}
+                   StreamRawAutoRead(AStream, pB^, type2);
                    Inc(pB^, td^.elSize);
                  end;
                end
