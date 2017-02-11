@@ -598,14 +598,14 @@ procedure StreamRawAutoWrite(const AStream: TStream; const AData; AType: PTypeIn
        size := mf^.FldOffset - offset;
        if size > 0 then
        begin
-         AStream.WriteBuffer(TBytes(AData)[offset], size);
+         AStream.WriteBuffer(Pointer(NativeInt(@AData)+offset)^, size);
          Inc(offset, size);
        end;
        {$IfDef FPC}
-       StreamRawAutoWrite(AStream, TBytes(AData)[mf^.FldOffset], mf^.TypeRef);
+       StreamRawAutoWrite(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef);
        {$EndIf}
        {$IfDef DCC}
-       StreamRawAutoWrite(AStream, TBytes(AData)[mf^.FldOffset], mf^.TypeRef^);
+       StreamRawAutoWrite(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef^);
        {$EndIf}
        Inc(offset, SizeOf(Pointer));
        Inc(mf);
@@ -740,14 +740,14 @@ procedure StreamRawAutoRead(const AStream: TStream; var AData; AType: PTypeInfo)
        size := mf^.FldOffset - offset;
        if size > 0 then
        begin
-         AStream.ReadBuffer(TBytes(AData)[offset], size);
+         AStream.ReadBuffer(Pointer(NativeInt(@AData)+offset)^, size);
          Inc(offset, size);
        end;
        {$IfDef FPC}
-       StreamRawAutoRead(AStream, TBytes(AData)[mf^.FldOffset], mf^.TypeRef);
+       StreamRawAutoRead(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef);
        {$EndIf}
        {$IfDef DCC}
-       StreamRawAutoRead(AStream, TBytes(AData)[mf^.FldOffset], mf^.TypeRef^);
+       StreamRawAutoRead(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef^);
        {$EndIf}
        Inc(offset, SizeOf(Pointer));
        Inc(mf);
