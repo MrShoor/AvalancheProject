@@ -4,7 +4,7 @@ unit avTess;
 interface
 
 uses
-  Classes, SysUtils, avTypes, mutils, avContnrs;
+  Classes, SysUtils, avTypes, mutils, avContnrs, avContnrsDefaults;
 
 type
   { TVerticesRec }
@@ -110,9 +110,38 @@ type
     procedure Trim;
   end;
 
+  IQuadManager = interface;
+
+  IQuadRange = interface
+    function MinXY : TVec2i;
+    function MaxXY : TVec2i;
+    function Rect  : TRectI;
+    function Size  : TVec2i;
+    function Width : Integer;
+    function Height: Integer;
+    function Area  : Int64;
+  end;
+
+  TOnMoveQuad = procedure (const Sender: IQuadManager; const Quad: IQuadRange; const OldRect: TRectI) of object;
+
+  IQuadManager = interface
+    function Alloc(const AWidth, AHeight: Integer): IQuadRange;
+
+    function Width : Integer;
+    function Height: Integer;
+
+    function AllocatedArea : Int64;
+    function FreeArea      : Int64;
+    function AllocatedCount: Integer;
+
+    function SetSize(const AWidth, AHeight: Integer; const ACallBack: TOnMoveQuad = nil): Boolean;
+    function Repack(const ACallBack: TOnMoveQuad = nil): Boolean;
+  end;
+
 function Create_IIndices : IIndices;
 function LB: ILayoutBuilder;
 function Create_IRangeManager(const InitialSpace: Integer = 0): IRangeManager;
+function Create_IQuadManager(const InitialWidth: Integer = 0; const InitialHeight: Integer = 0): IQuadManager;
 
 implementation
 
@@ -278,6 +307,75 @@ type
     destructor Destroy; override;
   end;
 
+  EQuadRangeOutOfSpace = class (Exception);
+
+  { TQuadManager }
+
+  TQuadManager = class(TInterfacedObject, IQuadManager)
+  private type
+    TQuadComparer = class(TInterfacedObjectEx, IComparer)
+    private
+      function Compare(const Left, Right): Integer;
+    end;
+
+    TQuadRange = class(TObject, IUnknown, IQuadRange)
+    private
+      FOwner   : TQuadManager;
+      FRefCount: Integer;
+      FRect    : TRectI;
+    protected
+      function QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj) : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+      function _AddRef : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+      function _Release : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+    protected
+      function MinXY : TVec2i;
+      function MaxXY : TVec2i;
+      function Rect  : TRectI;
+      function Size  : TVec2i;
+      function Width : Integer;
+      function Height: Integer;
+      function Area  : Int64;
+    public
+      constructor Create(AOwner: TQuadManager; const ARect: TRectI);
+    end;
+
+    IQuadList = {$IfDef FPC}specialize{$EndIf} IArray<TQuadRange>;
+    TQuadList = {$IfDef FPC}specialize{$EndIf} TArray<TQuadRange>;
+
+    TRemapPair = record
+      OldQuad: TQuadRange;
+      NewQuad: TQuadRange;
+    end;
+    IRemapList = {$IfDef FPC}specialize{$EndIf} IArray<TRemapPair>;
+    TRemapList = {$IfDef FPC}specialize{$EndIf} TArray<TRemapPair>;
+  private
+    FWidth : Integer;
+    FHeight: Integer;
+    FAllocatedArea : Int64;
+
+    FAllocatedQuads: IQuadList;
+    FFreeQuads     : IQuadList;
+
+    procedure OnQuadReleased(const AQuad: TQuadRange);
+    function TryRepackToNewSize(const AWidth, AHeight: Integer; const ACallBack: TOnMoveQuad): Boolean;
+    function AllocRange(const AWidth, AHeight: Integer): TQuadRange;
+  protected
+    function Alloc(const AWidth, AHeight: Integer): IQuadRange;
+
+    function Width : Integer;
+    function Height: Integer;
+
+    function AllocatedArea : Int64;
+    function FreeArea      : Int64;
+    function AllocatedCount: Integer;
+
+    function SetSize(const AWidth, AHeight: Integer; const ACallBack: TOnMoveQuad = nil): Boolean;
+    function Repack(const ACallBack: TOnMoveQuad = nil): Boolean;
+  public
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
 function Create_IIndices: IIndices;
 begin
   Result := TIndices.Create;
@@ -295,6 +393,311 @@ begin
   Result := TRangeManager.Create;
   if InitialSpace > 0 then;
     Result.AddSpace(InitialSpace);
+end;
+
+function Create_IQuadManager(const InitialWidth, InitialHeight: Integer): IQuadManager;
+begin
+  Result := TQuadManager.Create;
+  Result.SetSize(InitialWidth, InitialHeight);
+end;
+
+{ TQuadManager.TQuadComparer }
+
+function TQuadManager.TQuadComparer.Compare(const Left, Right): Integer;
+var L: TQuadRange absolute Left;
+    R: TQuadRange absolute Right;
+begin
+  Result := sign(R.Area - L.Area);
+end;
+
+{ TQuadManager }
+
+procedure TQuadManager.OnQuadReleased(const AQuad: TQuadRange);
+begin
+  FAllocatedQuads.DeleteWithSwap(FAllocatedQuads.IndexOf(AQuad));
+  FFreeQuads.Add(AQuad);
+end;
+
+function TQuadManager.TryRepackToNewSize(const AWidth, AHeight: Integer; const ACallBack: TOnMoveQuad): Boolean;
+var
+  RemapList: IRemapList;
+  RemapPair: TRemapPair;
+  OldFreeQuads: IQuadList;
+  OldSize: TVec2I;
+  OldRect: TRectI;
+  i: Integer;
+begin
+  Result := False;
+
+  FAllocatedQuads.Sort(TQuadComparer.Create());
+
+  OldFreeQuads := FFreeQuads;
+  OldSize.x := FWidth;
+  OldSize.y := FHeight;
+
+  try
+    FWidth := AWidth;
+    FHeight := AHeight;
+    FFreeQuads := TQuadList.Create();
+    FFreeQuads.Capacity := FAllocatedQuads.Count * 2;
+    FFreeQuads.Add(TQuadRange.Create(Self, RectI(0,0,FWidth,FHeight)));
+
+    RemapList := TRemapList.Create();
+    RemapList.Capacity := FAllocatedQuads.Count;
+    for i := 0 to FAllocatedQuads.Count - 1 do
+    begin
+      RemapPair.OldQuad := FAllocatedQuads[i];
+      RemapPair.NewQuad := AllocRange(RemapPair.OldQuad.Width, RemapPair.OldQuad.Height);
+      RemapList.Add(RemapPair);
+    end;
+
+    for i := 0 to RemapList.Count - 1 do
+    begin
+      RemapPair := RemapList[i];
+      OldRect := RemapPair.OldQuad.FRect;
+      RemapPair.OldQuad.FRect := RemapPair.NewQuad.FRect;
+      RemapPair.NewQuad.Free;
+      if Assigned(ACallBack) Then ACallBack(Self, RemapPair.OldQuad, OldRect);
+    end;
+
+    for i := 0 to OldFreeQuads.Count - 1 do OldFreeQuads[i].Free;
+    OldFreeQuads := nil;
+    Result := True;
+  except
+    on e: EQuadRangeOutOfSpace do
+    begin
+      FWidth  := OldSize.x;
+      FHeight := OldSize.y;
+      for i := 0 to FFreeQuads.Count - 1 do FFreeQuads[i].Free;
+      FFreeQuads := OldFreeQuads;
+    end;
+  end;
+end;
+
+function TQuadManager.AllocRange(const AWidth, AHeight: Integer): TQuadRange;
+
+  function FindBestQuadForSplit(): Integer;
+  var bestArea, currArea: Int64;
+      range: TQuadRange;
+      i: Integer;
+  begin
+    bestArea :=  $7FFFFFFFFFFFFFFF;
+    Result := -1;
+    for i := 0 to FFreeQuads.Count - 1 do
+    begin
+      range := FFreeQuads[i];
+      if (AWidth > range.Width) then Continue;
+      if (AHeight > range.Height) then Continue;
+
+      currArea := range.Area;
+      if currArea <= bestArea then
+      begin
+        Result := i;
+        bestArea := currArea;
+      end;
+    end;
+
+    if Result = -1 then raise EQuadRangeOutOfSpace.CreateFmt('No enought space for %d*%d quad.', [AWidth, AHeight]);
+  end;
+
+  procedure Split(const SrcQuad: TQuadRange; const W,H: Integer; out NewQuad, BottomQuad, RightQuad: TQuadRange);
+  var SrcW, SrcH: Integer;
+      rct: TRectI;
+  begin
+    SrcW := SrcQuad.Width;
+    SrcH := SrcQuad.Height;
+    NewQuad := TQuadRange.Create(Self, RectI(SrcQuad.MinXY, SrcQuad.MinXY + Vec(W, H)));
+    if (SrcW - W) < (SrcH - H) then
+    begin
+        if H = SrcH then
+          BottomQuad := nil
+        else
+        begin
+          rct := SrcQuad.FRect;
+          Inc(rct.Top, H);
+          BottomQuad := TQuadRange.Create(Self, rct);
+        end;
+        if W = SrcW then
+          RightQuad := nil
+        else
+        begin
+          rct := SrcQuad.FRect;
+          Inc(rct.Right, W);
+          rct.Bottom := rct.Top + H;
+          RightQuad  := TQuadRange.Create(Self, rct);
+        end;
+    end
+    else
+    begin
+        if W = SrcQuad.Width then
+          RightQuad := nil
+        else
+        begin
+          rct := SrcQuad.FRect;
+          Inc(rct.Left, W);
+          RightQuad  := TQuadRange.Create(Self, rct);
+        end;
+        if H = SrcQuad.Height then
+          BottomQuad := nil
+        else
+        begin
+          rct := SrcQuad.FRect;
+          Inc(rct.Top, H);
+          rct.Right := rct.Left + W;
+          BottomQuad := TQuadRange.Create(Self, rct);
+        end;
+    end;
+  end;
+var bestQuadIndex: Integer;
+    bestQuad, newQuad, rightQuad, bottomQuad: TQuadRange;
+begin
+  Result := nil;
+  bestQuadIndex := FindBestQuadForSplit();
+  bestQuad := FFreeQuads[bestQuadIndex];
+  FFreeQuads.DeleteWithSwap(bestQuadIndex);
+  if (bestQuad.Width = AWidth) and (bestQuad.Height = AHeight) then
+  begin
+    Result := bestQuad;
+  end
+  else
+  begin
+    Split(bestQuad, AWidth, AHeight, newQuad, bottomQuad, rightQuad);
+    Result := newQuad;
+    if bottomQuad <> nil then FFreeQuads.Add(bottomQuad);
+    if rightQuad <> nil then FFreeQuads.Add(rightQuad);
+  end;
+end;
+
+function TQuadManager.Alloc(const AWidth, AHeight: Integer): IQuadRange;
+var quad: TQuadRange;
+begin
+  quad := AllocRange(AWidth, AHeight);
+  FAllocatedQuads.Add(quad);
+  Inc(FAllocatedArea, quad.Area);
+  Result := quad;
+end;
+
+function TQuadManager.Width: Integer;
+begin
+  Result := FWidth;
+end;
+
+function TQuadManager.Height: Integer;
+begin
+  Result := FHeight;
+end;
+
+function TQuadManager.AllocatedArea: Int64;
+begin
+  Result := FAllocatedArea;
+end;
+
+function TQuadManager.FreeArea: Int64;
+begin
+  Result := FWidth*FHeight - FAllocatedArea;
+end;
+
+function TQuadManager.AllocatedCount: Integer;
+begin
+  Result := FAllocatedQuads.Count;
+end;
+
+function TQuadManager.SetSize(const AWidth, AHeight: Integer; const ACallBack: TOnMoveQuad): Boolean;
+begin
+  if (FWidth = AWidth) and (FHeight = AHeight) then Exit(False);
+  Result := TryRepackToNewSize(AWidth, AHeight, ACallBack);
+end;
+
+function TQuadManager.Repack(const ACallBack: TOnMoveQuad): Boolean;
+begin
+  Result := TryRepackToNewSize(FWidth, FHeight, ACallBack);
+end;
+
+constructor TQuadManager.Create;
+begin
+  FAllocatedQuads := TQuadList.Create();
+  FFreeQuads      := TQuadList.Create();
+end;
+
+destructor TQuadManager.Destroy;
+var i: Integer;
+begin
+  inherited Destroy;
+  Assert(FAllocatedQuads.Count = 0);
+  for i := 0 to FFreeQuads.Count - 1 do
+    FFreeQuads[i].Free;
+  FFreeQuads.Clear();
+end;
+
+{ TQuadManager.TQuadRange }
+
+function TQuadManager.TQuadRange.QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj): longint; {$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+begin
+  if GetInterface(IID, Obj) then
+    Result := 0
+  else
+    Result := E_NOINTERFACE;
+end;
+
+function TQuadManager.TQuadRange._AddRef: longint; {$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+begin
+  {$IfDef FPC}
+  Result := InterLockedIncrement(FRefCount);
+  {$Else}
+  Result := AtomicIncrement(FRefCount);
+  {$EndIf}
+end;
+
+function TQuadManager.TQuadRange._Release: longint; {$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+begin
+  {$IfDef FPC}
+  Result := InterLockedDecrement(FRefCount);
+  {$Else}
+  Result := AtomicDecrement(FRefCount);
+  {$EndIf}
+  if Result = 0 then
+    FOwner.OnQuadReleased(Self);
+end;
+
+function TQuadManager.TQuadRange.MinXY: TVec2i;
+begin
+  Result := FRect.LeftTop;
+end;
+
+function TQuadManager.TQuadRange.MaxXY: TVec2i;
+begin
+  Result := FRect.RightBottom;
+end;
+
+function TQuadManager.TQuadRange.Rect: TRectI;
+begin
+  Result := FRect;
+end;
+
+function TQuadManager.TQuadRange.Size: TVec2i;
+begin
+  Result := FRect.Size;
+end;
+
+function TQuadManager.TQuadRange.Width: Integer;
+begin
+  Result := FRect.Right - FRect.Left;
+end;
+
+function TQuadManager.TQuadRange.Height: Integer;
+begin
+  Result := FRect.Bottom - FRect.Top;
+end;
+
+function TQuadManager.TQuadRange.Area: Int64;
+begin
+  Result := (FRect.Right - FRect.Left) * (FRect.Bottom - FRect.Top);
+end;
+
+constructor TQuadManager.TQuadRange.Create(AOwner: TQuadManager; const ARect: TRectI);
+begin
+  FOwner := AOwner;
+  FRect := ARect;
 end;
 
 { TRangeManager.TAVLTreeInternal.TMyData }
