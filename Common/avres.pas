@@ -487,6 +487,37 @@ type
     procedure AfterConstruction; override;
   end;
 
+  ISpriteData = interface
+    function  Image: ITextureMip;
+    procedure OnSetRect(const ANewPos: TRectI);
+  end;
+
+  { TavAtlasBase }
+
+  TavAtlasBase = class(TavTextureBase)
+  private type
+    IQuadMap  = {$IfDef FPC}specialize{$EndIf} IHashMap<ISpriteData, IQuadRange>;
+    TQuadMap  = {$IfDef FPC}specialize{$EndIf} THashMap<ISpriteData, IQuadRange>;
+  private
+    FAutoGrow : Boolean;
+    FQuadManager: IQuadManager;
+
+    FQuads : IQuadMap;
+    FInvalidQuads : IQuadMap;
+  protected
+    function  DoBuild: Boolean; override;
+    procedure OnQuadMove(const Sender: IQuadManager; const Quad: IQuadRange; const OldRect: TRectI);
+    procedure InvalidateAll;
+  public
+    function AtlasSize: TVec2i;
+    property AutoGrow: Boolean read FAutoGrow write FAutoGrow;
+
+    procedure AddSprite(const ASprite: ISpriteData); //or invalidate
+    procedure DelSprite(const ASprite: ISpriteData);
+
+    procedure AfterConstruction; override;
+  end;
+
   { TavMultiSampleTexture }
 
   TavMultiSampleTexture = class(TavTextureBase)
@@ -771,6 +802,122 @@ begin
   end;
 
   AProg.Draw(PrimTopology, CullMode, Assigned(IndNode), InstCount, Start, Count, BaseVertex, BaseInst);
+end;
+
+{ TavAtlasBase }
+
+function TavAtlasBase.DoBuild: Boolean;
+var sprite: ISpriteData;
+    range : IQuadRange;
+    img   : ITextureMip;
+    rct   : TRectI;
+begin
+  Result := inherited DoBuild;
+  if FTexH = nil then
+  begin
+    FTexH := Main.Context.CreateTexture;
+    FTexH.TargetFormat := FTargetFormat;
+  end;
+  if (FTexH.Width <> FQuadManager.Width) or (FTexH.Height <> FQuadManager.Height) then
+    FTexH.AllocMem(FQuadManager.Width, FQuadManager.Height, 1, False);
+
+  FInvalidQuads.Reset;
+  while FInvalidQuads.Next(sprite, range) do
+  begin
+    img := sprite.Image;
+    rct := range.Rect;
+    FTexH.SetMipImage(rct.Left, rct.Top, rct.Right-rct.Left, rct.Bottom-rct.Top, 0, 0, img.PixelFormat, img.Data);
+  end;
+  FInvalidQuads.Clear;
+  Result := True;
+end;
+
+procedure TavAtlasBase.OnQuadMove(const Sender: IQuadManager; const Quad: IQuadRange; const OldRect: TRectI);
+begin
+  ISpriteData(Quad.UserData).OnSetRect(Quad.Rect);
+  if FInvalidQuads.AddIfNotContains(ISpriteData(Quad.UserData), Quad) then
+    Invalidate;
+end;
+
+procedure TavAtlasBase.InvalidateAll;
+var sprite: ISpriteData;
+    range : IQuadRange;
+begin
+  FQuads.Reset;
+  while FQuads.Next(sprite, range) do
+    FInvalidQuads.AddIfNotContains(sprite, range);
+end;
+
+function TavAtlasBase.AtlasSize: TVec2i;
+begin
+  Result.x := FQuadManager.Width;
+  Result.y := FQuadManager.Height;
+end;
+
+procedure TavAtlasBase.AddSprite(const ASprite: ISpriteData);
+var img     : ITextureMip;
+    range   : IQuadRange;
+    repacked: Boolean;
+begin
+  if FQuads.TryGetValue(ASprite, range) then
+  begin
+    img := ASprite.Image;
+
+    repacked := False;
+    repeat
+      try
+        range := FQuadManager.Alloc(img.Width, img.Height, Pointer(ASprite));
+      except
+        on e: EQuadRangeOutOfSpace do
+        begin
+          if FAutoGrow then
+          begin
+            if not repacked and (FQuadManager.FreeArea > img.Width*img.Height * 4) then
+              FQuadManager.Repack({$IfDef FPC}@{$EndIf}OnQuadMove)
+            else
+            begin
+              if (FQuadManager.Width >= 8192) and (FQuadManager.Height >= 8192) then raise EQuadRangeOutOfSpace.Create('Atlas texture size reach limits');
+              FQuadManager.SetSize(FQuadManager.Width*2, FQuadManager.Height*2, {$IfDef FPC}@{$EndIf}OnQuadMove);
+            end;
+            repacked := True;
+            InvalidateAll;
+          end
+          else
+            raise ;
+        end;
+      end;
+    until range <> nil;
+
+    FQuads.AddOrSet(ASprite, range);
+    ASprite.OnSetRect(range.Rect);
+    FInvalidQuads.AddIfNotContains(ASprite, range);
+    Invalidate;
+  end
+  else
+  begin
+    img := ASprite.Image;
+    if (img.Width <> range.Width) or (img.Height <> range.Height) then
+    begin
+      range := nil;
+      DelSprite(ASprite);
+      AddSprite(ASprite);
+    end;
+  end;
+end;
+
+procedure TavAtlasBase.DelSprite(const ASprite: ISpriteData);
+begin
+  FQuads.Delete(ASprite);
+  FInvalidQuads.Delete(ASprite);
+end;
+
+procedure TavAtlasBase.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FAutoGrow := True;
+  FQuadManager := Create_IQuadManager(128, 128);
+  FQuads := TQuadMap.Create;
+  FInvalidQuads := TQuadMap.Create;
 end;
 
 { TavUAV }

@@ -110,6 +110,7 @@ type
     procedure Trim;
   end;
 
+  EQuadRangeOutOfSpace = class (Exception);
   IQuadManager = interface;
 
   IQuadRange = interface
@@ -120,12 +121,14 @@ type
     function Width : Integer;
     function Height: Integer;
     function Area  : Int64;
+
+    function UserData: Pointer;
   end;
 
   TOnMoveQuad = procedure (const Sender: IQuadManager; const Quad: IQuadRange; const OldRect: TRectI) of object;
 
   IQuadManager = interface
-    function Alloc(const AWidth, AHeight: Integer): IQuadRange;
+    function Alloc(const AWidth, AHeight: Integer; const AUserData: Pointer = nil): IQuadRange;
 
     function Width : Integer;
     function Height: Integer;
@@ -307,8 +310,6 @@ type
     destructor Destroy; override;
   end;
 
-  EQuadRangeOutOfSpace = class (Exception);
-
   { TQuadManager }
 
   TQuadManager = class(TInterfacedObject, IQuadManager)
@@ -318,11 +319,14 @@ type
       function Compare(const Left, Right): Integer;
     end;
 
+    { TQuadRange }
+
     TQuadRange = class(TObject, IUnknown, IQuadRange)
     private
       FOwner   : TQuadManager;
       FRefCount: Integer;
       FRect    : TRectI;
+      FUserData: Pointer;
     protected
       function QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj) : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
       function _AddRef : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
@@ -335,6 +339,8 @@ type
       function Width : Integer;
       function Height: Integer;
       function Area  : Int64;
+
+      function UserData: Pointer;
     public
       constructor Create(AOwner: TQuadManager; const ARect: TRectI);
     end;
@@ -358,9 +364,9 @@ type
 
     procedure OnQuadReleased(const AQuad: TQuadRange);
     function TryRepackToNewSize(const AWidth, AHeight: Integer; const ACallBack: TOnMoveQuad): Boolean;
-    function AllocRange(const AWidth, AHeight: Integer): TQuadRange;
+    function AllocRange(const AWidth, AHeight: Integer; const AUserData: Pointer): TQuadRange;
   protected
-    function Alloc(const AWidth, AHeight: Integer): IQuadRange;
+    function Alloc(const AWidth, AHeight: Integer; const AUserData: Pointer): IQuadRange;
 
     function Width : Integer;
     function Height: Integer;
@@ -447,7 +453,7 @@ begin
     for i := 0 to FAllocatedQuads.Count - 1 do
     begin
       RemapPair.OldQuad := FAllocatedQuads[i];
-      RemapPair.NewQuad := AllocRange(RemapPair.OldQuad.Width, RemapPair.OldQuad.Height);
+      RemapPair.NewQuad := AllocRange(RemapPair.OldQuad.Width, RemapPair.OldQuad.Height, RemapPair.OldQuad.UserData);
       RemapList.Add(RemapPair);
     end;
 
@@ -474,7 +480,8 @@ begin
   end;
 end;
 
-function TQuadManager.AllocRange(const AWidth, AHeight: Integer): TQuadRange;
+function TQuadManager.AllocRange(const AWidth, AHeight: Integer;
+  const AUserData: Pointer): TQuadRange;
 
   function FindBestQuadForSplit(): Integer;
   var bestArea, currArea: Int64;
@@ -557,21 +564,23 @@ begin
   FFreeQuads.DeleteWithSwap(bestQuadIndex);
   if (bestQuad.Width = AWidth) and (bestQuad.Height = AHeight) then
   begin
+    bestQuad.FUserData := AUserData;
     Result := bestQuad;
   end
   else
   begin
     Split(bestQuad, AWidth, AHeight, newQuad, bottomQuad, rightQuad);
+    newQuad.FUserData := AUserData;
     Result := newQuad;
     if bottomQuad <> nil then FFreeQuads.Add(bottomQuad);
     if rightQuad <> nil then FFreeQuads.Add(rightQuad);
   end;
 end;
 
-function TQuadManager.Alloc(const AWidth, AHeight: Integer): IQuadRange;
+function TQuadManager.Alloc(const AWidth, AHeight: Integer; const AUserData: Pointer): IQuadRange;
 var quad: TQuadRange;
 begin
-  quad := AllocRange(AWidth, AHeight);
+  quad := AllocRange(AWidth, AHeight, AUserData);
   FAllocatedQuads.Add(quad);
   Inc(FAllocatedArea, quad.Area);
   Result := quad;
@@ -694,7 +703,13 @@ begin
   Result := (FRect.Right - FRect.Left) * (FRect.Bottom - FRect.Top);
 end;
 
-constructor TQuadManager.TQuadRange.Create(AOwner: TQuadManager; const ARect: TRectI);
+function TQuadManager.TQuadRange.UserData: Pointer;
+begin
+  Result := FUserData;
+end;
+
+constructor TQuadManager.TQuadRange.Create(AOwner: TQuadManager;
+  const ARect: TRectI);
 begin
   FOwner := AOwner;
   FRect := ARect;

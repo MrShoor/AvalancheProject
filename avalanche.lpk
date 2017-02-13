@@ -33,7 +33,7 @@
         </CompilerMessages>
       </Other>
     </CompilerOptions>
-    <Files Count="24">
+    <Files Count="23">
       <Item1>
         <Filename Value="Common\avbase.pas"/>
         <UnitName Value="avBase"/>
@@ -91,45 +91,41 @@
         <UnitName Value="avTexLoader"/>
       </Item14>
       <Item15>
-        <Filename Value="Canvas_Shaders\Canvas_Shaders.RES"/>
-        <Type Value="Binary"/>
-      </Item15>
-      <Item16>
         <Filename Value="Common\DX_JSB\D3D11_JSB.pas"/>
         <UnitName Value="D3D11_JSB"/>
-      </Item16>
-      <Item17>
+      </Item15>
+      <Item16>
         <Filename Value="Common\DX_JSB\DXGI_JSB.pas"/>
         <UnitName Value="DXGI_JSB"/>
-      </Item17>
-      <Item18>
+      </Item16>
+      <Item17>
         <Filename Value="Common\DX_JSB\DXTypes_JSB.pas"/>
         <UnitName Value="DXTypes_JSB"/>
-      </Item18>
-      <Item19>
+      </Item17>
+      <Item18>
         <Filename Value="Common\DX_JSB\D3DCommon_JSB.pas"/>
         <UnitName Value="D3DCommon_JSB"/>
-      </Item19>
-      <Item20>
+      </Item18>
+      <Item19>
         <Filename Value="Common\avcontext_dx11.pas"/>
         <UnitName Value="avContext_DX11"/>
-      </Item20>
-      <Item21>
+      </Item19>
+      <Item20>
         <Filename Value="Common\avmesh.pas"/>
         <UnitName Value="avMesh"/>
-      </Item21>
-      <Item22>
+      </Item20>
+      <Item21>
         <Filename Value="Common\avmodel.pas"/>
         <UnitName Value="avModel"/>
-      </Item22>
-      <Item23>
+      </Item21>
+      <Item22>
         <Filename Value="superobject.pas"/>
         <UnitName Value="superobject"/>
-      </Item23>
-      <Item24>
+      </Item22>
+      <Item23>
         <Filename Value="Utils\avConfig.inc"/>
         <Type Value="Include"/>
-      </Item24>
+      </Item23>
     </Files>
     <RequiredPkgs Count="3">
       <Item1>
