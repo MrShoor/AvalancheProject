@@ -33,7 +33,7 @@
         </CompilerMessages>
       </Other>
     </CompilerOptions>
-    <Files Count="23">
+    <Files Count="24">
       <Item1>
         <Filename Value="Common\avbase.pas"/>
         <UnitName Value="avBase"/>
@@ -126,6 +126,10 @@
         <Filename Value="Utils\avConfig.inc"/>
         <Type Value="Include"/>
       </Item23>
+      <Item24>
+        <Filename Value="Common\avglyphgenerator.pas"/>
+        <UnitName Value="avglyphgenerator"/>
+      </Item24>
     </Files>
     <RequiredPkgs Count="3">
       <Item1>
