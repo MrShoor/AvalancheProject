@@ -170,6 +170,7 @@ type
     function IsEmpty : Boolean;
     function Expand(const ASize: Single) : TRectF; overload;
     function Expand(const ASize: TVec2) : TRectF; overload;
+    function PtInRect(const v: TVec2) : Boolean;
   case Byte of
     0: (Left, Top, Right, Bottom: Single);
     1: (LeftTop, RightBottom: TVec2);
@@ -1531,6 +1532,12 @@ begin
   Result.min.y := min.y - ASize.y;
   Result.max.x := max.x + ASize.x;
   Result.max.y := max.y + ASize.y;
+end;
+
+function TRectF.PtInRect(const v: TVec2) : Boolean;
+begin
+  Result := (v.x >= min.x) and (v.y >= min.y) and
+            (v.x <= max.x) and (v.y <= max.y);
 end;
 
 function TRectF.IsEmpty: Boolean;
