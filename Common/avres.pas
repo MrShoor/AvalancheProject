@@ -496,8 +496,8 @@ type
 
   TavAtlasBase = class(TavTextureBase)
   private type
-    IQuadMap  = {$IfDef FPC}specialize{$EndIf} IHashMap<ISpriteData, IQuadRange>;
-    TQuadMap  = {$IfDef FPC}specialize{$EndIf} THashMap<ISpriteData, IQuadRange>;
+    IQuadMap  = {$IfDef FPC}specialize{$EndIf} IHashMap<Pointer, IQuadRange>;
+    TQuadMap  = {$IfDef FPC}specialize{$EndIf} THashMap<Pointer, IQuadRange>;
   private
     FAutoGrow : Boolean;
     FQuadManager: IQuadManager;
@@ -807,7 +807,8 @@ end;
 { TavAtlasBase }
 
 function TavAtlasBase.DoBuild: Boolean;
-var sprite: ISpriteData;
+var pSprite: Pointer;
+    sprite: ISpriteData;
     range : IQuadRange;
     img   : ITextureMip;
     rct   : TRectI;
@@ -822,8 +823,9 @@ begin
     FTexH.AllocMem(FQuadManager.Width, FQuadManager.Height, 1, False);
 
   FInvalidQuads.Reset;
-  while FInvalidQuads.Next(sprite, range) do
+  while FInvalidQuads.Next(pSprite, range) do
   begin
+    sprite := ISpriteData(pSprite);
     img := sprite.Image;
     rct := range.Rect;
     FTexH.SetMipImage(rct.Left, rct.Top, rct.Right-rct.Left, rct.Bottom-rct.Top, 0, 0, img.PixelFormat, img.Data);
@@ -835,17 +837,17 @@ end;
 procedure TavAtlasBase.OnQuadMove(const Sender: IQuadManager; const Quad: IQuadRange; const OldRect: TRectI);
 begin
   ISpriteData(Quad.UserData).OnSetRect(Quad.Rect);
-  if FInvalidQuads.AddIfNotContains(ISpriteData(Quad.UserData), Quad) then
+  if FInvalidQuads.AddIfNotContains(Quad.UserData, Quad) then
     Invalidate;
 end;
 
 procedure TavAtlasBase.InvalidateAll;
-var sprite: ISpriteData;
+var pSprite: Pointer;
     range : IQuadRange;
 begin
   FQuads.Reset;
-  while FQuads.Next(sprite, range) do
-    FInvalidQuads.AddIfNotContains(sprite, range);
+  while FQuads.Next(pSprite, range) do
+    FInvalidQuads.AddIfNotContains(pSprite, range);
 end;
 
 function TavAtlasBase.AtlasSize: TVec2i;
@@ -859,7 +861,7 @@ var img     : ITextureMip;
     range   : IQuadRange;
     repacked: Boolean;
 begin
-  if FQuads.TryGetValue(ASprite, range) then
+  if not FQuads.TryGetValue(Pointer(ASprite), range) then
   begin
     img := ASprite.Image;
 
@@ -888,9 +890,9 @@ begin
       end;
     until range <> nil;
 
-    FQuads.AddOrSet(ASprite, range);
+    FQuads.AddOrSet(Pointer(ASprite), range);
     ASprite.OnSetRect(range.Rect);
-    FInvalidQuads.AddIfNotContains(ASprite, range);
+    FInvalidQuads.AddIfNotContains(Pointer(ASprite), range);
     Invalidate;
   end
   else
@@ -907,8 +909,8 @@ end;
 
 procedure TavAtlasBase.DelSprite(const ASprite: ISpriteData);
 begin
-  FQuads.Delete(ASprite);
-  FInvalidQuads.Delete(ASprite);
+  FQuads.Delete(Pointer(ASprite));
+  FInvalidQuads.Delete(Pointer(ASprite));
 end;
 
 procedure TavAtlasBase.AfterConstruction;

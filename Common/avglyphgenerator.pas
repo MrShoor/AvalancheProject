@@ -19,7 +19,7 @@ function GenerateGlyphImage(const AFontName  : string;
 
 implementation
 
-uses Graphics{$IfDef DCC}, Types{$EndIf};
+uses Windows, Graphics{$IfDef DCC}, Types{$EndIf};
 
 type
 
@@ -55,6 +55,18 @@ begin
   h := size.cy;
 end;
 {$EndIf}
+
+function GetGlyphMetrics(const Canvas: TCanvas; AChar: WideChar): TVec3I;
+var ch: Integer;
+begin
+  ch := Ord(AChar);
+  {$IfDef FPC}
+  if not GetCharABCWidthsW(Canvas.Handle, ch, ch, LPABC(@Result)) then
+  {$Else}
+  if not GetCharABCWidthsW(Canvas.Handle, ch, ch, Result) then
+  {$EndIf}
+    RaiseLastWin32Error;
+end;
 
 function GenerateGlyphImage(const AFontName: string; const AChar: WideChar;
   const ASize: Integer; const AItalic: Boolean; const ABold: Boolean;
@@ -113,6 +125,10 @@ begin
         Inc(dstPix);
       end;
     end;
+
+    Result := TGlyphImage.Create(w, dstData);
+
+    ABCMetrics := GetGlyphMetrics(bmp.Canvas, AChar);
   finally
     FreeAndNil(bmp);
   end;
