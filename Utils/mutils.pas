@@ -274,7 +274,8 @@ function MatTranslate(const newPos: TVec3): TMat4; overload; {$IFNDEF NoInline} 
 function MatScale(const Scale: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
 function RectF(Left, Top, Right, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
-function RectI(Left, Top, Right, Bottom: Integer): TRectI; {$IFNDEF NoInline} inline; {$ENDIF}
+function RectI(Left, Top, Right, Bottom: Integer): TRectI; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function RectI(LeftTop, RightBottom: TVec2I): TRectI; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Plane(const normal, point: TVec3): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Plane(A,B,C,D: single): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Plane(const pt1, pt2, pt3: TVec3): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -886,6 +887,12 @@ begin
   Result.Right := Right;
   Result.Top := Top;
   Result.Bottom := Bottom;
+end;
+
+function RectI(LeftTop, RightBottom: TVec2I): TRectI; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.LeftTop := LeftTop;
+  Result.RightBottom := RightBottom;
 end;
 
 function Plane(const normal, point: TVec3): TPlane; {$IFNDEF NoInline} inline; {$ENDIF}

@@ -23,12 +23,17 @@ begin
     begin
       name := slKeys.Names[i];
       value := slKeys.ValueFromIndex[i];
-      if (name = TOKEN_TARGET) and FileExists(value) then
+      if (name = TOKEN_TARGET) then
       begin
-        FreeAndNil(slSrc);
-        slSrc := TStringList.Create;
-        slSrc.LoadFromFile(value);
-        Continue;
+        if FileExists(value) then
+        begin
+          FreeAndNil(slSrc);
+          slSrc := TStringList.Create;
+          slSrc.LoadFromFile(value);
+          Continue;
+        end
+        else
+          WriteLn('Warning. File "', GetCurrentDir+'\'+value, '" not found');
       end;
 
       if (name = TOKEN_OUTPUT) and Assigned(slSrc) then

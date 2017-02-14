@@ -31,6 +31,10 @@ type
     Class Operator Divide (const v1, v2: TVec2): TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Divide (const v: TVec2; const f: Single): TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
     {$EndIf}
+    {$IfDef Integer}
+    Class Operator Divide (const v1, v2: TVec2i): TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
+    Class Operator Divide (const v: TVec2i; const f: Single): TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
+    {$EndIf}	
   end;
   PVec2b =^TVec2b;
 
@@ -56,6 +60,10 @@ type
     Class Operator Divide (const v1, v2: TVec3): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Divide (const v: TVec3; const f: Single): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
     {$EndIf}
+    {$IfDef Integer}
+    Class Operator Divide (const v1, v2: TVec3i): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+    Class Operator Divide (const v: TVec3i; const f: Single): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+    {$EndIf}	
   case Byte of
     0: (f: array [0..2] of Byte);
     1: (x, y, z: Byte);
@@ -85,6 +93,10 @@ type
     Class Operator Divide (const v1, v2: TVec4): TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Divide (const v: TVec4; const f: Single): TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
     {$EndIf}
+    {$IfDef Integer}
+    Class Operator Divide (const v1, v2: TVec4i): TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
+    Class Operator Divide (const v: TVec4i; const f: Single): TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
+    {$EndIf}	
   case Byte of
     0: (f: array [0..3] of Byte);
     1: (x, y, z, w: Byte);
@@ -245,6 +257,13 @@ type
   procedure Swap(var v1, v2: TMat2b); overload; {$IFNDEF NoInline} inline; {$ENDIF}
   procedure Swap(var v1, v2: TMat3b); overload; {$IFNDEF NoInline} inline; {$ENDIF}
   procedure Swap(var v1, v2: TMat4b); overload; {$IFNDEF NoInline} inline; {$ENDIF}
+
+  procedure StreamWriteVecArr(const AStream: TStream; const AArr: TVec2bArr); overload;
+  procedure StreamWriteVecArr(const AStream: TStream; const AArr: TVec3bArr); overload;
+  procedure StreamWriteVecArr(const AStream: TStream; const AArr: TVec4bArr); overload;
+  procedure StreamReadVecArr(const AStream: TStream; out AArr: TVec2bArr); overload;
+  procedure StreamReadVecArr(const AStream: TStream; out AArr: TVec3bArr); overload;
+  procedure StreamReadVecArr(const AStream: TStream; out AArr: TVec4bArr); overload;
 {$ENDIF}
 
 {$IFDEF IMPL}
@@ -451,6 +470,20 @@ type
     Result.y := v.y / f;
   end;
   {$EndIf}
+  
+  {$IfDef Integer}
+  Class Operator TVec2b.Divide (const v1, v2: TVec2i): TVec2;
+  begin
+    Result.x := v1.x / v2.x;
+    Result.y := v1.y / v2.y;
+  end;
+
+  Class Operator TVec2b.Divide (const v: TVec2i; const f: Single): TVec2;
+  begin
+    Result.x := v.x / f;
+    Result.y := v.y / f;
+  end;
+  {$EndIf}  
 
   Class Operator TVec3b.Equal (const v1, v2: TVec3b): Boolean;
   begin
@@ -532,6 +565,22 @@ type
     Result.z := v.z / f;
   end;
   {$EndIf}
+  
+  {$IfDef Integer}
+  Class Operator TVec3b.Divide (const v1, v2: TVec3i): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result.x := v1.x / v2.x;
+    Result.y := v1.y / v2.y;
+    Result.z := v1.z / v2.z;
+  end;
+
+  Class Operator TVec3b.Divide (const v: TVec3i; const f: Single): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result.x := v.x / f;
+    Result.y := v.y / f;
+    Result.z := v.z / f;
+  end;
+  {$EndIf}  
 
   Class Operator TVec4b.Equal (const v1, v2: TVec4b): Boolean;
   begin
@@ -617,6 +666,24 @@ type
   end;
 
   Class Operator TVec4b.Divide (const v: TVec4; const f: Single): TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result.x := v.x / f;
+    Result.y := v.y / f;
+    Result.z := v.z / f;
+    Result.w := v.w / f;
+  end;
+  {$EndIf}
+  
+  {$IfDef Integer}
+  Class Operator TVec4b.Divide (const v1, v2: TVec4i): TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result.x := v1.x / v2.x;
+    Result.y := v1.y / v2.y;
+    Result.z := v1.z / v2.z;
+    Result.w := v1.w / v2.w;
+  end;
+
+  Class Operator TVec4b.Divide (const v: TVec4i; const f: Single): TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
   begin
     Result.x := v.x / f;
     Result.y := v.y / f;
@@ -1084,6 +1151,67 @@ type
               m.f[0, 2] * (m.f[1, 0] * (m.f[2, 1] * m.f[3, 3] - m.f[2, 3] * m.f[3, 1]) - m.f[1, 1] * (m.f[2, 0] * m.f[3, 3] - m.f[2, 3] * m.f[3, 0]) + m.f[1, 3] * (m.f[2, 0] * m.f[3, 1] - m.f[2, 1] * m.f[3, 0])) -
               m.f[0, 3] * (m.f[1, 0] * (m.f[2, 1] * m.f[3, 2] - m.f[2, 2] * m.f[3, 1]) - m.f[1, 1] * (m.f[2, 0] * m.f[3, 2] - m.f[2, 2] * m.f[3, 0]) + m.f[1, 2] * (m.f[2, 0] * m.f[3, 1] - m.f[2, 1] * m.f[3, 0]));
   end;
+
+  procedure StreamWriteVecArr(const AStream: TStream; const AArr: TVec2bArr);
+  var n: Integer;
+  begin
+    n := Length(AArr);
+    AStream.WriteBuffer(n, SizeOf(n));
+    if n > 0 then
+      AStream.WriteBuffer(AArr[0], n*SizeOf(AArr[0]));
+  end;
+
+  procedure StreamWriteVecArr(const AStream: TStream; const AArr: TVec3bArr);
+  var n: Integer;
+  begin
+    n := Length(AArr);
+    AStream.WriteBuffer(n, SizeOf(n));
+    if n > 0 then
+      AStream.WriteBuffer(AArr[0], n*SizeOf(AArr[0]));
+  end;
+
+  procedure StreamWriteVecArr(const AStream: TStream; const AArr: TVec4bArr);
+  var n: Integer;
+  begin
+    n := Length(AArr);
+    AStream.WriteBuffer(n, SizeOf(n));
+    if n > 0 then
+      AStream.WriteBuffer(AArr[0], n*SizeOf(AArr[0]));
+  end;
+
+  procedure StreamReadVecArr(const AStream: TStream; out AArr: TVec2bArr);
+  var n: Integer;
+  begin
+    n := 0;
+    AStream.ReadBuffer(n, SizeOf(n));
+    AArr := nil;
+    SetLength(AArr, n);
+    if n > 0 then
+      AStream.ReadBuffer(AArr[0], n*SizeOf(AArr[0]));
+  end;
+
+  procedure StreamReadVecArr(const AStream: TStream; out AArr: TVec3bArr);
+  var n: Integer;
+  begin
+    n := 0;
+    AStream.ReadBuffer(n, SizeOf(n));
+    AArr := nil;
+    SetLength(AArr, n);
+    if n > 0 then
+      AStream.ReadBuffer(AArr[0], n*SizeOf(AArr[0]));
+  end;
+
+  procedure StreamReadVecArr(const AStream: TStream; out AArr: TVec4bArr);
+  var n: Integer;
+  begin
+    n := 0;
+    AStream.ReadBuffer(n, SizeOf(n));
+    AArr := nil;
+    SetLength(AArr, n);
+    if n > 0 then
+      AStream.ReadBuffer(AArr[0], n*SizeOf(AArr[0]));
+  end;
+
 {$ENDIF}
 {$UnDef Byte}
 {$UnDef CastToInt} {$UnDef CastToSingle}

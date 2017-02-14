@@ -4,7 +4,7 @@ unit intfUtils;
 interface
 
 uses
-  Classes, SysUtils
+  Classes, SysUtils, syncobjs
   {$IfDef DCC}
     {$IfDef Windows}
     ,Windows
@@ -85,6 +85,31 @@ type
     constructor Create(AInstance: TObject);
   end;
 
+  IPublisher = interface
+  ['{598D29AC-0EB3-4589-898A-C67069616720}']
+    procedure Subscribe  (const ASubscriber: IWeakedInterface);
+    procedure UnSubscribe(const ASubscriber: IWeakedInterface);
+  end;
+
+  { TPublisherBase }
+
+  TPublisherBase = class (TWeakedInterfacedObject, IPublisher)
+  protected type
+    TSubsList = array of IWeakedInterface;
+  private
+    FCS   : TCriticalSection;
+    FSubs : array of IWeakRefIntf;
+    function IndexOf(const ASubscriber: IWeakedInterface): Integer;
+  protected
+    function GetSubsList: TSubsList;
+  public
+    procedure Subscribe  (const ASubscriber: IWeakedInterface); virtual;
+    procedure UnSubscribe(const ASubscriber: IWeakedInterface); virtual;
+
+    procedure AfterConstruction; override;
+    procedure BeforeDestruction; override;
+  end;
+
 implementation
 
 type
@@ -99,6 +124,88 @@ type
     function Intf: IUnknown;
     constructor Create(const AInstance: TWeakedInterfacedObject);
   end;
+
+{ TPublisherBase }
+
+function TPublisherBase.IndexOf(const ASubscriber: IWeakedInterface): Integer;
+var
+  i: Integer;
+begin
+  FCS.Enter;
+  try
+    Result := -1;
+    for i := 0 to Length(FSubs) - 1 do
+      if FSubs[i] = ASubscriber.WeakRef then Exit(i);
+  finally
+    FCS.Leave;
+  end;
+end;
+
+function TPublisherBase.GetSubsList: TSubsList;
+var i, j : integer;
+    intf : IUnknown;
+begin
+  FCS.Enter;
+  try
+    j := 0;
+    SetLength(Result, Length(FSubs));
+    for i := 0 to Length(FSubs) - 1 do
+    begin
+      intf := FSubs[i].Intf;
+      if intf <> nil then
+      begin
+        Result[j] := intf as IWeakedInterface;
+        Inc(j);
+      end
+      else
+        if j < i then
+          FSubs[j] := FSubs[i];
+    end;
+
+    if j < Length(FSubs) then
+    begin
+      SetLength(FSubs, j);
+      SetLength(Result, j);
+    end;
+  finally
+    FCS.Leave;
+  end;
+end;
+
+procedure TPublisherBase.Subscribe(const ASubscriber: IWeakedInterface);
+begin
+  FCS.Enter;
+  try
+    Assert(IndexOf(ASubscriber) < 0);
+    SetLength(FSubs, Length(FSubs) + 1);
+    FSubs[High(FSubs)] := ASubscriber.WeakRef;
+  finally
+    FCS.Leave;
+  end;
+end;
+
+procedure TPublisherBase.UnSubscribe(const ASubscriber: IWeakedInterface);
+var n, last: Integer;
+begin
+  n := IndexOf(ASubscriber);
+  if n < 0 then Exit;
+  last := High(FSubs);
+  if n <> last then FSubs[n] := FSubs[last];
+  FSubs[last] := nil;
+  SetLength(FSubs, last);
+end;
+
+procedure TPublisherBase.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FCS := TCriticalSection.Create;
+end;
+
+procedure TPublisherBase.BeforeDestruction;
+begin
+  FreeAndNil(FCS);
+  inherited BeforeDestruction;
+end;
 
 { TWeakRefIntf }
 

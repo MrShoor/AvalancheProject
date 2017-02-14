@@ -172,10 +172,12 @@ type
 
   IavAnimation = interface
     function GetArmature: IavArmature;
+    function GetCycled: Boolean;
     function GetName: String;
     function GetEnabled: Boolean;
     function GetFrame: Single;
     function GetFrameCount: Integer;
+    procedure SetCycled(const AValue: Boolean);
     procedure SetEnabled(AValue: Boolean);
     procedure SetFrame(AValue: Single);
 
@@ -192,6 +194,8 @@ type
     property Enabled: Boolean read GetEnabled write SetEnabled;
     property FrameCount: Integer read GetFrameCount;
     property Frame: Single read GetFrame write SetFrame;
+
+    property Cycled: Boolean read GetCycled write SetCycled;
   end;
 
   { IavArmature }
@@ -544,12 +548,16 @@ type
     FArmature: Pointer;
     FAnimationIndex: Integer;
 
+    FCycled: Boolean;
+
     function GetArmature: IavArmature;
+    function GetCycled: Boolean;
     function GetName: String;
     function GetEnabled: Boolean;
     function GetFrame: Single;
     function GetFrameCount: Integer;
     procedure SetArmature(const AValue: IavArmature);
+    procedure SetCycled(const AValue: Boolean);
     procedure SetEnabled(AValue: Boolean);
     procedure SetFrame(AValue: Single);
 
@@ -572,6 +580,10 @@ type
     property Enabled: Boolean read GetEnabled write SetEnabled;
     property FrameCount: Integer read GetFrameCount;
     property Frame: Single read GetFrame write SetFrame;
+
+    property Cycled: Boolean read GetCycled write SetCycled;
+
+    constructor Create;
   end;
 
   { TavAnimationController }
@@ -579,17 +591,17 @@ type
   TavAnimationController = class (TInterfacedObjectEx, IavAnimationController)
   private type
     TAnimationPlayState = packed record
-      StartTime: Int64;
-      StopTime : Int64;
-      GrowSpeed: Single;
-      FadeSpeed: Single;
+      StartTime : Int64;
+      StopTime  : Int64;
+      GrowSpeed : Single;
+      FadeSpeed : Single;
       procedure Calc(const ATime: Int64; out AFrame: Single; out AWeight: Single; out AComplete: Boolean);
     end;
   private
     FPose: IavPose;
 
     FTime : Int64;
-    FAnimationStates   : TMeshAnimationStateArr;
+    FAnimationStates : TMeshAnimationStateArr;
     FAnimationPlayState: array of TAnimationPlayState;
 
     procedure UpdateAnimationState;
@@ -1384,15 +1396,17 @@ var
   i: Integer;
 begin
   if FPose = AValue then Exit;
-  FPose := AValue;
+
   if Length(FBoneRemap) <> FMesh.BonesCount then
     SetLength(FBoneRemap, FMesh.BonesCount);
   for i := 0 to Length(FBoneRemap) - 1 do
-    FBoneRemap[i] := FPose.Armature.IndexOfBone(FMesh.GetBoneName(i));
-  FBoneBindTransform := FTransform;
+    FBoneRemap[i] := AValue.Armature.IndexOfBone(FMesh.GetBoneName(i));
+  FBoneBindTransform := Inv(FBoneBindTransform)*FTransform;
   FTransform := IdentityMat4;
 
-  FSavedPoseStateID := FPose.PoseStateID - 1;
+  FSavedPoseStateID := AValue.PoseStateID - 1;
+
+  FPose := AValue;
 end;
 
 procedure TavMeshInstance.SetMesh(const AValue: IavMesh);
@@ -1453,6 +1467,7 @@ var inst: TavMeshInstance;
     intf: IavMeshInstance;
 begin
   inst := TavMeshInstance.Create;
+  inst.FBoneBindTransform := FBoneBindTransform;
   intf := inst;
   inst.SetMesh(Mesh);
   inst.SetName(NewInstanceName);
@@ -1469,6 +1484,7 @@ begin
   inherited AfterConstruction;
   FChilds := TChildList.Create;
   FTransform := IdentityMat4;
+  FBoneBindTransform := IdentityMat4;
 end;
 
 { TavAnimation }
@@ -1481,6 +1497,11 @@ end;
 function TavAnimation.GetArmature: IavArmature;
 begin
   Result := IavArmature(FArmature);
+end;
+
+function TavAnimation.GetCycled: Boolean;
+begin
+  Result := FCycled;
 end;
 
 function TavAnimation.GetEnabled: Boolean;
@@ -1501,6 +1522,11 @@ end;
 procedure TavAnimation.SetArmature(const AValue: IavArmature);
 begin
   FArmature := Pointer(AValue);
+end;
+
+procedure TavAnimation.SetCycled(const AValue: Boolean);
+begin
+  FCycled := AValue;
 end;
 
 procedure TavAnimation.SetEnabled(AValue: Boolean);
@@ -1566,10 +1592,18 @@ begin
   FrameWeight := AFrame - Frame1;
 
   FrameCnt := FrameCount;
-  Frame1 := Frame1 mod FrameCnt;
-  Frame2 := Frame2 mod FrameCnt;
-  if Frame1 < 0 then Inc(Frame1, FrameCnt);
-  if Frame2 < 0 then Inc(Frame2, FrameCnt);
+  if FCycled then
+  begin
+    Frame1 := Frame1 mod FrameCnt;
+    Frame2 := Frame2 mod FrameCnt;
+    if Frame1 < 0 then Inc(Frame1, FrameCnt);
+    if Frame2 < 0 then Inc(Frame2, FrameCnt);
+  end
+  else
+  begin
+    Frame1 := Clamp(Frame1, 0, FrameCnt - 1);
+    Frame2 := Clamp(Frame2, 0, FrameCnt - 1);
+  end;
 
   Transform := Lerp(FFrames[Frame1][ALocalBoneIndex], FFrames[Frame2][ALocalBoneIndex], FrameWeight);
 end;
@@ -1593,6 +1627,11 @@ begin
   for i := 0 to Length(FFrames) - 1 do
     frms[i] := FFrames[i][idx2];
   Result := TavSingleBoneAnimation.Create(ABoneName, FName, frms);
+end;
+
+constructor TavAnimation.Create;
+begin
+  FCycled := True;
 end;
 
 { TavMesh }
