@@ -532,7 +532,7 @@ function TQuadManager.AllocRange(const AWidth, AHeight: Integer;
         else
         begin
           rct := SrcQuad.FRect;
-          Inc(rct.Right, W);
+          Inc(rct.Left, W);
           rct.Bottom := rct.Top + H;
           RightQuad  := TQuadRange.Create(Self, rct);
         end;

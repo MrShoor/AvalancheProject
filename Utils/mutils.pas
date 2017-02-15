@@ -350,6 +350,8 @@ function ToStr(const v: TVec4): string; overload;
 
 function NormalizeAngle(angle: single): single;
 
+function VecSinCos(const Angle: Single): TVec2;
+
 {$IfDef FPC}
 operator = (const v1, v2: TRectF): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 operator = (const v1, v2: TRectI): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -1347,6 +1349,12 @@ const PI2 = 2*Pi;
 begin
   Result := frac(angle/PI2)*PI2;
   if Result < 0 then Result := Result + PI2;
+end;
+
+function VecSinCos(const Angle: Single): TVec2;
+begin
+  Result.x := cos(Angle);
+  Result.y := sin(Angle);
 end;
 
 {$IfDef FPC}

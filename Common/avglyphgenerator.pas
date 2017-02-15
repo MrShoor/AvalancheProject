@@ -42,6 +42,8 @@ type
 {$IfDef FPC}
 procedure GetTextSize(const Canvas: TCanvas; AChar: WideChar; out w, h: Integer);
 begin
+  w := 0;
+  h := 0;
   Canvas.GetTextSize(AChar, w, h);
 end;
 {$EndIf}
