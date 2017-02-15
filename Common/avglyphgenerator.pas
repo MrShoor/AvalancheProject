@@ -117,10 +117,10 @@ begin
       srcPix := bmp.ScanLine[j];
       for i := 0 to w - 1 do
       begin
-        dstPix^.x := srcPix^.r;
-        dstPix^.y := srcPix^.g;
-        dstPix^.z := srcPix^.b;
-        dstPix^.w := 255;
+        dstPix^.x := 255;//srcPix^.r;
+        dstPix^.y := 255;//srcPix^.g;
+        dstPix^.z := 255;//srcPix^.b;
+        dstPix^.w := srcPix^.r;
         Inc(srcPix);
         Inc(dstPix);
       end;

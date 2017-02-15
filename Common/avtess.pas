@@ -343,6 +343,7 @@ type
       function UserData: Pointer;
     public
       constructor Create(AOwner: TQuadManager; const ARect: TRectI);
+      destructor Destroy; override;
     end;
 
     IQuadList = {$IfDef FPC}specialize{$EndIf} IArray<TQuadRange>;
@@ -432,10 +433,12 @@ var
   OldSize: TVec2I;
   OldRect: TRectI;
   i: Integer;
+  cmp: IComparer;
 begin
   Result := False;
 
-  FAllocatedQuads.Sort(TQuadComparer.Create());
+  cmp := TQuadComparer.Create();
+  FAllocatedQuads.Sort(cmp);
 
   OldFreeQuads := FFreeQuads;
   OldSize.x := FWidth;
@@ -574,6 +577,7 @@ begin
     Result := newQuad;
     if bottomQuad <> nil then FFreeQuads.Add(bottomQuad);
     if rightQuad <> nil then FFreeQuads.Add(rightQuad);
+    bestQuad.Free;
   end;
 end;
 
@@ -713,6 +717,11 @@ constructor TQuadManager.TQuadRange.Create(AOwner: TQuadManager;
 begin
   FOwner := AOwner;
   FRect := ARect;
+end;
+
+destructor TQuadManager.TQuadRange.Destroy;
+begin
+  inherited Destroy;
 end;
 
 { TRangeManager.TAVLTreeInternal.TMyData }
