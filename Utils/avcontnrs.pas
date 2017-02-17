@@ -643,13 +643,15 @@ begin
 
     {$IfDef FPC}
     tkAString:
+    {$Else}
+    tkLString:
+    {$EndIf}
       begin
         n := Length(AnsiString(AData));
         AStream.WriteBuffer(n, SizeOf(n));
         if n > 0 then
           AStream.WriteBuffer(AnsiString(AData)[1], n);
       end;
-    {$EndIf}
     tkUString:
       begin
         n := Length(UnicodeString(AData));
