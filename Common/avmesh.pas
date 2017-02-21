@@ -105,12 +105,14 @@ type
     function GetParent: IavMeshInstance;
     function GetPose: IavPose;
     function GetTransform: TMat4;
+    function GetBindPoseTransform: TMat4;
     procedure SetPose(const AValue: IavPose);
     procedure SetTransform(const AValue: TMat4);
     //--------------------------
     property Name     : string      read GetName;
     property Transform: TMat4       read GetTransform write SetTransform;
     property Mesh     : IavMesh     read GetMesh;
+    property BindPoseTransform: TMat4 read GetBindPoseTransform;
 
     property Parent: IavMeshInstance read GetParent;
 
@@ -206,6 +208,7 @@ type
     function GetBone(index: Integer): IavBone;
     function GetBonesCount: Integer;
     function GetName: String;
+    function GetTransform: TMat4;
 
     property BonesCount: Integer read GetBonesCount;
     property Bone[index: Integer]: IavBone read GetBone;
@@ -216,6 +219,8 @@ type
     function FindAnim(const AName: string): IavAnimation;
 
     property Name: String read GetName;
+
+    property Transform: TMat4 read GetTransform;
 
     function IndexOfBone(const AName: string): Integer;
     function FindBone(const AName: string): IavBone;
@@ -285,6 +290,7 @@ type
   { IavArmatureInternal }
 
   IavArmatureInternal = interface (IavArmature)
+    procedure SetTransform(const AValue: TMat4);
     procedure SetName(const AValue: String);
     property Name: String read GetName write SetName;
 
@@ -372,6 +378,7 @@ type
     FBones: TavBoneArr;
     FRootBones: TavBoneArr;
     FBoneIndex: IBoneHash;
+    FTransform: TMat4;
 
     FAnim: array of IavAnimationInternal;
 
@@ -380,7 +387,9 @@ type
     function GetBone(index: Integer): IavBone;
     function GetBonesCount: Integer;
     function GetName: string;
+    function GetTransform: TMat4;
     procedure SetName(const AValue: String);
+    procedure SetTransform(const AValue: TMat4);
   public
     property BonesCount: Integer read GetBonesCount;
     property Bone[index: Integer]: IavBone read GetBone;
@@ -487,6 +496,7 @@ type
     procedure BumpPoseStateID;
     function PoseStateID: Int64;
     function PoseArray: TMat4Arr;
+    function GetBindPoseTransform: TMat4;
   public
     function GetChild(const AIndex: Integer): IavMeshInstance;
     function GetMesh: IavMesh;
@@ -504,6 +514,7 @@ type
     property Name     : string      read GetName;
     property Transform: TMat4       read GetTransform write SetTransform;
     property Mesh     : IavMesh     read GetMesh;
+    property BindPoseTransform: TMat4 read GetBindPoseTransform;
 
     property Parent: IavMeshInstance read GetParent write SetParent;
 
@@ -892,12 +903,16 @@ type
       bones: array of IavBoneInternal;
       boneParent: array of String;
       anim: IavAnimationInternal;
+      m: TMat4;
   begin
     n := 0;
     arm := TavArmature.Create;
 
     StreamReadString(stream, s);
     arm.Name := String(s);
+
+    stream.ReadBuffer(m, SizeOf(m));
+    arm.SetTransform(m);
 
     stream.ReadBuffer(n, SizeOf(n));
     SetLength(bones, n);
@@ -1097,7 +1112,7 @@ begin
 
   rootBones := FArmature.RootBones;
   for i := 0 to Length(rootBones) - 1 do
-    FillBoneData_Recursive(FBoneTransform, FBoneTransform, rootBones[i], IdentityMat4);
+    FillBoneData_Recursive(FBoneTransform, FBoneTransform, rootBones[i], FArmature.Transform);
 
   BumpPoseStateID;
 end;
@@ -1359,6 +1374,11 @@ begin
   Inc(FPoseStateID);
   if FPose <> nil then
     Dec(FSavedPoseStateID);
+end;
+
+function TavMeshInstance.GetBindPoseTransform: TMat4;
+begin
+  Result := FBoneBindTransform;
 end;
 
 function TavMeshInstance.GetChild(const AIndex: Integer): IavMeshInstance;
@@ -1760,9 +1780,19 @@ begin
   Result := FName;
 end;
 
+function TavArmature.GetTransform: TMat4;
+begin
+  Result := FTransform;
+end;
+
 procedure TavArmature.SetName(const AValue: String);
 begin
   FName := AValue;
+end;
+
+procedure TavArmature.SetTransform(const AValue: TMat4);
+begin
+  FTransform := AValue;
 end;
 
 function TavArmature.RootBones: TavBoneArr;
@@ -1827,6 +1857,7 @@ procedure TavArmature.AfterConstruction;
 begin
   inherited AfterConstruction;
   FBoneIndex := TBoneHash.Create;
+  FTransform := IdentityMat4;
 end;
 
 destructor TavArmature.Destroy;

@@ -788,6 +788,9 @@ begin
 
     {$IfDef FPC}
     tkAString:
+    {$Else}
+    tkLString:
+    {$EndIf}
       begin
         n := 0;
         AStream.ReadBuffer(n, SizeOf(n));
@@ -795,7 +798,6 @@ begin
         if n > 0 then
           AStream.ReadBuffer(AnsiString(AData)[1], n);
       end;
-    {$EndIf}
     tkUString:
       begin
         n := 0;

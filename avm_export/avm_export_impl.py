@@ -191,8 +191,6 @@ def Export(WFloat, WInt, WStr, WBool):
         if not (bone.parent is None):
             m2 = GetPoseBoneAbsTransform(bone.parent)
             m = m2.inverted()*m
-        else:
-            m = bone.id_data.matrix_world*m
         return m
     
     def WriteBone(bone):
@@ -210,6 +208,7 @@ def Export(WFloat, WInt, WStr, WBool):
     def WriteArmature(obj):
         obj.update_from_editmode()
         WStr(obj.name)
+        WriteMatrix(obj.matrix_local)
         
         #indexing bones
         i = 0

@@ -62,7 +62,9 @@ object frmMain: TfrmMain
       Width = 73
       Height = 19
       Caption = 'DirectX 11'
+      Checked = True
       TabOrder = 0
+      TabStop = True
     end
     object cbOGL: TRadioButton
       Left = 8
@@ -70,9 +72,7 @@ object frmMain: TfrmMain
       Width = 63
       Height = 19
       Caption = 'OpenGL'
-      Checked = True
       TabOrder = 1
-      TabStop = True
     end
     object cbWireframe: TCheckBox
       Left = 8

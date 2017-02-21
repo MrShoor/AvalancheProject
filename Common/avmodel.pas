@@ -41,6 +41,7 @@ type
   { IavModelInstance }
 
   IavModelInstance = interface
+    function Mesh: IavMeshInstance;
     function Collection: TavModelCollection;
     function ModelName: String;
     function Name: String;
@@ -181,6 +182,7 @@ type
 
       function GetObj: TavModelInstance;
 
+      function Mesh: IavMeshInstance;
       function Collection: TavModelCollection;
       function ModelName: String;
       function Name: String;
@@ -461,6 +463,11 @@ end;
 function TavModelCollection.TavModelInstance.GetObj: TavModelInstance;
 begin
   Result := Self;
+end;
+
+function TavModelCollection.TavModelInstance.Mesh: IavMeshInstance;
+begin
+  Result := FMeshInst;
 end;
 
 function TavModelCollection.TavModelInstance.Collection: TavModelCollection;

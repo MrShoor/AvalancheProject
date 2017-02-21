@@ -289,6 +289,7 @@ function Len(const v: TVec4): Single; overload; {$IFNDEF NoInline} inline; {$END
 function Normalize(const v: TVec2): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Normalize(const v: TVec3): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Normalize(const v: TVec4): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Normalize(const v: TQuat): TQuat; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function NormalizeWeights(const v: TVec2): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function NormalizeWeights(const v: TVec3): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function NormalizeWeights(const v: TVec4): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -351,6 +352,9 @@ function ToStr(const v: TVec4): string; overload;
 function NormalizeAngle(angle: single): single;
 
 function VecSinCos(const Angle: Single): TVec2;
+
+function FromToQuat(const AFrom, ATo: TVec3): TQuat;
+function FromToMat(AFrom, ATo: TVec3): TMat4;
 
 {$IfDef FPC}
 operator = (const v1, v2: TRectF): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -970,6 +974,43 @@ begin
   Result := v / Len(v);
 end;
 
+function Normalize(const v: TQuat): TQuat; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function QLen(const q: TQuat): Single; {$IFNDEF NoInline} inline; {$ENDIF}
+  begin
+    Result := Sqrt( sqr(q.x) + sqr(q.y) + sqr(q.z) + sqr(q.w) );
+  end;
+  function fixLen(const q: TQuat): TQuat; {$IFNDEF NoInline} inline; {$ENDIF}
+  var s: Single;
+  begin
+    s := Abs(q.x) + Abs(q.y) + Abs(q.y) + Abs(q.w);
+    if s > 0 then
+    begin
+      s := 1/s;
+      Result.x := q.x*s;
+      Result.y := q.y*s;
+      Result.z := q.z*s;
+      Result.w := q.w*s;
+    end
+    else
+    begin
+      Result.x := 0;
+      Result.y := 0;
+      Result.z := 0;
+      Result.w := 1;
+    end;
+  end;
+var ql: Single;
+begin
+  ql := QLen(v);
+  if ql < EPS then
+    ql := QLen(fixLen(v));
+  ql := 1.0/ql;
+  Result.x := v.x * ql;
+  Result.y := v.y * ql;
+  Result.z := v.z * ql;
+  Result.w := v.w * ql;
+end;
+
 function NormalizeWeights(const v: TVec2): TVec2;
 begin
   Result := v * (1 / (v.x+v.y));
@@ -1355,6 +1396,58 @@ function VecSinCos(const Angle: Single): TVec2;
 begin
   Result.x := cos(Angle);
   Result.y := sin(Angle);
+end;
+
+function FromToQuat(const AFrom, ATo: TVec3): TQuat;
+var c: TVec3;
+begin
+  c := Cross(AFrom, ATo);
+  Result.x := c.x;
+  Result.y := c.y;
+  Result.z := c.z;
+  Result.w := Dot(AFrom, ATo);
+  Result := Normalize(Result);
+  Result.w := Result.w + 1;
+  if Result.w < EPS then
+  begin
+    if sqr(AFrom.z) > sqr(AFrom.x) then
+    begin
+      Result.x := 0;
+      Result.y := AFrom.z;
+      Result.z := - AFrom.y;
+    end
+    else
+    begin
+      Result.x := AFrom.y;
+      Result.y := -AFrom.x;
+      Result.z := 0;
+    end;
+  end;
+  Result := Normalize(Result);
+end;
+
+function FromToMat(AFrom, ATo: TVec3): TMat4;
+var c: TVec3;
+    clen: Single;
+    m1, m2: TMat4;
+begin
+  AFrom := Normalize(AFrom);
+  ATo := Normalize(ATo);
+  c := Cross(AFrom, ATo);
+  clen := Len(c);
+  if clen < EPS then Exit(IdentityMat4);
+  c := c * (1/clen);
+  m1 := IdentityMat4;
+  m1.Row[0].xyz := AFrom;
+  m1.Row[1].xyz := c;
+  m1.Row[2].xyz := Cross(m1.Row[0].xyz, m1.Row[1].xyz);
+
+  m2 := IdentityMat4;
+  m2.Row[0].xyz := ATo;
+  m2.Row[1].xyz := c;
+  m2.Row[2].xyz := Cross(m2.Row[0].xyz, m2.Row[1].xyz);
+
+  Result := Inv(m1) * m2;
 end;
 
 {$IfDef FPC}
