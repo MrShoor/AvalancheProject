@@ -49,6 +49,7 @@ type
     procedure Delete(const index: Integer);
     procedure DeleteWithSwap(const index: Integer);
     function  IndexOf(const item: TValue): Integer;
+    function  Sub(const arr: IArray{$IfDef DCC}<TValue>{$EndIf}): {$IfDef FPC}specialize{$EndIf}IArray<TValue>;
 
     procedure Swap(const I1, I2: Integer);
 
@@ -115,6 +116,7 @@ type
     THeapSrt = {$IfDef FPC}specialize{$EndIf} THeap<TValue>;
     TData = {$IfDef FPC}specialize{$EndIf} TArrData<TValue>;
     IArr = {$IfDef FPC}specialize{$EndIf} IArray<TValue>;
+    TArr = {$IfDef FPC}specialize{$EndIf} TArray<TValue>;
   private
     FData : TData;
     FCount: Integer;
@@ -135,11 +137,13 @@ type
 
     function Count: Integer;
 
-    function Add(const item: TValue): Integer; //return index of new added element
+    function  Add(const item: TValue): Integer; //return index of new added element
     procedure AddArray(const arr: IArr); //index of new added element
     procedure Delete(const index: Integer);
     procedure DeleteWithSwap(const index: Integer);
-    function IndexOf(const item: TValue): Integer;
+    function  IndexOf(const item: TValue): Integer;
+
+    function  Sub (const arr: IArr): {$IfDef FPC}specialize{$EndIf}IArray<TValue>;
 
     procedure Swap(const I1, I2: Integer);
 
@@ -257,6 +261,11 @@ type
     function Contains(const AKey: TKey): Boolean;
     procedure Clear;
 
+    function Diff        (const ASet: IHashSet{$IfDef DCC}<TKey>{$EndIf}): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
+    function Union       (const ASet: IHashSet{$IfDef DCC}<TKey>{$EndIf}): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
+    function Intersection(const ASet: IHashSet{$IfDef DCC}<TKey>{$EndIf}): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
+    function SymetricDiff(const ASet: IHashSet{$IfDef DCC}<TKey>{$EndIf}): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
+
     procedure Reset;
     function Next(out AKey: TKey): Boolean;
 
@@ -346,8 +355,11 @@ type
   private type
     TMap = {$IfDef FPC}specialize{$EndIf} THashMap<TKey, Boolean>;
     IMap = {$IfDef FPC}specialize{$EndIf} IHashMap<TKey, Boolean>;
+    IHSet = {$IfDef FPC}specialize{$EndIf} IHashSet<TKey>;
+    THSet = {$IfDef FPC}specialize{$EndIf} THashSet<TKey>;
   strict private
     FHash : IMap;
+    FComparer : IEqualityComparer;
 
     function GetOnDuplicate: IDuplicateResolver;
     procedure SetOnDuplicate(const AValue: IDuplicateResolver);
@@ -361,6 +373,11 @@ type
     function Delete(const AKey: TKey): Boolean;
     function Contains(const AKey: TKey): Boolean;
     procedure Clear;
+
+    function  Diff         (const ASet: IHSet): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
+    function  Union        (const ASet: IHSet): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
+    function  Intersection (const ASet: IHSet): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
+    function  SymetricDiff (const ASet: IHSet): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
 
     procedure Reset;
     function Next(out AKey: TKey): Boolean;
@@ -1603,6 +1620,51 @@ begin
   FHash.Clear;
 end;
 
+function THashSet{$IfDef DCC}<TKey>{$EndIf}.Diff(const ASet: IHSet): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
+var k: TKey;
+begin
+  Result := THSet.Create(FComparer);
+  Reset;
+  while Next(k) do
+    if not ASet.Contains(k) then
+      Result.Add(k);
+end;
+
+function THashSet{$IfDef DCC}<TKey>{$EndIf}.Union(const ASet: IHSet): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
+var k: TKey;
+begin
+  Result := THSet.Create(FComparer);
+  Result.Capacity := Capacity + ASet.Capacity;
+  Reset;
+  while Next(k) do Result.Add(k);
+  ASet.Reset;
+  while Next(k) do Result.Add(k);
+end;
+
+function THashSet{$IfDef DCC}<TKey>{$EndIf}.Intersection(const ASet: IHSet): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
+var k: TKey;
+begin
+  Result := THSet.Create(FComparer);
+  Reset;
+  while Next(k) do
+    if ASet.Contains(k) then
+      Result.Add(k);
+end;
+
+function THashSet{$IfDef DCC}<TKey>{$EndIf}.SymetricDiff(const ASet: IHSet): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
+var k: TKey;
+begin
+  Result := THSet.Create(FComparer);
+  Reset;
+  while Next(k) do
+    if not ASet.Contains(k) then
+      Result.Add(k);
+  ASet.Reset;
+  while ASet.Next(k) do
+    if not Contains(k) then
+      Result.Add(k);
+end;
+
 procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.Reset;
 begin
   FHash.Reset;
@@ -1620,6 +1682,7 @@ end;
 
 constructor THashSet{$IfDef DCC}<TKey>{$EndIf}.Create(const AComparer: IEqualityComparer);
 begin
+  FComparer := AComparer;
   FHash := TMap.Create(AComparer);
 end;
 
@@ -2059,6 +2122,14 @@ begin
   for I := 0 to FCount - 1 do
     if FComparator.Compare(FData[I], item)=0 then
       Exit(I);
+end;
+
+function TArray{$IfDef DCC}<TValue>{$EndIf}.Sub(const arr: IArr): {$IfDef FPC}specialize{$EndIf}IArray<TValue>;
+var i: Integer;
+begin
+  Result := TArr.Create(FComparator);
+  for i := 0 to Count - 1 do
+    if arr.IndexOf(FData[i]) < 0 then Result.Add(FData[i]);
 end;
 
 procedure TArray{$IfDef DCC}<TValue>{$EndIf}.Swap(const I1, I2: Integer);
