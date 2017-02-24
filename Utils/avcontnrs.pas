@@ -295,6 +295,8 @@ type
       Value: TValue;
     end;
   protected
+    procedure MoveWithAddingGap(var bIndex, curInd: Integer); virtual;
+  protected
     FEnumIndex: Integer;
     FData: TItems;
     FGrowLimit: Integer;
@@ -411,6 +413,7 @@ type
   {$IfDef FPC}generic{$EndIf} THashMapWithBuckets<TKey, TValue> = class ({$IfDef FPC}specialize{$EndIf} THashMap<TKey, TValue>, {$IfDef FPC}specialize{$EndIf} IHashMapWithBuckets<TKey, TValue>)
   protected
     procedure SetCapacity(const cap: Integer); override;
+    procedure MoveWithAddingGap(var bIndex, curInd: Integer); override;
   private
     FOnBucketIndexChange: TOnBucketIndexChange;
 
@@ -1016,6 +1019,16 @@ begin
         FOnBucketIndexChange(OldItems[i].Key, OldItems[i].Value, i, bIndex);
     end;
   FGrowLimit := cap div 2;
+end;
+
+procedure THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.MoveWithAddingGap(var bIndex, curInd: Integer);
+var oldInd: Integer;
+    oldKey: TKey;
+    oldVal: TValue;
+begin
+  oldInd := bIndex;
+  inherited MoveWithAddingGap(bIndex, curInd);
+  if Assigned(FOnBucketIndexChange) then FOnBucketIndexChange(FData[oldInd].Key, FData[oldInd].Value, curInd, oldInd);
 end;
 
 function THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.AddOrSetWithBucketIndex(const AKey: TKey; const AValue: TValue): Integer;
@@ -1846,6 +1859,13 @@ begin
   Result := True;
 end;
 
+procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.MoveWithAddingGap(var bIndex, curInd: Integer);
+begin
+  FData[bIndex] := FData[curInd];
+  bIndex := curInd;
+  FData[bIndex].Hash := EMPTY_HASH;
+end;
+
 function THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.Delete(const AKey: TKey): Boolean;
 var hash: Cardinal;
     bIndex, curInd: Integer;
@@ -1864,11 +1884,7 @@ begin
     hash := FData[curInd].Hash;
     if hash = EMPTY_HASH then Break;
     if not WrapedIndexIsBetween(bIndex, Wrap(hash), curInd) then
-    begin
-      FData[bIndex] := FData[curInd];
-      bIndex := curInd;
-      FData[bIndex].Hash := EMPTY_HASH;
-    end;
+      MoveWithAddingGap(bIndex, curInd);
   end;
   Dec(FCount);
   FData[bIndex].Hash := EMPTY_HASH;
