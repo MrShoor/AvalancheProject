@@ -182,7 +182,7 @@ end;
 
 procedure TavObject.ChildMove(oldindex, newindex: integer);
 begin
-  FObjects.Move(newindex, oldindex);
+  FObjects.Move(oldindex, newindex);
 end;
 
 procedure TavObject.ChildSwap(index1, index2: integer);
