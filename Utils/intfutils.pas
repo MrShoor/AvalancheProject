@@ -291,10 +291,10 @@ function TWeakedInterfacedObject._Release: longint; stdcall;
 begin
   Result := InterLockedDecrement(TWeakRefIntf(FWeakRef).FInstanceRefCount);
   if Result = 0 then
-    Destroy
-  else
-    if Result = 1 then
-      TWeakRefIntf(FWeakRef).FInstance := nil;
+  begin
+    TWeakRefIntf(FWeakRef).FInstance := nil;
+    Destroy;
+  end;
 end;
 
 function TWeakedInterfacedObject.WeakRef: IWeakRefIntf;
