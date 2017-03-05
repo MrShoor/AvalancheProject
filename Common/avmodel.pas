@@ -161,6 +161,8 @@ type
 
     TavModelInstance = class(TInterfacedObject, IavModelInstance, IavModelInstanceInternal)
     private
+      FOwner: TavModelCollection;
+
       FModel: TModel;
       FInstanceIndex: Integer;
       FInstGPUData: IVBManagedHandle;
@@ -187,14 +189,15 @@ type
       function ModelName: String;
       function Name: String;
 
+      constructor Create(const AOwner: TavModelCollection);
       destructor Destroy; override;
     end;
 
     IModelHash = {$IfDef FPC}specialize{$EndIf} IHashMap<IavMesh, TModel>;
     TModelHash = {$IfDef FPC}specialize{$EndIf} THashMap<IavMesh, TModel>;
 
-    IModelInstHash = {$IfDef FPC}specialize{$EndIf} IHashMap<IavMeshInstance, IavModelInstance>;
-    TModelInstHash = {$IfDef FPC}specialize{$EndIf} THashMap<IavMeshInstance, IavModelInstance>;
+    IModelInstHash = {$IfDef FPC}specialize{$EndIf} IHashMap<IavMeshInstance, TavModelInstance>;
+    TModelInstHash = {$IfDef FPC}specialize{$EndIf} THashMap<IavMeshInstance, TavModelInstance>;
 
     TTextureKey = packed record
       Width : Integer;
@@ -293,19 +296,21 @@ end;
 function TavModelCollection.TavBoneTransformMap.DoBuild: Boolean;
   procedure SetNodeData(const ANode: TTransformNode);
   var start, size, rowsize, stop: Integer;
-      x, y: Integer;
+      x, y, i: Integer;
   begin
     start := ANode.Range.Offset;
     size  := ANode.Range.Size;
     stop  := start + size;
+    i := 0;
     while start < stop do
     begin
       y := start div TexWidth;
       x := (start mod TexWidth);
       rowsize := min(stop - start, TexWidth - x);
 
-      FTexH.SetMipImage(x*4, y, rowsize*4, 1, 0, 0, TImageFormat.R32G32B32A32F, @ANode.Matrices[0]);
+      FTexH.SetMipImage(x*4, y, rowsize*4, 1, 0, 0, TImageFormat.R32G32B32A32F, @ANode.Matrices[i]);
       Inc(start, rowsize);
+      Inc(i, rowsize);
     end;
   end;
 var NewW, NewH: Integer;
@@ -489,8 +494,15 @@ begin
   Result := FName;
 end;
 
+constructor TavModelCollection.TavModelInstance.Create(const AOwner: TavModelCollection);
+begin
+  FOwner := AOwner;
+end;
+
 destructor TavModelCollection.TavModelInstance.Destroy;
 begin
+  if FOwner <> nil then
+    FOwner.FModelInstances.Delete(FMeshInst);
   if Assigned(FModel) then
     FModel.UnlinkInstance(Self);
   inherited Destroy;
@@ -605,10 +617,11 @@ begin
   Result := FModels.Next(AMesh, Dummy);
 end;
 
-function TavModelCollection.NextInstance(out AInstance: IavModelInstance
-  ): Boolean;
+function TavModelCollection.NextInstance(out AInstance: IavModelInstance): Boolean;
+var inst: TavModelInstance;
 begin
-  Result := FModelInstances.NextValue(AInstance);
+  Result := FModelInstances.NextValue(inst);
+  AInstance := inst;
 end;
 
 procedure TavModelCollection.DeleteInstance(const AInstance: IavMeshInstance);
@@ -769,7 +782,7 @@ begin
     FModels.AddOrSet(model.Mesh, model);
   end;
 
-  modelInst := TavModelInstance.Create;
+  modelInst := TavModelInstance.Create(Self);
   modelInst.FMeshInst := AMeshInstance;
   if modelInst.FMeshInst.Pose <> nil then
     modelInst.FMeshInst.Pose.SetAnimationState([]);
@@ -808,9 +821,12 @@ begin
 end;
 
 function TavModelCollection.ObtainModel(const AMeshInstance: IavMeshInstance): IavModelInstance;
+var inst: TavModelInstance;
 begin
-  if not FModelInstances.TryGetValue(AMeshInstance, Result) then
-    Result := AddFromMeshInstance(AMeshInstance);
+  if not FModelInstances.TryGetValue(AMeshInstance, inst) then
+    Result := AddFromMeshInstance(AMeshInstance)
+  else
+    Result := inst;
 end;
 
 function TavModelCollection.ObtainModels(const AMeshInstances: IavMeshInstances): IavModelInstanceArr;

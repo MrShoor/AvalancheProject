@@ -1212,7 +1212,6 @@ end;
 procedure TNodeManager{$IfDef DCC}<TNode>{$EndIf}.Add(const ANode: TNode);
 begin
   if ANode = nil then Exit;
-
   ANode.Range := FRangeMan.Alloc(ANode.Size);
   ANode.DirtyIndex := -1;
   if ANode.Range = nil then

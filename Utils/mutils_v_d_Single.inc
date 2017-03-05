@@ -13,6 +13,7 @@ type
   public
     function yx: TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
 
+    Class Operator NotEqual (const v1, v2: TVec2): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Equal (const v1, v2: TVec2): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Add (const v1, v2: TVec2): TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Subtract (const v1, v2: TVec2): TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -42,6 +43,7 @@ type
 
   TVec3 = record
   public
+    Class Operator NotEqual (const v1, v2: TVec3): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Equal (const v1, v2: TVec3): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Add (const v1, v2: TVec3): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Subtract (const v1, v2: TVec3): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -75,6 +77,7 @@ type
 
   TVec4 = record
   public
+    Class Operator NotEqual (const v1, v2: TVec4): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Equal (const v1, v2: TVec4): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Add (const v1, v2: TVec4): TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Subtract (const v1, v2: TVec4): TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -116,6 +119,7 @@ type
     function GetCol(index: Integer): TVec2;               {$IFNDEF NoInline} inline; {$ENDIF}
     procedure SetCol(index: Integer; const Value: TVec2); {$IFNDEF NoInline} inline; {$ENDIF}
   public
+    Class Operator NotEqual (const m1, m2: TMat2): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Equal (const m1, m2: TMat2): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Add (const m1, m2: TMat2): TMat2; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Subtract (const m1, m2: TMat2): TMat2; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -144,6 +148,7 @@ type
     procedure SetOY(const AValue: TVec2); {$IFNDEF NoInline} inline; {$ENDIF}
     procedure SetPos(const AValue: TVec2); {$IFNDEF NoInline} inline; {$ENDIF}
   public
+    Class Operator NotEqual (const m1, m2: TMat3): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Equal (const m1, m2: TMat3): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Add (const m1, m2: TMat3): TMat3; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Subtract (const m1, m2: TMat3): TMat3; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -179,6 +184,7 @@ type
     procedure SetOZ(const AValue: TVec3); {$IFNDEF NoInline} inline; {$ENDIF}
     procedure SetPos(const AValue: TVec3); {$IFNDEF NoInline} inline; {$ENDIF}
   public
+    Class Operator NotEqual (const m1, m2: TMat4): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Equal (const m1, m2: TMat4): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Add (const m1, m2: TMat4): TMat4; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Subtract (const m1, m2: TMat4): TMat4; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -400,6 +406,11 @@ type
     Result.Row[2] := Row[2].xyz;
   end;
 
+  Class Operator TVec2.NotEqual (const v1, v2: TVec2): Boolean;
+  begin
+    Result := (v1.x <> v2.x) or (v1.y <> v2.y);
+  end;
+
   Class Operator TVec2.Equal (const v1, v2: TVec2): Boolean;
   begin
     Result := (v1.x = v2.x) and (v1.y = v2.y);
@@ -484,6 +495,11 @@ type
     Result.y := v.y / f;
   end;
   {$EndIf}  
+
+  Class Operator TVec3.NotEqual (const v1, v2: TVec3): Boolean;
+  begin
+    Result := (v1.x <> v2.x) or (v1.y <> v2.y) or (v1.z <> v2.z);
+  end;
 
   Class Operator TVec3.Equal (const v1, v2: TVec3): Boolean;
   begin
@@ -581,6 +597,11 @@ type
     Result.z := v.z / f;
   end;
   {$EndIf}  
+
+  Class Operator TVec4.NotEqual (const v1, v2: TVec4): Boolean;
+  begin
+    Result := (v1.x <> v2.x) or (v1.y <> v2.y) or (v1.z <> v2.z) or (v1.w <> v2.w);
+  end;
 
   Class Operator TVec4.Equal (const v1, v2: TVec4): Boolean;
   begin
@@ -692,6 +713,11 @@ type
   end;
   {$EndIf}
 
+  Class operator TMat2.NotEqual (const m1, m2: TMat2): Boolean;
+  begin
+    Result := (m1.Row[0] <> m2.Row[0]) or (m1.Row[1] <> m2.Row[1]);
+  end;
+
   Class operator TMat2.Equal (const m1, m2: TMat2): Boolean;
   begin
     Result := (m1.Row[0] = m2.Row[0]) and (m1.Row[1] = m2.Row[1]);
@@ -733,6 +759,11 @@ type
   begin
     Result.Row[0] := - m.Row[0];
     Result.Row[1] := - m.Row[1];
+  end;
+
+  Class Operator TMat3.NotEqual (const m1, m2: TMat3): Boolean;
+  begin
+    Result := (m1.Row[0] <> m2.Row[0]) or (m1.Row[1] <> m2.Row[1]) or (m1.Row[2] <> m2.Row[2]);
   end;
 
   Class Operator TMat3.Equal (const m1, m2: TMat3): Boolean;
@@ -788,6 +819,11 @@ type
     Result.Row[0] := - m.Row[0];
     Result.Row[1] := - m.Row[1];
     Result.Row[2] := - m.Row[2];
+  end;
+
+  Class Operator TMat4.NotEqual (const m1, m2: TMat4): Boolean;
+  begin
+    Result := (m1.Row[0] <> m2.Row[0]) or (m1.Row[1] <> m2.Row[1]) or (m1.Row[2] <> m2.Row[2]) or (m1.Row[3] <> m2.Row[3]);
   end;
 
   Class Operator TMat4.Equal (const m1, m2: TMat4): Boolean;
