@@ -464,7 +464,7 @@ type
     function Parent: {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
 
     function InNode(const AMinBound, AMaxBound: TVec3i): Boolean;
-    function CreateParent(): {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
+    function CreateParent(const AMinBound: TVec3i): {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
     function CalcChildIndex(const AChildPlace: TVec3i): Integer; overload;
     function ObtainChild(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
 
@@ -520,7 +520,7 @@ type
   public
     function CalcChildIndex(const AChildPlace: TVec3i): Integer; overload;
     function ObtainChild(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
-    function CreateParent(): {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
+    function CreateParent(const AMinBound: TVec3i): {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
     constructor Create(const AParent: TNode; const ALevel: Integer; const APlace: TVec3i);
   end;
 
@@ -1203,17 +1203,20 @@ begin
   Result := FChilds[AIndex];
 end;
 
-function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.CreateParent: {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.CreateParent(const AMinBound: TVec3i): {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
 var offset: TVec3i;
     parentLevel: Integer;
     parentPlace: TVec3i;
+    LevelSize: Integer;
 begin
   Assert(FParent = Nil);
 
+  LevelSize := 1 shl FLevel;
+  parentPlace := FPlace;
+  if AMinBound.x < FPlace.x then parentPlace.x := parentPlace.x - LevelSize;
+  if AMinBound.y < FPlace.y then parentPlace.y := parentPlace.y - LevelSize;
+  if AMinBound.z < FPlace.z then parentPlace.z := parentPlace.z - LevelSize;
   parentLevel := FLevel + 1;
-  parentPlace.x := (FPlace.x shr parentLevel) shl parentLevel;
-  parentPlace.y := (FPlace.y shr parentLevel) shl parentLevel;
-  parentPlace.z := (FPlace.z shr parentLevel) shl parentLevel;
 
   FParent := TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.Create(nil, parentLevel, parentPlace);
   FParent.FTotalCounter := FTotalCounter;
@@ -1234,9 +1237,8 @@ end;
 
 function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.Add(const AItem: TItem; const ABox: TAABB): Boolean;
 var KMin, KMax: TVec3i;
-    Level: Integer;
+    Level, LevelSize: Integer;
     Place: TVec3i;
-    v: TVec3;
     node: INode;
 begin
   Delete(AItem);
@@ -1244,19 +1246,20 @@ begin
   Place := Trunc(ABox.Center * FMinNodeSizeInv);
   KMax := mutils.Ceil( (ABox.max - ABox.min) * FMinNodeSizeInv * 0.5 );
   Level := Max(Max(Log2Int(KMax.x), Log2Int(KMax.y)), Log2Int(KMax.z));
+  LevelSize := 1 shl Level;
 
-  Place.x := Place.x shr Level shl Level;
-  Place.y := Place.y shr Level shl Level;
-  Place.z := Place.z shr Level shl Level;
-  KMax.x := Place.x + (1 shl Level);
-  KMax.y := Place.y + (1 shl Level);
-  KMax.z := Place.z + (1 shl Level);
+  KMax.x := Place.x + LevelSize;
+  KMax.y := Place.y + LevelSize;
+  KMax.z := Place.z + LevelSize;
+  KMin.x := Place.x - LevelSize;
+  KMin.y := Place.y - LevelSize;
+  KMin.z := Place.z - LevelSize;
 
   if FRoot = nil then
-    FRoot := TNode.Create(nil, 0, Place);
+    FRoot := TNode.Create(nil, 0, KMin);
 
-  while not FRoot.InNode(Place, KMax) do
-    FRoot := INode(FRoot.CreateParent());
+  while not FRoot.InNode(KMin, KMax) do
+    FRoot := INode(FRoot.CreateParent(KMin));
 
   node := FRoot;
   while node.Level <> Level do
