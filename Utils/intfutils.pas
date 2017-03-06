@@ -155,11 +155,10 @@ begin
       if intf <> nil then
       begin
         Result[j] := intf as IWeakedInterface;
-        Inc(j);
-      end
-      else
         if j < i then
           FSubs[j] := FSubs[i];
+        Inc(j);
+      end
     end;
 
     if j < Length(FSubs) then
