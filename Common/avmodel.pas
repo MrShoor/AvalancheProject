@@ -866,7 +866,11 @@ end;
 destructor TavModelCollection.Destroy;
 var m: TModel;
     mesh: IavMesh;
+    inst: TavModelInstance;
 begin
+  FModelInstances.Reset;
+  while FModelInstances.NextValue(inst) do
+    inst.FOwner := nil;
   FModelInstances.Clear;
   FModels.Reset;
   while FModels.Next(mesh, m) do
