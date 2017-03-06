@@ -463,7 +463,8 @@ type
     function Place: TVec3i;
     function Parent: {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
 
-    function InNode(const AMinBound, AMaxBound: TVec3i): Boolean;
+    function InNode(const AMinBound, AMaxBound: TVec3i): Boolean; overload;
+    function InNode(const APoint: TVec3i): Boolean; overload;
     function CreateParent(const AMinBound: TVec3i): {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
     function CalcChildIndex(const AChildPlace: TVec3i): Integer; overload;
     function ObtainChild(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
@@ -503,7 +504,8 @@ type
     function Item(const AIndex: Integer): TItem;
 
     function CalcChildIndex(const AParentPlace: TVec3i; const AParentLevel: Integer; const AChildPlace: TVec3i): Integer; overload;
-    function InNode(const AMinBound, AMaxBound: TVec3i): Boolean;
+    function InNode(const AMinBound, AMaxBound: TVec3i): Boolean; overload;
+    function InNode(const APoint: TVec3i): Boolean; overload;
 
     procedure TryDetachFromParent;
 
@@ -1127,6 +1129,20 @@ begin
   Result := True;
 end;
 
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.InNode(const APoint: TVec3i): Boolean;
+var offset: Integer;
+begin
+  Result := False;
+  if APoint.x < FPlace.x then Exit;
+  if APoint.y < FPlace.y then Exit;
+  if APoint.z < FPlace.z then Exit;
+  offset := 1 shl FLevel;
+  if APoint.x >= FPlace.x+offset then Exit;
+  if APoint.y >= FPlace.y+offset then Exit;
+  if APoint.z >= FPlace.z+offset then Exit;
+  Result := True;
+end;
+
 procedure TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.TryDetachFromParent;
 var selfIntf: INode;
     i: Integer;
@@ -1256,11 +1272,12 @@ begin
   KMin.x := Place.x - LevelSize;
   KMin.y := Place.y - LevelSize;
   KMin.z := Place.z - LevelSize;
+  Inc(Level);
 
   if FRoot = nil then
-    FRoot := TNode.Create(nil, 0, KMin);
+    FRoot := TNode.Create(nil, Level, KMin);
 
-  while not FRoot.InNode(KMin, KMax) do
+  while (not FRoot.InNode(Place)) or (FRoot.Level < Level) do
     FRoot := INode(FRoot.CreateParent(KMin));
 
   node := FRoot;
