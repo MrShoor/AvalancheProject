@@ -533,6 +533,8 @@ type
   {$IfDef FPC}generic{$EndIf}
   TLooseOctTree<TItem> = class (TInterfacedObjectEx, {$IfDef FPC}specialize{$EndIf} ILooseOctTree<TItem>)
   private type
+    ITree = {$IfDef FPC}specialize{$EndIf} ILooseOctTree<TItem>;
+
     IBaseNode = {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TAABB>;
 
     INode = {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
@@ -1331,9 +1333,11 @@ procedure TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.EnumNodesRecursive(const ANod
 var EnumChilds: Boolean;
     Child: IBaseNode;
     i: Integer;
+    sender: ITree;
 begin
   EnumChilds := True;
-  ACallbackIterator.OnEnumNode(Self, ANode, EnumChilds);
+  sender := Self;
+  ACallbackIterator.OnEnumNode(sender, ANode, EnumChilds);
   if EnumChilds then
     for i := 0 to 7 do
     begin
