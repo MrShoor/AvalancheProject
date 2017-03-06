@@ -434,6 +434,8 @@ type
     function TotalCount: Integer;
     function ItemsCount: Integer;
     function Item(const AIndex: Integer): TItem;
+
+    function UsedMemory: Integer;
   end;
 
   ILooseNodeCallBackIterator = interface
@@ -452,6 +454,8 @@ type
 
     procedure EnumNodes(const ACallbackIterator: ILooseNodeCallBackIterator);
     procedure CleanUnused;
+
+    function UsedMemory: Integer;
   end;
 
   {$IfDef FPC}generic{$EndIf}
@@ -496,6 +500,8 @@ type
     FChilds      : array [0..7] of INode;
     FItems       : IItems;
   private
+    function UsedMemory: Integer;
+
     function Level: Integer;
     function Child(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TAABB>;
 
@@ -550,6 +556,8 @@ type
     FRoot: INode;
     FItemToNode: IItemToNodeHash;
   protected
+    function UsedMemory: Integer;
+
     function Add(const AItem: TItem; Const ABox: TAABB): Boolean;
     function Contains(const AItem: TItem): Boolean;
     function Delete(const AItem: TItem): Boolean;
@@ -1076,6 +1084,17 @@ end;
 
 { TLooseOctTreeNode }
 
+function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.UsedMemory: Integer;
+var
+  i: Integer;
+begin
+  Result := InstanceSize;
+  Inc(Result, FItems.Capacity * SizeOf(TItem));
+  for i := 0 to 7 do
+    if FChilds[i] <> nil then
+      Inc(Result, FChilds[i].UsedMemory);
+end;
+
 function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.Level: Integer;
 begin
   Result := FLevel;
@@ -1252,6 +1271,12 @@ begin
 end;
 
 { TLooseOctTree }
+function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.UsedMemory: Integer;
+begin
+  Result := InstanceSize;
+  Inc(Result, FItemToNode.Capacity*(SizeOf(TItem)+SizeOf(Pointer)+SizeOf(Integer)) );
+  Inc(Result, FRoot.UsedMemory);
+end;
 
 function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.Add(const AItem: TItem; const ABox: TAABB): Boolean;
 var KMin, KMax: TVec3i;
