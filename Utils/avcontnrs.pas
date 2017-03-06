@@ -585,9 +585,8 @@ uses
 
 function IsManagedRecord(td: PTypeData): Boolean;
 {$IfDef FPC}
-var i, n2 : Integer;
-    td2: PTypeData;
-    mf, mf2: PManagedField;
+var i : Integer;
+    mf: PManagedField;
 {$EndIf}
 begin
   {$IfDef DCC}
@@ -1241,8 +1240,7 @@ begin
 end;
 
 function TLooseOctTreeNode{$IfDef DCC}<TItem>{$EndIf}.CreateParent(const AMinBound: TVec3i): {$IfDef FPC}specialize{$EndIf} IOctNodeInternal<TItem>;
-var offset: TVec3i;
-    parentLevel: Integer;
+var parentLevel: Integer;
     parentPlace: TVec3i;
     LevelSize: Integer;
 begin
@@ -1378,6 +1376,7 @@ var EnumChilds: Boolean;
     sender: ITree;
 begin
   EnumChilds := True;
+
   sender := Self;
   ACallbackIterator.OnEnumNode(sender, ANode, EnumChilds);
   if EnumChilds then
@@ -1413,8 +1412,7 @@ begin
 end;
 
 procedure TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.CleanUnused;
-var newRoot, chld: INode;
-    i: Integer;
+var newRoot: INode;
 begin
   if FRoot = nil then Exit;
   if FRoot.TotalCount = 0 then
