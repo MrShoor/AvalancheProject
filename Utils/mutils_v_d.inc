@@ -567,14 +567,14 @@ type
   {$EndIf}
 
   {$IfDef Single}
-  Class Operator TV3.Divide (const v1, v2: TVec3): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+  Class Operator TV3.Divide (const v1, v2: TVec3): TVec3;
   begin
     Result.x := v1.x / v2.x;
     Result.y := v1.y / v2.y;
     Result.z := v1.z / v2.z;
   end;
 
-  Class Operator TV3.Divide (const v: TVec3; const f: Single): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+  Class Operator TV3.Divide (const v: TVec3; const f: Single): TVec3;
   begin
     Result.x := v.x / f;
     Result.y := v.y / f;
@@ -583,14 +583,14 @@ type
   {$EndIf}
   
   {$IfDef Integer}
-  Class Operator TV3.Divide (const v1, v2: TVec3i): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+  Class Operator TV3.Divide (const v1, v2: TVec3i): TVec3;
   begin
     Result.x := v1.x / v2.x;
     Result.y := v1.y / v2.y;
     Result.z := v1.z / v2.z;
   end;
 
-  Class Operator TV3.Divide (const v: TVec3i; const f: Single): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+  Class Operator TV3.Divide (const v: TVec3i; const f: Single): TVec3;
   begin
     Result.x := v.x / f;
     Result.y := v.y / f;
@@ -678,7 +678,7 @@ type
   {$EndIf}
 
   {$IfDef Single}
-  Class Operator TV4.Divide (const v1, v2: TVec4): TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
+  Class Operator TV4.Divide (const v1, v2: TVec4): TVec4;
   begin
     Result.x := v1.x / v2.x;
     Result.y := v1.y / v2.y;
@@ -686,7 +686,7 @@ type
     Result.w := v1.w / v2.w;
   end;
 
-  Class Operator TV4.Divide (const v: TVec4; const f: Single): TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
+  Class Operator TV4.Divide (const v: TVec4; const f: Single): TVec4;
   begin
     Result.x := v.x / f;
     Result.y := v.y / f;
@@ -696,7 +696,7 @@ type
   {$EndIf}
   
   {$IfDef Integer}
-  Class Operator TV4.Divide (const v1, v2: TVec4i): TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
+  Class Operator TV4.Divide (const v1, v2: TVec4i): TVec4;
   begin
     Result.x := v1.x / v2.x;
     Result.y := v1.y / v2.y;
@@ -704,7 +704,7 @@ type
     Result.w := v1.w / v2.w;
   end;
 
-  Class Operator TV4.Divide (const v: TVec4i; const f: Single): TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
+  Class Operator TV4.Divide (const v: TVec4i; const f: Single): TVec4;
   begin
     Result.x := v.x / f;
     Result.y := v.y / f;

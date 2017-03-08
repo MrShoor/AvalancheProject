@@ -1,7 +1,7 @@
 unit mutils;
 {$I avConfig.inc}
 
-{$define NoInline}
+//{$define NoInline}
 
 interface {$define INTF}
 
