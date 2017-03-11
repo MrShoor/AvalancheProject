@@ -809,7 +809,6 @@ type
   procedure LoadMeshInstanceFromStream(const stream: TStream; out instInfo: TMeshInstInfo);
   var s: AnsiString;
       m: TMat4;
-      i: Integer;
   begin
     //prevent warnings
     m := IdentityMat4;
@@ -906,6 +905,7 @@ type
       m: TMat4;
   begin
     n := 0;
+    m := IdentityMat4;
     arm := TavArmature.Create;
 
     StreamReadString(stream, s);
@@ -1182,7 +1182,6 @@ procedure TavAnimationController.UpdateAnimationState;
 var i, n: Integer;
     currTime: Int64;
     Complete: Boolean;
-    inst: IavMeshInstance;
 begin
   if Length(FAnimationStates) = 0 then Exit;
 
@@ -1252,8 +1251,7 @@ begin
 end;
 
 procedure TavAnimationController.AnimationStart(const AAnimationName: string; GrowSpeed: Single);
-var inst: IavMeshInstance;
-    arm : IavArmature;
+var arm : IavArmature;
     anim: IavAnimation;
     animIndex: Integer;
     n: Integer;

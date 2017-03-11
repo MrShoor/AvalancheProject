@@ -1,7 +1,7 @@
 unit mutils;
 {$I avConfig.inc}
 
-{$define NoInline}
+//{$define NoInline}
 
 interface {$define INTF}
 
@@ -1201,6 +1201,8 @@ end;
 
 function Log2Int(v: Integer): Integer; //http://graphics.stanford.edu/~seander/bithacks.html#IntegerLog
 begin
+  if v < 0 then Exit(0);
+
   if (v > $FFFF) then
   begin
     Result := 16;
