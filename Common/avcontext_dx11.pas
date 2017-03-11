@@ -2104,7 +2104,7 @@ type
       end;
       Result.StrideSize := (TotalOffset + 7) div 8;
 
-      if LowerCase(Name[Length(Name)-1]) = 'f' then
+      if LowerCase(Name[Length(Name)]) = 'f' then
         for i := 0 to 3 do
           if Result.RGBA[i].CompType = ctInt then Result.RGBA[i].CompType := ctFloat;
   end;
@@ -2145,11 +2145,14 @@ type
         if BitsCount = 8 then //todo check this condition for other bitcount images
           Result.RGBA[i].BitsOffset := i * BitsCount
         else
+        if TexturePixelSize[Format] < 4 then
+          Result.RGBA[i].BitsOffset := i * BitsCount
+        else
           Result.RGBA[i].BitsOffset := 32 - ((BitsCount * i) mod 32) - BitsCount;
         Result.RGBA[i].BitsCount := BitsCount;
       end;
 
-      if LowerCase(Name[Length(Name)-1]) = 'f' then
+      if LowerCase(Name[Length(Name)]) = 'f' then
         for i := 0 to 3 do
           if Result.RGBA[i].CompType = ctInt then Result.RGBA[i].CompType := ctFloat;
 

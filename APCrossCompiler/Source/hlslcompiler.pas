@@ -243,7 +243,7 @@ begin
     entry := AnsiString(prog.Entry[st]);
     target := AnsiString(prog.Target[st]);
     incl.Open(D3D_INCLUDE_LOCAL, PAnsiChar(AnsiString(prog.Shader[st])), nil, @data, @dataSize);
-    CheckHResult( D3DCompile(data, dataSize, nil, nil, incl, PAnsiChar(entry), PAnsiChar(target), D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY or D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, code, output) );
+    CheckHResult( D3DCompile(data, dataSize, nil, nil, incl, PAnsiChar(entry), PAnsiChar(target), prog.HLSLFlags, 0, code, output) );
     {$IfDef DEBUGHLSLCC}
     D3DDisassemble(code.GetBufferPointer, code.GetBufferSize, D3D_DISASM_ENABLE_DEFAULT_VALUE_PRINTS or D3D_DISASM_ENABLE_INSTRUCTION_NUMBERING, nil, disasm);
     fs := TFileStream.Create(OutFile+'.asm', fmCreate);

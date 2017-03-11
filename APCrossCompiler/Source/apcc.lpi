@@ -29,7 +29,7 @@
       <local>
         <FormatVersion Value="1"/>
         <CommandLineParams Value="shaders.json"/>
-        <WorkingDirectory Value="D:\SVN\platform_edp\ADVPCB\Source code\GPUPour\GPUPour_shaders"/>
+        <WorkingDirectory Value="D:\Projects\FreeWorld\shaders"/>
       </local>
     </RunParams>
     <RequiredPackages Count="1">

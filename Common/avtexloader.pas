@@ -57,6 +57,8 @@ function LoadTextures(const Files       : array of string;
                       const targetHeight: Integer = SIZE_DEFAULT;
                       const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
 
+function LoadRaw(const FileName: string; Width, Height: Integer; Format: TTextureFormat; withMips: Boolean = False): ITextureData; overload;
+
 function Create_ITextureManager: ITextureManager;
 
 implementation
@@ -252,7 +254,7 @@ begin
      ifA8Gray8      : Result := TImageFormat.R8G8;
      ifGray16       : Result := TImageFormat.R16F;
      ifGray32       : Result := TImageFormat.R32F;
-     ifA16Gray16    : Result := TImageFormat.R16G16F;
+     ifA16Gray16    : Result := TImageFormat.R16G16;
      ifR5G6B5       : Result := TImageFormat.R5G6B5;
      ifR8G8B8       : Result := TImageFormat.R8G8B8;
      ifA8R8G8B8     : Result := TImageFormat.A8R8G8B8;
@@ -279,6 +281,8 @@ begin
   case srcFormat of
     TImageFormat.Unknown       : Result := ifDefault;
     TImageFormat.Gray8         : Result := ifGray8;
+    TImageFormat.R16G16        : Result := ifA16Gray16;
+    //TImageFormat.R8G8          : Result := ifA8Gray8;
     TImageFormat.R3G3B2        : Result := ifR3G3B2;
     TImageFormat.R5G6B5        : Result := ifR5G6B5;
     TImageFormat.A1R5G5B5      : Result := ifA1R5G5B5;
@@ -426,6 +430,29 @@ begin
   Result := Nil;
 end;
 {$EndIf}
+
+function LoadRaw(const FileName: string; Width, Height: Integer;
+  Format: TTextureFormat; withMips: Boolean): ITextureData;
+var fs: TFileStream;
+    mip: ITextureMip;
+    i: Integer;
+    size: Integer;
+    pdata: PWord;
+begin
+  fs := TFileStream.Create(FileName, fmOpenRead);
+  try
+    Result := EmptyTexData(Width, Height, Format, withMips, True);
+    for i := 0 to Result.MipCount(0) - 1 do
+    begin
+      mip := Result.MipData(0, i);
+      size := mip.Width*mip.Height*TexturePixelSize[Format];
+      pdata := PWord(mip.Data);
+      fs.ReadBuffer(pdata^, size);
+    end;
+  finally
+    FreeAndNil(fs);
+  end;
+end;
 
 {$IfDef VAMPYRE}
 function Create_ITextureManager: ITextureManager;

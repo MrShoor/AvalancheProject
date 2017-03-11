@@ -31,6 +31,7 @@ type
       OGLTranslate      : Boolean;
       HLSLcc_lang       : Integer;
       HLSLcc_flags      : Cardinal;
+      HLSLFlags         : Cardinal;
 
       OutStats          : Boolean;
 
@@ -71,6 +72,9 @@ type
 
     TFLAGS_HLSLcc = specialize THashMap<string, Cardinal>;
     IFLAGS_HLSLcc = specialize IHashMap<string, Cardinal>;
+
+    TFLAGS_HLSL = specialize THashMap<string, Cardinal>;
+    IFLAGS_HLSL = specialize IHashMap<string, Cardinal>;
   {$else}
     TProgramList = TList<TProgramInfo>;
     IProgramList = TList<TProgramInfo>;
@@ -80,6 +84,7 @@ type
   {$endif}
 var
   FLAGS_HLSLcc : IFLAGS_HLSLcc;
+  FLAGS_HLSL : IFLAGS_HLSL;
 
 function GetHLSLccFlag(const s: string): Cardinal;
 begin
@@ -101,6 +106,34 @@ begin
     FLAGS_HLSLcc.add('HLSLCC_FLAG_DISABLE_VULKAN_DUMMIES', $1000);
   end;
   if not FLAGS_HLSLcc.TryGetValue(s, Result) then Result := 0;
+end;
+
+function GetHLSLFlag(const s: string): Cardinal;
+begin
+  if FLAGS_HLSL = nil then
+  begin
+    FLAGS_HLSL := TFLAGS_HLSLcc.Create;
+    FLAGS_HLSL.Add('D3DCOMPILE_DEBUG', 1 shl 0);
+    FLAGS_HLSL.Add('D3DCOMPILE_SKIP_VALIDATION', 1 shl 1);
+    FLAGS_HLSL.Add('D3DCOMPILE_SKIP_OPTIMIZATION', 1 shl 2);
+    FLAGS_HLSL.Add('D3DCOMPILE_PACK_MATRIX_ROW_MAJOR', 1 shl 3);
+    FLAGS_HLSL.Add('D3DCOMPILE_PACK_MATRIX_COLUMN_MAJOR', 1 shl 4);
+    FLAGS_HLSL.Add('D3DCOMPILE_PARTIAL_PRECISION', 1 shl 5);
+    FLAGS_HLSL.Add('D3DCOMPILE_FORCE_VS_SOFTWARE_NO_OPT', 1 shl 6);
+    FLAGS_HLSL.Add('D3DCOMPILE_FORCE_PS_SOFTWARE_NO_OPT', 1 shl 7);
+    FLAGS_HLSL.Add('D3DCOMPILE_NO_PRESHADER', 1 shl 8);
+    FLAGS_HLSL.Add('D3DCOMPILE_AVOID_FLOW_CONTROL', 1 shl 9);
+    FLAGS_HLSL.Add('D3DCOMPILE_PREFER_FLOW_CONTROL', 1 shl 10);
+    FLAGS_HLSL.Add('D3DCOMPILE_ENABLE_STRICTNESS', 1 shl 11);
+    FLAGS_HLSL.Add('D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY', 1 shl 12);
+    FLAGS_HLSL.add('D3DCOMPILE_IEEE_STRICTNESS', 1 shl 13);
+    FLAGS_HLSL.add('D3DCOMPILE_OPTIMIZATION_LEVEL0', 1 shl 14);
+    FLAGS_HLSL.add('D3DCOMPILE_OPTIMIZATION_LEVEL1', 0);
+    FLAGS_HLSL.add('D3DCOMPILE_OPTIMIZATION_LEVEL2', (1 shl 14) or (1 shl 15));
+    FLAGS_HLSL.add('D3DCOMPILE_OPTIMIZATION_LEVEL3', 1 shl 15);
+    FLAGS_HLSL.add('D3DCOMPILE_WARNINGS_ARE_ERRORS', 1 shl 18);
+  end;
+  if not FLAGS_HLSL.TryGetValue(s, Result) then Result := 0;
 end;
 
 type
@@ -225,6 +258,21 @@ begin
   else
     if not IsDefaultProgram then
       Result.HLSLcc_flags := FDefaultProgramInfo.HLSLcc_flags;
+
+  Result.HLSLFlags := 0;
+  flags := sobj.O['HLSLFlags'];
+  if flags <> nil then
+  begin
+    sarr := flags.AsArray;
+    for I := 0 to sarr.Length - 1 do
+      Result.HLSLFlags :=  Result.HLSLFlags or GetHLSLFlag(sarr.S[I]);
+    Result.HLSLFlags := Result.HLSLFlags or $1000; //forced HLSLCC_FLAG_DISABLE_VULKAN_DUMMIES flag
+  end
+  else
+    if not IsDefaultProgram then
+      Result.HLSLFlags := FDefaultProgramInfo.HLSLFlags
+    else
+      Result.HLSLFlags := GetHLSLFlag('D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY') or GetHLSLFlag('D3DCOMPILE_OPTIMIZATION_LEVEL3');
 
   for st := Low(TShaderType) to High(TShaderType) do
     Result.Entry[st] := TryGetStr(sobj, ShaderType_Name[st]+'Entry', FDefaultProgramInfo.Entry[st]);
