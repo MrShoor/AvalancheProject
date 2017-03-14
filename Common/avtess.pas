@@ -1,5 +1,6 @@
 unit avTess;
 {$I avConfig.inc}
+//{$Define SlowAssertions}
 
 interface
 
@@ -954,8 +955,11 @@ begin
       end;
 
       Assert(Range.FRefCount >= 0);
-      Assert(Range.FOffset < FTotalSize);
-      Assert(Range.FSize > 0);
+      if FTotalSize > 0 then
+      begin
+        Assert(Range.FOffset < FTotalSize);
+        Assert(Range.FSize > 0);
+      end;
       if Range.FRefCount > 0 then
         Inc(AllocSize, Range.FSize)
       else

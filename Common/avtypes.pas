@@ -133,6 +133,16 @@ type
   TColorMask = set of TColorMaskComponent;
 Const
   AllChanells : TColorMask = [cmRed, cmGreen, cmBlue, cmAlpha];
+  InverseDepthTest : array [TCompareFunc] of TCompareFunc = (
+                      cfAlways,          //cfNever,
+                      cfGreater,         //cfLess,
+                      cfNotEqual,        //cfEqual,
+                      cfEqual,           //cfNotEqual,
+                      cfGreaterEqual,    //cfLessEqual,
+                      cfLess,            //cfGreater,
+                      cfLessEqual,       //cfGreaterEqual,
+                      cfNever            //cfAlways);
+  );
 
 Type
   TSamplerInfo = record
