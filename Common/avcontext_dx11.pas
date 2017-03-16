@@ -1490,6 +1490,16 @@ begin
   if DXField.FSamplerIndex[stVertex]>=0 then
     FContext.FDeviceContext.VSSetSamplers(DXField.FSamplerIndex[stVertex], 1, @SamplerState);
 
+  if DXField.FResourceIndex[stTessControl]>=0 then
+      FContext.FDeviceContext.HSSetShaderResources(DXField.FResourceIndex[stTessControl], 1, @resview);
+  if DXField.FSamplerIndex[stTessControl]>=0 then
+      FContext.FDeviceContext.HSSetSamplers(DXField.FSamplerIndex[stTessControl], 1, @SamplerState);
+
+  if DXField.FResourceIndex[stTessEval]>=0 then
+      FContext.FDeviceContext.DSSetShaderResources(DXField.FResourceIndex[stTessEval], 1, @resview);
+  if DXField.FSamplerIndex[stTessEval]>=0 then
+      FContext.FDeviceContext.DSSetSamplers(DXField.FSamplerIndex[stTessEval], 1, @SamplerState);
+
   if DXField.FResourceIndex[stGeometry]>=0 then
       FContext.FDeviceContext.GSSetShaderResources(DXField.FResourceIndex[stGeometry], 1, @resview);
   if DXField.FSamplerIndex[stGeometry]>=0 then
