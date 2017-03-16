@@ -487,18 +487,6 @@ var st: TShaderType;
     n: Integer;
 begin
   Write('Linking(HLSL): "', prog.Name, '" ... ');
-  {$IfDef fpc}
-  UniformHash := TUniformsHash.Create;
-  {$Else}
-  UniformHash := TUniformsHash.Create;
-  {$EndIf}
-
-  for st := Low(TShaderType) to High(TShaderType) do
-  begin
-    if st = stUnknown then Continue;
-    if shaders[st] = '' then Continue;
-    uniforms[st] := ReadUniforms( GetShaderReflection(shaders[st]), UBSize[st] );
-  end;
 
   fs := TFileStream.Create(OutFile, fmCreate);
   try
@@ -506,6 +494,9 @@ begin
     begin
         if st = stUnknown then Continue;
         if shaders[st] = '' then Continue;
+
+        UniformHash := TUniformsHash.Create;
+        uniforms[st] := ReadUniforms( GetShaderReflection(shaders[st]), UBSize[st] );
 
         ShaderChunk := TChunkWriter.Create(fs, ShaderType_FourCC[st]);
         try
@@ -537,9 +528,6 @@ begin
     FreeAndNil(fs);
   end;
 
-  {$IfNDef fpc}
-  FreeAndNil(UniformHash);
-  {$EndIf}
   WriteLn('done.');
 end;
 
