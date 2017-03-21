@@ -237,7 +237,7 @@ var incl: TIncludeAdapter;
     dataSize: LongWord;
 begin
   fs := nil;
-  Write('Compiling(HLSL): "', prog.Shader[st], '" ... ');
+  Write('Compiling(HLSL:',ShaderType_Name[st],'): "', prog.Shader[st], '" ... ');
   incl := TIncludeAdapter.Create(prog);
   try
     entry := AnsiString(prog.Entry[st]);
