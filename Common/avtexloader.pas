@@ -444,6 +444,8 @@ begin
     Result := EmptyTexData(Width, Height, Format, withMips, True);
     for i := 0 to Result.MipCount(0) - 1 do
     begin
+      if fs.Position >= fs.Size then Break;
+
       mip := Result.MipData(0, i);
       size := mip.Width*mip.Height*TexturePixelSize[Format];
       pdata := PWord(mip.Data);
@@ -660,6 +662,8 @@ end;
 
 procedure TTextureData.SetMip(Index, MipLevel: Integer; const AImage: ITextureMip; AutoResize: Boolean; const FillColor: TVec4);
 var w, h: Integer;
+    tmip: TMipImage;
+    datasize: Integer;
 begin
   if (MipLevel < 0) or (MipLevel >= FMipsCount) then Exit;
 
@@ -674,7 +678,15 @@ begin
 
   w := Width shr MipLevel;
   h := Height shr MipLevel;
-  FMips[Index][MipLevel] := ConvertMip(AImage, w, h, Format, AutoResize, FillColor);
+  if AImage = nil then
+  begin
+    datasize := w*h*ImagePixelSize[Format];
+    tmip := TMipImage.Create(w, h, nil, datasize, Format);
+    SetLength(tmip.FData, datasize);
+    FMips[Index][MipLevel] := tmip;
+  end
+  else
+    FMips[Index][MipLevel] := ConvertMip(AImage, w, h, Format, AutoResize, FillColor);
 end;
 
 procedure TTextureData.Drop(Index, MipLevel: Integer);
@@ -906,7 +918,7 @@ begin
   FFormat := AFormat;
   withMips := withMips and IsPow2(Vec(AWidth, AHeight));
   if withMips then
-    FMipsCount := Log2Int(Min(AWidth, AHeight))
+    FMipsCount := Log2Int(Min(AWidth, AHeight))+1
   else
     FMipsCount := 1;
   SetLength(FMips, 1, FMipsCount);
