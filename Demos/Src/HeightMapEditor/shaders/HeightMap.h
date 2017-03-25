@@ -18,7 +18,7 @@ float2 GetTexCoord(float2 coord2D) {
 }
 
 float3 GetMapCoord(float2 coord2D) {
-    float3 c = float3(coord2D, -HeightMap.SampleLevel(HeightMapSampler, GetTexCoord(coord2D), 0).r*255);
+    float3 c = float3(coord2D, -HeightMap.Sample(HeightMapSampler, GetTexCoord(coord2D)).r*255);
     return c.xyz;
 }
 
@@ -27,18 +27,26 @@ float3 GetMapCoord(float2 coord2D, float LOD) {
     return c.xyz;
 }
 
-float3 GetMapNormal(float2 coord2D) {
-    float2 rg = HeightNormalMap.SampleLevel(HeightNormalMapSampler, GetTexCoord(coord2D), 0).xy;
+float3 GetMapNormal(float2 coord2D, float LOD) {
+    float2 rg = HeightNormalMap.SampleLevel(HeightNormalMapSampler, GetTexCoord(coord2D), LOD).xy;
     rg *= 2.0;
     rg -= 1.0;
     float z = sqrt(abs(1.0 - dot(rg, rg)));
-    return float3(rg, z);
+    return float3(rg, -z);
+}
+
+float3 GetMapNormal(float2 coord2D) {
+    float2 rg = HeightNormalMap.Sample(HeightNormalMapSampler, GetTexCoord(coord2D)).xy;
+    rg *= 2.0;
+    rg -= 1.0;
+    float z = sqrt(abs(1.0 - dot(rg, rg)));
+    return float3(rg, -z);
 }
 
 void GetMapCoordWithNormal(float2 coord2D, out float3 wCoord, out float3 wNormal) {
-//    wCoord = GetMapCoord(coord2D);
-//    wNormal = GetMapNormal(coord2D);
-
+    wCoord = GetMapCoord(coord2D);
+    wNormal = GetMapNormal(coord2D);
+/*
     wCoord = GetMapCoord(coord2D);
     
     float3 neibs[4];
@@ -52,11 +60,13 @@ void GetMapCoordWithNormal(float2 coord2D, out float3 wCoord, out float3 wNormal
     }
 
     wNormal = normalize(wNormal);
+ */ 
+
 }
 
 void GetMapCoordWithNormal(float2 coord2D, float LOD, out float3 wCoord, out float3 wNormal) {
-    wCoord = GetMapCoord(coord2D);
-    wNormal = GetMapNormal(coord2D);
+    wCoord = GetMapCoord(coord2D, LOD);
+    wNormal = GetMapNormal(coord2D, LOD);
     /*
     wCoord = GetMapCoord(coord2D);
     

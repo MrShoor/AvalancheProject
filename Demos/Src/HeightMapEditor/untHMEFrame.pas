@@ -141,16 +141,6 @@ begin
   LoadMap;
 
   FMain := TavMainRender.Create(nil);
-//  FMain.Window := pnlRender.Handle;
-//  FMain.Init3D(T3DAPI.apiDX11);
-//
-//  FMain.Bind;
-//  FHeightMap := TavTexture.Create(FMain);
-//  FHeightMap.AutoGenerateMips := True;
-//  FHeightMap.TargetFormat := TTextureFormat.RGBA;
-//  FHeightMap.TexData := LoadTexture('terraintiles.bmp');
-//  FHeightMap.Build;
-//  FMain.Unbind;
 
   FFBO := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
 
@@ -160,12 +150,12 @@ begin
   FQuadPatchVB.CullMode := cmNone;
 
   FHeightMap := TavTexture.Create(FMain);
-  FHeightMap.AutoGenerateMips := False;
+  FHeightMap.AutoGenerateMips := True;
   FHeightMap.TargetFormat := TTextureFormat.R16;
   FHeightMap.TexData := FHeightMapData;
 
   FNormalMap := TavTexture.Create(FMain);
-  FNormalMap.AutoGenerateMips := False;
+  FNormalMap.AutoGenerateMips := True;
   FNormalMap.TargetFormat := TTextureFormat.RG;
   FNormalMap.TexData := FNormalMapData;
 
@@ -192,7 +182,8 @@ var w, h, level: Integer;
     norm: TVec3;
     srcMip, dstMip: ITextureMip;
 begin
-  FHeightMapData := LoadRaw('..\Media\terrain3.r16', 2048, 2048, TTextureFormat.R16, True);
+  FHeightMapData := LoadRaw('..\Media\terrain3.r16', 2048, 2048, TTextureFormat.R16, False);
+  {
   //manual mip generation for heightmap
   level := 0;
   w := FHeightMapData.Width;
@@ -215,9 +206,10 @@ begin
         PWord(dstMip.Pixel(i, j))^ := summ;
       end;
   end;
-
+  }
   //normals generation
-  FNormalMapData := EmptyTexData(FHeightMapData.Width, FHeightMapData.Height, TTextureFormat.RG, True, True);
+  //FNormalMapData := EmptyTexData(FHeightMapData.Width, FHeightMapData.Height, TTextureFormat.RG, True, True);
+  FNormalMapData := EmptyTexData(FHeightMapData.Width, FHeightMapData.Height, TTextureFormat.RG, False, True);
   for level := 0 to FHeightMapData.MipCount(0) - 1 do
   begin
     srcMip := FHeightMapData.MipData(0, level);
@@ -231,7 +223,7 @@ begin
           pts[k].xy := PICK_OFFSETS[k];
           if (i + pts[k].x >= 0) and (i + pts[k].x < srcMip.Width) and
              (j + pts[k].y >= 0) and (j + pts[k].y < srcMip.Height) then
-            pts[k].z := PWord(srcMip.Pixel(i+1,j))^/$FFFF*HEIGHTMAP_ZSCALE - z
+            pts[k].z := PWord(srcMip.Pixel(i+Round(pts[k].x),j+Round(pts[k].y)))^/$FFFF*HEIGHTMAP_ZSCALE - z
           else
             pts[k].z := 0;
         end;
@@ -272,8 +264,8 @@ begin
         pdstNorm := PVec2b(dstMip.Pixel(i, j));
         //pdstNorm^.x := norm.x;
         //pdstNorm^.y := norm.y;
-        pdstNorm^.x := Clamp(Round((norm.x+1.0)*0.5*255), 0, 255);
-        pdstNorm^.y := Clamp(Round((norm.y+1.0)*0.5*255), 0, 255);
+        pdstNorm^.y := Clamp(Round((norm.x+1.0)*0.5*255), 0, 255);
+        pdstNorm^.x := Clamp(Round((norm.y+1.0)*0.5*255), 0, 255);
       end;
   end;
 
@@ -352,7 +344,7 @@ begin
     //FMain.Camera.Eye := Vec(-1,-1,-1);//*30;
     FMain.Camera.Up := Vec(0,0,-1);
 
-    FHeightMap.Build;
+    //FHeightMap.Build;
 
     FMain.Projection.NearPlane := 0.1;
     FMain.Projection.FarPlane := 10000;
@@ -373,8 +365,8 @@ begin
     //FProg.SetUniform('fArea', Vec(0.0,0.0,2.0,2.0));
     FProg.SetUniform('CellSize', CellSize*1.0);
     FProg.SetUniform('ViewPortSize', FFBO.FrameRect.Size);
-    FProg.SetUniform('HeightMap', FHeightMap, Sampler_Linear);
     FProg.SetUniform('HeightNormalMap', FNormalMap, Sampler_Linear);
+    FProg.SetUniform('HeightMap', FHeightMap, Sampler_Linear);
     FProg.Draw((2048 div CellSize - 1)*(2048 div CellSize - 1));
     //FProg.Draw(4);
 
