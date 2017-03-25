@@ -36,6 +36,9 @@ float3 GetMapNormal(float2 coord2D) {
 }
 
 void GetMapCoordWithNormal(float2 coord2D, out float3 wCoord, out float3 wNormal) {
+//    wCoord = GetMapCoord(coord2D);
+//    wNormal = GetMapNormal(coord2D);
+
     wCoord = GetMapCoord(coord2D);
     
     float3 neibs[4];

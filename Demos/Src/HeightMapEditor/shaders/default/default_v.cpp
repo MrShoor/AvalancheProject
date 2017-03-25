@@ -26,8 +26,7 @@ VS_Data VS(VS_Input In) {
     Out.vsCoord.y = ID / Area.z + Area.y;
     Out.vsCoord.xy *= CellSize;
     Out.vsCoord.xy += In.vsCoord*CellSize;
-    Out.vsCoord.z = 0.0;
-    //Out.vsCoord = GetMapCoord(Out.vsCoord.xy);
+    Out.vsCoord = GetMapCoord(Out.vsCoord.xy);
 
     return Out;
 }
@@ -113,7 +112,7 @@ HS_ConstOut EdgeDistanceConstantFunction(InputPatch<VS_Data, 4> Patch, uint patc
 [partitioning("integer")]
 [outputtopology("triangle_cw")]
 [outputcontrolpoints(4)]
-[patchconstantfunc("ScreenSpaceConstantFunction")]
+[patchconstantfunc("EdgeDistanceConstantFunction")]
 VS_Data HS(InputPatch<VS_Data, 4> patch, uint pointId : SV_OutputControlPointID, uint patchId : SV_PrimitiveID) {
     VS_Data Out;
     Out = patch[pointId];
