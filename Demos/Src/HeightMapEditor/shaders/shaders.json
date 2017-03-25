@@ -1,0 +1,43 @@
+{
+    "HLSLcc_lang" : 330,
+    "HLSLcc_flags": ["HLSLCC_FLAG_DISABLE_GLOBALS_STRUCT",
+                     "HLSLCC_FLAG_INOUT_SEMANTIC_NAMES",
+                     "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],
+    "HLSLFlags"  : [
+        "_D3DCOMPILE_DEBUG",
+        "_D3DCOMPILE_SKIP_OPTIMIZATION",
+        "D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY",
+        "D3DCOMPILE_OPTIMIZATION_LEVEL3"
+    ],
+    "OGLTranslate" : false,
+    "OutDir" : "!Out",
+    "VertexEntry" : "VS",
+    "TessControlEntry" : "HS",
+    "TessEvalEntry" : "DS",
+    "FragmentEntry" : "PS",
+    "VertexTarget" : "vs_5_0",
+    "TessControlTarget" : "hs_5_0",
+    "TessEvalTarget" : "ds_5_0",
+    "FragmentTarget" : "ps_5_0",
+    "Programs":[
+        {
+        "Name"       : "default",
+	"Vertex"     : "default_v.cpp",
+        "TessControl": "default_v.cpp",
+        "TessEval"   : "default_v.cpp",
+	"Fragment"   : "default_v.cpp",
+	"Path"       :["default"]
+        }      
+    ],
+    "_Programs":[
+        {
+        "Name"       : "default",
+	"Vertex"     : "ground_v.cpp",
+        "TessControl": "ground_h.cpp",
+        "TessEval"   : "ground_d.cpp",
+	"Fragment"   : "ground_p.cpp",
+	"Path"       :["default"]
+        }      
+    ]
+    
+}

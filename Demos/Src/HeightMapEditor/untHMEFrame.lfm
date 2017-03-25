@@ -1,0 +1,28 @@
+object frmHMEditor: TfrmHMEditor
+  Left = 0
+  Height = 711
+  Top = 0
+  Width = 869
+  ClientHeight = 711
+  ClientWidth = 869
+  OnMouseWheel = FrameMouseWheel
+  TabOrder = 0
+  object pnlRender: TPanel
+    Left = 120
+    Height = 705
+    Top = 3
+    Width = 746
+    Align = alCustom
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    TabOrder = 0
+    OnMouseDown = pnlRenderMouseDown
+    OnMouseMove = pnlRenderMouseMove
+    OnMouseUp = pnlRenderMouseUp
+  end
+  object Timer1: TTimer
+    Interval = 1
+    OnTimer = Timer1Timer
+    left = 32
+    top = 56
+  end
+end
