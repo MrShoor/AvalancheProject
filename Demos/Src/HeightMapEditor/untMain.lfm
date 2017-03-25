@@ -10,5 +10,5 @@ object frmMain: TfrmMain
   Font.Name = 'Tahoma'
   OnCreate = FormCreate
   OnMouseWheel = FormMouseWheel
-  LCLVersion = '1.6.4.0'
+  LCLVersion = '1.6.2.0'
 end

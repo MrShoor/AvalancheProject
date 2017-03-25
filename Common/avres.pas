@@ -455,6 +455,7 @@ type
     function Size: TVec2;
 
     procedure CopyFrom(const ASrc: TavTextureBase; SrcMipLevel: Integer; const ASrcRect: TRectI);
+    procedure GenerateMips();
 
     property TargetFormat: TTextureFormat read FTargetFormat write FTargetFormat;
   end;
@@ -1080,6 +1081,12 @@ begin
   end;
   FTexH.CopyFrom(0, Vec(0,0), ASrc.FTexH, SrcMipLevel, ASrcRect);
   FDirty := False;
+end;
+
+procedure TavTextureBase.GenerateMips();
+begin
+  if FTexH = nil then Exit;
+  FTexH.GenerateMips;
 end;
 
 

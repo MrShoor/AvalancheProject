@@ -18,6 +18,7 @@ object frmHMEditor: TfrmHMEditor
     OnMouseDown = pnlRenderMouseDown
     OnMouseMove = pnlRenderMouseMove
     OnMouseUp = pnlRenderMouseUp
+    OnMouseWheel = FrameMouseWheel
   end
   object Timer1: TTimer
     Interval = 1

@@ -9,7 +9,7 @@
       <PathDelim Value="\"/>
       <SearchPaths>
         <IncludeFiles Value="Common;Canvas_Shaders;Utils"/>
-        <OtherUnitFiles Value="Common;Common\DX_JSB;."/>
+        <OtherUnitFiles Value="Common;Common\DX_JSB;.;Utils"/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
       <Parsing>
@@ -33,7 +33,7 @@
         </CompilerMessages>
       </Other>
     </CompilerOptions>
-    <Files Count="24">
+    <Files Count="25">
       <Item1>
         <Filename Value="Common\avbase.pas"/>
         <UnitName Value="avBase"/>
@@ -128,8 +128,12 @@
       </Item23>
       <Item24>
         <Filename Value="Common\avglyphgenerator.pas"/>
-        <UnitName Value="avglyphgenerator"/>
+        <UnitName Value="avGlyphGenerator"/>
       </Item24>
+      <Item25>
+        <Filename Value="Utils\avutils.pas"/>
+        <UnitName Value="avUtils"/>
+      </Item25>
     </Files>
     <RequiredPkgs Count="3">
       <Item1>

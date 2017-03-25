@@ -4,9 +4,12 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics,
-  Controls, Forms, Dialogs, untHMEFrame, avTexLoader, avTypes;
+  Controls, Forms, Dialogs, Menus, untHMEFrame, avTexLoader, avTypes;
 
 type
+
+  { TfrmMain }
+
   TfrmMain = class(TForm)
     procedure FormCreate(Sender: TObject);
     procedure FormMouseWheel(Sender: TObject; Shift: TShiftState;

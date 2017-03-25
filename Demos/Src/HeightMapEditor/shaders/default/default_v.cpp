@@ -184,12 +184,10 @@ float3 GetPixelColor(float2 texCoord) {
 
 PS_Output PS(DS_Output In) {
     PS_Output Out;
-//    Out.Color = 1.0;
-//    Out.Color.xy = In.wCoord.xy;
-//    Out.Color.z = 0.0;
     In.vNorm = normalize(In.vNorm);
     In.vNorm = GetMapNormal(In.wCoord.xy);
     In.vNorm = mul(In.vNorm, (float3x3) V_Matrix);
+    
     float diffK = dot(normalize(mul(float3(1,1,1), (float3x3)V_Matrix)), -In.vNorm);
 //    Out.Color.rgb = GetPixelColor(In.vHMTex)*diffK;
     Out.Color.rgb = diffK;

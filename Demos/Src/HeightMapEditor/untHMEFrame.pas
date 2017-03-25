@@ -8,10 +8,14 @@ interface
 {$EndIf}
 
 uses
+  {$IfDef FPC}
+  LMessages,
+  {$EndIf}
   Windows, Messages, SysUtils, Variants, Classes,
   Graphics, Controls, Forms, Dialogs,
-  avRes, avContnrs, avTess, avTypes, avTexLoader,
-  mutils, StdCtrls, ExtCtrls;
+  avRes, avContnrs, avTess, avTypes, avTexLoader, avUtils,
+  HMEUtils,
+  mutils, StdCtrls, ExtCtrls, Types;
 
 const
   HEIGHTMAP_ZSCALE = 255;
@@ -41,13 +45,20 @@ type
   IGroundCellVertices = {$IfDef FPC}specialize{$EndIf}IArray<TGroundCell>;
   TGroundCellVertices = {$IfDef FPC}specialize{$EndIf}TVerticesRec<TGroundCell>;
 
+  { TPanel }
+
   TPanel = class (ExtCtrls.TPanel)
   private
     FOnPaint: TNotifyEvent;
   protected
+    {$IfDef FPC}
+    procedure WMEraseBkgnd(var Message: TLMEraseBkgnd); message LM_ERASEBKGND;
+    {$EndIf}
     procedure PaintWindow(DC: HDC); override;
     property OnPaint: TNotifyEvent read FOnPaint write FOnPaint;
   end;
+
+  { TfrmHMEditor }
 
   TfrmHMEditor = class(TFrame)
     pnlRender: TPanel;
@@ -75,6 +86,8 @@ type
 
     FHeightMap: TavTexture;
     FNormalMap: TavTexture;
+
+    FNMBuilder: TavNormalMapBuilder;
   public
     procedure LoadMap;
 
@@ -161,6 +174,8 @@ begin
 
   FProg := TavProgram.Create(FMain);
   FProg.Load('default', True);
+
+  FNMBuilder := TavNormalMapBuilder.Create(FMain);
 end;
 
 procedure TfrmHMEditor.LoadMap;
@@ -183,6 +198,7 @@ var w, h, level: Integer;
     srcMip, dstMip: ITextureMip;
 begin
   FHeightMapData := LoadRaw('..\Media\terrain3.r16', 2048, 2048, TTextureFormat.R16, False);
+  Exit;
   {
   //manual mip generation for heightmap
   level := 0;
@@ -333,6 +349,7 @@ begin
   begin
     FMain.Window := pnlRender.Handle;
     FMain.Init3D(T3DAPI.apiDX11);
+    FNMBuilder.Build(FHeightMap, FNormalMap, 255, True);
   end;
   if not FMain.Inited3D then Exit;
 
@@ -361,13 +378,13 @@ begin
 
     FProg.Select(4);
     FProg.SetAttributes(FQuadPatchVB, nil, nil);
-    FProg.SetUniform('fArea', Vec(0.0, 0.0, 2048.0 / CellSize - 1.0, 2048.0 / CellSize - 1.0));
+    FProg.SetUniform('fArea', Vec(0.0, 0.0, 2048.0 / CellSize, 2048.0 / CellSize));
     //FProg.SetUniform('fArea', Vec(0.0,0.0,2.0,2.0));
     FProg.SetUniform('CellSize', CellSize*1.0);
     FProg.SetUniform('ViewPortSize', FFBO.FrameRect.Size);
     FProg.SetUniform('HeightNormalMap', FNormalMap, Sampler_Linear);
     FProg.SetUniform('HeightMap', FHeightMap, Sampler_Linear);
-    FProg.Draw((2048 div CellSize - 1)*(2048 div CellSize - 1));
+    FProg.Draw((2048 div CellSize)*(2048 div CellSize));
     //FProg.Draw(4);
 
     FMain.States.DepthTest := False;
@@ -386,6 +403,16 @@ begin
 end;
 
 { TPanel }
+
+{$IfDef FPC}
+procedure TPanel.WMEraseBkgnd(var Message: TLMEraseBkgnd);
+begin
+  if Assigned(FOnPaint) then
+    Message.Result := 1
+  else
+    inherited;
+end;
+{$EndIf}
 
 procedure TPanel.PaintWindow(DC: HDC);
 begin

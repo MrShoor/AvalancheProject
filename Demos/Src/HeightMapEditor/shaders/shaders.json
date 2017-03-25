@@ -27,7 +27,13 @@
         "TessEval"   : "default_v.cpp",
 	"Fragment"   : "default_v.cpp",
 	"Path"       :["default"]
-        }      
+        },
+        {
+        "Name"       : "Build_NormalMap",
+	"Vertex"     : "build_normalmap.cpp",
+	"Fragment"   : "build_normalmap.cpp",
+	"Path"       :[""]
+        }        
     ],
     "_Programs":[
         {

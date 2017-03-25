@@ -8,7 +8,7 @@ uses
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
   Forms, vampyreimagingpackage,
-  untMain, untHMEFrame;
+  untMain, untHMEFrame, HMEUtils;
 
 {$R *.res}
 

@@ -5,7 +5,8 @@ program HME;
 uses
   Vcl.Forms,
   untMain in 'untMain.pas' {frmMain},
-  untHMEFrame in 'untHMEFrame.pas' {frmHMEditor: TFrame};
+  untHMEFrame in 'untHMEFrame.pas' {frmHMEditor: TFrame},
+  hmeutils in 'hmeutils.pas';
 
 {$R *.res}
 
