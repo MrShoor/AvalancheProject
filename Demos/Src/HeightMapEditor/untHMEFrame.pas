@@ -276,13 +276,12 @@ begin
     FMain.Unbind;
 
     FNMBuilder.Build(FHeightMap, FNormalMap, 255, True);
+    FGBuilder.Build(Vec(2048,2048), GROUNDCELL_SCALE, FHeightMap, 255, FGroundPathes);
   end;
   if not FMain.Inited3D then Exit;
 
   if FMain.Bind then
   try
-    FGBuilder.Build(Vec(2048,2048), GROUNDCELL_SCALE, FHeightMap, 255, FGroundPathes);
-
     FMain.Camera.At := Vec(FCamera.LookAt, 0);
     FMain.Camera.Eye := FMain.Camera.At - FCamera.ViewDir*FCamera.Dist;
     //FMain.Camera.At := Vec(0, 0, 0);

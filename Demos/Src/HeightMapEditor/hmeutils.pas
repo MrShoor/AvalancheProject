@@ -127,6 +127,7 @@ begin
       fbo.Select();
 
       FProg.Select();
+      FProg.SetAttributes(nil, nil, nil);
       FProg.SetUniform('HeightMap', AHeightMap, Sampler_NoFilterClamped);
       FProg.SetUniform('HeightScale', HeightScale);
       FProg.SetUniform('CellSize', ACellSize*1.0);

@@ -39,7 +39,6 @@
         {
         "Name"       : "Build_GroundCells",
 	"Vertex"     : "build_groundcells.cpp",
-        "Geometry"   : "build_groundcells.cpp",
 	"Path"       :[""]
         }
     ],

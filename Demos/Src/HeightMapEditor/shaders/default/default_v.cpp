@@ -5,7 +5,10 @@
 //VS
 struct VS_Input {
     float2 vsCoord  : vsCoord;
-    uint InstanceID : SV_InstanceID;
+
+    float4 aiPosSize     : aiPosSize;
+    float4 aiBorderDelta : aiBorderDelta;
+    float2 aiQuadDelta   : aiQuadDelta;    
 };
 
 
@@ -19,13 +22,15 @@ float CellSize;
 VS_Data VS(VS_Input In) {
     VS_Data Out;
     
-    int4 Area = (int4) fArea;
-    uint ID = In.InstanceID;
-    
-    Out.vsCoord.x = ID % Area.z + Area.x;
-    Out.vsCoord.y = ID / Area.z + Area.y;
-    Out.vsCoord.xy *= CellSize;
-    Out.vsCoord.xy += In.vsCoord*CellSize;
+//    int4 Area = (int4) fArea;
+//    uint ID = In.InstanceID;
+//        
+//    Out.vsCoord.x = ID % Area.z + Area.x;
+//    Out.vsCoord.y = ID / Area.z + Area.y;
+//    Out.vsCoord.xy *= CellSize;
+//    Out.vsCoord.xy += In.vsCoord*CellSize;
+//    Out.vsCoord = GetMapCoord(Out.vsCoord.xy, 0);
+    Out.vsCoord.xy = In.vsCoord * In.aiPosSize.zw + In.aiPosSize.xy;
     Out.vsCoord = GetMapCoord(Out.vsCoord.xy, 0);
 
     return Out;

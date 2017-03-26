@@ -1114,7 +1114,11 @@ begin
     N := 0;
     if assigned(AKey.ModelRI) then Inc(N, AKey.ModelRI.Count);
     if assigned(AKey.InstanceRI) then Inc(N, AKey.InstanceRI.Count);
-    if N = 0 then Exit;
+    if N = 0 then
+    begin
+      FContext.FDeviceContext.IASetInputLayout(nil);
+      Exit;
+    end;
 
     SetLength(ElDesc, N);
     SetLength(Names, N);
@@ -2821,8 +2825,12 @@ procedure TContext_DX11.SetFrameBuffer(const AObject: TObject);
   procedure SetFBORenderTargets(const FBO: TFrameBuffer);
   var
       dummy: ID3D11RenderTargetView;
+      dummyNull: PID3D11Buffer;
+      dummyOffset: Integer;
   begin
       dummy := nil;
+      dummyNull := nil;
+      dummyOffset := 0;
       FDeviceContext.OMSetRenderTargets(1, @dummy, nil);
       if Length(FBO.FStreams) > 0 then
       begin
@@ -2833,6 +2841,7 @@ procedure TContext_DX11.SetFrameBuffer(const AObject: TObject);
         if Length(FBO.FUAVViews) = 0 then
         begin
             FDeviceContext.OMSetRenderTargets(Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView);
+            FDeviceContext.SOSetTargets(1, @dummyNull, @dummyOffset);
         end
         else
         begin
@@ -2841,6 +2850,7 @@ procedure TContext_DX11.SetFrameBuffer(const AObject: TObject);
               Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView,
               Length(FBO.FViews), Length(FBO.FUAVViews), @FBO.FUAVViews[0], @FBO.FUAVInitials[0]
             );
+            FDeviceContext.SOSetTargets(1, @dummyNull, @dummyOffset);
         end;
       end;
   end;
