@@ -19,7 +19,7 @@ uses
 
 const
   HEIGHTMAP_ZSCALE = 255;
-  GROUNDCELL_SCALE = 64;
+  GROUNDCELL_SCALE = 32;
 
 type
   TCameraState = packed record
@@ -84,7 +84,6 @@ type
     FGBuilder : TavGroundQuadBuilder;
   public
     procedure LoadMap;
-    procedure BuildGroundCells(const AHeightMapSize: TVec2i);
 
     procedure Init;
     procedure RenderScene(ASender: TObject);
@@ -112,19 +111,6 @@ begin
   FCamera.Dist := 200;
 
   pnlRender.OnPaint := {$IfDef FPC}@{$EndIf}RenderScene;
-end;
-
-procedure TfrmHMEditor.BuildGroundCells(const AHeightMapSize: TVec2i);
-var i, j: Integer;
-    cell: TGroundCell;
-begin
-  cell.aiPosSize.zw := Vec(GROUNDCELL_SCALE, GROUNDCELL_SCALE);
-  for j := 0 to (AHeightMapSize.y div GROUNDCELL_SCALE) - 1 do
-    for i := 0 to (AHeightMapSize.x div GROUNDCELL_SCALE) - 1 do
-    begin
-      cell.aiPosSize.xy := Vec(i, j) * GROUNDCELL_SCALE;
-      //cell.
-    end;
 end;
 
 destructor TfrmHMEditor.Destroy;
@@ -301,15 +287,15 @@ begin
 
     FMain.States.DepthTest := True;
 
+    FQuadPatchVB.CullMode := cmBack;
     FProg.Select(4);
     FProg.SetAttributes(FQuadPatchVB, nil, FGroundPathes);
-    FProg.SetUniform('fArea', Vec(0.0, 0.0, 2048.0 / GROUNDCELL_SCALE, 2048.0 / GROUNDCELL_SCALE));
     //FProg.SetUniform('fArea', Vec(0.0,0.0,2.0,2.0));
     FProg.SetUniform('CellSize', GROUNDCELL_SCALE*1.0);
     FProg.SetUniform('ViewPortSize', FFBO.FrameRect.Size);
     FProg.SetUniform('HeightNormalMap', FNormalMap, Sampler_Linear);
     FProg.SetUniform('HeightMap', FHeightMap, Sampler_Linear);
-    FProg.Draw((2048 div GROUNDCELL_SCALE)*(2048 div GROUNDCELL_SCALE));
+    FProg.Draw(FGroundPathes.BuildedVertCount);
     //FProg.Draw(4);
 
     FMain.States.DepthTest := False;

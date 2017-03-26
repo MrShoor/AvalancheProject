@@ -14,24 +14,20 @@ struct VS_Input {
 
 struct VS_Data {
     float3 vsCoord  : vsCoord;
+    float4 aiBorderDelta : aiBorderDelta;
+    float2 aiQuadDelta   : aiQuadDelta;  
 };
 
-float4 fArea;
 float CellSize;
 
 VS_Data VS(VS_Input In) {
     VS_Data Out;
     
-//    int4 Area = (int4) fArea;
-//    uint ID = In.InstanceID;
-//        
-//    Out.vsCoord.x = ID % Area.z + Area.x;
-//    Out.vsCoord.y = ID / Area.z + Area.y;
-//    Out.vsCoord.xy *= CellSize;
-//    Out.vsCoord.xy += In.vsCoord*CellSize;
-//    Out.vsCoord = GetMapCoord(Out.vsCoord.xy, 0);
     Out.vsCoord.xy = In.vsCoord * In.aiPosSize.zw + In.aiPosSize.xy;
     Out.vsCoord = GetMapCoord(Out.vsCoord.xy, 0);
+    
+    Out.aiBorderDelta = In.aiBorderDelta;
+    Out.aiQuadDelta = In.aiQuadDelta;
 
     return Out;
 }
@@ -104,10 +100,30 @@ HS_ConstOut EdgeDistanceConstantFunction(InputPatch<VS_Data, 4> Patch, uint patc
     Out.edges[1] = CalcDistanceTessLevel(k[1]);
     Out.edges[2] = CalcDistanceTessLevel(k[2]);
     Out.edges[3] = CalcDistanceTessLevel(k[3]);
+    
+    Out.inside[0] = max(Out.edges[1], Out.edges[3]);
+    Out.inside[1] = max(Out.edges[0], Out.edges[2]);    
+    
+    Out.edges[0] *= Patch[0].aiBorderDelta.x;
+    Out.edges[1] *= Patch[0].aiBorderDelta.y;
+    Out.edges[2] *= Patch[0].aiBorderDelta.z;
+    Out.edges[3] *= Patch[0].aiBorderDelta.w;
+    
+    Out.inside[0] *= Patch[0].aiQuadDelta.y;
+    Out.inside[1] *= Patch[0].aiQuadDelta.x;
+    
+    Out.edges[0] = clamp(Out.edges[0], 1, 64);
+    Out.edges[1] = clamp(Out.edges[1], 1, 64);
+    Out.edges[2] = clamp(Out.edges[2], 1, 64);
+    Out.edges[3] = clamp(Out.edges[3], 1, 64);
+    
+    Out.inside[0] = clamp(Out.inside[0], 1, 64);
+    Out.inside[1] = clamp(Out.inside[1], 1, 64);
+    
+    //Out.inside[0] = max(Out.inside[0], Out.inside[1]);
+    //Out.inside[1] = Out.inside[0];
 
     // Set the tessellation factor for tessallating inside the triangle.
-    Out.inside[0] = max(Out.edges[1], Out.edges[3]);
-    Out.inside[1] = max(Out.edges[0], Out.edges[2]);
 
     return Out;
 }
@@ -115,7 +131,7 @@ HS_ConstOut EdgeDistanceConstantFunction(InputPatch<VS_Data, 4> Patch, uint patc
 [domain("quad")]
 //[partitioning("fractional_odd")]
 [partitioning("integer")]
-[outputtopology("triangle_cw")]
+[outputtopology("triangle_ccw")]
 [outputcontrolpoints(4)]
 [patchconstantfunc("EdgeDistanceConstantFunction")]
 VS_Data HS(InputPatch<VS_Data, 4> patch, uint pointId : SV_OutputControlPointID, uint patchId : SV_PrimitiveID) {
