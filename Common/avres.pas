@@ -570,6 +570,7 @@ type
     FSrc: string;
     FSrcPath: string;
     FFromRes: Boolean;
+    FOutLayout: IDataLayout;
     FProgram : IctxProgram;
 
     FUniformsMatrices     : array [TUniformMatrices] of TUniformField;
@@ -617,6 +618,7 @@ type
     procedure SetUniform (const AName: string; const tex: TavTextureBase; const sampler: TSamplerInfo); overload;
 
     procedure Load(const AProgram: string; FromResource: boolean = false; const AProgramPath: string = ''); overload;
+    procedure Load(const AProgram: string; const AStremOutputLayout: IDataLayout; FromResource: boolean = false; const AProgramPath: string = ''); overload;
 
     procedure Draw(InstanceCount: Integer = 0;
                    Start: integer = 0; Count: integer = - 1;
@@ -637,6 +639,10 @@ type
       tex: IWeakRef;
       mipLevel: Integer;
     end;
+    TStreamAttachInfo = record
+      buffer: IWeakRef;
+      offset: Integer;
+    end;
   private const
     EmptyAttachInfo: TAttachInfo = (tex : nil; mipLevel : 0);
   private type
@@ -644,10 +650,13 @@ type
     IColorsList = {$IfDef FPC}specialize{$EndIf} IArray<TAttachInfo>;
     TUAVList = {$IfDef FPC}specialize{$EndIf} TArray<IWeakRef>;
     IUAVList = {$IfDef FPC}specialize{$EndIf} IArray<IWeakRef>;
+    TStreamsList = {$IfDef FPC}specialize{$EndIf} TArray<TStreamAttachInfo>;
+    IStreamsList = {$IfDef FPC}specialize{$EndIf} IArray<TStreamAttachInfo>;
   private
     FFrameBuf: IctxFrameBuffer;
     FColors  : IColorsList;
     FUAVs    : IUAVList;
+    FStreams : IStreamsList;
     FDepth   : TAttachInfo;
     FFrameRect: TRectI;
     FForcedPOT: Boolean;
@@ -668,6 +677,7 @@ type
     function GetColorMipLevel(Index: Integer): Integer;
     procedure SetColor(Index: Integer; AValue: TavTextureBase; mipLevel: Integer = 0);
     procedure SetUAV(Index: Integer; AValue: TavUAV);
+    procedure SetStreamOut(Index: Integer; ABuffer: TavVerticesBase; Offset: Integer);
 
     function GetDepth: TavTextureBase;
     procedure SetDepth(AValue: TavTextureBase; mipLevel: Integer);
@@ -1487,6 +1497,23 @@ begin
   Invalidate;
 end;
 
+procedure TavFrameBuffer.SetStreamOut(Index: Integer; ABuffer: TavVerticesBase; Offset: Integer);
+var oldCount: Integer;
+    i: Integer;
+    info: TStreamAttachInfo;
+begin
+  info.buffer := nil;
+  info.offset := 0;
+  oldCount := FStreams.Count;
+  for i := oldCount to Index do
+    FStreams.Add(info);
+  if Assigned(ABuffer) then
+    info.buffer := ABuffer.WeakRef;
+  info.offset := Offset;
+  FStreams.Item[index] := info;
+  Invalidate;
+end;
+
 procedure TavFrameBuffer.SetDepth(AValue: TavTextureBase; mipLevel: Integer);
 begin
   if Assigned(AValue) then
@@ -1536,6 +1563,14 @@ function TavFrameBuffer.DoBuild: Boolean;
       Result := nil;
   end;
 
+  function GetStream(const sinfo: TStreamAttachInfo): TavVerticesBase; inline;
+  begin
+    if Assigned(sinfo.buffer) then
+      Result := TavVerticesBase(sinfo.buffer.Obj)
+    else
+      Result := nil;
+  end;
+
   procedure ResizeTex(tex: TavTextureBase; FrameSize: TVec2i; mipLevel: Integer); //inline;
   var NewTexSize: TVec2i;
       SimpleTex: TavTexture absolute tex;
@@ -1566,7 +1601,9 @@ function TavFrameBuffer.DoBuild: Boolean;
 
 var ainfo: TAttachInfo;
     tex: TavTextureBase;
+    buf: TavVerticesBase;
     uav: TavUAV;
+    sinfo: TStreamAttachInfo;
     i: Integer;
     FrameSize: TVec2i;
 begin
@@ -1599,6 +1636,15 @@ begin
       FFrameBuf.SetUAV(i, uav.FBufH)
     else
       FFrameBuf.SetUAV(i, nil);
+  end;
+
+  for i := 0 to FStreams.Count - 1 do
+  begin
+    sinfo := FStreams[i];
+    buf := GetStream(sinfo);
+    if buf <> nil then
+      buf.Build;
+    FFrameBuf.SetStreamOut(i, buf.FbufH, sinfo.offset);
   end;
 
   tex := GetTex(FDepth);
@@ -1637,6 +1683,7 @@ begin
   inherited AfterConstruction;
   FColors := TColorsList.Create;
   FUAVs := TUAVList.Create;
+  FStreams := TStreamsList.Create;
 end;
 
 { TavTexture }
@@ -2607,7 +2654,7 @@ begin
   else
     newSrc := FSrcPath+'\'+API_Prefix[Main.ActiveApi]+FSrc+API_Suffix[Main.ActiveApi];
 
-  FProgram.Load(newSrc, FFromRes);
+  FProgram.Load(newSrc, FFromRes, FOutLayout);
 
   pInfo := TypeInfo(TUniformMatrices);
   for i := Low(TUniformMatrices) to High(TUniformMatrices) do
@@ -2802,6 +2849,19 @@ begin
   FSrc := AProgram;
   FFromRes := FromResource;
   FSrcPath := AProgramPath;
+  FOutLayout := Nil;
+  FCameraUpdateID := -1;
+  FProjectionUpdateID := -1;
+  FFlipUpdated := False;
+  Invalidate;
+end;
+
+procedure TavProgram.Load(const AProgram: string; const AStremOutputLayout: IDataLayout; FromResource: boolean = false; const AProgramPath: string = '');
+begin
+  FSrc := AProgram;
+  FFromRes := FromResource;
+  FSrcPath := AProgramPath;
+  FOutLayout := AStremOutputLayout;
   FCameraUpdateID := -1;
   FProjectionUpdateID := -1;
   FFlipUpdated := False;

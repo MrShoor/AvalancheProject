@@ -7,9 +7,27 @@ unit HMEUtils;
 interface
 
 uses
-  Classes, SysUtils, avRes;
+  Classes, SysUtils, avRes, mutils, avTypes, avContnrs, avTess;
 
 type
+  TGroundCell = packed record
+    aiPosSize    : TVec4;
+    aiBorderDelta: TVec4;
+    aiQuadDelta  : TVec2;
+    class function Layout: IDataLayout; static;
+  end;
+  IGroundCellVertices = {$IfDef FPC}specialize{$EndIf}IArray<TGroundCell>;
+  TGroundCellVertices = {$IfDef FPC}specialize{$EndIf}TVerticesRec<TGroundCell>;
+
+  TavGroundQuadBuilder = class (TavMainRenderChild)
+  private
+    FProg: TavProgram;
+  public
+    procedure Build(const AArea: TVec2i; const ACellSize: Integer;
+                    const AHeightMap: TavTexture; HeightScale: Single;
+                    const AOutBuffer: TavVB);
+    procedure AfterConstruction; override;
+  end;
 
   { TavNormalMapBuilder }
 
@@ -25,7 +43,7 @@ type
 implementation
 
 uses
-  avUtils, mutils, avTypes;
+  avUtils;
 
 { TavNormalMapBuilder }
 
@@ -73,6 +91,69 @@ begin
       if Main.Binded then
         Main.Unbind;
   end;
+end;
+
+{ TavGroundQuadBuilder }
+
+procedure TavGroundQuadBuilder.AfterConstruction;
+begin
+  inherited;
+  FProg := TavProgram.Create(Self);
+  FProg.Load('Build_GroundCells', TGroundCell.Layout, True);
+end;
+
+procedure TavGroundQuadBuilder.Build(const AArea: TVec2i; const ACellSize: Integer;
+                                     const AHeightMap: TavTexture; HeightScale: Single;
+                                     const AOutBuffer: TavVB);
+var fbo: TavFrameBuffer;
+    wasBinded: Boolean;
+    CellsCount: TVec2i;
+begin
+  wasBinded := Main.Binded;
+  try
+    if not wasBinded then
+      if not Main.Bind then Exit;
+
+    fbo := nil;
+    try
+      CellsCount.x := AArea.x div ACellSize;
+      CellsCount.y := AArea.y div ACellSize;
+
+      AHeightMap.Build;
+      AOutBuffer.Build;
+
+      fbo := TavFrameBuffer.Create(Self);
+      fbo.SetStreamOut(0, AOutBuffer, 0);
+      fbo.Select();
+
+      FProg.Select();
+      FProg.SetUniform('HeightMap', AHeightMap, Sampler_NoFilterClamped);
+      FProg.SetUniform('HeightScale', HeightScale);
+      FProg.SetUniform('CellSize', ACellSize*1.0);
+      FProg.SetUniform('fArea', CellsCount*1.0);
+      FProg.Draw(ptPoints, cmNone, False, 0, 0, CellsCount.x*CellsCount.y);
+    finally
+      FreeAndNil(fbo);
+    end;
+
+    Main.Present;
+  finally
+    if not wasBinded then
+      if Main.Binded then
+        Main.Unbind;
+  end;
+end;
+
+{ TGroundCell }
+
+{ TGroundCell }
+
+class function TGroundCell.Layout: IDataLayout;
+begin
+  Result := LB.Add('aiPosSize', ctFloat, 4).
+               Add('aiBorderDelta', ctFloat, 4).
+               Add('aiQuadDelta', ctFloat, 2).
+               Finish();
 end;
 
 end.

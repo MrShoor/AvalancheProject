@@ -19,6 +19,7 @@ uses
 
 const
   HEIGHTMAP_ZSCALE = 255;
+  GROUNDCELL_SCALE = 64;
 
 type
   TCameraState = packed record
@@ -35,15 +36,6 @@ type
   end;
   IQuadVertices = {$IfDef FPC}specialize{$EndIf}IArray<TQuadVertex>;
   TQuadVertices = {$IfDef FPC}specialize{$EndIf}TVerticesRec<TQuadVertex>;
-
-  TGroundCell = packed record
-    aiPosSize    : TVec4;
-    aiBorderDelta: TVec4;
-    aiQuadDelta  : TVec2;
-    class function Layout: IDataLayout; static;
-  end;
-  IGroundCellVertices = {$IfDef FPC}specialize{$EndIf}IArray<TGroundCell>;
-  TGroundCellVertices = {$IfDef FPC}specialize{$EndIf}TVerticesRec<TGroundCell>;
 
   { TPanel }
 
@@ -76,6 +68,7 @@ type
 
     FProg: TavProgram;
     FQuadPatchVB: TavVB;
+    FGroundPathes: TavVB;
 
     FCamera: TCameraState;
     FCameraMode: TCameraEditMode;
@@ -88,8 +81,10 @@ type
     FNormalMap: TavTexture;
 
     FNMBuilder: TavNormalMapBuilder;
+    FGBuilder : TavGroundQuadBuilder;
   public
     procedure LoadMap;
+    procedure BuildGroundCells(const AHeightMapSize: TVec2i);
 
     procedure Init;
     procedure RenderScene(ASender: TObject);
@@ -117,6 +112,19 @@ begin
   FCamera.Dist := 200;
 
   pnlRender.OnPaint := {$IfDef FPC}@{$EndIf}RenderScene;
+end;
+
+procedure TfrmHMEditor.BuildGroundCells(const AHeightMapSize: TVec2i);
+var i, j: Integer;
+    cell: TGroundCell;
+begin
+  cell.aiPosSize.zw := Vec(GROUNDCELL_SCALE, GROUNDCELL_SCALE);
+  for j := 0 to (AHeightMapSize.y div GROUNDCELL_SCALE) - 1 do
+    for i := 0 to (AHeightMapSize.x div GROUNDCELL_SCALE) - 1 do
+    begin
+      cell.aiPosSize.xy := Vec(i, j) * GROUNDCELL_SCALE;
+      //cell.
+    end;
 end;
 
 destructor TfrmHMEditor.Destroy;
@@ -150,6 +158,21 @@ procedure TfrmHMEditor.Init;
     Result := data as IVerticesData;
   end;
 
+  function GenGroundPatchesVertices: IVerticesData;
+  var data: IGroundCellVertices;
+      v: TGroundCell;
+      i: Integer;
+  begin
+    data := TGroundCellVertices.Create;
+    data.Capacity := (2048 div GROUNDCELL_SCALE) * (2048 div GROUNDCELL_SCALE);
+    v.aiPosSize := Vec(0,1,2,3);
+    v.aiBorderDelta := Vec(4,5,6,7);
+    v.aiQuadDelta := Vec(8,9);
+    for i := 0 to data.Capacity - 1 do
+      data.Add(v);
+    Result := data as IVerticesData;
+  end;
+
 begin
   LoadMap;
 
@@ -162,6 +185,11 @@ begin
   FQuadPatchVB.PrimType := ptPatches;
   FQuadPatchVB.CullMode := cmNone;
 
+  FGroundPathes := TavVB.Create(FMain);
+  FGroundPathes.Vertices := GenGroundPatchesVertices;
+  FGroundPathes.PrimType := ptPoints;
+  FGroundPathes.CullMode := cmNone;
+
   FHeightMap := TavTexture.Create(FMain);
   FHeightMap.AutoGenerateMips := True;
   FHeightMap.TargetFormat := TTextureFormat.R16;
@@ -170,124 +198,17 @@ begin
   FNormalMap := TavTexture.Create(FMain);
   FNormalMap.AutoGenerateMips := True;
   FNormalMap.TargetFormat := TTextureFormat.RG;
-  FNormalMap.TexData := FNormalMapData;
 
   FProg := TavProgram.Create(FMain);
   FProg.Load('default', True);
 
   FNMBuilder := TavNormalMapBuilder.Create(FMain);
+  FGBuilder  := TavGroundQuadBuilder.Create(FMain);
 end;
 
 procedure TfrmHMEditor.LoadMap;
-const PICK_OFFSETS : array [0..7] of TVec2i = (
-    (x:  0; y:  1),
-    (x:  1; y:  1),
-    (x:  1; y:  0),
-    (x:  1; y: -1),
-    (x:  0; y: -1),
-    (x: -1; y: -1),
-    (x: -1; y:  0),
-    (x: -1; y:  1)
-  );
-var w, h, level: Integer;
-    summ, j, i, k: Integer;
-    z: Single;
-    pts: array[0..7] of TVec3;
-    pdstNorm: PVec2b;
-    norm: TVec3;
-    srcMip, dstMip: ITextureMip;
 begin
-  FHeightMapData := LoadRaw('..\Media\terrain3.r16', 2048, 2048, TTextureFormat.R16, False);
-  Exit;
-  {
-  //manual mip generation for heightmap
-  level := 0;
-  w := FHeightMapData.Width;
-  h := FHeightMapData.Height;
-  while (w mod 2 = 0) and (h mod 2 = 0) do
-  begin
-    Inc(level);
-    w := w div 2;
-    h := h div 2;
-    srcMip := FHeightMapData.MipData(0, level - 1);
-    dstMip := FHeightMapData.MipData(0, level);
-    for j := 0 to dstMip.Height - 1 do
-      for i := 0 to dstMip.Width - 1 do
-      begin
-        summ :=   PWord(srcMip.Pixel(i*2,   j*2))^;
-        Inc(summ, PWord(srcMip.Pixel(i*2+1, j*2))^);
-        Inc(summ, PWord(srcMip.Pixel(i*2,   j*2+1))^);
-        Inc(summ, PWord(srcMip.Pixel(i*2+1, j*2+1))^);
-        summ := summ div 4;
-        PWord(dstMip.Pixel(i, j))^ := summ;
-      end;
-  end;
-  }
-  //normals generation
-  //FNormalMapData := EmptyTexData(FHeightMapData.Width, FHeightMapData.Height, TTextureFormat.RG, True, True);
-  FNormalMapData := EmptyTexData(FHeightMapData.Width, FHeightMapData.Height, TTextureFormat.RG, False, True);
-  for level := 0 to FHeightMapData.MipCount(0) - 1 do
-  begin
-    srcMip := FHeightMapData.MipData(0, level);
-    dstMip := FNormalMapData.MipData(0, level);
-    for j := 0 to srcMip.Height - 1 do
-      for i := 0 to srcMip.Width - 1 do
-      begin
-        z := PWord(srcMip.Pixel(i,j))^/$FFFF*HEIGHTMAP_ZSCALE;
-        for k := 0 to Length(pts) - 1 do
-        begin
-          pts[k].xy := PICK_OFFSETS[k];
-          if (i + pts[k].x >= 0) and (i + pts[k].x < srcMip.Width) and
-             (j + pts[k].y >= 0) and (j + pts[k].y < srcMip.Height) then
-            pts[k].z := PWord(srcMip.Pixel(i+Round(pts[k].x),j+Round(pts[k].y)))^/$FFFF*HEIGHTMAP_ZSCALE - z
-          else
-            pts[k].z := 0;
-        end;
-
-        {
-        pts[1].x := 1;
-        pts[1].y := 0;
-        pts[1].z := PWord(srcMip.Pixel(i+1,j))^/$FFFF*HEIGHTMAP_ZSCALE - pts[0].z;
-
-        pts[2].x := 0;
-        pts[2].y := 1;
-        pts[2].z := PWord(srcMip.Pixel(i,j+1))^/$FFFF*HEIGHTMAP_ZSCALE - pts[0].z;
-
-        pts[3].x := -1;
-        pts[3].y := 0;
-        if i > 0 then
-          pts[3].z := PWord(srcMip.Pixel(i-1,j))^/$FFFF*HEIGHTMAP_ZSCALE - pts[0].z
-        else
-          pts[3].z := 0;
-
-        pts[4].x := 0;
-        pts[4].y := -1;
-        if j > 0 then
-          pts[4].z := PWord(srcMip.Pixel(i,j-1))^/$FFFF*HEIGHTMAP_ZSCALE - pts[0].z
-        else
-          pts[4].z := 0;
-
-        norm := Cross(pts[2], pts[1]) +
-                Cross(pts[3], pts[2]) +
-                Cross(pts[4], pts[3]) +
-                Cross(pts[1], pts[4]);
-        }
-        norm := Vec(0,0,0);
-        for k := 0 to Length(pts) - 1 do
-          norm := norm + Cross(pts[(k + 1) mod Length(pts)], pts[k]);
-        norm := normalize(norm);
-
-        pdstNorm := PVec2b(dstMip.Pixel(i, j));
-        //pdstNorm^.x := norm.x;
-        //pdstNorm^.y := norm.y;
-        pdstNorm^.y := Clamp(Round((norm.x+1.0)*0.5*255), 0, 255);
-        pdstNorm^.x := Clamp(Round((norm.y+1.0)*0.5*255), 0, 255);
-      end;
-  end;
-
-//  FTileMap := LoadTexture(ATileMap);
-//  FTiles := LoadTextures(ATiles);
-    //LoadRaw('terrain3.r16', 2048, 2048, TTextureFormat.R16);
+  FHeightMapData := LoadRaw('..\Media\terrain3.r16', 2048, 2048, TTextureFormat.R16);
 end;
 
 procedure TfrmHMEditor.pnlRenderMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -338,7 +259,6 @@ begin
 end;
 
 procedure TfrmHMEditor.RenderScene(ASender: TObject);
-var CellSize: Integer;
 begin
   If FMain = nil Then
   begin
@@ -349,12 +269,20 @@ begin
   begin
     FMain.Window := pnlRender.Handle;
     FMain.Init3D(T3DAPI.apiDX11);
+
+    //Sleep(5000);
+    FMain.Bind;
+    FMain.Present;
+    FMain.Unbind;
+
     FNMBuilder.Build(FHeightMap, FNormalMap, 255, True);
   end;
   if not FMain.Inited3D then Exit;
 
   if FMain.Bind then
   try
+    FGBuilder.Build(Vec(2048,2048), GROUNDCELL_SCALE, FHeightMap, 255, FGroundPathes);
+
     FMain.Camera.At := Vec(FCamera.LookAt, 0);
     FMain.Camera.Eye := FMain.Camera.At - FCamera.ViewDir*FCamera.Dist;
     //FMain.Camera.At := Vec(0, 0, 0);
@@ -374,17 +302,15 @@ begin
 
     FMain.States.DepthTest := True;
 
-    CellSize := 64;
-
     FProg.Select(4);
-    FProg.SetAttributes(FQuadPatchVB, nil, nil);
-    FProg.SetUniform('fArea', Vec(0.0, 0.0, 2048.0 / CellSize, 2048.0 / CellSize));
+    FProg.SetAttributes(FQuadPatchVB, nil, FGroundPathes);
+    FProg.SetUniform('fArea', Vec(0.0, 0.0, 2048.0 / GROUNDCELL_SCALE, 2048.0 / GROUNDCELL_SCALE));
     //FProg.SetUniform('fArea', Vec(0.0,0.0,2.0,2.0));
-    FProg.SetUniform('CellSize', CellSize*1.0);
+    FProg.SetUniform('CellSize', GROUNDCELL_SCALE*1.0);
     FProg.SetUniform('ViewPortSize', FFBO.FrameRect.Size);
     FProg.SetUniform('HeightNormalMap', FNormalMap, Sampler_Linear);
     FProg.SetUniform('HeightMap', FHeightMap, Sampler_Linear);
-    FProg.Draw((2048 div CellSize)*(2048 div CellSize));
+    FProg.Draw((2048 div GROUNDCELL_SCALE)*(2048 div GROUNDCELL_SCALE));
     //FProg.Draw(4);
 
     FMain.States.DepthTest := False;
@@ -437,16 +363,6 @@ begin
   v := Quat(Vec(0,1,0), YawPitch.y) * Vec(1,0,0);
   v := Quat(Vec(0,0,-1), YawPitch.x) * v;
   Result := v;
-end;
-
-{ TGroundCell }
-
-class function TGroundCell.Layout: IDataLayout;
-begin
-  Result := LB.Add('aiPosSize', ctFloat, 4).
-               Add('aiBorderDelta', ctFloat, 4).
-               Add('aiQuadDelta', ctFloat, 2).
-               Finish();
 end;
 
 end.

@@ -14,10 +14,12 @@
     "VertexEntry" : "VS",
     "TessControlEntry" : "HS",
     "TessEvalEntry" : "DS",
+    "GeometryEntry" : "GS",
     "FragmentEntry" : "PS",
     "VertexTarget" : "vs_5_0",
     "TessControlTarget" : "hs_5_0",
     "TessEvalTarget" : "ds_5_0",
+    "GeometryTarget" : "gs_5_0",
     "FragmentTarget" : "ps_5_0",
     "Programs":[
         {
@@ -33,7 +35,13 @@
 	"Vertex"     : "build_normalmap.cpp",
 	"Fragment"   : "build_normalmap.cpp",
 	"Path"       :[""]
-        }        
+        },
+        {
+        "Name"       : "Build_GroundCells",
+	"Vertex"     : "build_groundcells.cpp",
+        "Geometry"   : "build_groundcells.cpp",
+	"Path"       :[""]
+        }
     ],
     "_Programs":[
         {

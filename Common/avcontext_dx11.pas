@@ -568,6 +568,9 @@ type
     TUAVInfo = record
       UAV : IctxUAV_DX11;
     end;
+    TSOInfo = record
+      SO : IctxVetexBuffer;
+    end;
   private
     FTex   : array of TTexInfo;
     FViews : array of ID3D11RenderTargetView;
@@ -575,6 +578,10 @@ type
     FUAV : array of TUAVInfo;
     FUAVViews : array of ID3D11UnorderedAccessView;
     FUAVInitials : array of Cardinal;
+
+    FStreams: array of TSOInfo;
+    FStreamBuffers: array of ID3D11Buffer;
+    FStreamOffsets: array of Integer;
 
     FDepthView: ID3D11DepthStencilView;
     FDepthTex : IctxTexture;
@@ -590,6 +597,7 @@ type
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0);
     procedure SetUAV(index: Integer; UAV: IctxUAV);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0);
+    procedure SetStreamOut(index: Integer; buffer: IctxVetexBuffer; Offset: Integer);
 
     procedure Clear(index: Integer; color: TVec4);
     procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
@@ -633,6 +641,7 @@ type
   IctxVetexBuffer_DX = interface(IctxVetexBuffer)
   ['{87083775-37DB-41A6-8DA8-FC3189E6060F}']
     procedure Select(Slot: Integer = 0);
+    function Handle: ID3D11Buffer;
   end;
 
   { TVertexBuffer }
@@ -651,6 +660,7 @@ type
     property Layout: IDataLayout read GetLayout write SetLayout;
 
     procedure Select(Slot: Integer = 0);
+    function Handle: ID3D11Buffer;
   end;
 
   { IctxIndexBuffer_DX }
@@ -781,7 +791,7 @@ type
 
     procedure SyncCB;
     procedure Select(const APatchSize: Integer = 0);
-    procedure Load(const AProgram: string; FromResource: Boolean = false);
+    procedure Load(const AProgram: string; FromResource: Boolean = false; const AStreamOutLayout: IDataLayout = nil);
 
     procedure SetAttributes(const AModel, AInstances : IctxVetexBuffer; const AModelIndices: IctxIndexBuffer; InstanceStepRate: Integer = 1);
 
@@ -937,6 +947,11 @@ begin
   Result := FLayout;
 end;
 
+function TVertexBuffer.Handle: ID3D11Buffer;
+begin
+  Result := FBuffer;
+end;
+
 procedure TVertexBuffer.SetLayout(const AValue: IDataLayout);
 begin
   FLayout := AValue;
@@ -1003,6 +1018,8 @@ begin
   Desc.ByteWidth := ASize;
   Desc.Usage := DXPoolType[FTargetPool];
   Desc.BindFlags := GetBufferBindFlag;
+  if (FTargetPool = TBufferPoolType.StaticDraw) then
+    Desc.BindFlags := Desc.BindFlags or DWord(D3D11_BIND_STREAM_OUTPUT);
   Desc.CPUAccessFlags := DXCpuAccess[FTargetPool];
   Desc.MiscFlags := 0;
   Desc.StructureByteStride := 0;
@@ -1208,7 +1225,12 @@ begin
     FSelectedPathSize := APatchSize;
 end;
 
-procedure TProgram.Load(const AProgram: string; FromResource: Boolean);
+procedure TProgram.Load(const AProgram: string; FromResource: Boolean; const AStreamOutLayout: IDataLayout);
+
+  type
+    TD3D11_SoDeclarationEntryArr = array of TD3D11_SoDeclarationEntry;
+    TOutDeclNames = array of AnsiString;
+
     procedure ReadCodeData(stream: TStream; var Data: TByteArr);
     var n: Integer;
     begin
@@ -1280,10 +1302,32 @@ procedure TProgram.Load(const AProgram: string; FromResource: Boolean);
       Result := stUnknown;
     end;
 
+    function GetOutDeclaration(const ALayout: IDataLayout; var ADeclNames: TOutDeclNames): TD3D11_SoDeclarationEntryArr;
+    var
+      i: Integer;
+    begin
+      SetLength(Result, ALayout.Count);
+      SetLength(ADeclNames, ALayout.Count);
+      for i := 0 to ALayout.Count - 1 do
+      begin
+        Assert(ALayout.Item[i].CompType = ctFloat, 'Output layout can contains only float components');
+        ADeclNames[i] := ALayout.Item[i].Name;
+        Result[i].Stream := 0;
+        Result[i].SemanticName := PAnsiChar(ADeclNames[i]);
+        Result[i].StartComponent := 0;
+        Result[i].ComponentCount := ALayout.Item[i].CompCount;
+        Result[i].OutputSlot := 0;
+      end;
+    end;
+
 var stream: TStream;
     st: TShaderType;
 
     ShaderIntf: ID3D11DeviceChild;
+    OutDecl: TD3D11_SoDeclarationEntryArr;
+    OutDeclNames: TOutDeclNames;
+    OutStrideSize: Cardinal;
+    ShaderData: TByteArr;
 
     ChunkID: TFOURCC;
     ChunkSize: Cardinal;
@@ -1327,7 +1371,23 @@ begin
                 stVertex     : Check3DError(FContext.FDevice.CreateVertexShader  (@FData[st][0], Length(FData[st]), nil, ID3D11VertexShader  (ShaderIntf)));
                 stTessControl: Check3DError(FContext.FDevice.CreateHullShader    (@FData[st][0], Length(FData[st]), nil, ID3D11HullShader    (ShaderIntf)));
                 stTessEval   : Check3DError(FContext.FDevice.CreateDomainShader  (@FData[st][0], Length(FData[st]), nil, ID3D11DomainShader  (ShaderIntf)));
-                stGeometry   : Check3DError(FContext.FDevice.CreateGeometryShader(@FData[st][0], Length(FData[st]), nil, ID3D11GeometryShader(ShaderIntf)));
+                stGeometry   : begin
+                                 if AStreamOutLayout = nil then
+                                   Check3DError(FContext.FDevice.CreateGeometryShader(@FData[st][0], Length(FData[st]), nil, ID3D11GeometryShader(ShaderIntf)))
+                                 else
+                                 begin
+                                   OutDecl := GetOutDeclaration(AStreamOutLayout, OutDeclNames);
+                                   OutStrideSize := AStreamOutLayout.Size;
+                                   Check3DError( FContext.FDevice.CreateGeometryShaderWithStreamOutput(
+                                      @FData[st][0], Length(FData[st]),
+                                      @OutDecl[0], Length(OutDecl),
+                                      @OutStrideSize, 1,
+                                      D3D11_SO_NO_RASTERIZED_STREAM,
+                                      nil,
+                                      ID3D11GeometryShader(ShaderIntf)
+                                   ));
+                                 end;
+                               end;
                 stFragment   : Check3DError(FContext.FDevice.CreatePixelShader   (@FData[st][0], Length(FData[st]), nil, ID3D11PixelShader   (ShaderIntf)));
               end;
               FShader[st] := ShaderIntf;
@@ -1352,6 +1412,29 @@ begin
     end;
   finally
     stream.Free;
+  end;
+
+  if (AStreamOutLayout <> nil) and (FShader[stGeometry] = nil) then
+  begin
+    if FShader[stTessEval] <> nil then
+      ShaderData := FData[stTessEval];
+    if (ShaderData = nil) and (FShader[stVertex] <> nil) then
+      ShaderData := FData[stVertex];
+    if ShaderData <> nil then
+    begin
+       ShaderIntf := nil;
+       OutDecl := GetOutDeclaration(AStreamOutLayout, OutDeclNames);
+       OutStrideSize := AStreamOutLayout.Size;
+       Check3DError( FContext.FDevice.CreateGeometryShaderWithStreamOutput(
+          @ShaderData[0], Length(ShaderData),
+          @OutDecl[0], Length(OutDecl),
+          @OutStrideSize, 1,
+          D3D11_SO_NO_RASTERIZED_STREAM,
+          nil,
+          ID3D11GeometryShader(ShaderIntf)
+       ));
+       FShader[stGeometry] := ShaderIntf;
+    end;
   end;
 
   for st := stVertex to stFragment do
@@ -2510,7 +2593,7 @@ var i: Integer;
     RTDesc: TD3D11_RenderTargetViewDesc;
     DSDesc: TD3D11_DepthStencilViewDesc;
 begin
-  if not FValid then
+  if (not FValid) and ((Length(FTex) > 0) or (FDepthTex <> nil)) then
   begin
     for i := 0 to Length(FTex) - 1 do
     begin
@@ -2575,6 +2658,7 @@ end;
 
 procedure TFrameBuffer.SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
 begin
+  Assert(Length(FStreams)=0, 'You can''t mix stream output with render to textures');
   if index <= Length(FTex) then
   begin
     SetLength(FViews, index + 1);
@@ -2593,6 +2677,7 @@ end;
 
 procedure TFrameBuffer.SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
 begin
+  Assert((tex = nil) or (Length(FStreams)=0), 'You can''t mix stream output with render to textures');
   if FDepthTex = tex then Exit;
 
   FDepthTex := tex;
@@ -2602,8 +2687,29 @@ begin
   FValid := False;
 end;
 
+procedure TFrameBuffer.SetStreamOut(index: Integer; buffer: IctxVetexBuffer; Offset: Integer);
+begin
+  Assert(Length(FTex)=0, 'You can''t mix stream output with render to textures');
+  Assert(Length(FUAV)=0, 'You can''t mix stream output with render to UAV');
+  if index <= Length(FStreams) then
+  begin
+    SetLength(FStreams, index + 1);
+    SetLength(FStreamOffsets, index + 1);
+    SetLength(FStreamBuffers, index + 1);
+  end;
+
+  if FStreams[index].SO = buffer then Exit;
+
+  FStreams[index].SO := buffer;
+  FStreamOffsets[index] := Offset;
+  FStreamBuffers[index] := (buffer as IctxVetexBuffer_DX).Handle;
+
+  FValid := False;
+end;
+
 procedure TFrameBuffer.SetUAV(index: Integer; UAV: IctxUAV);
 begin
+  Assert(Length(FStreams)=0, 'You can''t mix stream output with render to UAV');
   if index <= Length(FUAV) then
   begin
     SetLength(FUAV, index + 1);
@@ -2718,17 +2824,24 @@ procedure TContext_DX11.SetFrameBuffer(const AObject: TObject);
   begin
       dummy := nil;
       FDeviceContext.OMSetRenderTargets(1, @dummy, nil);
-      if Length(FBO.FUAVViews) = 0 then
+      if Length(FBO.FStreams) > 0 then
       begin
-          FDeviceContext.OMSetRenderTargets(Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView);
+        FDeviceContext.SOSetTargets(Length(FBO.FStreams), @FBO.FStreamBuffers[0], @FBO.FStreamOffsets[0]);
       end
       else
       begin
-      //FDeviceContext.OMSetRenderTargetsAndUnorderedAccessViews(Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView);
-          FDeviceContext.OMSetRenderTargetsAndUnorderedAccessViews(
-            Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView,
-            Length(FBO.FViews), Length(FBO.FUAVViews), @FBO.FUAVViews[0], @FBO.FUAVInitials[0]
-          );
+        if Length(FBO.FUAVViews) = 0 then
+        begin
+            FDeviceContext.OMSetRenderTargets(Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView);
+        end
+        else
+        begin
+        //FDeviceContext.OMSetRenderTargetsAndUnorderedAccessViews(Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView);
+            FDeviceContext.OMSetRenderTargetsAndUnorderedAccessViews(
+              Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView,
+              Length(FBO.FViews), Length(FBO.FUAVViews), @FBO.FUAVViews[0], @FBO.FUAVInitials[0]
+            );
+        end;
       end;
   end;
   procedure SetDefaultRenderTargets;
@@ -2951,7 +3064,7 @@ begin
 
   Check3DError(
     D3D11CreateDeviceAndSwapChain(nil,
-                                  DriverType, 0, 0{LongWord(D3D11_CREATE_DEVICE_SINGLETHREADED)} {Or LongWord(D3D11_CREATE_DEVICE_DEBUG)}, nil, 0, D3D11_SDK_VERSION,
+                                  DriverType, 0, 0{LongWord(D3D11_CREATE_DEVICE_SINGLETHREADED)} Or LongWord(D3D11_CREATE_DEVICE_DEBUG), nil, 0, D3D11_SDK_VERSION,
                                   @SwapChainDesc, FSwapChain, FDevice, nil, FDeviceContext)
   );
 end;

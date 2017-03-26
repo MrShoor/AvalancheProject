@@ -941,7 +941,7 @@ type
     procedure FreeHandle; override;
   public //IctxProgram
     procedure Select(const APatchSize: Integer = 0);
-    procedure Load(const AProgram: string; FromResource: Boolean = false);
+    procedure Load(const AProgram: string; FromResource: Boolean = false; const AStreamOutLayout: IDataLayout = nil);
 
     procedure SetAttributes(const AModel, AInstances : IctxVetexBuffer; const AModelIndices: IctxIndexBuffer; InstanceStepRate: Integer = 1); overload;
 
@@ -987,6 +987,7 @@ type
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
     procedure SetUAV(index: Integer; UAV: IctxUAV);
+    procedure SetStreamOut(index: Integer; buffer: IctxVetexBuffer; Offset: Integer);
 
     procedure Clear(index: Integer; color: TVec4);
     procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
@@ -1145,6 +1146,11 @@ begin
     if ActiveObject <> FHandle then glBindFramebuffer(GL_DRAW_FRAMEBUFFER, ActiveObject);
   end;
   Invalidate;
+end;
+
+procedure TFrameBuffer.SetStreamOut(index: Integer; buffer: IctxVetexBuffer; Offset: Integer);
+begin
+  Assert(False, 'qwe not implemented');
 end;
 
 procedure TFrameBuffer.SetUAV(index: Integer; UAV: IctxUAV);
@@ -2254,7 +2260,7 @@ begin
     glPatchParameteri(GL_PATCH_VERTICES, APatchSize);
 end;
 
-procedure TProgram.Load(const AProgram: string; FromResource: Boolean);
+procedure TProgram.Load(const AProgram: string; FromResource: Boolean; const AStreamOutLayout: IDataLayout);
 var stream: TStream;
     s: AnsiString;
     obj: ISuperObject;

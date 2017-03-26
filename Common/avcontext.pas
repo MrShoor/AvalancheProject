@@ -116,7 +116,7 @@ type
   IctxProgram = interface
   ['{C17B35BB-A577-4149-BB9E-3F9C9CDEA3D4}']
     procedure Select(const APatchSize: Integer = 0);
-    procedure Load(const AProgram: string; FromResource: Boolean = false);
+    procedure Load(const AProgram: string; FromResource: Boolean = false; const AStreamOutLayout: IDataLayout = nil);
 
     procedure SetAttributes(const AModel, AInstances : IctxVetexBuffer; const AModelIndices: IctxIndexBuffer; InstanceStepRate: Integer = 1);
 
@@ -148,6 +148,7 @@ type
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0);
     procedure SetUAV(index: Integer; UAV: IctxUAV);
+    procedure SetStreamOut(index: Integer; buffer: IctxVetexBuffer; Offset: Integer);
 
     procedure Clear(index: Integer; color: TVec4);
     procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
