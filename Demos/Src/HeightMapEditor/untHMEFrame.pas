@@ -293,8 +293,8 @@ begin
     //FProg.SetUniform('fArea', Vec(0.0,0.0,2.0,2.0));
     FProg.SetUniform('CellSize', GROUNDCELL_SCALE*1.0);
     FProg.SetUniform('ViewPortSize', FFBO.FrameRect.Size);
-    FProg.SetUniform('HeightNormalMap', FNormalMap, Sampler_Linear);
-    FProg.SetUniform('HeightMap', FHeightMap, Sampler_Linear);
+    FProg.SetUniform('HeightMap', FHeightMap, Sampler_LinearClamped);
+    FProg.SetUniform('HeightNormalMap', FNormalMap, Sampler_LinearClamped);
     FProg.Draw(FGroundPathes.BuildedVertCount);
     //FProg.Draw(4);
 
