@@ -1,6 +1,7 @@
 #include "hlsl.h"
 #include "matrices.h"
 #include "HeightMap.h"
+#include "brush_utils.h"
 
 //VS
 struct VS_Input {
@@ -184,14 +185,23 @@ float3 GetPixelColor(float2 texCoord) {
     return lerp(col[0], col[1], k.y).xyz;
 }
 
+float3 BrushColor(float2 wPos) {
+    float d = GetBrushValue(wPos);
+    float ddd = abs(ddy(d)) + abs(ddy(d));
+    if ((d==0.0)&&(ddd>0.0)){
+        d = 0.95;
+    }
+    if (d == 1) d = 0;
+    return float3(1, 1-d, 1-d);
+}
+
 PS_Output PS(DS_Output In) {
     PS_Output Out;
     float3 n = GetMapNormal(In.wCoord.xy);
     n = mul(n, (float3x3) V_Matrix);
     
     float diffK = dot(normalize(mul(float3(1,1,1), (float3x3)V_Matrix)), -n);
-//    Out.Color.rgb = GetPixelColor(In.vHMTex)*diffK;
-    Out.Color.rgb = diffK;
+    Out.Color.rgb = diffK * BrushColor(In.wCoord.xy);
     Out.Color.a = 1.0;
     return Out;
 }

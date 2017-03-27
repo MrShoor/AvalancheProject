@@ -23,4 +23,10 @@ object frmHMEditor: TfrmHMEditor
     Left = 32
     Top = 56
   end
+  object BrushTimer: TTimer
+    Interval = 40
+    OnTimer = BrushTimerTimer
+    Left = 48
+    Top = 144
+  end
 end

@@ -40,6 +40,18 @@
         "Name"       : "Build_GroundCells",
 	"Vertex"     : "build_groundcells.cpp",
 	"Path"       :[""]
+        },
+        {
+        "Name"       : "Brush",
+	"Vertex"     : "brush.cpp",
+        "Fragment"   : "brush.cpp",
+	"Path"       :[""]
+        },
+        {
+        "Name"       : "BrushSmooth",
+	"Vertex"     : "brush_smooth.cpp",
+        "Fragment"   : "brush_smooth.cpp",
+	"Path"       :[""]
         }
     ],
     "_Programs":[

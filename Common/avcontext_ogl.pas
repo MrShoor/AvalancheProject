@@ -618,6 +618,7 @@ type
     procedure SetWireframe(const Value: Boolean);
   public
     procedure SetBlendFunctions(Src, Dest: TBlendFunc; RenderTargetIndex: Integer = AllTargets);
+    procedure SetBlendOperation(BlendOp : TBlendOp; RenderTargetIndex: Integer = AllTargets);
 
     constructor Create(AContext: TContext_OGL);
 
@@ -850,6 +851,8 @@ type
     procedure SetMipImage(DestRect: TRect; MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
 
     procedure GenerateMips;
+
+    procedure ReadBack(const ATexData: ITextureData; const ASlice: Integer; const AMipLevel: Integer); //-1 for all mip levels
 
     procedure CopyFrom(const DstMipLevel: Integer; const DstPos: TVec2I;
                        const ASrcRes: IctxTexture; const SrcMipLevel: Integer; const SrcRect: TRectI);
@@ -1359,6 +1362,12 @@ begin
   glBindTexture(FGLTexTarget, oldH);
 end;
 
+procedure TTexture.ReadBack(const ATexData: ITextureData; const ASlice: Integer;
+  const AMipLevel: Integer);
+begin
+  Assert(False, 'Not implemented yet');
+end;
+
 procedure TTexture.CopyFrom(const DstMipLevel: Integer; const DstPos: TVec2I; const ASrcRes: IctxTexture;
   const SrcMipLevel: Integer; const SrcRect: TRectI);
 begin
@@ -1541,6 +1550,11 @@ begin
       else
         glDisablei(RenderTargetIndex, GL_BLEND);
   end;
+end;
+
+procedure TStates_OGL.SetBlendOperation(BlendOp: TBlendOp; RenderTargetIndex: Integer);
+begin
+  Assert(False, 'Not implemented yet');
 end;
 
 procedure TStates_OGL.SetViewport(const Value: TRectI);

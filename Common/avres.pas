@@ -457,6 +457,8 @@ type
     procedure CopyFrom(const ASrc: TavTextureBase; SrcMipLevel: Integer; const ASrcRect: TRectI);
     procedure GenerateMips();
 
+    procedure ReadBack(var ATexData: ITextureData; ASlice: Integer; const AMipLevel: Integer); //-1 for all mip levels
+
     property TargetFormat: TTextureFormat read FTargetFormat write FTargetFormat;
   end;
 
@@ -1097,6 +1099,22 @@ procedure TavTextureBase.GenerateMips();
 begin
   if FTexH = nil then Exit;
   FTexH.GenerateMips;
+end;
+
+procedure TavTextureBase.ReadBack(var ATexData: ITextureData; ASlice: Integer; const AMipLevel: Integer);
+var
+  i: Integer;
+begin
+  if FTexH = nil then Exit;
+  if (ATexData.Width <> Width) or (ATexData.Height <> Height) or
+     (ATexData.ItemCount <> 1) or (ATexData.MipsCount < AMipLevel) or
+     (ImagePixelSize[ATexData.Format] <> TexturePixelSize[FTexH.Format]) then
+    ATexData := EmptyTexData(FTexH.Width, FTexH.Height, FTexH.Format, FTexH.MipsCount > 0, True);
+  if AMipLevel < 0 then
+    for i := 0 to FTexH.MipsCount do
+      FTexH.ReadBack(ATexData, ASlice, i)
+  else
+    FTexH.ReadBack(ATexData, ASlice, AMipLevel);
 end;
 
 

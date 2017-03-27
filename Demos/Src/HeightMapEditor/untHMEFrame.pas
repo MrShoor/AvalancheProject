@@ -9,9 +9,12 @@ interface
 
 uses
   {$IfDef FPC}
-  LMessages,
+  LMessages, LCLType, LCLIntf,
   {$EndIf}
-  Windows, Messages, SysUtils, Variants, Classes,
+  {$IfDef DCC}
+  Windows, Messages,
+  {$EndIf}
+  SysUtils, Variants, Classes,
   Graphics, Controls, Forms, Dialogs,
   avRes, avContnrs, avTess, avTypes, avTexLoader,
   HMEUtils, HMEBrush,
@@ -55,6 +58,8 @@ type
   TfrmHMEditor = class(TFrame)
     pnlRender: TPanel;
     Timer1: TTimer;
+    BrushTimer: TTimer;
+    procedure BrushTimerTimer(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
     procedure pnlRenderMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure pnlRenderMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
@@ -82,8 +87,9 @@ type
     FNMBuilder: TavNormalMapBuilder;
     FGBuilder : TavGroundQuadBuilder;
 
-    FMapBrush : TavHMEBrush;
-    FMapBrushPos: TVec2;
+    FInBrushMode  : Boolean;
+    FMapBrush     : TavHMEBrush;
+    FMapBrushPlane: TPlane;
   public
     procedure LoadMap;
 
@@ -124,11 +130,23 @@ end;
 procedure TfrmHMEditor.FrameMouseWheel(Sender: TObject; Shift: TShiftState;
   WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
 begin
-  if WheelDelta > 0 then
-    FCamera.Dist := FCamera.Dist / 1.1
-  else
-    FCamera.Dist := FCamera.Dist * 1.1;
-  if FMain <> nil then FMain.InvalidateWindow;
+  if (Shift = [ssCtrl]) and (FMapBrush <> nil) then
+  begin
+    if WheelDelta > 0 then
+      FMapBrush.Radius := FMapBrush.Radius / 1.1
+    else
+      FMapBrush.Radius := FMapBrush.Radius * 1.1;
+    if FMain <> nil then FMain.InvalidateWindow;
+  end;
+
+  if Shift = [] then
+  begin
+    if WheelDelta > 0 then
+      FCamera.Dist := FCamera.Dist / 1.1
+    else
+      FCamera.Dist := FCamera.Dist * 1.1;
+    if FMain <> nil then FMain.InvalidateWindow;
+  end;
   Handled := True;
 end;
 
@@ -194,6 +212,7 @@ begin
   FGBuilder  := TavGroundQuadBuilder.Create(FMain);
 
   FMapBrush  := TavHMEBrush.Create(FMain);
+  FMapBrush.SetHeightMap(FHeightMap);
 end;
 
 procedure TfrmHMEditor.LoadMap;
@@ -213,12 +232,21 @@ begin
     else
       FCameraMode := cemDrag;
   end;
+
+  if Button = mbLeft then
+  begin
+    FInBrushMode := True;
+    FMapBrushPlane.Norm := Vec(0,0,-1);
+    FMapBrushPlane.D := GetHeightAt(FHeightMapData, FMapBrush.Pos.x, FMapBrush.Pos.y, HEIGHTMAP_ZSCALE);
+  end;
+
   FLastCursorXY := Vec(X, Y);
   SetCaptureControl(pnlRender);
 end;
 
 procedure TfrmHMEditor.pnlRenderMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
 var dir: TVec2;
+    IntPt: TVec3;
 begin
   if FCameraMode <> cemNone then
   begin
@@ -238,13 +266,36 @@ begin
       end;
     end;
   end;
+
+  if (FHeightMapData <> nil) then
+  begin
+    if FInBrushMode then
+    begin
+      if Intersect(FMapBrushPlane, FMain.Cursor.Ray, IntPt) then
+      begin
+        FMapBrush.Pos := IntPt.xy;
+      end;
+      BrushTimerTimer(nil);
+    end
+    else
+      if RayCast(FHeightMapData, HEIGHTMAP_ZSCALE, FMain.Cursor.Ray, IntPt) then
+        FMapBrush.Pos := IntPt.xy;
+  end;
+
   FLastCursorXY := Vec(X, Y);
 end;
 
 procedure TfrmHMEditor.pnlRenderMouseUp(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
-  FCameraMode := cemNone;
+  if Button = mbRight then
+    FCameraMode := cemNone;
+  if Button = mbLeft then
+  begin
+    if FInBrushMode then
+      FHeightMap.ReadBack(FHeightMapData, 0, 0);
+    FInBrushMode := False;
+  end;
   SetCaptureControl(nil);
 end;
 
@@ -260,13 +311,8 @@ begin
     FMain.Window := pnlRender.Handle;
     FMain.Init3D(T3DAPI.apiDX11);
 
-    //Sleep(5000);
-    FMain.Bind;
-    FMain.Present;
-    FMain.Unbind;
-
-    FNMBuilder.Build(FHeightMap, FNormalMap, 255, True);
-    FGBuilder.Build(Vec(2048,2048), GROUNDCELL_SCALE, FHeightMap, 255, FGroundPathes);
+    FNMBuilder.Build(FHeightMap, FNormalMap, HEIGHTMAP_ZSCALE, True);
+    FGBuilder.Build(Round(FHeightMap.Size), GROUNDCELL_SCALE, FHeightMap, HEIGHTMAP_ZSCALE, FGroundPathes);
   end;
   if not FMain.Inited3D then Exit;
 
@@ -299,6 +345,11 @@ begin
     FProg.SetUniform('ViewPortSize', FFBO.FrameRect.Size);
     FProg.SetUniform('HeightMap', FHeightMap, Sampler_LinearClamped);
     FProg.SetUniform('HeightNormalMap', FNormalMap, Sampler_LinearClamped);
+
+    FProg.SetUniform('BrushPos', FMapBrush.Pos);
+    FProg.SetUniform('BrushRadius', FMapBrush.Radius);
+    FProg.SetUniform('BrushSharp', FMapBrush.Sharp);
+
     FProg.Draw(FGroundPathes.BuildedVertCount);
     //FProg.Draw(4);
 
@@ -315,6 +366,30 @@ procedure TfrmHMEditor.Timer1Timer(Sender: TObject);
 begin
   if FMain <> nil then
     FMain.InvalidateWindow;
+end;
+
+procedure TfrmHMEditor.BrushTimerTimer(Sender: TObject);
+begin
+  if not FInBrushMode then Exit;
+  if FMain = nil then Exit;
+  if not FMain.Inited3D then Exit;
+  if FMapBrush = nil then Exit;
+
+  if FMain.Bind then
+  Try
+    if GetKeyState(VK_SHIFT) < 0 then
+      FMapBrush.ApplyBrush_Smooth()
+    else
+      FMapBrush.ApplyBrush(GetKeyState(VK_CONTROL) >= 0);
+    FHeightMap.GenerateMips;
+    FNMBuilder.Build(FHeightMap, FNormalMap, HEIGHTMAP_ZSCALE, True);
+    FGBuilder.Build(Round(FHeightMap.Size), GROUNDCELL_SCALE, FHeightMap, HEIGHTMAP_ZSCALE, FGroundPathes);
+
+    FFBO.Select();
+    FMain.InvalidateWindow;
+  finally
+    FMain.Unbind;
+  end;
 end;
 
 { TPanel }

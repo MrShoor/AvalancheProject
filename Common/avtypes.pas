@@ -113,6 +113,7 @@ type
   TTextureFilter = (tfNone, tfNearest, tfLinear);
   TTextureWrap   = (twRepeat, twMirror, twClamp, twClampToEdge);
   TBlendFunc     = (bfZero, bfOne, bfSrcAlpha, bfInvSrcAlpha, bfDstAlpha, bfInfDstAlpha, bfSrcColor, bfDstColor);
+  TBlendOp       = (boAdd, boSub, boRevSub, boMin, boMax);
   TCompareFunc   = (cfNever,
                     cfLess,
                     cfEqual,

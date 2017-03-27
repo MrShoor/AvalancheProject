@@ -349,6 +349,14 @@ type
       D3D11_BLEND_DEST_COLOR    // bfDstColor
     );
 
+    const DXBlendOp : array [TBlendOp] of D3D11_BLEND_OP = (
+      D3D11_BLEND_OP_ADD,          // boAdd
+      D3D11_BLEND_OP_SUBTRACT,     // boSub
+      D3D11_BLEND_OP_REV_SUBTRACT, // boRevSub
+      D3D11_BLEND_OP_MIN,          // boMin
+      D3D11_BLEND_OP_MAX           // boMax
+    );
+
     const DXDepthMask : array [Boolean] of D3D11_DEPTH_WRITE_MASK = (
       D3D11_DEPTH_WRITE_MASK_ZERO,
       D3D11_DEPTH_WRITE_MASK_ALL
@@ -456,6 +464,7 @@ type
 
     procedure SetStencil(Enabled : Boolean; StencilFunc : TCompareFunc; Ref : Integer; Mask : Byte; sFail, dFail, dPass : TStencilAction);
     procedure SetBlendFunctions(Src, Dest : TBlendFunc; RenderTargetIndex: Integer = AllTargets);
+    procedure SetBlendOperation(BlendOp : TBlendOp; RenderTargetIndex: Integer = AllTargets);
     // getters/setters
 
     property Scissor                : TRectI       read GetScissor                write SetScissor;
@@ -541,6 +550,8 @@ type
                        const ASrcRes: IctxTexture; const SrcMipLevel: Integer; const SrcRect: TRectI);
 
     procedure GenerateMips;
+
+    procedure ReadBack(const ATexData: ITextureData; const ASlice: Integer; const AMipLevel: Integer); //-1 for all mip levels
   end;
 
   TFrameBuffer = class;
@@ -1932,6 +1943,30 @@ begin
   end;
 end;
 
+procedure TStates.SetBlendOperation(BlendOp: TBlendOp; RenderTargetIndex: Integer);
+var i: Integer;
+begin
+  if RenderTargetIndex = AllTargets then
+  begin
+    for i := 0 to Length(FBDesc.RenderTarget) - 1 do
+    begin
+      FBDescDirty := FBDescDirty or
+                     (FBDesc.RenderTarget[i].BlendOp <> DXBlendOp[BlendOp]);
+      // ToDo separate alpha blendstate
+      FBDesc.RenderTarget[i].BlendOp := DXBlendOp[BlendOp];
+      FBDesc.RenderTarget[i].BlendOpAlpha := DXBlendOp[BlendOp];
+    end;
+  end
+  else
+  begin
+      FBDescDirty := FBDescDirty or
+                     (FBDesc.RenderTarget[RenderTargetIndex].BlendOp <> DXBlendOp[BlendOp]);
+      // ToDo separate alpha blendstate
+      FBDesc.RenderTarget[RenderTargetIndex].BlendOp := DXBlendOp[BlendOp];
+      FBDesc.RenderTarget[RenderTargetIndex].BlendOpAlpha := DXBlendOp[BlendOp];
+  end;
+end;
+
 procedure TStates.SetViewport(const Value: TRectI);
 begin
   if (FViewport.Left <> Value.Left) or
@@ -2576,6 +2611,42 @@ end;
 procedure TTexture.GenerateMips;
 begin
   FContext.FDeviceContext.GenerateMips(GetResView);
+end;
+
+procedure TTexture.ReadBack(const ATexData: ITextureData; const ASlice: Integer; const AMipLevel: Integer);
+var texdesc: TD3D11_Texture2DDesc;
+    copybox: TD3D11_Box;
+    mapdata: TD3D11_MappedSubresource;
+    cputex : ID3D11Texture2D;
+    mip: ITextureMip;
+begin
+  mip := ATexData.MipData(0, AMipLevel);
+
+  texdesc.Width := mip.Width;
+  texdesc.Height := mip.Height;
+  texdesc.MipLevels := 1;
+  texdesc.ArraySize := 1;
+  texdesc.Format := D3D11TextureFormat[FFormat];
+  texdesc.SampleDesc.Count := 1;
+  texdesc.SampleDesc.Quality := 0;
+  texdesc.Usage := D3D11_USAGE_STAGING;
+  texdesc.BindFlags := 0;
+  texdesc.CPUAccessFlags := Cardinal(D3D11_CPU_ACCESS_READ);
+  texdesc.MiscFlags := 0;
+  Check3DError( FContext.GetDevice.CreateTexture2D(texdesc, nil, cputex) );
+
+  copybox.Left := 0;
+  copybox.Right := ATexData.Width;
+  copybox.Top := 0;
+  copybox.Bottom := ATexData.Height;
+  copybox.Front := 0;
+  copybox.Back := 1;
+  FContext.GetDeviceContext.CopySubresourceRegion(cputex, D3D11CalcSubresource(AMipLevel, ASlice, 1), 0, 0, 0,
+                                                  FTexture, D3D11CalcSubresource(0, 0, 1), @copybox);
+
+  Check3DError( FContext.GetDeviceContext.Map(cputex, D3D11CalcSubresource(0, 0, 1), D3D11_MAP_READ, 0, mapdata) );
+  Move(mapdata.pData^, ATexData.MipData(0, AMipLevel).Data^, mip.Width*mip.Height*ImagePixelSize[ATexData.Format]);
+  FContext.GetDeviceContext.Unmap(cputex, D3D11CalcSubresource(0, 0, 1));
 end;
 
 { TFrameBuffer }

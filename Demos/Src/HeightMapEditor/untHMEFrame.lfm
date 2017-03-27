@@ -28,8 +28,10 @@ object frmHMEditor: TfrmHMEditor
     left = 32
     top = 56
   end
-  object MainMenu1: TMainMenu
-    left = 186
-    top = 128
+  object BrushTimer: TTimer
+    Interval = 40
+    OnTimer = BrushTimerTimer
+    left = 44
+    top = 141
   end
 end
