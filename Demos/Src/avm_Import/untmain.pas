@@ -288,6 +288,7 @@ var newInst: IavModelInstance;
     meshes: IavMeshes;
     meshInstances: IavMeshInstances;
     meshInst: IavMeshInstance;
+    newModelInstances: IavModelInstanceArr;
 begin
   avMesh.LoadFromFile(AFileName, meshes, meshInstances);
 
@@ -302,7 +303,7 @@ begin
     end;
   end;
 
-  FModels.AddFromMeshInstances(meshInstances);
+  newModelInstances := FModels.AddFromMeshInstances(meshInstances);
   FInstances := TavModelInstanceArr.Create;
   lbNames.Clear;
   lbAnimations.Clear;

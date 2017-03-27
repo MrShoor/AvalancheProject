@@ -620,6 +620,7 @@ end;
 function TavModelCollection.NextInstance(out AInstance: IavModelInstance): Boolean;
 var inst: TavModelInstance;
 begin
+  inst := nil;
   Result := FModelInstances.NextValue(inst);
   AInstance := inst;
 end;
