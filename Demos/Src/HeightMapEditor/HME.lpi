@@ -81,7 +81,7 @@
         <PackageName Value="LCL"/>
       </Item4>
     </RequiredPackages>
-    <Units Count="4">
+    <Units Count="5">
       <Unit0>
         <Filename Value="HME.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -105,6 +105,10 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="HMEUtils"/>
       </Unit3>
+      <Unit4>
+        <Filename Value="HMEBrush.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit4>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

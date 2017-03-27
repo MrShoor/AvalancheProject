@@ -7,6 +7,8 @@ object frmHMEditor: TfrmHMEditor
   ClientWidth = 869
   OnMouseWheel = FrameMouseWheel
   TabOrder = 0
+  DesignLeft = 109
+  DesignTop = 3
   object pnlRender: TPanel
     Left = 120
     Height = 705
@@ -25,5 +27,9 @@ object frmHMEditor: TfrmHMEditor
     OnTimer = Timer1Timer
     left = 32
     top = 56
+  end
+  object MainMenu1: TMainMenu
+    left = 186
+    top = 128
   end
 end

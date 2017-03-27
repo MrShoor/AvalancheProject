@@ -2,6 +2,7 @@ unit HMEUtils;
 
 {$IfDef FPC}
   {$mode objfpc}{$H+}
+  {$ModeSwitch advancedrecords}
 {$EndIf}
 
 interface

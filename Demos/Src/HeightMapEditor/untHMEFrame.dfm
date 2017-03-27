@@ -6,9 +6,9 @@ object frmHMEditor: TfrmHMEditor
   TabOrder = 0
   OnMouseWheel = FrameMouseWheel
   object pnlRender: TPanel
-    Left = 120
+    Left = 112
     Top = 3
-    Width = 746
+    Width = 757
     Height = 705
     Align = alCustom
     Anchors = [akLeft, akTop, akRight, akBottom]

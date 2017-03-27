@@ -6,7 +6,8 @@ uses
   Vcl.Forms,
   untMain in 'untMain.pas' {frmMain},
   untHMEFrame in 'untHMEFrame.pas' {frmHMEditor: TFrame},
-  hmeutils in 'hmeutils.pas';
+  hmeutils in 'hmeutils.pas',
+  HMEBrush in 'HMEBrush.pas';
 
 {$R *.res}
 

@@ -13,8 +13,8 @@ uses
   {$EndIf}
   Windows, Messages, SysUtils, Variants, Classes,
   Graphics, Controls, Forms, Dialogs,
-  avRes, avContnrs, avTess, avTypes, avTexLoader, avUtils,
-  HMEUtils,
+  avRes, avContnrs, avTess, avTypes, avTexLoader,
+  HMEUtils, HMEBrush,
   mutils, StdCtrls, ExtCtrls, Types;
 
 const
@@ -75,13 +75,15 @@ type
     FLastCursorXY: TVec2i;
 
     FHeightMapData: ITextureData;
-    FNormalMapData: ITextureData;
 
     FHeightMap: TavTexture;
     FNormalMap: TavTexture;
 
     FNMBuilder: TavNormalMapBuilder;
     FGBuilder : TavGroundQuadBuilder;
+
+    FMapBrush : TavHMEBrush;
+    FMapBrushPos: TVec2;
   public
     procedure LoadMap;
 
@@ -190,6 +192,8 @@ begin
 
   FNMBuilder := TavNormalMapBuilder.Create(FMain);
   FGBuilder  := TavGroundQuadBuilder.Create(FMain);
+
+  FMapBrush  := TavHMEBrush.Create(FMain);
 end;
 
 procedure TfrmHMEditor.LoadMap;

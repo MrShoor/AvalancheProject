@@ -43,18 +43,13 @@ float2 ViewPortSize;
 
 float CalcSegmentTessLevel(float2 pt1, float2 pt2) {
     float Out;    
-    Out = length(pt1-pt2) / 32.0;//48.0;
-    Out = clamp(Out, 1.0, CellSize*2);
-    //return CellSize*3;
+    Out = length(pt1-pt2) / 32.0;
     return Out;
 }
 
 float CalcDistanceTessLevel(float z) {
     float Out;    
-    //Out = 1000.0/z;//48.0;
     Out = 100.0*z;
-    Out = clamp(Out, 1.0, CellSize*2);
-    //return CellSize*3;
     return Out;
 }
 
@@ -87,7 +82,8 @@ HS_ConstOut EdgeDistanceConstantFunction(InputPatch<VS_Data, 4> Patch, uint patc
     
     float4 vCrd[4];
     float k[4];
-    for (int i = 0; i < 4; i++) {
+    uint i;
+    for (i = 0; i < 4; i++) {
         vCrd[i] = mul(float4(Patch[i].vsCoord,1.0), V_Matrix);
     }
     k[0] = length(vCrd[0].xyz - vCrd[1].xyz)/max(1.0, (vCrd[0].z + vCrd[1].z));
@@ -111,20 +107,9 @@ HS_ConstOut EdgeDistanceConstantFunction(InputPatch<VS_Data, 4> Patch, uint patc
     
     Out.inside[0] *= Patch[0].aiQuadDelta.y;
     Out.inside[1] *= Patch[0].aiQuadDelta.x;
+    for (i = 0; i < 4; i++) Out.edges[i] = clamp(Out.edges[i], 1, CellSize);
+    for (i = 0; i < 2; i++) Out.inside[i] = clamp(Out.inside[i], 1, CellSize);
     
-    Out.edges[0] = clamp(Out.edges[0], 1, 64);
-    Out.edges[1] = clamp(Out.edges[1], 1, 64);
-    Out.edges[2] = clamp(Out.edges[2], 1, 64);
-    Out.edges[3] = clamp(Out.edges[3], 1, 64);
-    
-    Out.inside[0] = clamp(Out.inside[0], 1, 64);
-    Out.inside[1] = clamp(Out.inside[1], 1, 64);
-    
-    //Out.inside[0] = max(Out.inside[0], Out.inside[1]);
-    //Out.inside[1] = Out.inside[0];
-
-    // Set the tessellation factor for tessallating inside the triangle.
-
     return Out;
 }
 
@@ -146,7 +131,6 @@ struct DS_Output {
     float3 wCoord: wCoord;
     float3 vCoord: vCoord;
     float2 vHMTex: vHMTex;
-    float3 vNorm : vNorm;
     float4 Pos: SV_Position;
 };
 
@@ -156,6 +140,7 @@ DS_Output DS(HS_ConstOut ConstIn, float2 uvCoord: SV_DomainLocation, OutputPatch
     float3 v1 = lerp(patch[0].vsCoord, patch[2].vsCoord, uvCoord.x);
     float3 v2 = lerp(patch[1].vsCoord, patch[3].vsCoord, uvCoord.x);
     In.vsCoord = lerp(v2, v1, uvCoord.y);
+       
     DS_Output Out;
     float2 texSize;
     HeightMap.GetDimensions(texSize.x, texSize.y);
@@ -163,11 +148,7 @@ DS_Output DS(HS_ConstOut ConstIn, float2 uvCoord: SV_DomainLocation, OutputPatch
     float2 coord2D = In.vsCoord.xy;
     
     Out.vHMTex = GetTexCoord(coord2D);
-    GetMapCoordWithNormal(coord2D, 0.0, Out.wCoord, Out.vNorm);
-    //Out.wCoord = float3(coord2D, 0.0);
-    //Out.vNorm = float3(0,0,1.0);
-    Out.vNorm = mul(Out.vNorm, (float3x3) V_Matrix);
-    
+    Out.wCoord = GetMapCoord(coord2D, 0.0);
     Out.vCoord = mul(float4(Out.wCoord, 1.0), V_Matrix).xyz;
     Out.Pos = mul(float4(Out.vCoord, 1.0), P_Matrix);
     return Out;
@@ -205,11 +186,10 @@ float3 GetPixelColor(float2 texCoord) {
 
 PS_Output PS(DS_Output In) {
     PS_Output Out;
-    In.vNorm = normalize(In.vNorm);
-    In.vNorm = GetMapNormal(In.wCoord.xy);
-    In.vNorm = mul(In.vNorm, (float3x3) V_Matrix);
+    float3 n = GetMapNormal(In.wCoord.xy);
+    n = mul(n, (float3x3) V_Matrix);
     
-    float diffK = dot(normalize(mul(float3(1,1,1), (float3x3)V_Matrix)), -In.vNorm);
+    float diffK = dot(normalize(mul(float3(1,1,1), (float3x3)V_Matrix)), -n);
 //    Out.Color.rgb = GetPixelColor(In.vHMTex)*diffK;
     Out.Color.rgb = diffK;
     Out.Color.a = 1.0;

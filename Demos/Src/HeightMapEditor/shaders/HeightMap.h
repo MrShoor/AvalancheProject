@@ -14,7 +14,14 @@ Texture2D HeightNormalMap; SamplerState HeightNormalMapSampler;
 float2 GetTexCoord(float2 coord2D) {
     float2 texSize;
     HeightMap.GetDimensions(texSize.x, texSize.y);
-    return coord2D / texSize;
+    //return coord2D / texSize;
+    float2 uv = coord2D / texSize;
+    uv = uv*texSize + 0.5;
+    float2 iuv = floor(uv);
+    float2 fuv = frac(uv);
+    uv = iuv + fuv*fuv*(3.0-2.0*fuv); // fuv*fuv*fuv*(fuv*(fuv*6.0-15.0)+10.0);;
+    uv = (uv - 0.5)/texSize;
+    return uv;
 }
 
 float3 GetMapCoord(float2 coord2D) {
@@ -46,42 +53,11 @@ float3 GetMapNormal(float2 coord2D) {
 void GetMapCoordWithNormal(float2 coord2D, out float3 wCoord, out float3 wNormal) {
     wCoord = GetMapCoord(coord2D);
     wNormal = GetMapNormal(coord2D);
-/*
-    wCoord = GetMapCoord(coord2D);
-    
-    float3 neibs[4];
-    neibs[0] = GetMapCoord(coord2D+float2( 1, 0)) - wCoord;
-    neibs[1] = GetMapCoord(coord2D+float2( 0, 1)) - wCoord;
-    neibs[2] = GetMapCoord(coord2D+float2(-1, 0)) - wCoord;
-    neibs[3] = GetMapCoord(coord2D+float2( 0,-1)) - wCoord;
-    wNormal = 0.0000001;
-    for (uint i = 0; i < 4; i++) {
-        wNormal += cross(neibs[i], neibs[(i+1)%4]);
-    }
-
-    wNormal = normalize(wNormal);
- */ 
-
 }
 
 void GetMapCoordWithNormal(float2 coord2D, float LOD, out float3 wCoord, out float3 wNormal) {
     wCoord = GetMapCoord(coord2D, LOD);
     wNormal = GetMapNormal(coord2D, LOD);
-    /*
-    wCoord = GetMapCoord(coord2D);
-    
-    float3 neibs[4];
-    neibs[0] = GetMapCoord(coord2D+float2( 1, 0)) - wCoord;
-    neibs[1] = GetMapCoord(coord2D+float2( 0, 1)) - wCoord;
-    neibs[2] = GetMapCoord(coord2D+float2(-1, 0)) - wCoord;
-    neibs[3] = GetMapCoord(coord2D+float2( 0,-1)) - wCoord;
-    wNormal = 0.0000001;
-    for (uint i = 0; i < 4; i++) {
-        wNormal += cross(neibs[i], neibs[(i+1)%4]);
-    }
-
-    wNormal = normalize(wNormal);
-     */ 
 }
 
 #endif	/* HEIGHTMAP_H */
