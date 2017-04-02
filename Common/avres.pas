@@ -2678,6 +2678,8 @@ begin
   for i := Low(TUniformMatrices) to High(TUniformMatrices) do
     FUniformsMatrices[i] := GetUniformField(GetEnumName(pInfo, Integer(I)));
 
+  FCameraUpdateID := -1;
+  FProjectionUpdateID := -1;
   Result := True;
 end;
 
