@@ -85,7 +85,7 @@ begin
     if filename = '' then
       RaiseCompileTask('file "'+prog.Shader[i]+'" not found');
 
-    hlslObjFile[i] := prog.OutDir + '\' + ShaderType_Name[i] + '_' + prog.Shader[i] + '.sob';
+    hlslObjFile[i] := prog.OutDir + '\' + ShaderType_Name[i] + '_' + ExtractFileName(prog.Shader[i]) + '.sob';
     CompileHLSL(prog, i, hlslObjFile[i]);
 
     if prog.OGLTranslate then
