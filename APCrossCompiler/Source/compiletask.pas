@@ -367,7 +367,7 @@ function TProgramInfo.FullFileName(const FileName: string): string;
 var I: Integer;
 begin
   if FileExists(FileName) then
-    Exit(GetCurrentDir + '\' + FileName);
+    Exit(ExpandFileName(FileName));
 
   if Assigned(Path) then
     for I := 0 to Path.Count - 1 do
