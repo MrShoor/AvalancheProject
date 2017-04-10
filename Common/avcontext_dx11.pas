@@ -2625,6 +2625,7 @@ var tex  : PByte;
     texSize: Integer;
     texShouldFree: Boolean;
     Box: TD3D11_Box;
+    rowPitch, depthPitch: Integer;
 begin
     if Data = nil then Exit;
 
@@ -2642,7 +2643,22 @@ begin
 
     texShouldFree := TColorSpaceConverter.Convert(Data, imgWidth * imgHeight * ImagePixelSize[DataFormat], DataFormat, TargetFormat, tex, texSize);
     try
-      FContext.FDeviceContext.UpdateSubresource(FTexture, D3D11CalcSubresource(MipLevel, ZSlice, FMipsCount), @Box, tex, imgWidth * TexturePixelSize[TargetFormat], imgWidth * TexturePixelSize[TargetFormat] * imgHeight);
+      case DataFormat of
+        TImageFormat.DXT1:
+        begin
+          rowPitch := ((imgWidth + 3) div 4) * 8;
+          depthPitch := 0; //to do fix it
+        end;
+        TImageFormat.DXT3, TImageFormat.DXT5:
+        begin
+          rowPitch := ((imgWidth + 3) div 4) * 16;
+          depthPitch := 0; //to do fix it
+        end;
+      else
+        rowPitch := imgWidth * TexturePixelSize[TargetFormat];
+        depthPitch := rowPitch * imgHeight;
+      end;
+      FContext.FDeviceContext.UpdateSubresource(FTexture, D3D11CalcSubresource(MipLevel, ZSlice, FMipsCount), @Box, tex, rowPitch, depthPitch);
     finally
       if texShouldFree then FreeMem(tex);
     end;
