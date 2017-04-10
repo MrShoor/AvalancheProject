@@ -514,6 +514,7 @@ type
   ['{32A32DF0-5E08-4BDC-98AC-79144BAF3BCB}']
     function GetHandle : ID3D11Texture2D;
     function GetResView: ID3D11ShaderResourceView;
+    function GetResCubeView: ID3D11ShaderResourceView;
   end;
 
   { TTexture }
@@ -532,11 +533,13 @@ type
 
     FTexture: ID3D11Texture2D;
     FResView: ID3D11ShaderResourceView;
+    FCubeResView: ID3D11ShaderResourceView;
 
     function BuildDesc(AWidth, AHeight, ADeep: Integer; WithMips: Boolean): TD3D11_Texture2DDesc;
 
     function GetHandle : ID3D11Texture2D;
     function GetResView: ID3D11ShaderResourceView;
+    function GetResCubeView: ID3D11ShaderResourceView;
   public
     //*******
     function GetTargetFormat: TTextureFormat;
@@ -1304,7 +1307,7 @@ procedure TProgram.Load(const AProgram: string; FromResource: Boolean; const ASt
         Stream.ReadBuffer(UField.ElementsCount, SizeOf(UField.ElementsCount));
         Stream.ReadBuffer(Offset, SizeOf(Offset));
         case UField.DataClass of
-          dcSampler:
+          dcSampler, dcCubeSampler:
             begin
               UField.FCB[st] := nil;
               UField.FResourceIndex[st] := Offset;
@@ -1594,7 +1597,10 @@ var DXField: TUniformField_DX absolute Field;
 begin
   if Field = nil then Exit;
   if not Supports(tex, IctxTexture_DX11, dxtex) then Exit;
-  resview := dxtex.GetResView;
+  if Field.DataClass = dcCubeSampler then
+    resview := dxtex.GetResCubeView
+  else
+    resview := dxtex.GetResView;
   SamplerState := FContext.ObtainSamplerState(Sampler);
   DXField.SetResource(resview, SamplerState);
 
@@ -2429,6 +2435,33 @@ begin
   Result := FTexture;
 end;
 
+function TTexture.GetResCubeView: ID3D11ShaderResourceView;
+var desc: TD3D11_ShaderResourceViewDesc;
+begin
+  if FCubeResView = nil then
+  begin
+    if FDeep < 6 then Exit(nil);
+    desc.Format := D3D11ShaderViewFormat[FFormat];
+    if FsRGB then desc.Format := Add_sRGB(desc.Format);
+    if (FDeep >= 12) or FForcedArray then
+    begin
+      desc.ViewDimension := D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
+      desc.TextureCubeArray.NumCubes := FDeep;
+      desc.TextureCubeArray.First2DArrayFace := 0;
+      desc.TextureCubeArray.MostDetailedMip := 0;
+      desc.TextureCubeArray.MipLevels := FMipsCount;
+    end
+    else
+    begin
+      desc.ViewDimension := D3D11_SRV_DIMENSION_TEXTURECUBE;
+      desc.TextureCube.MostDetailedMip := 0;
+      desc.TextureCube.MipLevels := FMipsCount;
+    end;
+    Check3DError(FContext.FDevice.CreateShaderResourceView(FTexture, @desc, FCubeResView));
+  end;
+  Result := FCubeResView;
+end;
+
 function TTexture.GetResView: ID3D11ShaderResourceView;
 var desc: TD3D11_ShaderResourceViewDesc;
 begin
@@ -2539,6 +2572,7 @@ begin
   desc.MiscFlags := 0;
 
   FResView := nil;
+  FCubeResView := nil;
   Check3DError(FContext.FDevice.CreateTexture2D(desc, nil, FTexture));
   FSampleCount := ASampleCount;
   FWidth := AWidth;
@@ -2552,6 +2586,7 @@ procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; 
 var desc: TD3D11_Texture2DDesc;
 begin
   FResView := nil;
+  FCubeResView := nil;
   desc := BuildDesc(AWidth, AHeight, ADeep, WithMips);
   Check3DError(FContext.FDevice.CreateTexture2D(desc, nil, FTexture));
   FSampleCount := 1;
@@ -2566,6 +2601,7 @@ procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean;
 var desc: TD3D11_Texture2DDesc;
 begin
   FResView := nil;
+  FCubeResView := nil;
   desc := BuildDesc(AWidth, AHeight, ADeep, WithMips);
   //todo: initialization with data
   Check3DError(FContext.FDevice.CreateTexture2D(desc, nil, FTexture));

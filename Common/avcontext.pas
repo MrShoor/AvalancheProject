@@ -102,7 +102,7 @@ type
 //    function Appendable
   end;
 
-  TDataClass = (dcScalar, dcVector, dcMatrix, dcSampler);
+  TDataClass = (dcScalar, dcVector, dcMatrix, dcSampler, dcCubeSampler);
 
   { TUniformField }
 

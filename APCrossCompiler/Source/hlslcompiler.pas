@@ -404,7 +404,11 @@ var
     else
     begin
       Result.Name := ShaderBindDesc.Name;
-      Result.DataClass := dcSampler;
+      if (ShaderBindDesc.Dimension = D3D_SRV_DIMENSION_TEXTURECUBE) or
+         (ShaderBindDesc.Dimension = D3D_SRV_DIMENSION_TEXTURECUBEARRAY) then
+        Result.DataClass := dcCubeSampler
+      else
+        Result.DataClass := dcSampler;
       Result.ElementType := ctInt;
       Result.ItemsCount := 1;
       Result.ElementsCount := 1;

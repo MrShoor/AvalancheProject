@@ -2087,7 +2087,7 @@ begin
 //        If FUniformList.Contains(uniform.Name) Then
 
 
-        if uniform.DataClass = dcSampler then
+        if (uniform.DataClass = dcSampler) or (uniform.DataClass = dcCubeSampler) then
         begin
           PInteger(@uniform.Data[0])^ := texIndex;
           glUniform1i(uniform.ID, texIndex);
@@ -2391,6 +2391,7 @@ procedure TProgram.SetUniform(const Field: TUniformField; const Value: integer);
 begin
   if Field = nil then Exit;
   if Field.DataClass = dcSampler then Exit;
+  if Field.DataClass = dcCubeSampler then Exit;
   If value <> PInteger(Field.Data)^ then
   begin
     PInteger(Field.Data)^ := value;
@@ -2402,6 +2403,7 @@ procedure TProgram.SetUniform(const Field: TUniformField; const Value: single);
 begin
   if Field = nil then Exit;
   if Field.DataClass = dcSampler then Exit;
+  if Field.DataClass = dcCubeSampler then Exit;
   If PSingle(Field.Data)^ <> value then
   begin
     PSingle(Field.Data)^ := value;
@@ -2413,6 +2415,7 @@ procedure TProgram.SetUniform(const Field: TUniformField; const v: TVec2);
 begin
   if Field = nil then Exit;
   if Field.DataClass = dcSampler then Exit;
+  if Field.DataClass = dcCubeSampler then Exit;
   If not (PVec2(Field.Data)^ = v) Then
   begin
     PVec2(Field.Data)^ := v;
@@ -2424,6 +2427,7 @@ procedure TProgram.SetUniform(const Field: TUniformField; const v: TVec3);
 begin
   if Field = nil then Exit;
   if Field.DataClass = dcSampler then Exit;
+  if Field.DataClass = dcCubeSampler then Exit;
   If not (PVec3(Field.Data)^ = v) Then
   begin
     PVec3(Field.Data)^ := v;
@@ -2435,6 +2439,7 @@ procedure TProgram.SetUniform(const Field: TUniformField; const v: TVec4);
 begin
   if Field = nil then Exit;
   if Field.DataClass = dcSampler then Exit;
+  if Field.DataClass = dcCubeSampler then Exit;
   If not (PVec4(Field.Data)^ = v) Then
   begin
     PVec4(Field.Data)^ := v;
@@ -2447,6 +2452,7 @@ procedure TProgram.SetUniform(const Field: TUniformField;
 begin
   if Field = nil then Exit;
   if Field.DataClass = dcSampler then Exit;
+  if Field.DataClass = dcCubeSampler then Exit;
   if Length(values) > 0 then
     if not CompareMem(@values[0], Field.Data, Length(values) * SizeOf(single)) then
     begin
@@ -2459,6 +2465,7 @@ procedure TProgram.SetUniform(const Field: TUniformField; const v: TVec4arr);
 begin
   if Field = nil then Exit;
   if Field.DataClass = dcSampler then Exit;
+  if Field.DataClass = dcCubeSampler then Exit;
   if Length(v) > 0 then
     if not CompareMem(@v[0], Field.Data, Length(v) * SizeOf(TVec4)) then
     begin
@@ -2471,6 +2478,7 @@ procedure TProgram.SetUniform(const Field: TUniformField; const m: TMat4);
 begin
   if Field = nil then Exit;
   if Field.DataClass = dcSampler then Exit;
+  if Field.DataClass = dcCubeSampler then Exit;
   if not CompareMem(@m, Field.Data, SizeOf(m)) then
   begin
     Move(m, Field.Data^, SizeOf(m));
@@ -2484,7 +2492,7 @@ var TexH: GLuint;
     MipFilter: TTextureFilter;
 begin
   if Field = nil then Exit;
-  if Field.DataClass <> dcSampler then Exit;
+  if (Field.DataClass <> dcSampler) or (Field.DataClass <> dcCubeSampler) then Exit;
   if tex = nil then Exit;
 
   TexH := (tex as IHandle).Handle;
