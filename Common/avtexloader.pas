@@ -843,7 +843,7 @@ constructor TTextureData.Create(ImgData: TDynImageDataArray;
       i := 0;
       while (i < Length(AImgData)-1) do
       begin
-        counter1 := 0;
+        counter1 := 1;
         while (i < Length(AImgData)-1) do
         begin
           if (NextMipSize(AImgData[i].Width, AImgData[i].Format) <> AImgData[i+1].Width) then
