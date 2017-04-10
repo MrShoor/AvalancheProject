@@ -61,9 +61,12 @@ type
   ['{FEEC2DC3-16AC-48D6-9AE1-6E358ECD4C48}']
     //*******
     function GetTargetFormat: TTextureFormat;
+    function Get_sRGB: Boolean;
     procedure SetTargetFormat(Value: TTextureFormat);
+    procedure Set_sRGB(Value: Boolean);
     //*******
     property TargetFormat: TTextureFormat read GetTargetFormat write SetTargetFormat;
+    property sRGB: Boolean read Get_sRGB write Set_sRGB;
 
     function Width : Integer;
     function Height: Integer;

@@ -770,12 +770,122 @@ constructor TTextureData.Create(ImgData: TDynImageDataArray;
                                 targetWidth, targetHeight : Integer;
                                 targetFormat              : TImageFormat);
   type
-      TTextureType = (ttSingleImage, ttMipLeveling, ttTextureArray);
+      TOrderDesc = record
+        MipsCount   : Integer;
+        SliceCount  : Integer;
+        MipsFirst   : Boolean;
+        ZeroMipSize : TVec2i;
+      end;
+
+  function GetMipOrder(const AImgData: TDynImageDataArray): TOrderDesc;
+    function NextMipSize(const CurrentSize: Integer; const AFormat: ImagingTypes.TImageFormat): Integer;
+    begin
+      Assert(IsPow2(CurrentSize) or (CurrentSize < 2));
+      Result := CurrentSize shr 1;
+      if (AFormat = ImagingTypes.TImageFormat.ifDXT1) or
+         (AFormat = ImagingTypes.TImageFormat.ifDXT3) or
+         (AFormat = ImagingTypes.TImageFormat.ifDXT5) then
+        Result := Max(4, Result);
+    end;
+  var i: Integer;
+      counter1, counter2: Integer;
+  begin
+    if Length(AImgData) = 1 then
+    begin
+      Result.MipsCount := 1;
+      Result.SliceCount := 1;
+      Result.ZeroMipSize := Vec(AImgData[0].Width, AImgData[0].Height);
+      Result.MipsFirst := True;
+      Exit;
+    end;
+
+    if (AImgData[0].Width = AImgData[1].Width) and (AImgData[0].Height = AImgData[1].Height) then
+    begin
+      Result.MipsFirst := False;
+      Result.MipsCount := 1;
+      Result.ZeroMipSize := Vec(AImgData[0].Width, AImgData[0].Height);
+
+      counter2 := 0;
+      i := 0;
+      while (i < Length(AImgData)-1) do
+      begin
+        counter1 := 0;
+        while (i < Length(AImgData)-1) do
+        begin
+          if (AImgData[i].Width <> AImgData[i+1].Width) or (AImgData[i].Height <> AImgData[i+1].Height) then
+          begin
+            Assert(AImgData[i].Width shr 1 = AImgData[i+1].Width);
+            Assert(AImgData[i].Height shr 1 = AImgData[i+1].Height);
+            Break;
+          end;
+          Inc(i);
+          Inc(counter1);
+        end;
+        Inc(i);
+        Inc(counter2);
+        if Result.SliceCount = 0 then
+          Result.SliceCount := counter1
+        else
+          Assert(Result.SliceCount = counter1);
+      end;
+      Result.MipsCount := counter2;
+      Exit;
+    end;
+
+    if IsPow2(AImgData[0].Width) and IsPow2(AImgData[0].Height) then
+    begin
+      Result.MipsFirst := True;
+      Result.MipsCount := 1;
+      Result.SliceCount := 1;
+      Result.ZeroMipSize := Vec(AImgData[0].Width, AImgData[0].Height);
+
+      counter2 := 0;
+      i := 0;
+      while (i < Length(AImgData)-1) do
+      begin
+        counter1 := 0;
+        while (i < Length(AImgData)-1) do
+        begin
+          if (NextMipSize(AImgData[i].Width, AImgData[i].Format) <> AImgData[i+1].Width) then
+          begin
+            Assert(AImgData[i+1].Width = AImgData[0].Width);
+            Assert(AImgData[i+1].Height = AImgData[0].Height);
+            Break;
+          end;
+          Inc(i);
+          Inc(counter1);
+        end;
+        Inc(i);
+        Inc(counter2);
+        if Result.MipsCount = 1 then
+          Result.MipsCount := counter1
+        else
+          Assert(Result.MipsCount = counter1);
+      end;
+      Result.SliceCount := counter2;
+      Exit;
+    end;
+
+    Result.MipsCount := 1;
+    Result.SliceCount := 1;
+    Result.ZeroMipSize := Vec(AImgData[0].Width, AImgData[0].Height);
+    Result.MipsFirst := True;
+    Exit;
+  end;
+
+  function GetMipDataIndex(const ASlice: Integer; const AMip: Integer; AOrderDesc : TOrderDesc): Integer;
+  begin
+    if AOrderDesc.MipsFirst then
+      Result := ASlice*AOrderDesc.MipsCount + AMip
+    else
+      Result := AMip*AOrderDesc.SliceCount + ASlice;
+  end;
 
 var NewVamp: ImagingTypes.TImageFormat;
     Img0: TImageData;
     i: Integer;
-    TexType: TTextureType;
+    VampMipOrder : TOrderDesc;
+    slice, mip: Integer;
 begin
   Assert(Length(ImgData)>0);
   Img0 := ImgData[0];
@@ -789,64 +899,45 @@ begin
   if NewVamp = ifUnknown then RaiseUnsupported;
   FFormat := targetFormat;
 
-  TexType := ttSingleImage;
-  if Length(ImgData) > 1 then
-  begin
-    if (ImgData[0].Width = ImgData[1].Width) and (ImgData[0].Height = ImgData[1].Height) then
-      TexType := ttTextureArray
-    else
-    begin
-      if IsPow2(ImgData[0].Width) and IsPow2(ImgData[0].Height) and
-         (ImgData[0].Width shr 2 = ImgData[1].Width) and (ImgData[0].Height shr 2 = ImgData[1].Height) then
-         TexType := ttMipLeveling;
-    end;
-  end;
+  VampMipOrder := GetMipOrder(ImgData);
 
-  if targetWidth = SIZE_DEFAULT then targetWidth := ImgData[0].Width;
-  if targetHeight = SIZE_DEFAULT then targetHeight := ImgData[0].Height;
-  if targetWidth = SIZE_NEXTPOW2 then targetWidth := NextPow2(ImgData[0].Width);
-  if targetHeight = SIZE_NEXTPOW2 then targetHeight := NextPow2(ImgData[0].Height);
+  if targetWidth = SIZE_DEFAULT then targetWidth := VampMipOrder.ZeroMipSize.x;
+  if targetHeight = SIZE_DEFAULT then targetHeight := VampMipOrder.ZeroMipSize.y;
+  if targetWidth = SIZE_NEXTPOW2 then targetWidth := NextPow2(VampMipOrder.ZeroMipSize.x);
+  if targetHeight = SIZE_NEXTPOW2 then targetHeight := NextPow2(VampMipOrder.ZeroMipSize.y);
 
   FWidth := targetWidth;
   FHeight := targetHeight;
+  FMipsCount := VampMipOrder.MipsCount;
 
-  if (TexType = ttMipLeveling) then
-    if not (IsPow2(targetWidth) and IsPow2(targetHeight)) then
-      TexType := ttSingleImage;
-
-  case TexType of
-    ttSingleImage:
-        SetLength(FMips, 1, 1);
-    ttMipLeveling:
-        SetLength(FMips, 1, Length(ImgData));
-    ttTextureArray:
-        SetLength(FMips, Length(ImgData), 1);
-  end;
-  FMipsCount := Length(FMips[0]);
-
-  for i := 0 to Length(ImgData) - 1 do
+  if not (IsPow2(targetWidth) and IsPow2(targetHeight)) then
   begin
-    if NewVamp <> ImgData[i].Format then ConvertImage(ImgData[i], NewVamp);
+    //cant stretch with mips
+    FMipsCount := 1;
+  end;
 
-    if (targetWidth <> ImgData[i].Width) or (targetHeight <> ImgData[i].Height) then
-      ResizeImage(ImgData[i], targetWidth, targetHeight, rfBicubic);
+  SetLength(FMips, VampMipOrder.SliceCount, FMipsCount);
+  for slice := 0 to VampMipOrder.SliceCount - 1 do
+  begin
+    targetWidth := FWidth;
+    targetHeight := FHeight;
+    for mip := 0 to FMipsCount - 1 do
+    begin
+      i := GetMipDataIndex(slice, mip, VampMipOrder);
 
-    case TexType of
-      ttSingleImage:
-          begin
-            FMips[0][0] := TMipImage.Create(targetWidth, targetHeight, ImgData[i].Bits, ImgData[i].Size, FFormat);
-            Break;
-          end;
-      ttMipLeveling:
-          begin
-            FMips[0][i] := TMipImage.Create(targetWidth, targetHeight, ImgData[i].Bits, ImgData[i].Size, FFormat);
-            targetWidth := targetWidth shr 2;
-            targetHeight := targetHeight shr 2;
-          end;
-      ttTextureArray:
-          begin
-            FMips[i][0] := TMipImage.Create(targetWidth, targetHeight, ImgData[i].Bits, ImgData[i].Size, FFormat);
-          end;
+      if NewVamp <> ImgData[i].Format then ConvertImage(ImgData[i], NewVamp);
+      if (targetWidth <> ImgData[i].Width) or (targetHeight <> ImgData[i].Height) then
+        ResizeImage(ImgData[i], targetWidth, targetHeight, rfBicubic);
+
+      FMips[slice][mip] := TMipImage.Create(targetWidth, targetHeight, ImgData[i].Bits, ImgData[i].Size, FFormat);
+
+      targetWidth := targetWidth shr 1;
+      targetHeight := targetHeight shr 1;
+      if targetFormat in [TImageFormat.DXT1, TImageFormat.DXT3, TImageFormat.DXT5] then
+      begin
+        targetWidth := max(targetWidth, 4);
+        targetHeight := max(targetHeight, 4);
+      end;
     end;
   end;
 end;

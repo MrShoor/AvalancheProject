@@ -107,9 +107,9 @@ const
   {R16f} DXGI_FORMAT_R16_FLOAT,
   {R32} DXGI_FORMAT_R32_SINT,
   {R32f} DXGI_FORMAT_R32_FLOAT,
-  {DXT1} DXGI_FORMAT_UNKNOWN,
-  {DXT3} DXGI_FORMAT_UNKNOWN,
-  {DXT5} DXGI_FORMAT_UNKNOWN,
+  {DXT1} DXGI_FORMAT_BC1_UNORM,
+  {DXT3} DXGI_FORMAT_BC2_UNORM,
+  {DXT5} DXGI_FORMAT_BC3_UNORM,
   {D24_S8} DXGI_FORMAT_R24G8_TYPELESS,
   {D32f_S8} DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS,
   {D16} DXGI_FORMAT_R16_TYPELESS,
@@ -139,9 +139,9 @@ const
   {R16f} DXGI_FORMAT_R16_FLOAT,
   {R32} DXGI_FORMAT_R32_SINT,
   {R32f} DXGI_FORMAT_R32_FLOAT,
-  {DXT1} DXGI_FORMAT_UNKNOWN,
-  {DXT3} DXGI_FORMAT_UNKNOWN,
-  {DXT5} DXGI_FORMAT_UNKNOWN,
+  {DXT1} DXGI_FORMAT_BC1_UNORM,
+  {DXT3} DXGI_FORMAT_BC2_UNORM,
+  {DXT5} DXGI_FORMAT_BC3_UNORM,
   {D24_S8} DXGI_FORMAT_D24_UNORM_S8_UINT,
   {D32f_S8} DXGI_FORMAT_D32_FLOAT_S8X24_UINT,
   {D16} DXGI_FORMAT_D16_UNORM,
@@ -192,6 +192,18 @@ const
                                                                           {ptTriangles_Adj}     D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ,
                                                                           {ptTriangleStrip_Adj} D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ,
                                                                           {ptPatches}           D3D11_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST);
+
+function Add_sRGB(const AFormat: TDXGI_Format): TDXGI_Format;
+begin
+  case AFormat of
+    DXGI_FORMAT_R8G8B8A8_UNORM : Result := DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    DXGI_FORMAT_BC1_UNORM : Result := DXGI_FORMAT_BC1_UNORM_SRGB;
+    DXGI_FORMAT_BC2_UNORM : Result := DXGI_FORMAT_BC2_UNORM_SRGB;
+    DXGI_FORMAT_BC3_UNORM : Result := DXGI_FORMAT_BC3_UNORM_SRGB;
+  else
+    Result := AFormat;
+  end;
+end;
 
 procedure Check3DError(hr: HRESULT);
 var s: string;
@@ -514,6 +526,7 @@ type
     FDeep: Integer;
     FForcedArray: Boolean;
     FFormat: TTextureFormat;
+    FsRGB: Boolean;
     FMipsCount: Integer;
     FSampleCount: Integer;
 
@@ -527,7 +540,9 @@ type
   public
     //*******
     function GetTargetFormat: TTextureFormat;
+    function Get_sRGB: Boolean;
     procedure SetTargetFormat(Value: TTextureFormat);
+    procedure Set_sRGB(Value: Boolean);
     //*******
     property TargetFormat: TTextureFormat read GetTargetFormat write SetTargetFormat;
 
@@ -2316,6 +2331,15 @@ begin
   SpecMethod := FSpecConvertes[ASrcFormat][ADstFormat];
   if Assigned(SpecMethod) then Exit(SpecMethod(ASrc, ASrcSize, ASrcFormat, ADstFormat, ADst, ADstSize));
 
+  if ( (ASrcFormat = TImageFormat.DXT1) and (ADstFormat = TTextureFormat.DXT1) ) or
+     ( (ASrcFormat = TImageFormat.DXT3) and (ADstFormat = TTextureFormat.DXT3) ) or
+     ( (ASrcFormat = TImageFormat.DXT5) and (ADstFormat = TTextureFormat.DXT5) ) then
+  begin
+    ADst := ASrc;
+    ADstSize := ASrcSize;
+    Exit(False);
+  end;
+
   ImgFormat := DecodeImageFormat(ASrcFormat);
   TexFormat := DecodeTextureFormat(ADstFormat);
 
@@ -2380,17 +2404,20 @@ begin
     TTextureFormat.D32f:
       Result.BindFlags := DWord(D3D11_BIND_SHADER_RESOURCE) or DWord(D3D11_BIND_DEPTH_STENCIL);
   else
-    Result.BindFlags := DWord(D3D11_BIND_SHADER_RESOURCE) or DWord(D3D11_BIND_RENDER_TARGET);
+    Result.BindFlags := DWord(D3D11_BIND_SHADER_RESOURCE);
+    if not (FTargetFormat in [TTextureFormat.DXT1, TTextureFormat.DXT3, TTextureFormat.DXT5]) then
+      Result.BindFlags := Result.BindFlags or DWord(D3D11_BIND_RENDER_TARGET);
   end;
 
   Result.ArraySize := ADeep;
   Result.Format := D3D11TextureFormat[FTargetFormat];
+  if FsRGB then Result.Format := Add_sRGB(Result.Format);
   Result.SampleDesc.Count := 1;
   Result.SampleDesc.Quality := 0;
   Result.Usage := D3D11_USAGE_DEFAULT;
   Result.CPUAccessFlags := 0;
   Result.MiscFlags := 0;
-  if WithMips then
+  if WithMips and (Result.BindFlags and DWord(D3D11_BIND_RENDER_TARGET) = DWord(D3D11_BIND_RENDER_TARGET))  then
     Result.MiscFlags := Result.MiscFlags or DWord(D3D11_RESOURCE_MISC_GENERATE_MIPS);
   if (ADeep = 6) and (AWidth = AHeight) then
     Result.MiscFlags := Result.MiscFlags or DWord(D3D11_RESOURCE_MISC_TEXTURECUBE);
@@ -2408,6 +2435,7 @@ begin
   if FResView = nil then
   begin
     desc.Format := D3D11ShaderViewFormat[FFormat];
+    if FsRGB then desc.Format := Add_sRGB(desc.Format);
     if (FDeep > 1) or FForcedArray then
     begin
       desc.ViewDimension := D3D10_SRV_DIMENSION_TEXTURE2DARRAY;
@@ -2432,9 +2460,19 @@ begin
   Result := FTargetFormat;
 end;
 
+function TTexture.Get_sRGB: Boolean;
+begin
+  Result := FsRGB;
+end;
+
 procedure TTexture.SetTargetFormat(Value: TTextureFormat);
 begin
   FTargetFormat := Value;
+end;
+
+procedure TTexture.Set_sRGB(Value: Boolean);
+begin
+  FsRGB := Value;
 end;
 
 function TTexture.Width: Integer;
@@ -2487,11 +2525,13 @@ begin
     desc.BindFlags := DWord(D3D11_BIND_RENDER_TARGET);
   end;
 
-  Check3DError(FContext.FDevice.CheckMultisampleQualityLevels(D3D11TextureFormat[FTargetFormat], ASampleCount, Quality));
+  desc.Format := D3D11TextureFormat[FTargetFormat];
+  if FsRGB then desc.Format := Add_sRGB(desc.Format);
+
+  Check3DError(FContext.FDevice.CheckMultisampleQualityLevels(desc.Format, ASampleCount, Quality));
   Dec(Quality);
 
   desc.ArraySize := 1;
-  desc.Format := D3D11TextureFormat[FTargetFormat];
   desc.SampleDesc.Count := ASampleCount;
   desc.SampleDesc.Quality := Quality;
   desc.Usage := D3D11_USAGE_DEFAULT;
@@ -2627,6 +2667,7 @@ begin
   texdesc.MipLevels := 1;
   texdesc.ArraySize := 1;
   texdesc.Format := D3D11TextureFormat[FFormat];
+  if FsRGB then texdesc.Format := Add_sRGB(texdesc.Format);
   texdesc.SampleDesc.Count := 1;
   texdesc.SampleDesc.Quality := 0;
   texdesc.Usage := D3D11_USAGE_STAGING;
@@ -2679,6 +2720,7 @@ begin
       end;
       FillChar(RTDesc, SizeOf(RTDesc), 0);
       RTDesc.Format := D3D11ViewFormat[FTex[i].Tex.Format];
+      if FTex[i].Tex.sRGB then RTDesc.Format := Add_sRGB(RTDesc.Format);
       if FTex[i].Tex.SampleCount > 1 then
       begin
         RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2DMS;

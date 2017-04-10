@@ -192,6 +192,19 @@ const
                                                        {ctFloat} 4,
                                                        {ctDouble}8);
 
+function Add_sRGB(const AFormat: GLUint): GLUint;
+begin
+  case AFormat of
+    GL_RGBA : Result := GL_SRGB8_ALPHA8;
+    GL_RGB : Result := GL_SRGB8;
+    GL_COMPRESSED_RGBA_S3TC_DXT1_EXT : Result := GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
+    GL_COMPRESSED_RGBA_S3TC_DXT3_EXT : Result := GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT;
+    GL_COMPRESSED_RGBA_S3TC_DXT5_EXT : Result := GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
+  else
+    Result := AFormat;
+  end;
+end;
+
 
 {$IfDef FPC}
 operator = (const a, b: TVAOKey): Boolean;
@@ -822,12 +835,15 @@ type
     FIsArray : Boolean;
     FMipsCount: Integer;
     FTargetFormat : TTextureFormat;
+    FsRGB : Boolean;
     FSampleCount: Integer;
 
     FGLTexTarget: GLuint;
 
     function GetTargetFormat: TTextureFormat;
+    function Get_sRGB: Boolean;
     procedure SetTargetFormat(Value: TTextureFormat);
+    procedure Set_sRGB(Value: Boolean);
 
     procedure AllocMem(AWidth, AHeight, ADeep: Integer; glFormat, exFormat, compFormat: Cardinal; Data: PByte; GenMipmaps: Boolean; ForcedArray: Boolean); overload;
   public
@@ -1028,6 +1044,7 @@ var i, n: Integer;
     status: Integer;
     err: String;
 begin
+  glEnable(GL_FRAMEBUFFER_SRGB);
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FHandle);
   n := 0;
   for i := 0 to Length(FEnabledColorTargets) - 1 do
@@ -1182,11 +1199,13 @@ procedure TFrameBuffer.BlitToWindow(index: Integer; const srcRect, dstRect: TRec
 const GLFilter: array [TTextureFilter] of GLuint = (GL_NEAREST, GL_NEAREST,  GL_LINEAR);
       GLTargetBuffer: array [Boolean] of GLuint = (GL_FRONT, GL_BACK);
 begin
+  glDisable(GL_FRAMEBUFFER_SRGB);
   glBindFramebuffer(GL_READ_FRAMEBUFFER, FHandle);
   glReadBuffer(GL_COLOR_ATTACHMENT0+index);
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
   glDrawBuffer(GLTargetBuffer[DEFAULT_BackBuffer]);
   glBlitFramebuffer(srcRect.Left, srcRect.Top, srcRect.Right, srcRect.Bottom, dstRect.Left, dstRect.Top, dstRect.Right, dstRect.Bottom, GL_COLOR_BUFFER_BIT, GLFilter[Filter]);
+  glEnable(GL_FRAMEBUFFER_SRGB);
 end;
 
 constructor TFrameBuffer.Create(AContext: TContext_OGL);
@@ -1204,9 +1223,19 @@ begin
   Result := FTargetFormat;
 end;
 
+function TTexture.Get_sRGB: Boolean;
+begin
+  Result := FsRGB;
+end;
+
 procedure TTexture.SetTargetFormat(Value: TTextureFormat);
 begin
   FTargetFormat := Value;
+end;
+
+procedure TTexture.Set_sRGB(Value: Boolean);
+begin
+  FsRGB := Value;
 end;
 
 procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; glFormat, exFormat, compFormat: Cardinal; Data: PByte; GenMipmaps: Boolean; ForcedArray: Boolean);
@@ -1296,6 +1325,7 @@ end;
 
 procedure TTexture.AllocMultiSampled(AWidth, AHeight, ASampleCount: Integer);
 var maxSamples: Integer;
+    internalFormat: GLuint;
 begin
   FWidth := AWidth;
   FHeight := AHeight;
@@ -1311,12 +1341,15 @@ begin
 
   glActiveTexture(GL_TEXTURE31);
   glBindTexture(FGLTexTarget, FHandle);
-  glTexImage2DMultisample(FGLTexTarget, max(0, min(maxSamples, FSampleCount))-1, GLTextureFormat[FTargetFormat], AWidth, AHeight, False);
+  internalFormat := GLTextureFormat[FTargetFormat];
+  if FsRGB then internalFormat := Add_sRGB(internalFormat);
+  glTexImage2DMultisample(FGLTexTarget, max(0, min(maxSamples, FSampleCount))-1, internalFormat, AWidth, AHeight, False);
 end;
 
 procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; ForcedArray: Boolean);
 var exFormat: Cardinal;
     compType: Cardinal;
+    internalFormat: GLuint;
 begin
   case TargetFormat of
     TTextureFormat.D32f_S8 : begin exFormat:=GL_DEPTH_STENCIL;   compType:=GL_FLOAT_32_UNSIGNED_INT_24_8_REV; end;
@@ -1329,12 +1362,17 @@ begin
   else
     exFormat:=GL_RGBA; compType:=GL_UNSIGNED_BYTE;
   end;
-  AllocMem(AWidth, AHeight, ADeep, GLTextureFormat[FTargetFormat], exFormat, compType, nil, WithMips, ForcedArray);
+  internalFormat := GLTextureFormat[FTargetFormat];
+  if FsRGB then internalFormat := Add_sRGB(internalFormat);
+  AllocMem(AWidth, AHeight, ADeep, internalFormat, exFormat, compType, nil, WithMips, ForcedArray);
 end;
 
 procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; DataFormat: TImageFormat; Data: PByte; ForcedArray: Boolean);
+var internalFormat: GLuint;
 begin
-  AllocMem(AWidth, AHeight, ADeep, GLTextureFormat[FTargetFormat], GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data, WithMips, ForcedArray);
+  internalFormat := GLTextureFormat[FTargetFormat];
+  if FsRGB then internalFormat := Add_sRGB(internalFormat);
+  AllocMem(AWidth, AHeight, ADeep, internalFormat, GLImagePixelFormat[DataFormat], GLImageComponentFormat[DataFormat], Data, WithMips, ForcedArray);
 end;
 
 procedure TTexture.SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte);

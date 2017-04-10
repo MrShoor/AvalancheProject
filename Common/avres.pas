@@ -448,6 +448,7 @@ type
   protected
     FTexH: IctxTexture;
     FTargetFormat: TTextureFormat;
+    FsRGB: Boolean;
     procedure BeforeFree3D; override;
   public
     function Width: Integer;
@@ -460,6 +461,7 @@ type
     procedure ReadBack(var ATexData: ITextureData; ASlice: Integer; const AMipLevel: Integer); //-1 for all mip levels
 
     property TargetFormat: TTextureFormat read FTargetFormat write FTargetFormat;
+    property sRGB: Boolean read FsRGB write FsRGB;
   end;
 
   { TavTexture }
@@ -692,7 +694,8 @@ type
     procedure AfterConstruction; override;
   end;
 
-function Create_FrameBuffer(Parent: TavObject; textures: array of TTextureFormat): TavFrameBuffer;
+function Create_FrameBuffer(Parent: TavObject; textures: array of TTextureFormat): TavFrameBuffer; overload;
+function Create_FrameBuffer(Parent: TavObject; textures: array of TTextureFormat; srgb: array of Boolean): TavFrameBuffer; overload;
 function Create_FrameBufferMultiSampled(Parent: TavObject; textures: array of TTextureFormat; const ASampleCount: Integer): TavFrameBuffer;
 
 procedure DrawManaged(const AProg: TavProgram;
@@ -711,7 +714,7 @@ uses
   avContext_DX11,
   avTexLoader;
 
-function Create_FrameBuffer(Parent: TavObject; textures: array of TTextureFormat): TavFrameBuffer;
+function Create_FrameBuffer(Parent: TavObject; textures: array of TTextureFormat; srgb: array of Boolean): TavFrameBuffer;
 var i, colorIndex: Integer;
     tex: TavTexture;
     hasDepth: Boolean;
@@ -725,6 +728,7 @@ begin
     tex := TavTexture.Create(Result);
     tex.TargetFormat := textures[i];
     tex.AutoGenerateMips := False;
+    tex.sRGB := srgb[i];
     if IsDepthTexture[textures[i]] then
     begin
         Result.SetDepth(tex, 0);
@@ -736,6 +740,15 @@ begin
         Inc(colorIndex);
     end;
   end;
+end;
+
+function Create_FrameBuffer(Parent: TavObject; textures: array of TTextureFormat): TavFrameBuffer; overload;
+var srgb: array of Boolean;
+    i: Integer;
+begin
+  SetLength(srgb, Length(textures));
+  for i := 0 to High(srgb) do srgb[i] := false;
+  Result := Create_FrameBuffer(Parent, textures, srgb);
 end;
 
 function Create_FrameBufferMultiSampled(Parent: TavObject; textures: array of TTextureFormat; const ASampleCount: Integer): TavFrameBuffer;
@@ -831,6 +844,7 @@ begin
   begin
     FTexH := Main.Context.CreateTexture;
     FTexH.TargetFormat := FTargetFormat;
+    FTexH.sRGB := FsRGB;
   end;
   if (FTexH.Width <> FQuadManager.Width) or (FTexH.Height <> FQuadManager.Height) then
     FTexH.AllocMem(FQuadManager.Width, FQuadManager.Height, 1, False);
@@ -1023,6 +1037,7 @@ begin
   inherited DoBuild;
   if FTexH = nil then FTexH := Main.Context.CreateTexture;
   FTexH.TargetFormat := FTargetFormat;
+  FTexH.sRGB := FsRGB;
   FTexH.AllocMultiSampled(FTargetWidth, FTargetHeight, FTargetSampleCount);
   Result := True;
 end;
@@ -1082,6 +1097,8 @@ var w, h: Integer;
 begin
   if ASrc.FTexH = nil then Exit;
   if FTexH = Nil then FTexH := Main.Context.CreateTexture;
+  FTexH.TargetFormat := FTargetFormat;
+  FTexH.sRGB := FsRGB;
 
   w := Abs(ASrcRect.Right - ASrcRect.Left);
   h := Abs(ASrcRect.Bottom - ASrcRect.Top);
@@ -1735,6 +1752,7 @@ begin
   begin
     if FTexH = nil then FTexH := Main.Context.CreateTexture;
     FTexH.TargetFormat := FTargetFormat;
+    FTexH.sRGB := FsRGB;
     FImageSize.x := FTexData.Width;
     FImageSize.y := FTexData.Height;
 
