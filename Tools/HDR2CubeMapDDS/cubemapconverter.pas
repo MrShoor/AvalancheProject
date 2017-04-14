@@ -171,7 +171,7 @@ end;
 procedure PrintHelp;
 begin
   WriteLn('Usage: HDR2CubeMap.exe <input file> <params>');
-  WriteLn('  for <params>:');
+  WriteLn('  <params>:');
   WriteLn('    -o<filename> - set output filename');
   WriteLn('    -s<int size> - output cube face size');
   WriteLn('    -f<string pixelformat> - output pixel format:');
@@ -195,7 +195,10 @@ var
   f: Single;
 begin
   if (ParamCount = 0) or ( (ParamCount=1) and ((ParamStr(1) = '/?') or (ParamStr(1) = '-?')) ) then
-    PrintHelp;  
+  begin
+    PrintHelp;
+    Exit;
+  end;
 
   Result.Input := ParamStr(1);
   Result.Output := Result.Input + '_out.dds';
