@@ -197,7 +197,7 @@ begin
   if (ParamCount = 0) or ( (ParamCount=1) and ((ParamStr(1) = '/?') or (ParamStr(1) = '-?')) ) then
   begin
     PrintHelp;
-    Exit;
+    Halt(1);
   end;
 
   Result.Input := ParamStr(1);
