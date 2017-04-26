@@ -154,7 +154,7 @@ begin
   try                                                     
     if not LoadImageFromFile(AParams.Input, src) then
       raise EConvertError.Create('Can''t open file: ' + ExpandFileName(AParams.Input));
-    SaveImageToFile('tmp.png', src);
+    //SaveImageToFile('tmp.png', src);
 
     for i := 0 to 5 do
       if not NewImage(AParams.OutputSize, AParams.OutputSize, AParams.OutputFmt, dst[i]) then
