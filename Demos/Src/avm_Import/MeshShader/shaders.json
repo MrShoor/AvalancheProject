@@ -3,7 +3,7 @@
     "HLSLcc_flags": ["HLSLCC_FLAG_DISABLE_GLOBALS_STRUCT",
                      "HLSLCC_FLAG_INOUT_SEMANTIC_NAMES",
                      "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],    
-    "OGLTranslate" : true,
+    "OGLTranslate" : false,
     "OutDir" : "!Out",
     "VertexEntry" : "VS",
     "FragmentEntry" : "PS",

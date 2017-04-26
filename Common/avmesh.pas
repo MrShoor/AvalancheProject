@@ -34,17 +34,52 @@ type
   { TMeshMaterial }
 
   TMeshMaterial = packed record
-    matDiff: TVec4;
-    matSpec: TVec4;
-    matDiffMapFactor: Single;
-    matSpecPow: Single;
+    matDiff        : TVec4;
+    matSpec        : TVec4;
+    matSpecHardness: Single;
+    matSpecIOR     : Single;
+    matEmitFactor  : Single;
   end;
 
   { TMeshMaterialMaps }
 
   TMeshMaterialMaps = packed record
-    matDiffMap : ITextureData;
-    matNormalMap: ITextureData;
+    Width   : Integer;
+    Height  : Integer;
+    MipCount: Integer;
+
+    mapDiffuse_Intensity          : ITextureData;
+    mapDiffuse_IntensityFactor    : Single;
+    mapDiffuse_Color              : ITextureData;
+    mapDiffuse_ColorFactor        : Single;
+    mapDiffuse_Alpha              : ITextureData;
+    mapDiffuse_AlphaFactor        : Single;
+    mapDiffuse_Translucency       : ITextureData;
+    mapDiffuse_TranslucencyFactor : Single;
+
+    mapShading_Ambient            : ITextureData;
+    mapShading_AmbientFactor      : Single;
+    mapShading_Emit               : ITextureData;
+    mapShading_EmitFactor         : Single;
+    mapShading_Mirror             : ITextureData;
+    mapShading_MirrorFactor       : Single;
+    mapShading_RayMirror          : ITextureData;
+    mapShading_RayMirrorFactor    : Single;
+
+    mapSpecular_Intensity        : ITextureData;
+    mapSpecular_IntensityFactor  : Single;
+    mapSpecular_Color            : ITextureData;
+    mapSpecular_ColorFactor      : Single;
+    mapSpecular_Hardness         : ITextureData;
+    mapSpecular_HardnessFactor   : Single;
+
+    mapGeometry_Normal           : ITextureData;
+    mapGeometry_NormalFactor     : Single;
+    mapGeometry_Warp             : ITextureData;
+    mapGeometry_WarpFactor       : Single;
+    mapGeometry_Displace         : ITextureData;
+    mapGeometry_DisplaceFactor   : Single;
+    procedure ReadFromStream(const AStream : TStream; const ATexMan : ITextureManager);
   end;
 
   { TMeshAnimationState }
@@ -691,7 +726,6 @@ type
       mat: TMeshMaterial;
       matMap: TMeshMaterialMaps;
 
-      texWidth, texHeight: Integer;
       vertexGroups: TStringArr;
   begin
     //prevent compile warning by initialization
@@ -713,36 +747,20 @@ type
     StreamReadString(stream, s);
     mesh.Name := String(s);
 
-    texWidth := SIZE_DEFAULT;
-    texHeight := SIZE_DEFAULT;
     stream.ReadBuffer(n, SizeOf(n));
+
+    matMap.Width := SIZE_DEFAULT;
+    matMap.Height := SIZE_DEFAULT;
+    matMap.MipCount := 0;
     for i := 0 to n - 1 do
     begin
       stream.ReadBuffer(mat.matDiff, SizeOf(mat.matDiff));
-      stream.ReadBuffer(mat.matDiffMapFactor, SizeOf(mat.matDiffMapFactor));
       stream.ReadBuffer(mat.matSpec, SizeOf(mat.matSpec));
-      stream.ReadBuffer(mat.matSpecPow, SizeOf(mat.matSpecPow));
+      stream.ReadBuffer(mat.matSpecHardness, SizeOf(mat.matSpecHardness));
+      stream.ReadBuffer(mat.matSpecIOR, SizeOf(mat.matSpecIOR));
+      stream.ReadBuffer(mat.matEmitFactor, SizeOf(mat.matEmitFactor));
 
-      StreamReadString(stream, s);
-      if s = '' then
-        matMap.matDiffMap := nil
-      else
-      begin
-        matMap.matDiffMap := TexManager.LoadTexture(String(s), texWidth, texHeight, TImageFormat.A8R8G8B8);
-        texWidth := matMap.matDiffMap.Width;
-        texHeight := matMap.matDiffMap.Height;
-      end;
-
-      StreamReadString(stream, s);
-      if s = '' then
-        matMap.matNormalMap := nil
-      else
-      begin
-        matMap.matNormalMap := TexManager.LoadTexture(String(s), texWidth, texHeight, TImageFormat.A8R8G8B8);
-        texWidth := matMap.matNormalMap.Width;
-        texHeight := matMap.matNormalMap.Height;
-      end;
-
+      matMap.ReadFromStream(stream, TexManager);
       mesh.AddMaterial(mat, matMap);
     end;
 
@@ -1979,6 +1997,46 @@ begin
                Add('vsMatIndex', ctFloat, 1).
                Add('vsWIndex', ctFloat, 4).
                Add('vsWeight', ctFloat, 4).Finish();
+end;
+
+{ TMeshMaterialMaps }
+
+procedure TMeshMaterialMaps.ReadFromStream(const AStream: TStream; const ATexMan: ITextureManager);
+
+  procedure ReadTexture(var ATex: ITextureData; var ATexFactor: Single);
+  var s : AnsiString;
+  begin
+    StreamReadString(AStream, s);
+    if s = '' then
+      ATex := nil
+    else
+    begin
+      ATex := ATexMan.LoadTexture(String(s), Width, Height, TImageFormat.A8R8G8B8);
+      Width := ATex.Width;
+      Height := ATex.Height;
+      MipCount := Max(MipCount, ATex.MipsCount);
+    end;
+    AStream.ReadBuffer(ATexFactor, SizeOf(ATexFactor));
+  end;
+
+begin
+  ReadTexture(mapDiffuse_Intensity,    mapDiffuse_IntensityFactor);
+  ReadTexture(mapDiffuse_Color,        mapDiffuse_ColorFactor);
+  ReadTexture(mapDiffuse_Alpha,        mapDiffuse_AlphaFactor);
+  ReadTexture(mapDiffuse_Translucency, mapDiffuse_TranslucencyFactor);
+
+  ReadTexture(mapShading_Ambient,      mapShading_AmbientFactor);
+  ReadTexture(mapShading_Emit,         mapShading_EmitFactor);
+  ReadTexture(mapShading_Mirror,       mapShading_MirrorFactor);
+  ReadTexture(mapShading_RayMirror,    mapShading_RayMirrorFactor);
+
+  ReadTexture(mapSpecular_Intensity,   mapSpecular_IntensityFactor);
+  ReadTexture(mapSpecular_Color,       mapSpecular_ColorFactor);
+  ReadTexture(mapSpecular_Hardness,    mapSpecular_HardnessFactor);
+
+  ReadTexture(mapGeometry_Normal,      mapGeometry_NormalFactor);
+  ReadTexture(mapGeometry_Warp,        mapGeometry_WarpFactor);
+  ReadTexture(mapGeometry_Displace,    mapGeometry_DisplaceFactor);
 end;
 
 end.

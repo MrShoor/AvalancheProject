@@ -91,38 +91,136 @@ def Export(WFloat, WInt, WStr, WBool):
             materials = [None] #allocate minum one material
         WInt(len(materials))
         for mat in materials:
-            diffuseColor = [1,1,1,1]
-            specularColor = [1,1,1,1]
-            specularPower = 50
-            diffuseMap = ''
-            diffuseMapFactor = 0
-            normalMap = ''
+            m_diffuseColor = [1,1,1,1]
+            m_specularColor = [1,1,1,1]
+            m_specularHardness = 50
+            m_specularIOR = 0
+            m_emitFactor = 0;
+            
+            diffuseMap_Intensity = ''
+            diffuseMap_IntensityFactor = 0            
+            diffuseMap_Color = ''
+            diffuseMap_ColorFactor = 0
+            diffuseMap_Alpha = ''
+            diffuseMap_AlphaFactor = 0
+            diffuseMap_Translucency = ''
+            diffuseMap_TranslucencyFactor = 0
+            shadingMap_Ambient = ''
+            shadingMap_AmbientFactor = 0
+            shadingMap_Emit = ''
+            shadingMap_EmitFactor = 0
+            shadingMap_Mirror = ''
+            shadingMap_MirrorFactor = 0
+            shadingMap_RayMirror = ''
+            shadingMap_RayMirrorFactor = 0        
+            specularMap_Intensity = ''
+            specularMap_IntensityFactor = 0
+            specularMap_Color = ''
+            specularMap_ColorFactor = 0
+            specularMap_Hardness = ''
+            specularMap_HardnessFactor = 0     
+            geometryMap_Normal = ''
+            geometryMap_NormalFactor = 0
+            geometryMap_Warp = ''
+            geometryMap_WarpFactor = 0
+            geometryMap_Displace = ''
+            geometryMap_DisplaceFactor = 0
+            
             if (not mat is None):
-                diffuseColor = [c*mat.diffuse_intensity for c in mat.diffuse_color]
-                diffuseColor.append(mat.alpha)
-                specularColor = [c*mat.specular_intensity for c in mat.specular_color]
-                specularColor.append(mat.specular_alpha)
-                specularPower = mat.specular_hardness
+                m_diffuseColor = [c*mat.diffuse_intensity for c in mat.diffuse_color]
+                m_diffuseColor.append(mat.alpha)
+                m_specularColor = [c*mat.specular_intensity for c in mat.specular_color]
+                m_specularColor.append(mat.specular_alpha)
+                m_specularHardness = mat.specular_hardness
+                m_specularIOR = mat.specular_ior
+                m_emitFactor = mat.emit
+                
                 for ts in mat.texture_slots:
-                    if (not ts is None) and (not ts.texture is None) and (ts.texture.type == 'IMAGE') and (not ts.texture.image is None):
+                    if (not ts is None) and (ts.use) and (not ts.texture is None) and (ts.texture.type == 'IMAGE') and (not ts.texture.image is None):
                         fpath = ts.texture.image.filepath
                         if fpath.find(r'\\') == 0:
                             fpath = '//'+fpath[2:]
                         absTexPath = bpy.path.abspath(fpath)
                         if os.path.isfile(absTexPath):                            
-                            if ts.use_map_color_diffuse:
-                                diffuseMapFactor = ts.diffuse_color_factor
-                                diffuseMap = AddImageToCopy(absTexPath, ts.texture.image.name)
+                            if ts.use_map_diffuse:
+                                diffuseMap_Intensity = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                diffuseMap_IntensityFactor = ts.diffuse_factor
+                            elif ts.use_map_color_diffuse:
+                                diffuseMap_Color = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                diffuseMap_ColorFactor = ts.diffuse_color_factor
+                            elif ts.use_map_alpha:
+                                diffuseMap_Alpha = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                diffuseMap_AlphaFactor = ts.alpha_factor
+                            elif ts.use_map_translucency:
+                                diffuseMap_Translucency = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                diffuseMap_TranslucencyFactor = ts.alpha_factor
+                            elif ts.use_map_ambient:
+                                shadingMap_Ambient = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                shadingMap_AmbientFactor = ts.ambient_factor
+                            elif ts.use_map_emit:
+                                shadingMap_Emit = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                shadingMap_EmitFactor = ts.emit_factor
+                            elif ts.use_map_mirror:
+                                shadingMap_MirrorFactor = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                shadingMap_MirrorFactor = ts.mirror_factor
+                            elif ts.use_map_raymir:
+                                shadingMap_RayMirrorFactor = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                shadingMap_RayMirrorFactor = ts.raymir_factor
+                            elif ts.use_map_reflect:
+                                specularMap_Intensity = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                specularMap_IntensityFactor = ts.specular_factor
+                            elif ts.use_map_color_spec:
+                                specularMap_Color = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                specularMap_ColorFactor = ts.specular_color_factor
+                            elif ts.use_map_hardness:
+                                specularMap_Hardness = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                specularMap_HardnessFactor = ts.hardness_factor
                             elif ts.use_map_normal:
-                                normalMap = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                geometryMap_Normal = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                geometryMap_NormalFactor = ts.normal_factor                                
+                            elif ts.use_map_warp:
+                                geometryMap_Warp = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                geometryMap_WarpFactor = ts.warp_factor
+                            elif ts.use_map_displacement:
+                                geometryMap_Displace = AddImageToCopy(absTexPath, ts.texture.image.name)
+                                geometryMap_DisplaceFactor = ts.displacement_factor
                         else:
-                            print('Warning! Texture "' + absTexPath + '" not found')
-            WriteColor(diffuseColor)
-            WFloat(diffuseMapFactor)
-            WriteColor(specularColor)
-            WFloat(specularPower)
-            WStr(diffuseMap)
-            WStr(normalMap)
+                            print('Warning! Texture "' + absTexPath + '" not found')                     
+                            
+            WriteColor(m_diffuseColor)
+            WriteColor(m_specularColor)
+            WFloat(m_specularHardness)
+            WFloat(m_specularIOR)
+            WFloat(m_emitFactor)
+            
+            WStr(diffuseMap_Intensity)
+            WFloat(diffuseMap_IntensityFactor)
+            WStr(diffuseMap_Color)
+            WFloat(diffuseMap_ColorFactor)
+            WStr(diffuseMap_Alpha)
+            WFloat(diffuseMap_AlphaFactor)
+            WStr(diffuseMap_Translucency)
+            WFloat(diffuseMap_TranslucencyFactor)
+            WStr(shadingMap_Ambient)
+            WFloat(shadingMap_AmbientFactor)
+            WStr(shadingMap_Emit)
+            WFloat(shadingMap_EmitFactor)
+            WStr(shadingMap_Mirror)
+            WFloat(shadingMap_MirrorFactor)
+            WStr(shadingMap_RayMirror)
+            WFloat(shadingMap_RayMirrorFactor)
+            WStr(specularMap_Intensity)
+            WFloat(specularMap_IntensityFactor)
+            WStr(specularMap_Color)
+            WFloat(specularMap_ColorFactor)
+            WStr(specularMap_Hardness)
+            WFloat(specularMap_HardnessFactor)
+            WStr(geometryMap_Normal)
+            WFloat(geometryMap_NormalFactor)
+            WStr(geometryMap_Warp)
+            WFloat(geometryMap_WarpFactor)
+            WStr(geometryMap_Displace)
+            WFloat(geometryMap_DisplaceFactor)
             
         #write vertex groups
         vg = meshToVertexGroup.get(mesh, None)
@@ -333,5 +431,5 @@ def ExportToConsole():
     print('---------')
     Export(WFloat, WInt, WStr, WBool)
             
-#ExportToFile(outfilename)
+ExportToFile(outfilename)
 #ExportToConsole()

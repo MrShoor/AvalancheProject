@@ -152,7 +152,7 @@ begin
   FModels := TavModelCollection.Create(FMain);
 
   FProg := TavProgram.Create(FMain);
-  FProg.Load('avMesh', True);
+  FProg.Load('avMesh', False, 'D:\Projects\AvalancheProject\Demos\Src\avm_Import\MeshShader\!Out');
 
   with TavCameraController.Create(FMain) do
   begin
@@ -273,6 +273,7 @@ procedure TfrmMain.RenderPanelMouseDown(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   RenderPanel.SetFocus;
+  FProg.Invalidate;
 end;
 
 procedure TfrmMain.RenderPanelRepaint(Sender: TObject);

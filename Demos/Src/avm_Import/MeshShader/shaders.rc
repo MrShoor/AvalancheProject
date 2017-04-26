@@ -1,2 +1,1 @@
 DX_avMesh RCDATA "!Out\DX_avMesh.hlsl"
-OGL_avMesh RCDATA "!Out\OGL_avMesh.glsl"

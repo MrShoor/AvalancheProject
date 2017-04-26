@@ -217,7 +217,10 @@ end;
 
 procedure TfrmHMEditor.LoadMap;
 begin
-  FHeightMapData := LoadRaw('..\Media\terrain3.r16', 2048, 2048, TTextureFormat.R16);
+  if FileExists('..\Media\terrain3.r16') then
+    FHeightMapData := LoadRaw('..\Media\terrain3.r16', 2048, 2048, TTextureFormat.R16)
+  else
+    FHeightMapData := LoadRaw('terrain3.r16', 2048, 2048, TTextureFormat.R16);
 end;
 
 procedure TfrmHMEditor.pnlRenderMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
