@@ -29,6 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
+        <CommandLineParams Value="grace_probe.hdr"/>
       </local>
     </RunParams>
     <RequiredPackages Count="2">

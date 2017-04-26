@@ -49,12 +49,16 @@ procedure BuildCube(const src: TImageData; const dst: TDynImageDataArray; const 
     p4 := GetPixelFP(src, Ceil(crd.x), Ceil(crd.y));
 
     for i := 0 to 3 do
+    begin
       Result.Channels[i] := Lerp(Lerp(p1.Channels[i], p2.Channels[i], t.x), Lerp(p3.Channels[i], p4.Channels[i], t.x), t.y) * Mult;
+      Result.Channels[i] := Max(0, Result.Channels[i]);
+    end;
   end;
 var i, j, slice: Integer;
     ray: TVec3;
     srcPix: TVec2;
     SideSize: Integer;
+    r: Single;
 begin
   SideSize := dst[0].Height;
   for slice := 0 to Length(dst) - 1 do
@@ -95,8 +99,20 @@ begin
           end;
         end;
         ray := Clamp(Normalize(ray), -1, 1);
-        srcPix.x := (ArcTan2(ray.z, ray.x)+PI)/(2*PI);
-        srcPix.y := ArcCos(-ray.y)/PI;
+
+        if src.Width <> src.Height then
+        begin
+          srcPix.x := (ArcTan2(ray.z, ray.x)+PI)/(2*PI);
+          srcPix.y := ArcCos(-ray.y)/PI;
+        end
+        else
+        begin
+          //(Dx*r,Dy*r) where r=(1/pi)*acos(Dz)/sqrt(Dx^2 + Dy^2).
+          r := (1/PI)*ArcCos(ray.z)/sqrt(sqr(ray.x) + sqr(ray.y));
+          srcPix.x := (ray.x * r + 1.0)*0.5;
+          srcPix.y := (ray.y * r + 1.0)*0.5;
+        end;
+
         srcPix.x := srcPix.x * src.Width;
         srcPix.y := srcPix.y * src.Height;
         SetPixelFP(dst[slice], i, j, GetLerpPixel(src, srcPix));
@@ -138,6 +154,7 @@ begin
   try                                                     
     if not LoadImageFromFile(AParams.Input, src) then
       raise EConvertError.Create('Can''t open file: ' + ExpandFileName(AParams.Input));
+    SaveImageToFile('tmp.png', src);
 
     for i := 0 to 5 do
       if not NewImage(AParams.OutputSize, AParams.OutputSize, AParams.OutputFmt, dst[i]) then
