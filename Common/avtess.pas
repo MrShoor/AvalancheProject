@@ -267,7 +267,7 @@ type
         List: TList;
         constructor Create(ASize: Integer; AList: TList);
       end;
-    strict private
+    {strict} private
       FData: TAVLTree;
       FDummy: TRangeManagerAVLData;
       function FindMaxNode(const data: TRangeManagerAVLData): TAVLTreeNode;
@@ -295,6 +295,8 @@ type
 
     function CompareSize(const Left, Right: Integer): Integer;
   protected
+    procedure CheckNodeInvariants(const ANode: TAVLTreeNode);
+    procedure CheckTreeInvariants;
     procedure CheckInvariants;
   public
     function Alloc(const ASize: Integer): IMemRange;
@@ -833,6 +835,7 @@ procedure TRangeManager.TAVLTreeInternal.Clear;
   end;
 begin
   FreeLists(FData.Root);
+  FData.Clear;
 end;
 
 function CompareRangeManagerAVLData(Data1, Data2: Pointer): Integer;
@@ -936,6 +939,19 @@ begin
   Result := Left - Right;
 end;
 
+procedure TRangeManager.CheckNodeInvariants(const ANode: TAVLTreeNode);
+begin
+  if ANode = nil then Exit;
+  Assert(ANode.Data <> nil);
+  CheckNodeInvariants(ANode.Left);
+  CheckNodeInvariants(ANode.Right);
+end;
+
+procedure TRangeManager.CheckTreeInvariants;
+begin
+  CheckNodeInvariants(FFreeRanges.FData.Root);
+end;
+
 procedure TRangeManager.CheckInvariants;
 var Range: TMemRangeEx;
     AllSize: Integer;
@@ -970,6 +986,8 @@ begin
   end;
   Assert(AllSize = FTotalSize);
   Assert(AllocSize = FAllocatedSize);
+
+  CheckTreeInvariants;
 //  Assert(FreeCount >= FFreeRanges.GetNodeCount);
 end;
 
@@ -1134,6 +1152,10 @@ begin
   if assigned(FLastRange) then
     FLastRange.FNext := nil;
   tmp.Free;
+
+  {$IFDEF SlowAssertions}
+  CheckInvariants;
+  {$ENDIF}
 end;
 
 constructor TRangeManager.Create;
