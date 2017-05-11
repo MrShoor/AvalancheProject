@@ -15,7 +15,8 @@ uses
   Vcl.AppEvnts,
   {$EndIf}
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, StdCtrls, avRes, avTypes, mutils, avCameraController, avModel, avMesh;
+  ExtCtrls, StdCtrls, avRes, avTypes, mutils, avCameraController, avModel, avMesh,
+  avTexLoader;
 
 const ObjInd = 0;
 
@@ -79,6 +80,10 @@ type
 
     FInstances: IavModelInstanceArr;
     FAnimC: IavAnimationController;
+
+    FIrradiance    : TavTexture;
+    FRadiance      : TavTexture;
+    FHammersleyPts : TVec4Arr;
 
     procedure LoadModels(const AFileName: string);
   end;
@@ -147,6 +152,10 @@ begin
   FMain.Camera.Eye := Vec(-3,0.5,0);
   FMain.Projection.OrthoHeight := 4;
 
+  FMain.Camera.At := Vec(0,10,0);
+  FMain.Camera.Eye := Vec(20,18,-10);
+  FMain.Projection.OrthoHeight := 4;
+
   FFBO := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
 
   FModels := TavModelCollection.Create(FMain);
@@ -163,6 +172,18 @@ begin
 
 //  LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\WhipperNude\WhipperNude.avm');
   LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\Char\char.avm');
+
+  FIrradiance := TavTexture.Create(FMain);
+  FIrradiance.TargetFormat := TTextureFormat.RGBA16f;
+  FIrradiance.TexData := LoadTexture(ExtractFilePath(ParamStr(0))+'\..\Media\EnvMaps\Campus_irradiance.dds');
+  //FIrradiance.TexData := LoadTexture(ExtractFilePath(ParamStr(0))+'\..\Media\EnvMaps\Grace_Cathedral_irradiance.dds');
+
+  FRadiance := TavTexture.Create(FMain);
+  FRadiance.TargetFormat := TTextureFormat.RGBA16f;
+  FRadiance.TexData := LoadTexture(ExtractFilePath(ParamStr(0))+'\..\Media\EnvMaps\Campus_radiance.dds');
+  //FRadiance.TexData := LoadTexture(ExtractFilePath(ParamStr(0))+'\..\Media\EnvMaps\Grace_Cathedral_radiance.dds');
+
+  FHammersleyPts := GenerateHammersleyPts(16);
 end;
 
 procedure TfrmMain.ApplicationProperties1Idle(Sender: TObject; var Done: Boolean);
@@ -255,6 +276,10 @@ begin
     FFBO.ClearDS(1);
 
     FProg.Select;
+    FProg.SetUniform('uRadiance', FRadiance, Sampler_Linear);
+    FProg.SetUniform('uIrradiance', FIrradiance, Sampler_Linear);
+    FProg.SetUniform('uHammersleyPts', FHammersleyPts);
+    FProg.SetUniform('uSamplesCount', Length(FHammersleyPts)*1.0);
 
     if assigned(visInst) and (visInst.Count > 0) then
     begin

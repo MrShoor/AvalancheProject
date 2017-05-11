@@ -431,5 +431,5 @@ def ExportToConsole():
     print('---------')
     Export(WFloat, WInt, WStr, WBool)
             
-ExportToFile(outfilename)
+#ExportToFile(outfilename)
 #ExportToConsole()
