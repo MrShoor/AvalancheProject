@@ -1,6 +1,7 @@
 #include "hlsl.h"
 #include "matrices.h"
-#include "..\lighting.h"
+#include "lighting.h"
+#include "avModelMaterials.h"
 
 struct VS_Input {
     float3 vsCoord   : vsCoord;
@@ -9,21 +10,18 @@ struct VS_Input {
     float  vsMatIndex: vsMatIndex;
     float4 vsWIndex  : vsWIndex;
     float4 vsWeight  : vsWeight;
-    float4 aiBoneMatDifNormOffset: aiBoneMatDifNormOffset;
+    float2 aiBoneMatOffset: aiBoneMatOffset;
 };
 
 struct VS_Output {
-    float4 Pos                 : SV_Position;
-    float3 vCoord              : vCoord;
-    float3 vNorm               : vNorm;
-    float2 vTex                : vTex;
-    float4 Diffuse             : Diffuse;
-    float4 Specular            : Specular;
-    float4 DiffK_SpecPow_MapInd: DiffK_SpecPow_MapInd;
+    float4 Pos       : SV_Position;
+    float3 vCoord    : vCoord;
+    float3 vNorm     : vNorm;
+    float2 vTex      : vTex;
+    float  MatIndex  : MatIndex;
 };
 
 Texture2D BoneTransform; SamplerState BoneTransformSampler;
-Texture2D Materials; SamplerState MaterialsSampler;
 
 float4x4 GetBoneTransform(in float BoneCoord) {
     float2 TexSize;
@@ -34,7 +32,6 @@ float4x4 GetBoneTransform(in float BoneCoord) {
     TexCoord.x = frac(BoneCoord / TexSize.x);
     TexCoord.y = trunc(BoneCoord / TexSize.x) / TexSize.y;
     TexCoord += 0.5 * PixSize;
-    
     
     float4x4 m;
     m[0] = BoneTransform.SampleLevel(BoneTransformSampler, float2(TexCoord.x,                 TexCoord.y), 0);
@@ -59,51 +56,67 @@ float4x4 GetBoneTransform(in float4 Indices, in float4 Weights) {
     return m;
 }
 
-void GetMaterial(in float MatIndex, out float4 Diff, out float4 Spec, out float2 DiffK_SpecPow)
-{
-    float2 texSize;
-    Materials.GetDimensions(texSize.x, texSize.y);
-    float2 pixSize = 1.0/texSize;
-    Diff          = Materials.SampleLevel(MaterialsSampler, float2(0.5, MatIndex+0.5)*pixSize, 0);
-    Spec          = Materials.SampleLevel(MaterialsSampler, float2(1.5, MatIndex+0.5)*pixSize, 0);
-    DiffK_SpecPow = Materials.SampleLevel(MaterialsSampler, float2(2.5, MatIndex+0.5)*pixSize, 0).xy;
-}
-
 VS_Output VS(VS_Input In) {
     VS_Output Out;
-    float4x4 mBone = GetBoneTransform(In.vsWIndex+In.aiBoneMatDifNormOffset.x, In.vsWeight);
+    float4x4 mBone = GetBoneTransform(In.vsWIndex+In.aiBoneMatOffset.x, In.vsWeight);
     float3 crd = mul(float4(In.vsCoord, 1.0), mBone).xyz;
     float3 norm = mul( In.vsNormal, (float3x3) mBone );
     Out.vCoord = mul(float4(crd, 1.0), V_Matrix).xyz;
     Out.vNorm = mul(normalize(norm), (float3x3)V_Matrix);
     Out.vTex = In.vsTex;
     Out.Pos = mul(float4(Out.vCoord, 1.0), P_Matrix);
-    GetMaterial(In.aiBoneMatDifNormOffset.y + In.vsMatIndex, 
-                Out.Diffuse, 
-                Out.Specular, 
-                Out.DiffK_SpecPow_MapInd.xy);
-    Out.DiffK_SpecPow_MapInd.zw = In.aiBoneMatDifNormOffset.zw + In.vsMatIndex;
+    Out.MatIndex = In.aiBoneMatOffset.y + In.vsMatIndex;
     return Out;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-Texture2DArray Maps; SamplerState MapsSampler;
+float3 UnpackNormal(float4 PackedNormal) {
+    float3 Out = (PackedNormal.xyz-0.5)*2.0;
+    return Out;
+}
 
 struct PS_Output {
     float4 Color : SV_Target0;
 };
 
+static const float LightInt = 3;
+
 PS_Output PS(VS_Output In) {
     PS_Output Out;
-    float4 diff = lerp(In.Diffuse, Maps.Sample(MapsSampler, float3(In.vTex, In.DiffK_SpecPow_MapInd.z)), In.DiffK_SpecPow_MapInd.x);
-    float4 spec = {0,0,0,0};
+    In.vNorm = normalize(In.vNorm);
+    
+    ModelMaterialDesc m = LoadMaterialDesc(round(In.MatIndex));
+    float3x3 tbn = CalcTBN(In.vCoord, In.vNorm, In.vTex);    
+    float3 norm = UnpackNormal(m.Geometry_Normal(In.vTex, float4(0.5,0.5,1,0)));
+    float4 diff = m.Diffuse_Color(In.vTex, m.Diff);
+    //diff = pow(abs(diff), 2.2);
+    float roughness = m.Geometry_Hardness(In.vTex, 0.5).x;
+    float metallic = m.Specular_Intensity(In.vTex, 0.0).x;
+    
+    metallic = 1.0 - pow(abs(1.0-metallic), 32);
+    
+    norm = mul(norm, tbn);
+    
+    float4 spec = {1,1,1,1};
     float4 amb = 0.3;
     float3 lightColor = {1,1,1};
-    float3 n = normalize(In.vNorm);
-    float3 viewDir = normalize(In.vCoord);
+    float3 n = normalize(norm);
+    float3 viewDir = normalize(-In.vCoord);
     
-    float4 c = PhongColor(-n, viewDir, viewDir, lightColor, diff, spec, amb, 0.0);
-    Out.Color = c;
+    float3 F0;
+    F0 = diff.xyz * metallic;
+    diff.xyz *= (1.0 - metallic);
+    
+    //float3 c = PhongColor(n, viewDir, viewDir, lightColor, diff, spec, amb, 20.0).rgb;
+    //float3 LightPos = float3(10, 0, 0);
+    //float3 LightDir = normalize(LightPos - In.vCoord);
+    //float3 H = normalize(LightDir + viewDir);
+    
+    //float3 c = CookTorrance_GGX(n, LightDir, viewDir, H, F0, diff.xyz, roughness)*5;
+    float3 c = CookTorrance_GGX_sampled(n, viewDir, F0, diff.xyz, roughness)*LightInt;
+
+    Out.Color = float4(tonemapReinhard(c), diff.a);
+    //Out.Color = -In.vNorm.z;
     return Out;
 }

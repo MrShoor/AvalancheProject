@@ -344,7 +344,11 @@ type
     FDirtyAll   : Boolean;
 
     FEnumIndex : Integer;
+    function GetName: string;
+    procedure SetName(const AValue: string);
   public
+    property Name: string read GetName write SetName;
+
     function RangeManSize: Integer;
 
     procedure Add(const ANode: TNode);
@@ -355,6 +359,7 @@ type
     procedure ValidateAll;
 
     function DirtyCount: Integer;
+    function TotalCount: Integer;
     procedure Reset;
     function NextDirty(out ANode: TNode): Boolean;
     function Next(out ANode: TNode): Boolean;
@@ -364,6 +369,8 @@ type
 
   IManagedHandle = interface (IUnknown)
     function HandleData: Pointer;
+    function Offset: Integer;
+    function Size  : Integer;
   end;
 
   IVBManagedHandle = IManagedHandle;
@@ -379,6 +386,7 @@ type
       DirtyIndex: Integer;
       function HandleData: Pointer;
       function Size: Integer; Inline;
+      function Offset: Integer;
       destructor Destroy; override;
     end;
     {$EndIf}
@@ -388,6 +396,7 @@ type
       Vert      : IVerticesData;
       function HandleData: Pointer;
       function Size: Integer; override;
+      function Offset: Integer;
       destructor Destroy; override;
     end;
     {$EndIf}
@@ -396,6 +405,7 @@ type
     FNodes : TNodes;
   protected
     function DoBuild: Boolean; override;
+    procedure SetName(const Value: string); override;
   public
     function HasData: Boolean;
 
@@ -418,6 +428,7 @@ type
       DirtyIndex: Integer;
       function HandleData: Pointer;
       function Size: Integer; Inline;
+      function Offset: Integer;
       destructor Destroy; override;
     end;
     {$EndIf}
@@ -427,6 +438,7 @@ type
       Ind       : IIndicesData;
       function HandleData: Pointer;
       function Size: Integer; override;
+      function Offset: Integer;
       destructor Destroy; override;
     end;
     {$EndIf}
@@ -435,6 +447,7 @@ type
     FNodes : TNodes;
   protected
     function DoBuild: Boolean; override;
+    procedure SetName(const Value: string); override;
   public
     function HasData: Boolean;
     function Add(const AInd: IIndicesData): IIBManagedHandle;
@@ -490,6 +503,53 @@ type
     property ForcedPOT: Boolean read FForcedPOT write FForcedPOT;
 
     procedure AfterConstruction; override;
+  end;
+
+  IMTManagedHandle = IManagedHandle;
+
+  { TavMultiTexture }
+
+  TavMultiTexture = class(TavTextureBase)
+  private type
+    {$IfDef FPC}
+    TMTNode = class (TInterfacedObject, IMTManagedHandle)
+      Owner     : TavMultiTexture;
+      Range     : IMemRange;
+      TexData   : ITextureData;
+      DirtyIndex: Integer;
+      function HandleData: Pointer;
+      function Size: Integer; Inline;
+      function Offset: Integer;
+      destructor Destroy; override;
+    end;
+    {$EndIf}
+    {$IfDef DCC}
+    TMTNode = class (TDefaultNode, IMTManagedHandle)
+      Owner     : TavMultiTexture;
+      TexData   : ITextureData;
+      function HandleData: Pointer;
+      function Size: Integer; override;
+      function Offset: Integer;
+      destructor Destroy; override;
+    end;
+    {$EndIf}
+    TNodes = {$IfDef FPC}specialize{$EndIf} TNodeManager<TMTNode>;
+  private
+    FAutoGenerateMips: Boolean;
+    FNodes: TNodes;
+    FInitSize: TVec2i;
+    procedure SetAutoGenerateMips(const AValue: Boolean);
+  protected
+    function DoBuild: Boolean; override;
+    procedure SetName(const Value: string); override;
+  public
+    function Add(const ATexData: ITextureData): IMTManagedHandle; overload;
+    function Add(const ATexData: ITextureData; out NewAdded: Boolean): IMTManagedHandle; overload;
+
+    property AutoGenerateMips: Boolean read FAutoGenerateMips write SetAutoGenerateMips;
+
+    procedure AfterConstruction; override;
+    destructor Destroy; override;
   end;
 
   ISpriteData = interface
@@ -830,6 +890,120 @@ begin
   AProg.Draw(PrimTopology, CullMode, Assigned(IndNode), InstCount, Start, Count, BaseVertex, BaseInst);
 end;
 
+{ TavMultiTexture.TMTNode }
+
+function TavMultiTexture.TMTNode.HandleData: Pointer;
+begin
+  Result := Self;
+end;
+
+function TavMultiTexture.TMTNode.Size: Integer;
+begin
+  Result := TexData.ItemCount;
+end;
+
+function TavMultiTexture.TMTNode.Offset: Integer;
+begin
+  Result := Range.Offset;
+end;
+
+destructor TavMultiTexture.TMTNode.Destroy;
+begin
+  inherited Destroy;
+  Owner.FNodes.Del(Self);
+end;
+
+{ TavMultiTexture }
+
+procedure TavMultiTexture.SetAutoGenerateMips(const AValue: Boolean);
+begin
+  if FAutoGenerateMips = AValue then Exit;
+  FAutoGenerateMips := AValue;
+  Invalidate;
+end;
+
+function TavMultiTexture.DoBuild: Boolean;
+var node: TMTNode;
+    i: Integer;
+begin
+  Result := True;
+  if FNodes.TotalCount = 0 then Exit;
+  if FTexH = nil then
+  begin
+    FTexH := Main.Context.CreateTexture;
+    FTexH.TargetFormat := FTargetFormat;
+    FTexH.AllocMem(FInitSize.x, FInitSize.y, FNodes.RangeManSize, FAutoGenerateMips, True);
+  end;
+
+  if FTexH.Deep <> FNodes.RangeManSize then
+  begin
+    FTexH.AllocMem(FInitSize.x, FInitSize.y, FNodes.RangeManSize, FAutoGenerateMips, True);
+    FNodes.InvalidateAll;
+  end;
+
+  FNodes.Reset;
+  while FNodes.NextDirty(node) do
+    for i := 0 to node.TexData.ItemCount - 1 do
+      FTexH.SetMipImage(0, 0, FInitSize.x, FInitSize.y, 0, node.Offset+i, node.TexData.Format, node.TexData.MipData(i, 0).Data);
+
+  if FAutoGenerateMips then
+    FTexH.GenerateMips;
+end;
+
+procedure TavMultiTexture.SetName(const Value: string);
+begin
+  inherited SetName(Value);
+  if FNodes <> nil then
+    FNodes.Name := Value;
+end;
+
+function TavMultiTexture.Add(const ATexData: ITextureData): IMTManagedHandle;
+var dummy: Boolean;
+begin
+  Add(ATexData, dummy);
+end;
+
+function TavMultiTexture.Add(const ATexData: ITextureData; out NewAdded: Boolean): IMTManagedHandle;
+var node: TMTNode;
+begin
+  Result := nil;
+  NewAdded := False;
+  if ATexData = nil then Exit;
+  if ATexData.ItemCount = 0 then Exit;
+
+  FNodes.Reset;
+  while FNodes.Next(node) do
+    if node.TexData = ATexData then
+      Exit(node);
+
+  if FInitSize.x < 0 then FInitSize.x := ATexData.Width else Assert(FInitSize.x = ATexData.Width);
+  if FInitSize.y < 0 then FInitSize.y := ATexData.Height else Assert(FInitSize.y = ATexData.Height);
+
+  node := TMTNode.Create;
+  node.Owner := Self;
+  node.TexData := ATexData;
+  FNodes.Add(node);
+  if FNodes.DirtyCount > 0 then
+    Invalidate;
+
+  NewAdded := True;
+  Result := node;
+end;
+
+procedure TavMultiTexture.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FNodes := TNodes.Create;
+  FInitSize.x := -1;
+  FInitSize.y := -1;
+end;
+
+destructor TavMultiTexture.Destroy;
+begin
+  FreeAndNil(FNodes);
+  inherited Destroy;
+end;
+
 { TavAtlasBase }
 
 function TavAtlasBase.DoBuild: Boolean;
@@ -1147,6 +1321,11 @@ begin
   Result := Ind.IndicesCount;
 end;
 
+function TavIBManaged.TIBNode.Offset: Integer;
+begin
+  Result := Range.Offset;
+end;
+
 destructor TavIBManaged.TIBNode.Destroy;
 begin
   inherited Destroy;
@@ -1202,6 +1381,13 @@ begin
   FNodes.ValidateAll;
 end;
 
+procedure TavIBManaged.SetName(const Value: string);
+begin
+  inherited SetName(Value);
+  if FNodes <> nil then
+    FNodes.Name := Value;
+end;
+
 function TavIBManaged.HasData: Boolean;
 begin
   Result := FNodes.RangeManSize > 0;
@@ -1248,6 +1434,11 @@ begin
   Result := Vert.VerticesCount;
 end;
 
+function TavVBManaged.TVBNode.Offset: Integer;
+begin
+  Result := Range.Offset;
+end;
+
 destructor TavVBManaged.TVBNode.Destroy;
 begin
   inherited Destroy;
@@ -1255,6 +1446,16 @@ begin
 end;
 
 { TNodeManager }
+
+function TNodeManager{$IfDef DCC}<TNode>{$EndIf}.GetName: string;
+begin
+  Result := FRangeMan.Name;
+end;
+
+procedure TNodeManager{$IfDef DCC}<TNode>{$EndIf}.SetName(const AValue: string);
+begin
+  FRangeMan.Name := AValue;
+end;
 
 function TNodeManager{$IfDef DCC}<TNode>{$EndIf}.RangeManSize: Integer;
 begin
@@ -1346,6 +1547,11 @@ begin
     Result := FDirtyNodes.Count;
 end;
 
+function TNodeManager{$IfDef DCC}<TNode>{$EndIf}.TotalCount: Integer;
+begin
+  Result := FNodes.Count;
+end;
+
 procedure TNodeManager{$IfDef DCC}<TNode>{$EndIf}.Reset;
 begin
   FEnumIndex := 0;
@@ -1422,6 +1628,13 @@ begin
   while FNodes.NextDirty(node) do
     SetNodeData(node, StrideSize);
   FNodes.ValidateAll;
+end;
+
+procedure TavVBManaged.SetName(const Value: string);
+begin
+  inherited SetName(Value);
+  if FNodes <> nil then
+    FNodes.Name := Value;
 end;
 
 function TavVBManaged.HasData: Boolean;

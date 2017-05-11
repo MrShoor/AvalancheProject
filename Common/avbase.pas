@@ -35,9 +35,11 @@ type
     function  QueryRegister(AChild: TavObject): boolean; virtual; //return TRUE if child can to be register at self
     function  CanRegister(target: TavObject): boolean; virtual;  //return TRUE if self allow register at target
     procedure AfterRegister; virtual;
+
+    procedure SetName(const Value: string); virtual;
   public
     property UpdateID: Integer read FUpdateID;
-    property Name: string read FName write FName;
+    property Name: string read FName write SetName;
 
     property  Parent: TavObject read FParent write SetParent;
 
@@ -72,6 +74,11 @@ uses
   avLog;
 
 { TavObject }
+
+procedure TavObject.SetName(const Value: string);
+begin
+  FName := Value;
+end;
 
 procedure TavObject.SetParent(const Value: TavObject);
 begin
@@ -292,13 +299,13 @@ end;
 
 destructor TavObject.Destroy;
 begin
-  inherited Destroy;
   while FObjects.Count>0 do
     TavObject(FObjects.Items[FObjects.Count-1]).Free;
 
   UnRegister;
 
   FreeAndNil(FObjects);
+  inherited Destroy;
 end;
 
 end.

@@ -356,6 +356,10 @@ function VecSinCos(const Angle: Single): TVec2;
 function FromToQuat(const AFrom, ATo: TVec3): TQuat;
 function FromToMat(AFrom, ATo: TVec3): TMat4;
 
+function RandomSphereUniformRay(): TVec3;
+function HammersleyPoint(const I, N: Integer): TVec2;
+function GenerateHammersleyPts(const N: Integer): TVec4Arr;
+
 {$IfDef FPC}
 operator = (const v1, v2: TRectF): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 operator = (const v1, v2: TRectI): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -372,6 +376,55 @@ implementation {$undef INTF} {$define IMPL}
 {$EndIf}
 
 { TAABB }
+
+function RandomSphereUniformRay(): TVec3;
+var theta, cosphi, sinphi: Single;
+begin
+  theta := 2 * Pi * Random;
+  cosphi := 1 - 2 * Random;
+  sinphi := sqrt(1 - min(1.0, sqr(cosphi)));
+  Result.x := sinphi * cos(theta);
+  Result.y := sinphi * sin(theta);
+  Result.z := cosphi;
+end;
+
+function HammersleyPoint(const I, N: Integer): TVec2;
+  function radicalInverse_VdC(bits: Cardinal): Single;
+  begin
+    bits := (bits shl 16) or (bits shr 16);
+    bits := ((bits and $55555555) shl 1) or ((bits and $AAAAAAAA) shr 1);
+    bits := ((bits and $33333333) shl 2) or ((bits and $CCCCCCCC) shr 2);
+    bits := ((bits and $0F0F0F0F) shl 4) or ((bits and $F0F0F0F0) shr 4);
+    bits := ((bits and $00FF00FF) shl 8) or ((bits and $FF00FF00) shr 8);
+    Result := bits * 2.3283064365386963e-10;
+  end;
+begin
+  Result.x := I/N;
+  Result.y := radicalInverse_VdC(I);
+end;
+
+function GenerateHammersleyPts(const N: Integer): TVec4Arr;
+var E: TVec2;
+    I: Integer;
+    offset: TVec2;
+begin
+  offset.x := Random/N;
+  offset.y := Random/N;
+
+  SetLength(Result, N);
+  for I := 0 to N-1 do
+  begin
+    E := HammersleyPoint(I, N);
+    E := E + offset;
+    if E.x > 1.0 then
+      E.x := E.x - 1.0;
+    if E.y > 1.0 then
+      E.y := E.y - 1.0;
+    Result[i].xy := E;
+    Result[i].z := 0;
+    Result[i].w := 0;
+  end;
+end;
 
 function TAABB.Center: TVec3;
 begin

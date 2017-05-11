@@ -100,6 +100,9 @@ type
   end;
 
   IRangeManager = interface
+    function GetName: string;
+    procedure SetName(const AName: string);
+
     function Alloc(const ASize: Integer): IMemRange;
 
     function Size     : Integer;
@@ -109,6 +112,8 @@ type
     procedure AddSpace(const ASpace: Integer);
     procedure Defrag();
     procedure Trim;
+
+    property Name: string read GetName write SetName;
   end;
 
   EQuadRangeOutOfSpace = class (Exception);
@@ -282,6 +287,8 @@ type
       destructor Destroy; override;
     end;
   private
+    FName : string;
+
     FFreeRanges: TAVLTreeInternal;
     FLastRange : TMemRangeEx;
 
@@ -299,6 +306,9 @@ type
     procedure CheckTreeInvariants;
     procedure CheckInvariants;
   public
+    function GetName: string;
+    procedure SetName(const AName: string);
+
     function Alloc(const ASize: Integer): IMemRange;
 
     function Size     : Integer;
@@ -991,6 +1001,16 @@ begin
 //  Assert(FreeCount >= FFreeRanges.GetNodeCount);
 end;
 
+function TRangeManager.GetName: string;
+begin
+  Result := FName;
+end;
+
+procedure TRangeManager.SetName(const AName: string);
+begin
+  FName := AName;
+end;
+
 function TRangeManager.Alloc(const ASize: Integer): IMemRange;
 var lst: TList;
     srcRange, newRange: TMemRangeEx;
@@ -1165,7 +1185,7 @@ end;
 
 destructor TRangeManager.Destroy;
 begin
-  Assert(FAllocatedSize = 0);
+  Assert(FAllocatedSize = 0, FName);
   FreeAndNil(FFreeRanges);
   FreeAndNil(FLastRange);
   inherited Destroy;

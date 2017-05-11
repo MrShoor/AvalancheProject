@@ -51,6 +51,8 @@ procedure BuildCube(const src: TImageData; const dst: TDynImageDataArray; const 
     for i := 0 to 3 do
     begin
       Result.Channels[i] := Lerp(Lerp(p1.Channels[i], p2.Channels[i], t.x), Lerp(p3.Channels[i], p4.Channels[i], t.x), t.y) * Mult;
+      if IsNan(Result.Channels[i]) then
+        raise Exception.Create('Error Message');
       Result.Channels[i] := Max(0, Result.Channels[i]);
     end;
   end;
@@ -98,6 +100,7 @@ begin
             ray.y := j - SideSize*0.5;
           end;
         end;
+        if LenSqr(ray.xy) = 0 then ray.y := 1.0;
         ray := Clamp(Normalize(ray), -1, 1);
 
         if src.Width <> src.Height then

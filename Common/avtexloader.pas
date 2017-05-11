@@ -802,6 +802,7 @@ constructor TTextureData.Create(ImgData: TDynImageDataArray;
     if (AImgData[0].Width = AImgData[1].Width) and (AImgData[0].Height = AImgData[1].Height) then
     begin
       Result.MipsFirst := False;
+      Result.SliceCount := 0;
       Result.MipsCount := 1;
       Result.ZeroMipSize := Vec(AImgData[0].Width, AImgData[0].Height);
 
@@ -809,7 +810,7 @@ constructor TTextureData.Create(ImgData: TDynImageDataArray;
       i := 0;
       while (i < Length(AImgData)-1) do
       begin
-        counter1 := 0;
+        counter1 := 1;
         while (i < Length(AImgData)-1) do
         begin
           if (AImgData[i].Width <> AImgData[i+1].Width) or (AImgData[i].Height <> AImgData[i+1].Height) then

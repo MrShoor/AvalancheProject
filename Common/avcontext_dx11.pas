@@ -2290,12 +2290,16 @@ type
       end;
       if CompCount = 0 then Exit;
 
+      if LowerCase(Name[Length(Name)]) = 'f' then
+        for i := 0 to 3 do
+          if Result.RGBA[i].CompType = ctInt then Result.RGBA[i].CompType := ctFloat;
+
       BitsCount := DecodeBitsCount(Name, CharIndex);
       if BitsCount = 0 then BitsCount := 8;
       for i := 0 to 3 do
       begin
         Result.RGBA[i].DWordOffset := (BitsCount * i) div 32;
-        if BitsCount = 8 then //todo check this condition for other bitcount images
+        if (BitsCount = 8) or (Result.RGBA[i].CompType = ctFloat) then //todo check this condition for other bitcount images
           Result.RGBA[i].BitsOffset := i * BitsCount
         else
         if TexturePixelSize[Format] < 4 then
@@ -2304,10 +2308,6 @@ type
           Result.RGBA[i].BitsOffset := 32 - ((BitsCount * i) mod 32) - BitsCount;
         Result.RGBA[i].BitsCount := BitsCount;
       end;
-
-      if LowerCase(Name[Length(Name)]) = 'f' then
-        for i := 0 to 3 do
-          if Result.RGBA[i].CompType = ctInt then Result.RGBA[i].CompType := ctFloat;
 
       Result.StrideSize := (CompCount * BitsCount + 7) div 8;
   end;
@@ -2327,6 +2327,38 @@ type
       end;
   end;
 
+  function IsEqualsFormat(const imgF: TImageFormat; const texF: TTextureFormat): Boolean;
+  begin
+    case imgF of
+      TImageFormat.Gray8: Result := texF = TTextureFormat.R;
+      TImageFormat.R8G8: Result := texF = TTextureFormat.RG;
+      TImageFormat.R8G8B8: Result := texF = TTextureFormat.RGB;
+      TImageFormat.A8B8G8R8: Result := texF = TTextureFormat.RGBA;
+      TImageFormat.R16F: Result := texF = TTextureFormat.R16f;
+      TImageFormat.R16G16F: Result := texF = TTextureFormat.RG16f;
+      TImageFormat.B16G16R16F: Result := texF = TTextureFormat.RGB16f;
+      TImageFormat.A16B16G16R16F: Result := texF = TTextureFormat.RGBA16f;
+      TImageFormat.R32F: Result := texF = TTextureFormat.R32f;
+      TImageFormat.R32G32F: Result := texF = TTextureFormat.RG32f;
+      TImageFormat.R32G32B32F: Result := texF = TTextureFormat.RGB32f;
+      TImageFormat.R32G32B32A32F: Result := texF = TTextureFormat.RGBA32f;
+      TImageFormat.DXT1: Result := texF = TTextureFormat.DXT1;
+      TImageFormat.DXT3: Result := texF = TTextureFormat.DXT3;
+      TImageFormat.DXT5: Result := texF = TTextureFormat.DXT5;
+      TImageFormat.R16: Result := texF = TTextureFormat.R16;
+      TImageFormat.R16G16: Result := texF = TTextureFormat.RG;
+      TImageFormat.R16G16B16: Result := texF = TTextureFormat.RGB;
+      TImageFormat.A16B16G16R16: Result := texF = TTextureFormat.RGBA16;
+      TImageFormat.R32: Result := texF = TTextureFormat.R32;
+      TImageFormat.R32G32: Result := texF = TTextureFormat.RG32;
+      TImageFormat.R32G32B32: Result := texF = TTextureFormat.RGB32;
+      TImageFormat.A32B32G32R32: Result := texF = TTextureFormat.RGBA32;
+    else
+      Result := False;
+    end;
+
+  end;
+
 var SpecMethod: TConvertMethod;
     ImgFormat: TImageFormatDesc;
     TexFormat: TImageFormatDesc;
@@ -2335,16 +2367,14 @@ var SpecMethod: TConvertMethod;
     i, j: Integer;
 begin
   SpecMethod := FSpecConvertes[ASrcFormat][ADstFormat];
-  if Assigned(SpecMethod) then Exit(SpecMethod(ASrc, ASrcSize, ASrcFormat, ADstFormat, ADst, ADstSize));
-
-  if ( (ASrcFormat = TImageFormat.DXT1) and (ADstFormat = TTextureFormat.DXT1) ) or
-     ( (ASrcFormat = TImageFormat.DXT3) and (ADstFormat = TTextureFormat.DXT3) ) or
-     ( (ASrcFormat = TImageFormat.DXT5) and (ADstFormat = TTextureFormat.DXT5) ) then
+  if IsEqualsFormat(ASrcFormat, ADstFormat) then
   begin
     ADst := ASrc;
     ADstSize := ASrcSize;
     Exit(False);
   end;
+
+  if Assigned(SpecMethod) then Exit(SpecMethod(ASrc, ASrcSize, ASrcFormat, ADstFormat, ADst, ADstSize));
 
   ImgFormat := DecodeImageFormat(ASrcFormat);
   TexFormat := DecodeTextureFormat(ADstFormat);
