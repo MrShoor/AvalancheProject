@@ -161,7 +161,7 @@ begin
   FModels := TavModelCollection.Create(FMain);
 
   FProg := TavProgram.Create(FMain);
-  FProg.Load('avMesh', False, 'D:\Projects\AvalancheProject\Demos\Src\avm_Import\MeshShader\!Out');
+  FProg.Load('avMesh', True, '');//D:\Projects\AvalancheProject\Demos\Src\avm_Import\MeshShader\!Out');
 
   with TavCameraController.Create(FMain) do
   begin

@@ -16,9 +16,10 @@ type
 procedure CaptureWindow(Window: TWindow);
 procedure ReleaseCaptureWindow;
 procedure GetRectOfWindow(Window: TWindow; out Left, Top, Right, Bottom: integer); overload;
-function GetRectOfWindow(Window: TWindow): TRectI; overload;
+function  GetRectOfWindow(Window: TWindow): TRectI; overload;
 procedure InvalidateWindow(Window: TWindow; EraseBackground: Boolean);
 function  IsValidWindow(Window: TWindow): Boolean;
+function  IsKeyPressed(const VKey: Integer): Boolean;
 
 function GetCursorPos(Window: TWindow; isLocal: boolean; isAbsolute: boolean): TVec2;
 function GetTime64: Int64;
@@ -252,6 +253,11 @@ end;
 function IsValidWindow(Window: TWindow): Boolean;
 begin
   Result := IsWindow(Window);
+end;
+
+function  IsKeyPressed(const VKey: Integer): Boolean;
+begin
+  Result := GetKeyState(VKey) < 1;
 end;
 
 function GetCursorPos(Window: TWindow; isLocal: boolean; isAbsolute: boolean): TVec2;

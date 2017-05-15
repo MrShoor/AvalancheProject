@@ -261,6 +261,7 @@ Operator / (const v: TVec4; const f: Single): TVec4; {$IFNDEF NoInline} inline; 
 Operator * (const a, b: TQuat): TQuat; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator * (const a: TQuat; b: TVec3): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator * (const a: TVec3I; s: Single): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+Operator * (const a: TVec2b; s: Single): TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator * (const a: TLine; const b: TMat4): TLine; {$IFNDEF NoInline} inline; {$ENDIF}
 {$EndIf}
 
@@ -840,6 +841,12 @@ begin
   Result.x := a.x*s;
   Result.y := a.y*s;
   Result.z := a.z*s;
+end;
+
+operator * (const a: TVec2b; s: Single): TVec2;
+begin
+  Result.x := a.x * s;
+  Result.y := a.y * s;
 end;
 
 operator*(const a: TLine; const b: TMat4): TLine;

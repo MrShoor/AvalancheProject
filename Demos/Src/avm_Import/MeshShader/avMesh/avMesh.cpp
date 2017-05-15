@@ -65,7 +65,7 @@ VS_Output VS(VS_Input In) {
     Out.vNorm = mul(normalize(norm), (float3x3)V_Matrix);
     Out.vTex = In.vsTex;
     Out.Pos = mul(float4(Out.vCoord, 1.0), P_Matrix);
-    Out.MatIndex = In.aiBoneMatOffset.y + In.vsMatIndex;
+    Out.MatIndex = In.aiBoneMatOffset.y + In.vsMatIndex + 0.5;
     return Out;
 }
 
@@ -87,7 +87,7 @@ PS_Output PS(VS_Output In) {
     In.vNorm = normalize(In.vNorm);
     
     ModelMaterialDesc m = LoadMaterialDesc(round(In.MatIndex));
-    float3x3 tbn = CalcTBN(In.vCoord, In.vNorm, In.vTex);    
+    float3x3 tbn = CalcTBN(In.vCoord, In.vNorm, In.vTex);
     float3 norm = UnpackNormal(m.Geometry_Normal(In.vTex, float4(0.5,0.5,1,0)));
     float4 diff = m.Diffuse_Color(In.vTex, m.Diff);
     //diff = pow(abs(diff), 2.2);
