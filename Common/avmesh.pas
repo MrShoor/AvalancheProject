@@ -1503,7 +1503,6 @@ var inst: TavMeshInstance;
     intf: IavMeshInstance;
 begin
   inst := TavMeshInstance.Create;
-  inst.FBoneBindTransform := FBoneBindTransform;
   intf := inst;
   inst.SetMesh(Mesh);
   inst.SetName(NewInstanceName);
@@ -1511,6 +1510,7 @@ begin
     Parent.AddChild(inst);
   if Assigned(FPose) then
     inst.SetPose(IavPoseInternal(FPose).Clone());
+  inst.FBoneBindTransform := FBoneBindTransform;
   inst.FTransform := FTransform;
   Result := intf;
 end;
