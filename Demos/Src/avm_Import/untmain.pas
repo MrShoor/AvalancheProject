@@ -264,6 +264,37 @@ procedure TfrmMain.RenderScene;
     end;
   end;
 
+  procedure ApplyRootBaseMotion;
+  var
+    FMeshHipsHead: TVec3;
+    FMeshHipsIndex: Integer;
+    hipsOffset : TVec3;
+    m: TMat4;
+    i: Integer;
+    bone: IavBone;
+  begin
+    For i := 0 To FInstances.Count - 1 Do
+    begin
+        FMeshHipsIndex := FInstances[i].Mesh.Mesh.FindBone('Hips');
+        If FMeshHipsIndex < 0 Then Continue;
+
+        bone := FInstances[i].Mesh.Pose.Armature.FindBone('Hips');
+        If bone = nil Then Continue;
+
+        FMeshHipsHead := bone.Head;
+        //m := Mat4(Quat(Vec(-1,0,0), Pi*0.5)) * Mat4(Quat(Vec(0,0,1), 0), Vec(0,0,0) );
+        m := IdentityMat4;
+        if FMeshHipsIndex >= 0 then
+        begin
+          hipsOffset := (FMeshHipsHead) * FInstances[i].Mesh.GetSingleBoneTransform(FMeshHipsIndex);
+          //m := MatTranslate(Vec(-hipsOffset.x, 0{-hipsOffset.y}, -hipsOffset.z)) * m;
+          m := MatTranslate(Vec(-hipsOffset.x, -hipsOffset.y, -hipsOffset.z)) * m;
+        end;
+
+        FInstances[i].Mesh.Transform := m;
+    end;
+  end;
+
 var visInst: IavModelInstanceArr;
 begin
   Sync3DApi;
@@ -274,6 +305,8 @@ begin
   if FMain.Bind then
   try
     SyncAnimations();
+    //ApplyRootBaseMotion;
+
     visInst := GetVisibleInstances(FInstances);
 
     FMain.States.DepthTest := True;
