@@ -49,6 +49,7 @@ type
     {$EndIf}
     btnLoad: TButton;
     btnClear: TButton;
+    btnFit: TButton;
     cbDirectX11: TRadioButton;
     cbOGL: TRadioButton;
     cbWireframe: TCheckBox;
@@ -66,6 +67,9 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure RenderPanelMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure btnFitClick(Sender: TObject);
+    procedure RenderPanelMouseMove(Sender: TObject; Shift: TShiftState; X,
+      Y: Integer);
   private
     procedure Sync3DApi;
     procedure RenderScene;
@@ -77,6 +81,7 @@ type
     FModels: TavModelCollection;
 
     FProg: TavProgram;
+    FGridProg: TavProgram;
 
     FInstances: IavModelInstanceArr;
     FAnimC: IavAnimationController;
@@ -85,7 +90,11 @@ type
     FRadiance      : TavTexture;
     FHammersleyPts : TVec4Arr;
 
+    FLoadedFile : String;
+
     procedure LoadModels(const AFileName: string);
+    function GetSceneBBox: TAABB;
+    procedure Fit(const ABox: TAABB);
   end;
 
 var
@@ -147,14 +156,8 @@ begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := RenderPanel.Handle;
 //  FMain.Projection.Ortho := True;
-  FMain.Projection.NearPlane := 0.1;
-  FMain.Camera.At := Vec(0,0.5,0);
-  FMain.Camera.Eye := Vec(-3,0.5,0);
-  FMain.Projection.OrthoHeight := 4;
-
-  FMain.Camera.At := Vec(0,10,0);
-  FMain.Camera.Eye := Vec(20,18,-10);
-  FMain.Projection.OrthoHeight := 4;
+  FMain.Projection.NearPlane := 0.05;
+  FMain.Projection.FarPlane := 10000;
 
   FFBO := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f]);
 
@@ -163,15 +166,21 @@ begin
   FProg := TavProgram.Create(FMain);
   FProg.Load('avMesh', True, '');//D:\Projects\AvalancheProject\Demos\Src\avm_Import\MeshShader\!Out');
 
+  FGridProg := TavProgram.Create(FMain);
+  FGridProg.Load('Grid', True, '');//'C:\MyProj\AvalancheProject\Demos\Src\avm_Import\MeshShader\!Out');
+
   with TavCameraController.Create(FMain) do
   begin
     CanRotate := True;
     CanMove := True;
-    MovePlane := Plane(0,0,1,0);
+    MovePlane := Plane(0,1,0,0);
   end;
 
 //  LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\WhipperNude\WhipperNude.avm');
-  LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\Char\char.avm');
+  if (ParamCount > 0) and FileExists(ParamStr(1)) then
+    LoadModels(ParamStr(1))
+  else
+    LoadModels(ExtractFilePath(ParamStr(0))+'\..\Media\Char\char.avm');
 
   FIrradiance := TavTexture.Create(FMain);
   FIrradiance.TargetFormat := TTextureFormat.RGBA16f;
@@ -242,7 +251,7 @@ procedure TfrmMain.RenderScene;
         Result.Add(AllInstances[i]);
   end;
   procedure SyncAnimations();
-  var i, j: Integer;
+  var j: Integer;
   begin
     if FAnimC = nil then Exit;
     FAnimC.SetTime(FMain.Time64);
@@ -287,6 +296,16 @@ begin
       FModels.Draw(visInst);
     end;
 
+    FMain.States.DepthWrite := False;
+    FMain.States.DepthFunc := cfLessEqual;
+    FMain.States.Blending[0] := True;
+    FMain.States.SetBlendFunctions(bfSrcAlpha, bfInvSrcAlpha);
+    FGridProg.Select();
+    FGridProg.Draw(ptTriangleStrip, cmNone, False, 0, 0, 4);
+    FMain.States.Blending[0] := False;
+    FMain.States.DepthWrite := True;
+    FMain.States.DepthFunc := cfLess;
+
     FFBO.BlitToWindow();
     FMain.Present;
   finally
@@ -299,6 +318,7 @@ procedure TfrmMain.RenderPanelMouseDown(Sender: TObject;
 begin
   RenderPanel.SetFocus;
   FProg.Invalidate;
+  FGridProg.Invalidate;
 end;
 
 procedure TfrmMain.RenderPanelRepaint(Sender: TObject);
@@ -316,6 +336,8 @@ var newInst: IavModelInstance;
     meshInst: IavMeshInstance;
     newModelInstances: IavModelInstanceArr;
 begin
+  FLoadedFile := ExpandFileName(AFileName);
+
   avMesh.LoadFromFile(AFileName, meshes, meshInstances);
 
   FAnimC := nil;
@@ -341,9 +363,9 @@ begin
     for i := 0 to FAnimC.Pose.Armature.AnimCount - 1 do
       animations.Add(FAnimC.Pose.Armature.Anim[i].Name);
   try
-    FModels.Reset;
-    while FModels.NextInstance(newInst) do
+    for i := 0 to newModelInstances.Count - 1 do
     begin
+      newInst := newModelInstances[i];
       FInstances.Add(newInst);
       lbNames.Items.Add(newInst.Name);
     end;
@@ -353,6 +375,76 @@ begin
   finally
     animations.Free;
   end;
+
+  Fit(GetSceneBBox());
+
+  Caption := 'File: '+FLoadedFile;
+end;
+
+procedure TfrmMain.Fit(const ABox: TAABB);
+var
+    boxSize: Single;
+    dist: Single;
+begin
+  if ABox.IsEmpty then Exit;
+  boxSize := Len(ABox.Size);
+  dist := boxSize * FMain.Projection.Matrix.f[1,1]*0.75;
+  FMain.Camera.At := ABox.Center;
+  FMain.Camera.Eye := Normalize(Vec(-0.5, 0.5, 0)) * dist;
+  FMain.Camera.Up := Vec(0,1,0);
+end;
+
+function TfrmMain.GetSceneBBox: TAABB;
+var
+    i, j, k: Integer;
+    m: TMat4;
+    vert: IMeshVertices;
+    vPos: TVec3;
+    v: TMeshVertex;
+    absPose: TMat4Arr;
+begin
+  Result := EmptyAABB;
+  for i := 0 to FInstances.Count - 1 do
+  begin
+    if FInstances[i].Mesh.Pose <> nil then
+    begin
+      absPose := FInstances[i].Mesh.PoseArray;
+      vert := FInstances[i].Mesh.Mesh.Vert;
+      for j := 0 to vert.Count - 1 do
+      begin
+        v := vert.Item[j];
+        vPos := Vec(0,0,0);
+        if v.vsWIndex.f[0] >= 0 then
+        begin
+          for k := 0 to 3 do
+            if v.vsWIndex.f[k] >= 0 then
+              vPos := vPos + v.vsCoord * absPose[Round(v.vsWIndex.f[k])] * v.vsWeight.f[k];
+        end
+        else
+          vPos := v.vsCoord;
+        Result := Result + vPos;
+      end;
+    end
+    else
+    begin
+      m := FInstances[i].Mesh.BindPoseTransform * FInstances[i].Mesh.Transform;
+      Result := Result + FInstances[i].Mesh.Mesh.BBox * m;
+    end;
+  end;
+end;
+
+procedure TfrmMain.btnFitClick(Sender: TObject);
+begin
+  Fit(GetSceneBBox());
+end;
+
+procedure TfrmMain.RenderPanelMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+var IntPt: TVec3;
+begin
+  if Intersect(Plane(0,1,0,0), FMain.Cursor.Ray, IntPt) then
+    Caption := Format('File: %s; Cursor Pos: (x: %f.3, z: %f.3)', [FLoadedFile, IntPt.x, IntPt.z])
+  else
+    Caption := 'File: '+FLoadedFile;
 end;
 
 end.

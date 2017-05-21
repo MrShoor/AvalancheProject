@@ -86,17 +86,21 @@ PS_Output PS(VS_Output In) {
     PS_Output Out;
     In.vNorm = normalize(In.vNorm);
     
-    ModelMaterialDesc m = LoadMaterialDesc(round(In.MatIndex));
-    float3x3 tbn = CalcTBN(In.vCoord, In.vNorm, In.vTex);
-    float3 norm = UnpackNormal(m.Geometry_Normal(In.vTex, float4(0.5,0.5,1,0)));
+    ModelMaterialDesc m = LoadMaterialDesc((int)In.MatIndex);
+    float3 norm = In.vNorm;
+    
+    if (m.mapSpecular_Hardness_mapGeometry_Normal.w > 0.001) {
+        float3x3 tbn = CalcTBN(In.vCoord, In.vNorm, In.vTex);
+        float3 norm = UnpackNormal(m.Geometry_Normal(In.vTex, float4(0.5,0.5,1,0)));
+        norm = mul(norm, tbn);
+    }    
+    
     float4 diff = m.Diffuse_Color(In.vTex, m.Diff);
     //diff = pow(abs(diff), 2.2);
     float roughness = m.Geometry_Hardness(In.vTex, 0.5).x;
     float metallic = m.Specular_Intensity(In.vTex, 0.0).x;
     
     metallic = 1.0 - pow(abs(1.0-metallic), 32);
-    
-    norm = mul(norm, tbn);
     
     float4 spec = {1,1,1,1};
     float4 amb = 0.3;

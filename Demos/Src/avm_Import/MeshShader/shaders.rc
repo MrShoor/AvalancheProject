@@ -1,1 +1,2 @@
 DX_avMesh RCDATA "!Out\DX_avMesh.hlsl"
+DX_Grid RCDATA "!Out\DX_Grid.hlsl"

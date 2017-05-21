@@ -27,6 +27,7 @@ object frmMain: TfrmMain
     BevelOuter = bvNone
     TabOrder = 0
     OnMouseDown = RenderPanelMouseDown
+    OnMouseMove = RenderPanelMouseMove
   end
   object Panel1: TPanel
     Left = 0
@@ -117,6 +118,15 @@ object frmMain: TfrmMain
       Caption = 'Clear'
       TabOrder = 6
       OnClick = btnClearClick
+    end
+    object btnFit: TButton
+      Left = 89
+      Top = 61
+      Width = 96
+      Height = 25
+      Caption = 'Fit scene'
+      TabOrder = 7
+      OnClick = btnFitClick
     end
   end
   object ApplicationProperties1: TApplicationEvents

@@ -8,7 +8,7 @@ object frmMain: TfrmMain
   ClientWidth = 1044
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  LCLVersion = '1.6.2.0'
+  LCLVersion = '1.8.0.1'
   object RenderPanel: TPanel
     Left = 186
     Height = 728
@@ -18,6 +18,7 @@ object frmMain: TfrmMain
     BevelOuter = bvNone
     TabOrder = 0
     OnMouseDown = RenderPanelMouseDown
+    OnMouseMove = RenderPanelMouseMove
   end
   object Panel1: TPanel
     Left = 0
@@ -69,6 +70,7 @@ object frmMain: TfrmMain
       Width = 184
       ItemHeight = 0
       MultiSelect = True
+      Options = [lboDrawFocusRect]
       TabOrder = 3
     end
     object Label2: TLabel
@@ -86,6 +88,7 @@ object frmMain: TfrmMain
       Width = 184
       Anchors = [akTop, akLeft, akBottom]
       ItemHeight = 0
+      Options = [lboDrawFocusRect]
       TabOrder = 4
     end
     object btnLoad: TButton
@@ -105,6 +108,15 @@ object frmMain: TfrmMain
       Caption = 'Clear'
       OnClick = btnClearClick
       TabOrder = 6
+    end
+    object btnFit: TButton
+      Left = 88
+      Height = 25
+      Top = 61
+      Width = 96
+      Caption = 'Fit scene'
+      OnClick = btnFitClick
+      TabOrder = 7
     end
   end
   object ApplicationProperties1: TApplicationProperties

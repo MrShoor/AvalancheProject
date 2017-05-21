@@ -15,6 +15,12 @@
 	"Vertex"   : "avMesh.cpp",
 	"Fragment" : "avMesh.cpp",
 	"Path"     :["avMesh"]
-        }      
+        },
+        {
+        "Name"     : "Grid",
+	"Vertex"   : "Grid.cpp",
+	"Fragment" : "Grid.cpp",
+	"Path"     :["grid"]
+        }
     ]
 }

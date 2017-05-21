@@ -205,6 +205,8 @@ type
     function Edge(index: Integer): TLine;
     {$IfDef DCC}
     class operator Add (const AABB: TAABB; const v: TVec3): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
+    class operator Add (const Box1, Box2: TAABB): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
+    class operator Multiply(const AABB: TAABB; const m: TMat4): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
     {$EndIf}
   case Byte of
     0: (min, max: TVec3);
@@ -366,6 +368,8 @@ operator = (const v1, v2: TRectF): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 operator = (const v1, v2: TRectI): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 
 operator + (const AABB: TAABB; v: TVec3): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
+operator + (const Box1, Box2: TAABB): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
+operator * (const AABB: TAABB; const m: TMat4): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
 
 operator * (const v: TVec2i; s: Single): TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
 {$EndIf}
@@ -375,8 +379,6 @@ implementation {$undef INTF} {$define IMPL}
 {$IfDef DCC}
 
 {$EndIf}
-
-{ TAABB }
 
 function RandomSphereUniformRay(): TVec3;
 var theta, cosphi, sinphi: Single;
@@ -519,8 +521,22 @@ end;
 {$IfDef DCC}
 class operator TAABB.Add (const AABB: TAABB; const v: TVec3): TAABB;
 begin
-    Result.min := mutils.Min(AABB.min, v);
-    Result.max := mutils.Max(AABB.max, v);
+  Result.min := mutils.Min(AABB.min, v);
+  Result.max := mutils.Max(AABB.max, v);
+end;
+
+class operator TAABB.Add (const Box1, Box2: TAABB): TAABB;
+begin
+  Result.min := mutils.Min(Box1.min, Box2.min);
+  Result.max := mutils.Max(Box1.max, Box2.max);
+end;
+
+class operator TAABB.Multiply(const AABB: TAABB; const m: TMat4): TAABB;
+var i: Integer;
+begin
+  Result := EmptyAABB;
+  for i := 0 to 7 do
+    Result := Result + AABB.Point(i) * m;
 end;
 {$EndIf}
 
@@ -1527,6 +1543,20 @@ operator + (const AABB: TAABB; v: TVec3): TAABB;
 begin
   Result.min := min(AABB.min, v);
   Result.max := max(AABB.max, v);
+end;
+
+operator + (const Box1, Box2: TAABB): TAABB;
+begin
+  Result.min := mutils.Min(Box1.min, Box2.min);
+  Result.max := mutils.Max(Box1.max, Box2.max);
+end;
+
+operator * (const AABB: TAABB; const m: TMat4): TAABB;
+var i: Integer;
+begin
+  Result := EmptyAABB;
+  for i := 0 to 7 do
+    Result := Result + AABB.Point(i) * m;
 end;
 
 operator * (const v: TVec2i; s: Single): TVec2;
