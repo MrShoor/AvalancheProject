@@ -45,6 +45,7 @@ object frmMain: TfrmMain
       Top = 32
       Width = 63
       Caption = 'OpenGL'
+      Enabled = False
       TabOrder = 1
     end
     object cbWireframe: TCheckBox
