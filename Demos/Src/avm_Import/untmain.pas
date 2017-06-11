@@ -439,9 +439,9 @@ begin
   Result := EmptyAABB;
   for i := 0 to FInstances.Count - 1 do
   begin
-    if FInstances[i].Mesh.Pose <> nil then
+    absPose := FInstances[i].Mesh.PoseArray;
+    if (FInstances[i].Mesh.Pose <> nil) and (absPose <> nil) then
     begin
-      absPose := FInstances[i].Mesh.PoseArray;
       vert := FInstances[i].Mesh.Mesh.Vert;
       for j := 0 to vert.Count - 1 do
       begin

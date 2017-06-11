@@ -41,6 +41,8 @@ type
     function GetItem(index: Integer): TValue;
     procedure SetItem(index: Integer; const AValue: TValue);
     function GetPItem(index: Integer): Pointer;
+    function GetLast: TValue;
+    procedure SetLast(const AValue: TValue);
 
     function Count: Integer;
 
@@ -60,6 +62,7 @@ type
 
     property Item[index: Integer]: TValue read GetItem write SetItem; default;
     property PItem[index: Integer]: Pointer read GetPItem;
+    property Last: TValue read GetLast write SetLast;
     property Capacity: Integer read GetCapacity write SetCapacity;
   end;
 
@@ -134,6 +137,8 @@ type
     function GetItem(index: Integer): TValue;
     procedure SetItem(index: Integer; const AValue: TValue);
     function GetPItem(index: Integer): Pointer;
+    function GetLast: TValue;
+    procedure SetLast(const AValue: TValue);
 
     function Count: Integer;
 
@@ -2162,6 +2167,16 @@ function TArray{$IfDef DCC}<TValue>{$EndIf}.GetPItem(index: Integer): Pointer;
 begin
   Assert(index >= 0);
   Result := @FData[index];
+end;
+
+function TArray{$IfDef DCC}<TValue>{$EndIf}.GetLast: TValue;
+begin
+  Result := FData[FCount-1];
+end;
+
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.SetLast(const AValue: TValue);
+begin
+  FData[FCount-1] := AValue;
 end;
 
 function TArray{$IfDef DCC}<TValue>{$EndIf}.Count: Integer;
