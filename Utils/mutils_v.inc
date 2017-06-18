@@ -61,6 +61,7 @@ type
     procedure SetOY(const AValue: TV2); {$IFNDEF NoInline} inline; {$ENDIF}
     procedure SetPos(const AValue: TV2); {$IFNDEF NoInline} inline; {$ENDIF}
   public
+    function Mat2x2: TM2;
     property Col[index: Integer]: TV3 read GetCol write SetCol;
     property OX: TV2 read GetOX write SetOX;
     property OY: TV2 read GetOY write SetOY;
@@ -130,7 +131,8 @@ type
   Operator + (const m1, m2: TM2): TM2; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator - (const m1, m2: TM2): TM2; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator * (const m1, m2: TM2): TM2; {$IFNDEF NoInline} inline; {$ENDIF}
-  Operator * (const m: TM2; v: TV2): TV2; {$IFNDEF NoInline} inline; {$ENDIF}
+  Operator * (const m: TM2; const v: TV2): TV2; {$IFNDEF NoInline} inline; {$ENDIF}
+  Operator * (const v: TV2; const m: TM2): TV2; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator * (const m: TM2; s: TCompType): TM2; {$IFNDEF NoInline} inline; {$ENDIF}
   Operator - (const m: TM2): TM2; {$IFNDEF NoInline} inline; {$ENDIF}
 
@@ -281,6 +283,12 @@ type
   procedure TM3.SetPos(const AValue: TV2);
   begin
     Row[2].xy := AValue;
+  end;
+
+  function TM3.Mat2x2: TM2;
+  begin
+    Result.Row[0] := Row[0].xy;
+    Result.Row[1] := Row[1].xy;
   end;
 
   { TM4 }
@@ -493,10 +501,15 @@ type
         Result.f[i, j] := Dot(m1.Row[i], m2.Col[j]);
   end;
 
-  operator*(const m: TM2; v: TV2): TV2;
+  operator*(const m: TM2; const v: TV2): TV2;
   begin
     Result.x := Dot(m.Row[0], v);
     Result.y := Dot(m.Row[1], v);
+  end;
+
+  operator*(const v: TV2; const m: TM2): TV2;
+  begin
+    Result := m.Row[0]*v.x+m.Row[1]*v.y;
   end;
 
   operator*(const m: TM2; s: TCompType): TM2;

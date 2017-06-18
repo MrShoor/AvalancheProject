@@ -124,7 +124,8 @@ type
     Class Operator Add (const m1, m2: TMat2): TMat2; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Subtract (const m1, m2: TMat2): TMat2; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Multiply (const m1, m2: TMat2): TMat2; {$IFNDEF NoInline} inline; {$ENDIF}
-    Class Operator Multiply (const m: TMat2; v: TVec2): TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
+    Class Operator Multiply (const m: TMat2; const v: TVec2): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+    Class Operator Multiply (const v: TVec2; const m: TMat2): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Multiply (const m: TMat2; s: Single): TMat2; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Negative (const m: TMat2): TMat2; {$IFNDEF NoInline} inline; {$ENDIF}
   public
@@ -158,6 +159,7 @@ type
     Class Operator Multiply (const m: TMat3; s: Single): TMat3; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Negative (const m: TMat3): TMat3; {$IFNDEF NoInline} inline; {$ENDIF}
   public
+    function Mat2x2: TMat2;
     property Col[index: Integer]: TVec3 read GetCol write SetCol;
     property OX: TVec2 read GetOX write SetOX;
     property OY: TVec2 read GetOY write SetOY;
@@ -296,6 +298,12 @@ type
   end;
 
   { TMat3 }
+
+  function TMat3.Mat2x2: TMat2;
+  begin
+    Result.Row[0] := Row[0].xy;
+    Result.Row[1] := Row[1].xy;
+  end;
 
   function TMat3.GetCol(index: Integer): TVec3;
   begin
@@ -743,11 +751,16 @@ type
         Result.f[i, j] := Dot(m1.Row[i], m2.Col[j]);
   end;
 
-  Class operator TMat2.Multiply (const m: TMat2; v: TVec2): TVec2;
+  Class operator TMat2.Multiply (const m: TMat2; const v: TVec2): TVec2;
   begin
     Result.x := Dot(m.Row[0], v);
     Result.y := Dot(m.Row[1], v);
   end;
+  
+  Class operator TMat2.Multiply (const v: TVec2; const m: TMat2): TVec2;
+  begin
+    Result := m.Row[0]*v.x + m.Row[1]*v.y;
+  end;  
 
   Class operator TMat2.Multiply (const m: TMat2; s: Single): TMat2;
   begin

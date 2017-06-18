@@ -124,7 +124,8 @@ type
     Class Operator Add (const m1, m2: TMat2b): TMat2b; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Subtract (const m1, m2: TMat2b): TMat2b; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Multiply (const m1, m2: TMat2b): TMat2b; {$IFNDEF NoInline} inline; {$ENDIF}
-    Class Operator Multiply (const m: TMat2b; v: TVec2b): TVec2b; {$IFNDEF NoInline} inline; {$ENDIF}
+    Class Operator Multiply (const m: TMat2b; const v: TVec2b): TVec2b; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+    Class Operator Multiply (const v: TVec2b; const m: TMat2b): TVec2b; overload; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Multiply (const m: TMat2b; s: Byte): TMat2b; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Negative (const m: TMat2b): TMat2b; {$IFNDEF NoInline} inline; {$ENDIF}
   public
@@ -158,6 +159,7 @@ type
     Class Operator Multiply (const m: TMat3b; s: Byte): TMat3b; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Negative (const m: TMat3b): TMat3b; {$IFNDEF NoInline} inline; {$ENDIF}
   public
+    function Mat2x2: TMat2b;
     property Col[index: Integer]: TVec3b read GetCol write SetCol;
     property OX: TVec2b read GetOX write SetOX;
     property OY: TVec2b read GetOY write SetOY;
@@ -296,6 +298,12 @@ type
   end;
 
   { TMat3b }
+
+  function TMat3b.Mat2x2: TMat2b;
+  begin
+    Result.Row[0] := Row[0].xy;
+    Result.Row[1] := Row[1].xy;
+  end;
 
   function TMat3b.GetCol(index: Integer): TVec3b;
   begin
@@ -743,11 +751,16 @@ type
         Result.f[i, j] := Dot(m1.Row[i], m2.Col[j]);
   end;
 
-  Class operator TMat2b.Multiply (const m: TMat2b; v: TVec2b): TVec2b;
+  Class operator TMat2b.Multiply (const m: TMat2b; const v: TVec2b): TVec2b;
   begin
     Result.x := Dot(m.Row[0], v);
     Result.y := Dot(m.Row[1], v);
   end;
+  
+  Class operator TMat2b.Multiply (const v: TVec2b; const m: TMat2b): TVec2b;
+  begin
+    Result := m.Row[0]*v.x + m.Row[1]*v.y;
+  end;  
 
   Class operator TMat2b.Multiply (const m: TMat2b; s: Byte): TMat2b;
   begin

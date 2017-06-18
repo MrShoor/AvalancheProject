@@ -593,4 +593,9 @@ begin
     FTotalSize := AStrideSize;
 end;
 
+initialization
+
+finalization
+  gvDataLayouts := nil;
+
 end.

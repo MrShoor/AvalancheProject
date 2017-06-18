@@ -124,7 +124,8 @@ type
     Class Operator Add (const m1, m2: TMat2s): TMat2s; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Subtract (const m1, m2: TMat2s): TMat2s; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Multiply (const m1, m2: TMat2s): TMat2s; {$IFNDEF NoInline} inline; {$ENDIF}
-    Class Operator Multiply (const m: TMat2s; v: TVec2s): TVec2s; {$IFNDEF NoInline} inline; {$ENDIF}
+    Class Operator Multiply (const m: TMat2s; const v: TVec2s): TVec2s; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+    Class Operator Multiply (const v: TVec2s; const m: TMat2s): TVec2s; overload; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Multiply (const m: TMat2s; s: ShortInt): TMat2s; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Negative (const m: TMat2s): TMat2s; {$IFNDEF NoInline} inline; {$ENDIF}
   public
@@ -158,6 +159,7 @@ type
     Class Operator Multiply (const m: TMat3s; s: ShortInt): TMat3s; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Negative (const m: TMat3s): TMat3s; {$IFNDEF NoInline} inline; {$ENDIF}
   public
+    function Mat2x2: TMat2s;
     property Col[index: Integer]: TVec3s read GetCol write SetCol;
     property OX: TVec2s read GetOX write SetOX;
     property OY: TVec2s read GetOY write SetOY;
@@ -296,6 +298,12 @@ type
   end;
 
   { TMat3s }
+
+  function TMat3s.Mat2x2: TMat2s;
+  begin
+    Result.Row[0] := Row[0].xy;
+    Result.Row[1] := Row[1].xy;
+  end;
 
   function TMat3s.GetCol(index: Integer): TVec3s;
   begin
@@ -743,11 +751,16 @@ type
         Result.f[i, j] := Dot(m1.Row[i], m2.Col[j]);
   end;
 
-  Class operator TMat2s.Multiply (const m: TMat2s; v: TVec2s): TVec2s;
+  Class operator TMat2s.Multiply (const m: TMat2s; const v: TVec2s): TVec2s;
   begin
     Result.x := Dot(m.Row[0], v);
     Result.y := Dot(m.Row[1], v);
   end;
+  
+  Class operator TMat2s.Multiply (const v: TVec2s; const m: TMat2s): TVec2s;
+  begin
+    Result := m.Row[0]*v.x + m.Row[1]*v.y;
+  end;  
 
   Class operator TMat2s.Multiply (const m: TMat2s; s: ShortInt): TMat2s;
   begin

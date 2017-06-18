@@ -24,6 +24,7 @@ type
   public
     constructor Create; overload;
     constructor Create(const ALayout: IDataLayout); overload;
+    destructor Destroy; override;
   end;
 
   { ILayoutBuilder }
@@ -1512,5 +1513,15 @@ begin
   FLayout := ALayout;
 end;
 
-end.
+destructor TVerticesRec{$IfDef DCC}<TRec>{$EndIf}.Destroy;
+begin
+  FLayout := nil;
+  inherited;
+end;
 
+initialization
+
+finalization
+  GV_LB := Nil;
+
+end.

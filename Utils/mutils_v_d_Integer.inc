@@ -124,7 +124,8 @@ type
     Class Operator Add (const m1, m2: TMat2i): TMat2i; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Subtract (const m1, m2: TMat2i): TMat2i; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Multiply (const m1, m2: TMat2i): TMat2i; {$IFNDEF NoInline} inline; {$ENDIF}
-    Class Operator Multiply (const m: TMat2i; v: TVec2i): TVec2i; {$IFNDEF NoInline} inline; {$ENDIF}
+    Class Operator Multiply (const m: TMat2i; const v: TVec2i): TVec2i; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+    Class Operator Multiply (const v: TVec2i; const m: TMat2i): TVec2i; overload; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Multiply (const m: TMat2i; s: Integer): TMat2i; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Negative (const m: TMat2i): TMat2i; {$IFNDEF NoInline} inline; {$ENDIF}
   public
@@ -158,6 +159,7 @@ type
     Class Operator Multiply (const m: TMat3i; s: Integer): TMat3i; {$IFNDEF NoInline} inline; {$ENDIF}
     Class Operator Negative (const m: TMat3i): TMat3i; {$IFNDEF NoInline} inline; {$ENDIF}
   public
+    function Mat2x2: TMat2i;
     property Col[index: Integer]: TVec3i read GetCol write SetCol;
     property OX: TVec2i read GetOX write SetOX;
     property OY: TVec2i read GetOY write SetOY;
@@ -296,6 +298,12 @@ type
   end;
 
   { TMat3i }
+
+  function TMat3i.Mat2x2: TMat2i;
+  begin
+    Result.Row[0] := Row[0].xy;
+    Result.Row[1] := Row[1].xy;
+  end;
 
   function TMat3i.GetCol(index: Integer): TVec3i;
   begin
@@ -743,11 +751,16 @@ type
         Result.f[i, j] := Dot(m1.Row[i], m2.Col[j]);
   end;
 
-  Class operator TMat2i.Multiply (const m: TMat2i; v: TVec2i): TVec2i;
+  Class operator TMat2i.Multiply (const m: TMat2i; const v: TVec2i): TVec2i;
   begin
     Result.x := Dot(m.Row[0], v);
     Result.y := Dot(m.Row[1], v);
   end;
+  
+  Class operator TMat2i.Multiply (const v: TVec2i; const m: TMat2i): TVec2i;
+  begin
+    Result := m.Row[0]*v.x + m.Row[1]*v.y;
+  end;  
 
   Class operator TMat2i.Multiply (const m: TMat2i; s: Integer): TMat2i;
   begin

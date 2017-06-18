@@ -1653,7 +1653,7 @@ function Projection(const Pt: TVec2; const Line: TLine2D): TVec2;
 var C: Single;
 begin
   C := Dot(Pt, Line.Norm) + Line.Offset;
-  Result := Pt + Line.Norm*C;
+  Result := Pt + Line.Norm*C/LenSqr(Line.Norm);
 end;
 
 function Inv(const m: TMat2): TMat2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
