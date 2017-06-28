@@ -1118,7 +1118,7 @@ procedure TavAtlasBase.AfterConstruction;
 begin
   inherited AfterConstruction;
   FAutoGrow := True;
-  FQuadManager := Create_IQuadManager(256, 256);
+  FQuadManager := Create_IQuadManager(1024, 1024);
   FQuads := TQuadMap.Create;
   FInvalidQuads := TQuadMap.Create;
 end;

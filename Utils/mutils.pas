@@ -11,6 +11,8 @@ uses
 const
   EPS = 0.000005;
   HUGE = MaxInt;
+  deg2rad = Pi/180;
+  rad2deg = 180/Pi;
 
 type
   TSingleArr = array of Single;
@@ -275,6 +277,8 @@ function Mat4(const Q: TQuat): TMat4; overload; {$IFNDEF NoInline} inline; {$END
 function Mat4(const Q: TQuat; newPos: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function MatTranslate(const newPos: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function MatScale(const Scale: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Mat3Scale(const Scale: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Mat3Translate(const newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
 function RectF(Left, Top, Right, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
 function RectI(Left, Top, Right, Bottom: Integer): TRectI; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -953,6 +957,19 @@ begin
   Result.f[0,0] := Scale.x;
   Result.f[1,1] := Scale.y;
   Result.f[2,2] := Scale.z;
+end;
+
+function Mat3Scale(const Scale: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result := IdentityMat3;
+  Result.f[0,0] := Scale.x;
+  Result.f[1,1] := Scale.y;
+end;
+
+function Mat3Translate(const newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result := IdentityMat3;
+  Result.Pos := newPos;
 end;
 
 function RectF(Left, Top, Right, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}

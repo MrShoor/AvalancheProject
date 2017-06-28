@@ -3269,7 +3269,7 @@ begin
 
   Check3DError(
     D3D11CreateDeviceAndSwapChain(nil,
-                                  DriverType, 0, 0{LongWord(D3D11_CREATE_DEVICE_SINGLETHREADED)} Or LongWord(D3D11_CREATE_DEVICE_DEBUG), nil, 0, D3D11_SDK_VERSION,
+                                  DriverType, 0, 0{LongWord(D3D11_CREATE_DEVICE_SINGLETHREADED)} {Or LongWord(D3D11_CREATE_DEVICE_DEBUG)}, nil, 0, D3D11_SDK_VERSION,
                                   @SwapChainDesc, FSwapChain, FDevice, nil, FDeviceContext)
   );
 end;

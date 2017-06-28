@@ -123,6 +123,10 @@ begin
         dstPix^.y := 255;//srcPix^.g;
         dstPix^.z := 255;//srcPix^.b;
         dstPix^.w := srcPix^.r;
+//        dstPix^.x := srcPix^.r;//srcPix^.r;
+//        dstPix^.y := 255;//srcPix^.g;
+//        dstPix^.z := 255;//srcPix^.b;
+//        dstPix^.w := 255;
         Inc(srcPix);
         Inc(dstPix);
       end;
