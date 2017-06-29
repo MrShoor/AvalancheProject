@@ -535,6 +535,34 @@ type
     pos  : TVec2;
   end;
 
+//***AnimationStateData***
+  TspAnimationStateData = record
+    skeletonData: PspSkeletonData;
+    defaultMix: Single;
+    entries: Pointer;
+  end;
+  PspAnimationStateData = ^TspAnimationStateData;
+
+//***TrackEntry***
+  PspTrackEntry = Pointer; //todo add spTrackEntry as the record
+
+//***AnimationState***
+  TspAnimationState = record
+    data: PspAnimationStateData;
+
+    tracksCount: Integer;
+    tracks: Pointer; //todo add PspTrackEntry  | spTrackEntry** tracks;
+
+    listener: Pointer; //todo add PspAnimationStateListener   | spAnimationStateListener listener;
+
+    timeScale: Single;
+
+    mixingTo: Pointer; //todo add PspTrackEntryArray  | spTrackEntryArray* mixingTo;
+
+    UserData: Pointer;
+  end;
+  PspAnimationState = ^TspAnimationState;
+
 procedure Init;
 
 function  spAtlas_create(const data: PspPChar; len: Integer; const dir: PspPChar; UserData: Pointer): PspAtlas; external cSpineWrapperDll;
@@ -711,6 +739,47 @@ function spSkeleton_findTransformConstraint (self: PspSkeleton; constraintName: 
 function spSkeleton_findPathConstraint (self: PspSkeleton; constraintName: PspPChar): PspPathConstraint; external cSpineWrapperDll;
 
 procedure spSkeleton_update (self: PspSkeleton; deltaTime: Single); external cSpineWrapperDll;
+
+
+function  spAnimationStateData_create (skeletonData: PspSkeletonData): PspAnimationStateData; external cSpineWrapperDll;
+procedure spAnimationStateData_dispose (self: PspAnimationStateData); external cSpineWrapperDll;
+
+procedure spAnimationStateData_setMixByName (self: PspAnimationStateData; fromName: PspPChar; toName: PspPChar; duration: Single); external cSpineWrapperDll;
+procedure spAnimationStateData_setMix (self: PspAnimationStateData; from: PspAnimation; at: PspAnimation; duration: Single); external cSpineWrapperDll;
+// Returns 0 if there is no mixing between the animations.
+function spAnimationStateData_getMix (self: PspAnimationStateData; from, at: PspAnimation): Single; external cSpineWrapperDll;
+
+
+// @param data May be Nil for no mixing.
+function  spAnimationState_create (data: PspAnimationStateData): PspAnimationState; external cSpineWrapperDll;
+procedure spAnimationState_dispose (self: PspAnimationState); external cSpineWrapperDll;
+
+procedure spAnimationState_update (self: PspAnimationState; delta: Single); external cSpineWrapperDll;
+function  spAnimationState_apply (self: PspAnimationState; skeleton: PspSkeleton): Integer; {**bool**} external cSpineWrapperDll;
+
+procedure spAnimationState_clearTracks (self: PspAnimationState); external cSpineWrapperDll;
+procedure spAnimationState_clearTrack (self: PspAnimationState; trackIndex: Integer); external cSpineWrapperDll;
+
+// Set the current animation. Any queued animations are cleared
+function spAnimationState_setAnimationByName (self: PspAnimationState; trackIndex: Integer; animationName: PspPChar; loop: Integer{*bool*}): PspTrackEntry; external cSpineWrapperDll;
+function spAnimationState_setAnimation (self: PspAnimationState; trackIndex: Integer; animation: PspAnimation; loop: Integer{*bool*}): PspTrackEntry; external cSpineWrapperDll;
+
+// Adds an animation to be played delay seconds after the current or last queued animation, taking into account any mix duration
+function spAnimationState_addAnimationByName (self: PspAnimationState; trackIndex: Integer; animationName: PspPChar; loop: Integer{*bool*}; delay: Single): PspTrackEntry; external cSpineWrapperDll;
+function spAnimationState_addAnimation (self: PspAnimationState; trackIndex: Integer; animation: PspAnimation; loop: Integer{*bool*}; delay: Single): PspTrackEntry; external cSpineWrapperDll;
+function spAnimationState_setEmptyAnimation(self: PspAnimationState; trackIndex: Integer; mixDuration: Single): PspTrackEntry; external cSpineWrapperDll;
+function spAnimationState_addEmptyAnimation(self: PspAnimationState; trackIndex: Integer; mixDuration: Single; delay: Single): PspTrackEntry; external cSpineWrapperDll;
+procedure spAnimationState_setEmptyAnimations(self: PspAnimationState; mixDuration: Single); external cSpineWrapperDll;
+
+function spAnimationState_getCurrent (self: PspAnimationState; trackIndex: Integer): PspTrackEntry; external cSpineWrapperDll;
+
+procedure spAnimationState_clearListenerNotifications(self: PspAnimationState); external cSpineWrapperDll;
+
+function spTrackEntry_getAnimationTime (entry: PspTrackEntry): Single; external cSpineWrapperDll;
+
+//* Use this to dispose static memory before your app exits to appease your memory leak detector*/
+procedure spAnimationState_disposeStatics (); external cSpineWrapperDll;
+
 
 procedure SetTextureAllocator(ACreate: TEngineCreateTexturePage; ADestroy: TEngineDestroyTexturePage); cdecl; external cSpineWrapperDll;
 

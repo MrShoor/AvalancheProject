@@ -2,6 +2,8 @@ unit SpineIntf;
 
 interface
 
+//some help: http://ru.esotericsoftware.com/spine-c
+
 uses
   SpineH,
   intfUtils,
@@ -34,7 +36,12 @@ type
     function Handle : PspSkeleton;
     function Texture: TavAtlasArrayReferenced;
 
-    function WriteVertices(const AVert: ISpineVertices; const DoUpdateWorldTransform: Boolean = True): Integer;
+    function WriteVertices(const AVert: ISpineVertices; const AZ: Single; const DoUpdateWorldTransform: Boolean = True): Integer;
+
+    function  GetPos: TVec2;
+    procedure SetPos(const Value: TVec2);
+
+    property Pos: TVec2 read GetPos write SetPos;
   end;
 
 function Create_IspAtlas(const AFileName: string): IspAtlas;
@@ -79,12 +86,22 @@ type
     FData       : IspSkeletonData;
     FTexture    : IWeakRef; //TavAtlasArrayReferenced
 
-    FSprites   : ISpritesSet;
+    FSprites    : ISpritesSet;
+    function  GetPos: TVec2;
+    function  GetFlipX: Boolean;
+    function  GetFlipY: Boolean;
+    procedure SetPos(const Value: TVec2);
+    procedure SetFlipX(const Value: Boolean);
+    procedure SetFlipY(const Value: Boolean);
   public
     function Handle : PspSkeleton;
     function Texture: TavAtlasArrayReferenced;
 
-    function WriteVertices(const AVert: ISpineVertices; const DoUpdateWorldTransform: Boolean = True): Integer;
+    function WriteVertices(const AVert: ISpineVertices; const AZ: Single; const DoUpdateWorldTransform: Boolean = True): Integer;
+
+    property Pos: TVec2 read GetPos write SetPos;
+    property FlipX: Boolean read GetFlipX write SetFlipX;
+    property FlipY: Boolean read GetFlipY write SetFlipY;
 
     constructor Create(const AData: IspSkeletonData; const ATexture: TavAtlasArrayReferenced);
     destructor Destroy; override;
@@ -179,9 +196,45 @@ begin
   inherited;
 end;
 
+function TSkeleton.GetFlipX: Boolean;
+begin
+  Result := FspSkeleton.flip.x <> 0;
+end;
+
+function TSkeleton.GetFlipY: Boolean;
+begin
+  Result := FspSkeleton.flip.y <> 0;
+end;
+
+function TSkeleton.GetPos: TVec2;
+begin
+  Result := FspSkeleton^.pos;
+end;
+
 function TSkeleton.Handle: PspSkeleton;
 begin
   Result := FspSkeleton;
+end;
+
+procedure TSkeleton.SetFlipX(const Value: Boolean);
+begin
+  if Value then
+    FspSkeleton.flip.x := 1
+  else
+    FspSkeleton.flip.x := 0;
+end;
+
+procedure TSkeleton.SetFlipY(const Value: Boolean);
+begin
+  if Value then
+    FspSkeleton.flip.y := 1
+  else
+    FspSkeleton.flip.y := 0;
+end;
+
+procedure TSkeleton.SetPos(const Value: TVec2);
+begin
+  FspSkeleton^.pos := Value;
 end;
 
 function TSkeleton.Texture: TavAtlasArrayReferenced;
@@ -197,7 +250,7 @@ begin
   Result := FTexture.Obj as TavAtlasArrayReferenced;
 end;
 
-function TSkeleton.WriteVertices(const AVert: ISpineVertices; const DoUpdateWorldTransform: Boolean): Integer;
+function TSkeleton.WriteVertices(const AVert: ISpineVertices; const AZ: Single; const DoUpdateWorldTransform: Boolean): Integer;
   type TWordArr = array of Word;
 var slot: PPspSlot;
     i, j, n: Integer;
@@ -226,7 +279,7 @@ begin
     if slot^.attachment = nil then Continue;
 
     v.vsColor := FspSkeleton^.color * slot^.color;
-    v.vsCoord.z := 0;
+    v.vsCoord.z := AZ;
 
     case slot^.attachment^.atype of
       SP_ATTACHMENT_REGION:
