@@ -45,6 +45,7 @@ type
     procedure SetActiveProgram(AValue: IctxProgram);
   public
     function CreateVertexBuffer : IctxVetexBuffer;
+    function CreateStructBuffer: IctxStructuredBuffer;
     function CreateIndexBuffer : IctxIndexBuffer;
     function CreateProgram : IctxProgram;
     function CreateTexture : IctxTexture;
@@ -974,6 +975,7 @@ type
     procedure SetUniform(const Field: TUniformField; const v: TVec4arr); overload;
     procedure SetUniform(const Field: TUniformField; const m: TMat4); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
+    procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
     procedure Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode; IndexedGeometry: Boolean;
                    InstanceCount: Integer;
                    Start: integer; Count: integer;
@@ -2518,6 +2520,11 @@ begin
   glTexParameterfv(TexTarget, GL_TEXTURE_BORDER_COLOR, @Sampler.Border);
 end;
 
+procedure TProgram.SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer);
+begin
+  Assert(False, 'Not implemented yet');
+end;
+
 procedure TProgram.Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode;
   IndexedGeometry: Boolean; InstanceCount: Integer; Start: integer;
   Count: integer; BaseVertex: integer; BaseInstance: Integer);
@@ -2714,6 +2721,12 @@ end;
 function TContext_OGL.CreateProgram: IctxProgram;
 begin
   Result := TProgram.Create(Self);
+end;
+
+function TContext_OGL.CreateStructBuffer: IctxStructuredBuffer;
+begin
+  Result := nil;
+  Assert(False, 'not implemented yet');
 end;
 
 function TContext_OGL.CreateTexture: IctxTexture;

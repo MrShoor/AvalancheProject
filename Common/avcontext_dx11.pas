@@ -57,6 +57,7 @@ type
 
     function CreateVertexBuffer : IctxVetexBuffer;
     function CreateIndexBuffer : IctxIndexBuffer;
+    function CreateStructBuffer: IctxStructuredBuffer;
     function CreateProgram : IctxProgram;
     function CreateTexture : IctxTexture;
     function CreateFrameBuffer : IctxFrameBuffer;
@@ -649,6 +650,8 @@ type
     FBuffer: ID3D11Buffer;
 
     function GetBufferBindFlag: Cardinal; virtual; abstract;
+    function GetBufferMiscFlag: Cardinal; virtual;
+    function GetStructuredByteStride: Cardinal; virtual;
   public
     function GetTargetPoolType: TBufferPoolType;
     procedure SetTargetPoolType(Value: TBufferPoolType);
@@ -690,6 +693,34 @@ type
 
     procedure Select(Slot: Integer = 0);
     function Handle: ID3D11Buffer;
+  end;
+
+  { IctxStructuredBuffer_DX }
+
+  IctxStructuredBuffer_DX = interface(IctxStructuredBuffer)
+  ['{64DB6CFF-DE71-451F-BE3E-4BD71C8C3473}']
+    function Handle: ID3D11Buffer;
+    function View  : ID3D11ShaderResourceView;
+  end;
+
+  { TStructuredBuffer }
+
+  TStructuredBuffer = class(TBufferBase, IctxStructuredBuffer, IctxStructuredBuffer_DX)
+  private
+    FView  : ID3D11ShaderResourceView;
+    FElSize: Integer;
+
+    function  GetElementSize: Integer;
+    procedure SetElementSize(const AValue: Integer);
+  protected
+    function GetBufferBindFlag: Cardinal; override;
+    function GetBufferMiscFlag: Cardinal; override;
+    function GetStructuredByteStride: Cardinal; override;
+  public
+    procedure AllocMem(ASize: Integer; Data: PByte); overload; override;
+
+    function Handle: ID3D11Buffer;
+    function View: ID3D11ShaderResourceView;
   end;
 
   { IctxIndexBuffer_DX }
@@ -834,6 +865,7 @@ type
     procedure SetUniform(const Field: TUniformField; const v: TVec4arr); overload;
     procedure SetUniform(const Field: TUniformField; const m: TMat4); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
+    procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
 
     procedure Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode; IndexedGeometry: Boolean;
                    InstanceCount: Integer;
@@ -969,6 +1001,8 @@ end;
 function TVertexBuffer.GetBufferBindFlag: Cardinal;
 begin
   Result := DWord(D3D11_BIND_VERTEX_BUFFER);
+  if (FTargetPool = TBufferPoolType.StaticDraw) then
+    Result := Result or DWord(D3D11_BIND_STREAM_OUTPUT);
 end;
 
 function TVertexBuffer.GetLayout: IDataLayout;
@@ -1005,6 +1039,16 @@ begin
 end;
 
 { TBufferHandleBase }
+
+function TBufferBase.GetBufferMiscFlag: Cardinal;
+begin
+  Result := 0;
+end;
+
+function TBufferBase.GetStructuredByteStride: Cardinal;
+begin
+  Result := 0;
+end;
 
 function TBufferBase.GetTargetPoolType: TBufferPoolType;
 begin
@@ -1047,11 +1091,9 @@ begin
   Desc.ByteWidth := ASize;
   Desc.Usage := DXPoolType[FTargetPool];
   Desc.BindFlags := GetBufferBindFlag;
-  if (FTargetPool = TBufferPoolType.StaticDraw) then
-    Desc.BindFlags := Desc.BindFlags or DWord(D3D11_BIND_STREAM_OUTPUT);
   Desc.CPUAccessFlags := DXCpuAccess[FTargetPool];
-  Desc.MiscFlags := 0;
-  Desc.StructureByteStride := 0;
+  Desc.MiscFlags := GetBufferMiscFlag;
+  Desc.StructureByteStride := GetStructuredByteStride;
 
   FBuffer := nil;
   if assigned(Data) then
@@ -1628,6 +1670,31 @@ begin
     FContext.FDeviceContext.PSSetShaderResources(DXField.FResourceIndex[stFragment], 1, @resview);
   if DXField.FSamplerIndex[stFragment]>=0 then
     FContext.FDeviceContext.PSSetSamplers(DXField.FSamplerIndex[stFragment], 1, @SamplerState);
+end;
+
+procedure TProgram.SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer);
+var DXField: TUniformField_DX absolute Field;
+    resview: ID3D11ShaderResourceView;
+    dxbuf  : IctxStructuredBuffer_DX;
+begin
+  if Field = nil then Exit;
+  if not Supports(buf, IctxStructuredBuffer_DX, dxbuf) then Exit;
+  resview := dxbuf.View;
+
+  if DXField.FResourceIndex[stVertex]>=0 then
+    FContext.FDeviceContext.VSSetShaderResources(DXField.FResourceIndex[stVertex], 1, @resview);
+
+  if DXField.FResourceIndex[stTessControl]>=0 then
+      FContext.FDeviceContext.HSSetShaderResources(DXField.FResourceIndex[stTessControl], 1, @resview);
+
+  if DXField.FResourceIndex[stTessEval]>=0 then
+      FContext.FDeviceContext.DSSetShaderResources(DXField.FResourceIndex[stTessEval], 1, @resview);
+
+  if DXField.FResourceIndex[stGeometry]>=0 then
+      FContext.FDeviceContext.GSSetShaderResources(DXField.FResourceIndex[stGeometry], 1, @resview);
+
+  if DXField.FResourceIndex[stFragment]>=0 then
+    FContext.FDeviceContext.PSSetShaderResources(DXField.FResourceIndex[stFragment], 1, @resview);
 end;
 
 procedure TProgram.Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode;
@@ -3158,6 +3225,11 @@ begin
   Result := TProgram.Create(Self);
 end;
 
+function TContext_DX11.CreateStructBuffer: IctxStructuredBuffer;
+begin
+  Result := TStructuredBuffer.Create(Self);
+end;
+
 function TContext_DX11.CreateTexture: IctxTexture;
 begin
   Result := TTexture.Create(Self);
@@ -3269,7 +3341,7 @@ begin
 
   Check3DError(
     D3D11CreateDeviceAndSwapChain(nil,
-                                  DriverType, 0, 0{LongWord(D3D11_CREATE_DEVICE_SINGLETHREADED)} {Or LongWord(D3D11_CREATE_DEVICE_DEBUG)}, nil, 0, D3D11_SDK_VERSION,
+                                  DriverType, 0, 0{LongWord(D3D11_CREATE_DEVICE_SINGLETHREADED)} Or LongWord(D3D11_CREATE_DEVICE_DEBUG), nil, 0, D3D11_SDK_VERSION,
                                   @SwapChainDesc, FSwapChain, FDevice, nil, FDeviceContext)
   );
 end;
@@ -3402,6 +3474,54 @@ end;
 function TUAV.StrideSize: Cardinal;
 begin
   Result := FStrideSize;
+end;
+
+{ TStructuredBuffer }
+
+procedure TStructuredBuffer.AllocMem(ASize: Integer; Data: PByte);
+var desc: TD3D11_ShaderResourceViewDesc;
+begin
+  inherited;
+  desc.Format := DXGI_FORMAT_UNKNOWN;
+  desc.ViewDimension := D3D11_SRV_DIMENSION_BUFFER;
+  desc.Buffer.FirstElement := 0;
+  desc.Buffer.NumElements :=  ASize div FElSize;
+  Check3DError( FContext.FDevice.CreateShaderResourceView(FBuffer, @desc, FView) );
+end;
+
+function TStructuredBuffer.GetBufferBindFlag: Cardinal;
+begin
+  Result := DWord(D3D11_BIND_SHADER_RESOURCE);
+end;
+
+function TStructuredBuffer.GetBufferMiscFlag: Cardinal;
+begin
+  Result := DWord(D3D11_RESOURCE_MISC_BUFFER_STRUCTURED);
+end;
+
+function TStructuredBuffer.GetElementSize: Integer;
+begin
+  Result := FElSize;
+end;
+
+function TStructuredBuffer.GetStructuredByteStride: Cardinal;
+begin
+  Result := FElSize;
+end;
+
+function TStructuredBuffer.Handle: ID3D11Buffer;
+begin
+  Result := FBuffer;
+end;
+
+procedure TStructuredBuffer.SetElementSize(const AValue: Integer);
+begin
+  FElSize := AValue;
+end;
+
+function TStructuredBuffer.View: ID3D11ShaderResourceView;
+begin
+  Result := FView;
 end;
 
 end.

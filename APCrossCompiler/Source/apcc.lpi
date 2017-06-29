@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
-    <Version Value="9"/>
+    <Version Value="10"/>
     <PathDelim Value="\"/>
     <General>
       <Flags>
@@ -16,9 +16,6 @@
     <i18n>
       <EnableI18N LFM="False"/>
     </i18n>
-    <VersionInfo>
-      <StringTable ProductVersion=""/>
-    </VersionInfo>
     <BuildModes Count="1">
       <Item1 Name="Default" Default="True"/>
     </BuildModes>
@@ -29,7 +26,7 @@
       <local>
         <FormatVersion Value="1"/>
         <CommandLineParams Value="shaders.json"/>
-        <WorkingDirectory Value="D:\Projects\AvalancheProject\Demos\Src\PBR\PBRShaders"/>
+        <WorkingDirectory Value="D:\Projects\AvalancheProject\Demos\Src\SpineTest\SpineShaders"/>
       </local>
     </RunParams>
     <RequiredPackages Count="1">

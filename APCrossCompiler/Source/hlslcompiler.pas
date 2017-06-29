@@ -451,7 +451,7 @@ var
     for I := 0 to ShaderDesc.BoundResources - 1 do
     begin
         Check3DError(ref.GetResourceBindingDesc(I, ShaderBindDesc));
-        if ShaderBindDesc._Type <> D3D10_SIT_TEXTURE then Continue;
+        if (ShaderBindDesc._Type <> D3D10_SIT_TEXTURE) and (ShaderBindDesc._Type <> D3D_SIT_STRUCTURED) then Continue;
         SetLength(Result, Length(Result) + 1);
         Result[Length(Result)-1] := CreateUniformByDesc(ShaderBindDesc);
     end;

@@ -43,6 +43,18 @@ type
     property Layout: IDataLayout read GetLayout write SetLayout;
   end;
 
+  { IctxStructuredBuffer }
+
+  IctxStructuredBuffer = interface (IctxBuffer)
+  ['{F3E8B713-AB48-4A07-9D38-2C924821A001}']
+    //*******
+    function GetElementSize: Integer;
+    procedure SetElementSize(const AValue: Integer);
+    //*******
+
+    property ElementSize: Integer read GetElementSize write SetElementSize;
+  end;
+
   { IctxIndexBuffer }
 
   IctxIndexBuffer = interface (IctxBuffer)
@@ -135,6 +147,7 @@ type
     procedure SetUniform(const Field: TUniformField; const v: TVec4arr); overload;
     procedure SetUniform(const Field: TUniformField; const m: TMat4); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
+    procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
 
     procedure Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode; IndexedGeometry: Boolean;
                    InstanceCount: Integer;
@@ -220,6 +233,7 @@ type
   ['{732AEEF4-530C-45A2-874D-8CDF9EEAE33C}']
     function CreateVertexBuffer: IctxVetexBuffer;
     function CreateIndexBuffer : IctxIndexBuffer;
+    function CreateStructBuffer: IctxStructuredBuffer;
     function CreateProgram     : IctxProgram;
     function CreateTexture     : IctxTexture;
     function CreateFrameBuffer : IctxFrameBuffer;

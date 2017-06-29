@@ -288,6 +288,16 @@ type
     property PrimType: TPrimitiveType read FPrimType write FPrimType;
   end;
 
+  { TavStructuredBase }
+
+  TavStructuredBase = class(TavRes)
+  private
+  protected
+    FbufH: IctxStructuredBuffer;
+    procedure BeforeFree3D; override;
+  public
+  end;
+
   { TavVB }
 
   TavVB = class(TavVerticesBase)
@@ -314,6 +324,20 @@ type
   public
     property DropLocalAfterBuild: Boolean read FDropLocalAfterBuild write FDropLocalAfterBuild;
     property Indices: IIndicesData read FInd write SetIndices;
+  end;
+
+  { TavSB }
+
+  TavSB = class(TavStructuredBase)
+  private
+    FDropLocalAfterBuild: Boolean;
+    FVert: IVerticesData;
+    procedure SetVert(AValue: IVerticesData);
+  protected
+    function DoBuild: Boolean; override;
+  public
+    property DropLocalAfterBuild: Boolean read FDropLocalAfterBuild write FDropLocalAfterBuild;
+    property Vertices: IVerticesData read FVert write SetVert;
   end;
 
   { TNodeManager }
@@ -583,6 +607,96 @@ type
     procedure AfterConstruction; override;
   end;
 
+  TavAtlasArrayReferenced = class;
+
+  ISpriteIndex = interface
+    function Atlas: TavAtlasArrayReferenced;
+    function Index: Integer;
+    function Data : ITextureMip;
+  end;
+
+  { TavAtlasArrayReferenced }
+
+  TavAtlasArrayReferenced  = class(TavTextureBase)
+  private type
+
+    TSpriteIndex = class(TInterfacedObject, ISpriteIndex)
+    private
+      FOwner: TavAtlasArrayReferenced;
+      FIndex: Integer;
+      FData : ITextureMip;
+      FSlice: Integer;
+      FQuad : IQuadRange;
+      function Atlas: TavAtlasArrayReferenced;
+      function Index: Integer;
+      function Data : ITextureMip;
+    public
+      constructor Create(const AOwner: TavAtlasArrayReferenced; const AIndex: Integer; const AData: ITextureMip; const ASlice: Integer; const AQuad: IQuadRange);
+      destructor Destroy; override;
+    end;
+
+    TPageInfo = record
+      QManager: IQuadManager;
+      Valid   : Boolean;
+    end;
+    PPageInfo = ^TPageInfo;
+
+    TSpriteRegion = packed record
+      Rect  : TVec4;
+      Slice : Single;
+      class function Layout(): IDataLayout; static;
+    end;
+
+    ISpriteMap = {$IfDef FPC}specialize{$EndIf} IHashMap<ITextureMip, TSpriteIndex>;
+    TSpriteMap = {$IfDef FPC}specialize{$EndIf} THashMap<ITextureMip, TSpriteIndex>;
+
+    ISpriteList = {$IfDef FPC}specialize{$EndIf} IArray<TSpriteIndex>;
+    TSpriteList = {$IfDef FPC}specialize{$EndIf} TArray<TSpriteIndex>;
+
+    IPages = {$IfDef FPC}specialize{$EndIf} IArray<TPageInfo>;
+    TPages = {$IfDef FPC}specialize{$EndIf} TArray<TPageInfo>;
+
+    IRegions = {$IfDef FPC}specialize{$EndIf} IArray<TSpriteRegion>;
+    TRegions = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TSpriteRegion>;
+
+    IFreeIndices = {$IfDef FPC}specialize{$EndIf} IArray<Integer>;
+    TFreeIndices = {$IfDef FPC}specialize{$EndIf} TArray<Integer>;
+  private
+    FAutoGenerateMips: Boolean;
+    FSprites    : ISpriteMap;
+    FSpriteList : ISpriteList;
+    FFreeIndices: IFreeIndices;
+
+    FPages : IPages;
+    FInvalidPagesCount : Boolean;
+
+    FRegions: IRegions;
+    FRegionsBuffer: TavSB;
+
+    FTargetSize: TVec2i;
+
+    function  AllocIndex: Integer;
+    procedure AllocQuad(const ASize: TVec2i; out ARange: IQuadRange; out ASlice: Integer);
+    procedure SetAutoGenerateMips(const AValue: Boolean);
+    procedure SetTargetSize(const AValue: TVec2i);
+
+    procedure FullRebuild;
+  protected
+    function DoBuild: Boolean; override;
+  public
+    property RegionsVB: TavSB read FRegionsBuffer;
+
+    procedure CleanUnused;
+
+    property AutoGenerateMips: Boolean read FAutoGenerateMips write SetAutoGenerateMips;
+    property TargetSize: TVec2i read FTargetSize write SetTargetSize;
+
+    function ObtainSprite(const ASprite: ITextureMip): ISpriteIndex;
+
+    procedure AfterConstruction; override;
+    destructor Destroy; override;
+  end;
+
   { TavMultiSampleTexture }
 
   TavMultiSampleTexture = class(TavTextureBase)
@@ -669,7 +783,8 @@ type
     procedure SetUniform (const Field: TUniformField; const values: TSingleArr); overload;
     procedure SetUniform (const Field: TUniformField; const v: TVec4arr);        overload;
     procedure SetUniform (const Field: TUniformField; const m: TMat4);           overload;
-    procedure SetUniform (const Field: TUniformField; const tex: TavTextureBase; const sampler: TSamplerInfo); overload;
+    procedure SetUniform (const Field: TUniformField; const tex: TavTextureBase;  const sampler: TSamplerInfo); overload;
+    procedure SetUniform (const Field: TUniformField; const buf: TavStructuredBase); overload;
 
     procedure SetUniform (const AName: string; const value: integer);     overload;
     procedure SetUniform (const AName: string; const value: single);      overload;
@@ -680,6 +795,7 @@ type
     procedure SetUniform (const AName: string; const v: TVec4arr);        overload;
     procedure SetUniform (const AName: string; const m: TMat4);           overload;
     procedure SetUniform (const AName: string; const tex: TavTextureBase; const sampler: TSamplerInfo); overload;
+    procedure SetUniform (const AName: string; const buf: TavStructuredBase); overload;
 
     procedure Load(const AProgram: string; FromResource: boolean = false; const AProgramPath: string = ''); overload;
     procedure Load(const AProgram: string; const AStremOutputLayout: IDataLayout; FromResource: boolean = false; const AProgramPath: string = ''); overload;
@@ -890,6 +1006,264 @@ begin
   AProg.Draw(PrimTopology, CullMode, Assigned(IndNode), InstCount, Start, Count, BaseVertex, BaseInst);
 end;
 
+{ TavSB }
+
+procedure TavSB.SetVert(AValue: IVerticesData);
+begin
+  if FVert = AValue then Exit;
+  FVert := AValue;
+  Invalidate;
+end;
+
+function TavSB.DoBuild: Boolean;
+begin
+  if Assigned(FVert) then
+  begin
+    if FbufH = nil then FbufH := Main.Context.CreateStructBuffer;
+    FbufH.ElementSize := FVert.Layout.Size;
+    FbufH.AllocMem(FVert.Data.size, FVert.Data.data);
+  end;
+  if FDropLocalAfterBuild then FVert := nil;
+  Result := True;
+end;
+
+{ TavStructuredBase }
+
+procedure TavStructuredBase.BeforeFree3D;
+begin
+  inherited BeforeFree3D;
+  if Assigned(FbufH) then Invalidate;
+  FbufH := nil;
+end;
+
+{ TSpriteRegion }
+
+class function TavAtlasArrayReferenced.TSpriteRegion.Layout: IDataLayout;
+begin
+  Result := LB.Add('Rect', ctFloat, 4)
+              .Add('Slice', ctFloat, 1)
+              .Finish();
+end;
+
+{ TavAtlasArrayReferenced }
+
+function TavAtlasArrayReferenced.AllocIndex: Integer;
+var dummy: TSpriteRegion;
+begin
+  if FFreeIndices.Count = 0 then
+  begin
+    Result := FSpriteList.Add(nil);
+    dummy.Rect := Vec(0,0,0,0);
+    dummy.Slice := 0;
+    FRegions.Add(dummy);
+  end
+  else
+  begin
+    Result := FFreeIndices.Last;
+    FFreeIndices.Delete(FFreeIndices.Count-1);
+  end;
+end;
+
+procedure TavAtlasArrayReferenced.AllocQuad(const ASize: TVec2i; out ARange: IQuadRange; out ASlice: Integer);
+var Page: PPageInfo;
+    NewPage: TPageInfo;
+begin
+  Assert(ASize.x <= FTargetSize.x);
+  Assert(ASize.y <= FTargetSize.y);
+  ASlice := 0;
+  while ASlice < FPages.Count do
+  begin
+    Page := PPageInfo(FPages.PItem[ASlice]);
+    try
+      ARange := Page^.QManager.Alloc(ASize.x, ASize.y);
+      Page^.Valid := False;
+      Invalidate;
+      Exit;
+    except
+      on e: EQuadRangeOutOfSpace do
+        Inc(ASlice);
+    end;
+  end;
+
+  FInvalidPagesCount := True;
+  NewPage.QManager := Create_IQuadManager(FTargetSize.x, FTargetSize.y);
+  NewPage.Valid := False;
+  FPages.Add(NewPage);
+  AllocQuad(ASize, ARange, ASlice);
+end;
+
+procedure TavAtlasArrayReferenced.SetAutoGenerateMips(const AValue: Boolean);
+begin
+  if FAutoGenerateMips = AValue then Exit;
+  FAutoGenerateMips := AValue;
+  FInvalidPagesCount := True;
+  Invalidate;
+end;
+
+procedure TavAtlasArrayReferenced.SetTargetSize(const AValue: TVec2i);
+begin
+  if FTargetSize = AValue then Exit;
+  FTargetSize := AValue;
+  FullRebuild;
+end;
+
+procedure TavAtlasArrayReferenced.FullRebuild;
+var i : Integer;
+    sprite: TSpriteIndex;
+    region: TSpriteRegion;
+begin
+  for i := 0 to FSpriteList.Count - 1 do
+  begin
+    sprite := FSpriteList[i];
+    if sprite = nil then Continue;
+    sprite.FQuad := nil;
+    sprite.FSlice := 0;
+  end;
+
+  FRegions.Clear();
+
+  //todo sort by size
+  for i := 0 to FSpriteList.Count - 1 do
+  begin
+    sprite := FSpriteList[i];
+    if sprite = nil then Continue;
+    AllocQuad(Vec(sprite.FData.Width,sprite.FData.Height), sprite.FQuad, sprite.FSlice);
+    region.Rect := sprite.FQuad.Rect.v;
+    region.Slice := sprite.FSlice;
+    FRegions[sprite.FIndex] := region;
+  end;
+  FRegionsBuffer.Invalidate;
+  FInvalidPagesCount := True;
+end;
+
+function TavAtlasArrayReferenced.DoBuild: Boolean;
+var page: PPageInfo;
+    sprite: TSpriteIndex;
+    rct: TRectI;
+    i: Integer;
+begin
+  Result := True;
+  if FPages.Count = 0 then Exit;
+
+  if FInvalidPagesCount then
+  begin
+    FTexH := Main.Context.CreateTexture;
+    FTexH.TargetFormat := FTargetFormat;
+    FTexH.sRGB := FsRGB;
+    FTexH.AllocMem(FTargetSize.x, FTargetSize.y, FPages.Count, FAutoGenerateMips, True);
+    for i := 0 to FPages.Count - 1 do
+      PPageInfo(FPages.PItem[i])^.Valid := False;
+  end;
+
+  for i := 0 to FSpriteList.Count - 1 do
+  begin
+    sprite := FSpriteList[i];
+    if sprite = nil then Continue;
+    page := PPageInfo(FPages.PItem[sprite.FSlice]);
+    if page^.Valid then Continue;
+    rct := sprite.FQuad.Rect;
+    FTexH.SetMipImage(rct.Left, rct.Top, rct.Right-rct.Left, rct.Bottom-rct.Top, 0, sprite.FSlice, sprite.FData.PixelFormat, sprite.FData.Data);
+  end;
+
+  for i := 0 to FPages.Count - 1 do
+    PPageInfo(FPages.PItem[i])^.Valid := True;
+
+  if AutoGenerateMips then
+    FTexH.GenerateMips;
+end;
+
+procedure TavAtlasArrayReferenced.CleanUnused;
+begin
+  FullRebuild;
+end;
+
+function TavAtlasArrayReferenced.ObtainSprite(const ASprite: ITextureMip): ISpriteIndex;
+var spriteObj: TSpriteIndex;
+    range: IQuadRange;
+    slice: Integer;
+    freeIndex: Integer;
+    region: TSpriteRegion;
+begin
+  if not FSprites.TryGetValue(ASprite, spriteObj) then
+  begin
+    AllocQuad(Vec(ASprite.Width, ASprite.Height), range, slice);
+    freeIndex := AllocIndex();
+    spriteObj := TSpriteIndex.Create(Self, freeIndex, ASprite, slice, range);
+    FSpriteList[freeIndex] := spriteObj;
+    FSprites.Add(ASprite, spriteObj);
+    region.Slice := spriteObj.FSlice;
+    region.Rect := spriteObj.FQuad.Rect.v;
+    FRegions[freeIndex] := region;
+    FRegionsBuffer.Invalidate;
+  end;
+  Result := spriteObj;
+end;
+
+procedure TavAtlasArrayReferenced.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FSprites := TSpriteMap.Create();
+  FSpriteList := TSpriteList.Create();
+  FFreeIndices := TFreeIndices.Create();
+  FPages := TPages.Create();
+  FRegions := TRegions.Create();
+
+  FRegionsBuffer := TavSB.Create(Self);
+  FRegionsBuffer.Vertices := FRegions as IVerticesData;
+
+  FTargetSize := Vec(1024, 1024);
+end;
+
+destructor TavAtlasArrayReferenced.Destroy;
+var i: Integer;
+begin
+  for i := 0 to FSpriteList.Count - 1 do
+  begin
+    FSpriteList[i].FQuad  := nil;
+    FSpriteList[i].FOwner := nil;
+  end;
+  inherited Destroy;
+end;
+
+{ TavAtlasArrayReferenced.TSpriteIndex }
+
+function TavAtlasArrayReferenced.TSpriteIndex.Atlas: TavAtlasArrayReferenced;
+begin
+  Result := FOwner;
+end;
+
+function TavAtlasArrayReferenced.TSpriteIndex.Index: Integer;
+begin
+  Result := FIndex;
+end;
+
+function TavAtlasArrayReferenced.TSpriteIndex.Data: ITextureMip;
+begin
+  Result := FData;
+end;
+
+constructor TavAtlasArrayReferenced.TSpriteIndex.Create(
+  const AOwner: TavAtlasArrayReferenced; const AIndex: Integer;
+  const AData: ITextureMip; const ASlice: Integer; const AQuad: IQuadRange);
+begin
+  FOwner := AOwner;
+  FIndex := AIndex;
+  FData  := AData;
+  FQuad  := AQuad;
+  FSlice := ASlice;
+end;
+
+destructor TavAtlasArrayReferenced.TSpriteIndex.Destroy;
+begin
+  if FOwner <> nil then
+  begin
+    FOwner.FSprites.Delete(FData);
+    FOwner.FSpriteList[FIndex] := nil;
+    FOwner.FFreeIndices.Add(FIndex);
+  end;
+  inherited Destroy;
+end;
+
 { TavMultiTexture.TMTNode }
 
 function TavMultiTexture.TMTNode.HandleData: Pointer;
@@ -960,7 +1334,7 @@ end;
 function TavMultiTexture.Add(const ATexData: ITextureData): IMTManagedHandle;
 var dummy: Boolean;
 begin
-  Add(ATexData, dummy);
+  Result := Add(ATexData, dummy);
 end;
 
 function TavMultiTexture.Add(const ATexData: ITextureData; out NewAdded: Boolean): IMTManagedHandle;
@@ -3048,6 +3422,13 @@ begin
   FProgram.SetUniform(Field, tex.FTexH, sampler);
 end;
 
+procedure TavProgram.SetUniform(const Field: TUniformField; const buf: TavStructuredBase);
+begin
+  if buf = nil then Exit;
+  buf.Build;
+  FProgram.SetUniform(Field, buf.FbufH);
+end;
+
 procedure TavProgram.SetUniform(const AName: string; const value: integer);
 begin
   FProgram.SetUniform(GetUniformField(AName), integer(value));
@@ -3093,6 +3474,13 @@ begin
   if tex = nil then Exit;
   tex.Build;
   FProgram.SetUniform(GetUniformField(AName), tex.FTexH, sampler);
+end;
+
+procedure TavProgram.SetUniform(const AName: string; const buf: TavStructuredBase);
+begin
+  if buf = nil then Exit;
+  buf.Build;
+  FProgram.SetUniform(GetUniformField(AName), buf.FbufH);
 end;
 
 procedure TavProgram.Load(const AProgram: string; FromResource: boolean = false; const AProgramPath: string = '');
