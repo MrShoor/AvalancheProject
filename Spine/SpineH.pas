@@ -744,13 +744,14 @@ procedure spSkeleton_update (self: PspSkeleton; deltaTime: Single); external cSp
 function  spAnimationStateData_create (skeletonData: PspSkeletonData): PspAnimationStateData; external cSpineWrapperDll;
 procedure spAnimationStateData_dispose (self: PspAnimationStateData); external cSpineWrapperDll;
 
+
 procedure spAnimationStateData_setMixByName (self: PspAnimationStateData; fromName: PspPChar; toName: PspPChar; duration: Single); external cSpineWrapperDll;
 procedure spAnimationStateData_setMix (self: PspAnimationStateData; from: PspAnimation; at: PspAnimation; duration: Single); external cSpineWrapperDll;
 // Returns 0 if there is no mixing between the animations.
 function spAnimationStateData_getMix (self: PspAnimationStateData; from, at: PspAnimation): Single; external cSpineWrapperDll;
 
 
-// @param data May be Nil for no mixing.
+// @param data may be Nil for no mixing.
 function  spAnimationState_create (data: PspAnimationStateData): PspAnimationState; external cSpineWrapperDll;
 procedure spAnimationState_dispose (self: PspAnimationState); external cSpineWrapperDll;
 

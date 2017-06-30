@@ -1219,6 +1219,7 @@ var i: Integer;
 begin
   for i := 0 to FSpriteList.Count - 1 do
   begin
+    if FSpriteList[i] = nil then Continue;
     FSpriteList[i].FQuad  := nil;
     FSpriteList[i].FOwner := nil;
   end;

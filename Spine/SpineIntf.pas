@@ -34,21 +34,55 @@ type
 
   IspSkeleton = interface
     function Handle : PspSkeleton;
+    function Data : IspSkeletonData;
     function Texture: TavAtlasArrayReferenced;
 
     function WriteVertices(const AVert: ISpineVertices; const AZ: Single; const DoUpdateWorldTransform: Boolean = True): Integer;
 
     function  GetPos: TVec2;
+    function  GetFlipX: Boolean;
+    function  GetFlipY: Boolean;
     procedure SetPos(const Value: TVec2);
+    procedure SetFlipX(const Value: Boolean);
+    procedure SetFlipY(const Value: Boolean);
 
     property Pos: TVec2 read GetPos write SetPos;
+    property FlipX: Boolean read GetFlipX write SetFlipX;
+    property FlipY: Boolean read GetFlipY write SetFlipY;
+  end;
+
+  IspAnimationStateData = interface
+    function Handle : PspAnimationStateData;
+    function SkeletonData : IspSkeletonData;
+
+    function  GetDefaultMix: Single;
+    procedure SetDefaultMix(const Value: Single);
+
+    property DefaultMix: Single read GetDefaultMix write SetDefaultMix;
+  end;
+
+  IspAnimationState = interface
+    function Handle : PspAnimationState;
+    function Data : IspAnimationStateData;
+
+    procedure Update(const ADelta: Single);
+    procedure Apply(const ASkeleton: IspSkeleton);
+
+    procedure ClearTracks;
+    procedure ClearTrack(const AIndex: Integer);
+
+    procedure SetAnimationByName(ATrackIndex: Integer; const AnimationName: string; loop: Boolean);
   end;
 
 function Create_IspAtlas(const AFileName: string): IspAtlas;
-function Create_IspSkeletonData(const ASkelFileName: string; const AAtlas: IspAtlas): IspSkeletonData;
+function Create_IspSkeletonData(const ASkelFileName: string; const AAtlas: IspAtlas; const AScale: Single = 1): IspSkeletonData;
 
 function Create_IspSkeleton(const AData: IspSkeletonData; const ATexture: TavAtlasArrayReferenced): IspSkeleton; overload;
-function Create_IspSkeleton(const AAtlasFileName, ASkelFileName: string; const ATexture: TavAtlasArrayReferenced): IspSkeleton; overload;
+function Create_IspSkeleton(const AAtlasFileName, ASkelFileName: string; const ATexture: TavAtlasArrayReferenced; const AScale: Single = 1): IspSkeleton; overload;
+
+function Create_IspAnimationStateData(const ASkeletonData: IspSkeletonData): IspAnimationStateData;
+function Create_IspAnimationState(const AData: IspAnimationStateData): IspAnimationState; overload;
+function Create_IspAnimationState(const ASkel: IspSkeleton; const ADefaultMix: Single): IspAnimationState; overload;
 
 procedure ClearCache;
 
@@ -73,7 +107,7 @@ type
     FAtlas : IspAtlas;
   public
     function Handle: PspSkeletonData;
-    constructor Create(const ASkelFileName: string; const AAtlas: IspAtlas);
+    constructor Create(const ASkelFileName: string; const AAtlas: IspAtlas; const AScale: Single = 1);
     destructor Destroy; override;
   end;
 
@@ -95,6 +129,7 @@ type
     procedure SetFlipY(const Value: Boolean);
   public
     function Handle : PspSkeleton;
+    function Data : IspSkeletonData;
     function Texture: TavAtlasArrayReferenced;
 
     function WriteVertices(const AVert: ISpineVertices; const AZ: Single; const DoUpdateWorldTransform: Boolean = True): Integer;
@@ -104,6 +139,43 @@ type
     property FlipY: Boolean read GetFlipY write SetFlipY;
 
     constructor Create(const AData: IspSkeletonData; const ATexture: TavAtlasArrayReferenced);
+    destructor Destroy; override;
+  end;
+
+  TAnimationStateData = class(TInterfacedObject, IspAnimationStateData)
+  private
+    FData : PspAnimationStateData;
+    FSkeleton : IspSkeletonData;
+    function  GetDefaultMix: Single;
+    procedure SetDefaultMix(const Value: Single);
+  public
+    function Handle: PspAnimationStateData;
+    function SkeletonData : IspSkeletonData;
+
+    property DefaultMix: Single read GetDefaultMix write SetDefaultMix;
+
+    constructor Create(const ASkeleton: IspSkeletonData);
+    destructor Destroy; override;
+  end;
+
+  TAnimationState = class(TInterfacedObject, IspAnimationState)
+  private
+    FData: IspAnimationStateData;
+    FspAnimationState : PspAnimationState;
+  public
+    function Handle : PspAnimationState;
+    function Data : IspAnimationStateData;
+
+    procedure Update(const ADelta: Single);
+    procedure Apply(const ASkeleton: IspSkeleton);
+
+    procedure ClearTracks;
+    procedure ClearTrack(const AIndex: Integer);
+
+    procedure SetAnimationByName(ATrackIndex: Integer; const AnimationName: string; loop: Boolean);
+    //procedure SetAnimationByName(ATrackIndex: Integer; const AnimationName: string; loop: Boolean);
+
+    constructor Create(const AData: IspAnimationStateData);
     destructor Destroy; override;
   end;
 
@@ -121,9 +193,9 @@ begin
   Result := TAtlas.Create(AFileName);
 end;
 
-function Create_IspSkeletonData(const ASkelFileName: string; const AAtlas: IspAtlas): IspSkeletonData;
+function Create_IspSkeletonData(const ASkelFileName: string; const AAtlas: IspAtlas; const AScale: Single = 1): IspSkeletonData;
 begin
-  Result := TSkeletonData.Create(ASkelFileName, AAtlas);
+  Result := TSkeletonData.Create(ASkelFileName, AAtlas, AScale);
 end;
 
 function Create_IspSkeleton(const AData: IspSkeletonData; const ATexture: TavAtlasArrayReferenced): IspSkeleton;
@@ -131,9 +203,27 @@ begin
   Result := TSkeleton.Create(AData, ATexture);
 end;
 
-function Create_IspSkeleton(const AAtlasFileName, ASkelFileName: string; const ATexture: TavAtlasArrayReferenced): IspSkeleton; overload;
+function Create_IspSkeleton(const AAtlasFileName, ASkelFileName: string; const ATexture: TavAtlasArrayReferenced; const AScale: Single = 1): IspSkeleton; overload;
 begin
-  Result := Create_IspSkeleton( Create_IspSkeletonData(ASkelFileName, Create_IspAtlas(AAtlasFileName)), ATexture );
+  Result := Create_IspSkeleton( Create_IspSkeletonData(ASkelFileName, Create_IspAtlas(AAtlasFileName), AScale), ATexture );
+end;
+
+function Create_IspAnimationStateData(const ASkeletonData: IspSkeletonData): IspAnimationStateData;
+begin
+  Result := TAnimationStateData.Create(ASkeletonData);
+end;
+
+function Create_IspAnimationState(const AData: IspAnimationStateData): IspAnimationState;
+begin
+  Result := TAnimationState.Create(AData);
+end;
+
+function Create_IspAnimationState(const ASkel: IspSkeleton; const ADefaultMix: Single): IspAnimationState; overload;
+var asd: IspAnimationStateData;
+begin
+  asd := Create_IspAnimationStateData(ASkel.Data);
+  asd.DefaultMix := ADefaultMix;
+  Result := Create_IspAnimationState(asd);
 end;
 
 { TAtlas }
@@ -156,13 +246,14 @@ end;
 
 { TSkeletonData }
 
-constructor TSkeletonData.Create(const ASkelFileName: string; const AAtlas: IspAtlas);
+constructor TSkeletonData.Create(const ASkelFileName: string; const AAtlas: IspAtlas; const AScale: Single = 1);
 var bd: PspSkeletonBinary;
 begin
   FAtlas := AAtlas;
   bd := nil;
   try
     bd := spSkeletonBinary_create(FAtlas.Handle);
+    bd.scale := AScale;//1.8/686;
     FspSkeletonData := spSkeletonBinary_readSkeletonDataFile(bd, PspPChar(AnsiString(ASkelFileName)));
   finally
     spSkeletonBinary_dispose(bd);
@@ -188,6 +279,11 @@ begin
   FspSkeleton := spSkeleton_create(FData.Handle);
   FTexture := ATexture.WeakRef;
   FSprites := TSpritesSet.Create;
+end;
+
+function TSkeleton.Data: IspSkeletonData;
+begin
+  Result := FData;
 end;
 
 destructor TSkeleton.Destroy;
@@ -377,6 +473,91 @@ begin
               .Add('vsColor', ctFloat, 4)
               .Add('vsAtlasRef', ctFloat, 1)
               .Finish();
+end;
+
+{ TAnimationState }
+
+procedure TAnimationState.Apply(const ASkeleton: IspSkeleton);
+begin
+  spAnimationState_apply(FspAnimationState, ASkeleton.Handle);
+end;
+
+procedure TAnimationState.ClearTrack(const AIndex: Integer);
+begin
+  spAnimationState_clearTrack(FspAnimationState, AIndex);
+end;
+
+procedure TAnimationState.ClearTracks;
+begin
+  spAnimationState_clearTracks(FspAnimationState);
+end;
+
+constructor TAnimationState.Create(const AData: IspAnimationStateData);
+begin
+  FData := AData;
+  FspAnimationState := spAnimationState_create(FData.Handle);
+end;
+
+function TAnimationState.Data: IspAnimationStateData;
+begin
+  Result := FData;
+end;
+
+destructor TAnimationState.Destroy;
+begin
+  spAnimationState_dispose(FspAnimationState);
+  inherited;
+end;
+
+function TAnimationState.Handle: PspAnimationState;
+begin
+  Result := FspAnimationState;
+end;
+
+procedure TAnimationState.SetAnimationByName(ATrackIndex: Integer; const AnimationName: string; loop: Boolean);
+var n: Integer;
+begin
+  if loop then n := 1 else n := 0;
+  spAnimationState_setAnimationByName(FspAnimationState, ATrackIndex, PspPChar(AnsiString(AnimationName)), n);
+end;
+
+procedure TAnimationState.Update(const ADelta: Single);
+begin
+  spAnimationState_update(FspAnimationState, ADelta);
+end;
+
+{ TAnimationStateData }
+
+constructor TAnimationStateData.Create(const ASkeleton: IspSkeletonData);
+begin
+  FSkeleton := ASkeleton;
+  FData := spAnimationStateData_create(FSkeleton.Handle);
+end;
+
+destructor TAnimationStateData.Destroy;
+begin
+  spAnimationStateData_dispose(FData);
+  inherited;
+end;
+
+function TAnimationStateData.GetDefaultMix: Single;
+begin
+  Result := FData^.defaultMix;
+end;
+
+function TAnimationStateData.Handle: PspAnimationStateData;
+begin
+  Result := FData;
+end;
+
+procedure TAnimationStateData.SetDefaultMix(const Value: Single);
+begin
+  FData^.defaultMix := Value;
+end;
+
+function TAnimationStateData.SkeletonData: IspSkeletonData;
+begin
+  Result := FSkeleton;
 end;
 
 initialization
