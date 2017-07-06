@@ -72,6 +72,10 @@ type
     procedure ClearTrack(const AIndex: Integer);
 
     procedure SetAnimationByName(ATrackIndex: Integer; const AnimationName: string; loop: Boolean);
+
+    function  GetTimeScale: Single;
+    procedure SetTimeScale(const Value: Single);
+    property  TimeScale: Single read GetTimeScale write SetTimeScale;
   end;
 
 function Create_IspAtlas(const AFileName: string): IspAtlas;
@@ -175,17 +179,20 @@ type
     procedure SetAnimationByName(ATrackIndex: Integer; const AnimationName: string; loop: Boolean);
     //procedure SetAnimationByName(ATrackIndex: Integer; const AnimationName: string; loop: Boolean);
 
+    function  GetTimeScale: Single;
+    procedure SetTimeScale(const Value: Single);
+    property  TimeScale: Single read GetTimeScale write SetTimeScale;
+
     constructor Create(const AData: IspAnimationStateData);
     destructor Destroy; override;
   end;
 
-var GV_TexMan: ITextureManager;
 //threadvar GV_BuildBuffer: TVec2Arr;
 var GV_BuildBuffer: TVec2Arr;
 
 procedure ClearCache;
 begin
-  GV_TexMan.DropCache;
+  Default_ITextureManager.DropCache;
 end;
 
 function Create_IspAtlas(const AFileName: string): IspAtlas;
@@ -447,7 +454,7 @@ end;
 procedure avCreateTexturePage(const APath: PspPChar; var Width, Height: Integer; var UserData: Pointer);
 var texData: ITextureData;
 begin
-  texData := GV_TexMan.LoadTexture(string(APath));
+  texData := Default_ITextureManager.LoadTexture(string(APath));
   Width := texData.Width;
   Height := texData.Height;
   ITextureMip(UserData) := texData.MipData(0,0);
@@ -460,7 +467,6 @@ end;
 
 procedure Init;
 begin
-  GV_TexMan := Create_ITextureManager;
   SetTextureAllocator(avCreateTexturePage, avDestroyTexturePage);
 end;
 
@@ -509,6 +515,11 @@ begin
   inherited;
 end;
 
+function TAnimationState.GetTimeScale: Single;
+begin
+  Result := FspAnimationState.timeScale;
+end;
+
 function TAnimationState.Handle: PspAnimationState;
 begin
   Result := FspAnimationState;
@@ -519,6 +530,11 @@ var n: Integer;
 begin
   if loop then n := 1 else n := 0;
   spAnimationState_setAnimationByName(FspAnimationState, ATrackIndex, PspPChar(AnsiString(AnimationName)), n);
+end;
+
+procedure TAnimationState.SetTimeScale(const Value: Single);
+begin
+  FspAnimationState.timeScale := Value;
 end;
 
 procedure TAnimationState.Update(const ADelta: Single);

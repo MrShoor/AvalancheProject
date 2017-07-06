@@ -61,6 +61,8 @@ function LoadRaw(const FileName: string; Width, Height: Integer; Format: TTextur
 
 function Create_ITextureManager: ITextureManager;
 
+function Default_ITextureManager: ITextureManager;
+
 implementation
 
 uses Classes, Math;
@@ -468,6 +470,14 @@ begin
   Result := Nil;
 end;
 {$EndIf}
+
+Var GV_TexMan: ITextureManager;
+function Default_ITextureManager: ITextureManager;
+begin
+  if GV_TexMan = nil then
+    GV_TexMan := Create_ITextureManager;
+  Result := GV_TexMan;
+end;
 
 { TMipImage }
 
