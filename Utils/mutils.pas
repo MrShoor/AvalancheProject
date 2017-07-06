@@ -280,6 +280,8 @@ function Quat(const Dir: TVec3; Angle: Single): TQuat; overload; {$IFNDEF NoInli
 
 function Mat3(const Angle: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Mat3(const Angle: Single; newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Mat3(const Scale: TVec2; Angle: Single; newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Mat3(const Scale: TVec2; const XDir: TVec2; const newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Mat4(const Q: TQuat): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Mat4(const Q: TQuat; newPos: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function MatTranslate(const newPos: TVec3): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -926,6 +928,24 @@ begin
   sincos(Angle, sn, cs);
   Result.OX := Vec(cs,  sn);
   Result.OY := Vec(-sn, cs);
+  Result.Pos := Vec(newPos.x, newPos.y);
+  Result.Col[2] := Vec(0,0,1);
+end;
+
+function Mat3(const Scale: TVec2; Angle: Single; newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+var sn, cs: Extended;
+begin
+  sincos(Angle, sn, cs);
+  Result.OX := Vec(cs,  sn) * Scale.x;
+  Result.OY := Vec(-sn, cs) * Scale.y;
+  Result.Pos := Vec(newPos.x, newPos.y);
+  Result.Col[2] := Vec(0,0,1);
+end;
+
+function Mat3(const Scale: TVec2; const XDir: TVec2; const newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.OX := Vec(XDir.x,  XDir.y) * Scale.x;
+  Result.OY := Vec(-XDir.y, XDir.x) * Scale.y;
   Result.Pos := Vec(newPos.x, newPos.y);
   Result.Col[2] := Vec(0,0,1);
 end;
