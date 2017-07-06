@@ -173,6 +173,13 @@ type
     function Expand(const ASize: Single) : TRectF; overload;
     function Expand(const ASize: TVec2) : TRectF; overload;
     function PtInRect(const v: TVec2) : Boolean;
+
+    function Point(AIndex: Integer): TVec2;
+  {$IfDef DCC}
+  public
+    class operator Add(const a: TRectF; const v: TVec3): TRectF;
+    class operator Multiply(const a: TRectF; const b: TMat3): TRectF;
+  {$EndIf}
   case Byte of
     0: (Left, Top, Right, Bottom: Single);
     1: (LeftTop, RightBottom: TVec2);
@@ -370,6 +377,10 @@ function GenerateHammersleyPts(const N: Integer): TVec4Arr;
 {$IfDef FPC}
 operator = (const v1, v2: TRectF): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 operator = (const v1, v2: TRectI): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
+
+operator + (const r: TRectF; const v: TVec2): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
+operator + (const r1, r2: TRectF): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
+operator * (const r: TRectF; const m: TMat3): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
 
 operator + (const AABB: TAABB; v: TVec3): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
 operator + (const Box1, Box2: TAABB): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -1556,6 +1567,27 @@ begin
   Result := (v1.LeftTop = v2.LeftTop) and (v1.RightBottom = v2.RightBottom);
 end;
 
+operator + (const r: TRectF; const v: TVec2): TRectF;
+begin
+  Result.min := min(r.min, v);
+  Result.max := max(r.max, v);
+end;
+
+operator + (const r1, r2: TRectF): TRectF;
+begin
+  Result.min := min(r1.min, r2.min);
+  Result.max := max(r1.max, r2.max);
+end;
+
+operator * (const r: TRectF; const m: TMat3): TRectF;
+var
+  i: Integer;
+begin
+  Result.v := Vec(HUGE, HUGE, -HUGE, -HUGE);
+  for i := 0 to 3 do
+    Result := Result + r.Point(i)*m;
+end;
+
 operator + (const AABB: TAABB; v: TVec3): TAABB;
 begin
   Result.min := min(AABB.min, v);
@@ -1755,6 +1787,18 @@ function TRectF.PtInRect(const v: TVec2) : Boolean;
 begin
   Result := (v.x >= min.x) and (v.y >= min.y) and
             (v.x <= max.x) and (v.y <= max.y);
+end;
+
+function TRectF.Point(AIndex: Integer): TVec2;
+begin
+  case AIndex mod 4 of
+    0: Result := min;
+    1: Result := Vec(min.x, max.y);
+    2: Result := max;
+    3: Result := Vec(max.x, min.y);
+  else
+    Exit;
+  end;
 end;
 
 function TRectF.IsEmpty: Boolean;

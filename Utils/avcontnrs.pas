@@ -54,6 +54,7 @@ type
     function  Sub(const arr: IArray{$IfDef DCC}<TValue>{$EndIf}): {$IfDef FPC}specialize{$EndIf}IArray<TValue>;
 
     procedure Swap(const I1, I2: Integer);
+    procedure Move(AFrom, ATo: Integer);
 
     procedure Clear(const TrimCapacity: Boolean = False);
 
@@ -151,6 +152,7 @@ type
     function  Sub (const arr: IArr): {$IfDef FPC}specialize{$EndIf}IArray<TValue>;
 
     procedure Swap(const I1, I2: Integer);
+    procedure Move(AFrom, ATo: Integer);
 
     procedure Clear(const TrimCapacity: Boolean = False);
 
@@ -2250,6 +2252,27 @@ begin
   tmp := FData[I1];
   FData[I1] := FData[I2];
   FData[I2] := tmp;
+end;
+
+procedure TArray.Move(AFrom, ATo: Integer);
+var tmp: TValue;
+    i: Integer;
+begin
+  if AFrom = ATo then Exit;
+
+
+  tmp := FData[AFrom];
+  if AFrom < ATo then
+  begin
+    for i := AFrom to ATo - 1 do
+      FData[i] := FData[i+1];
+  end
+  else
+  begin
+    for i := AFrom downto ATo + 1 do
+      FData[i] := FData[i-1];
+  end;
+  FData[ATo] := tmp;
 end;
 
 procedure TArray{$IfDef DCC}<TValue>{$EndIf}.Clear(const TrimCapacity: Boolean);
