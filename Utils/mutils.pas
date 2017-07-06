@@ -177,8 +177,9 @@ type
     function Point(AIndex: Integer): TVec2;
   {$IfDef DCC}
   public
-    class operator Add(const a: TRectF; const v: TVec3): TRectF;
-    class operator Multiply(const a: TRectF; const b: TMat3): TRectF;
+    class operator Add(const r: TRectF; const v: TVec2): TRectF; overload;
+    class operator Add(const r1, r2: TRectF): TRectF; overload;
+    class operator Multiply(const r: TRectF; const m: TMat3): TRectF;
   {$EndIf}
   case Byte of
     0: (Left, Top, Right, Bottom: Single);
@@ -1820,6 +1821,29 @@ begin
     Exit;
   end;
 end;
+
+{$IfDef DCC}
+class operator TRectF.Add(const r: TRectF; const v: TVec2): TRectF;
+begin
+  Result.min := mutils.Min(r.min, v);
+  Result.max := mutils.max(r.max, v);
+end;
+
+class operator TRectF.Add(const r1, r2: TRectF): TRectF;
+begin
+  Result.min := mutils.Min(r1.min, r2.min);
+  Result.max := mutils.Max(r1.max, r2.max);
+end;
+
+class operator TRectF.Multiply(const r: TRectF; const m: TMat3): TRectF;
+var
+  i: Integer;
+begin
+  Result.v := Vec(HUGE, HUGE, -HUGE, -HUGE);
+  for i := 0 to 3 do
+    Result := Result + r.Point(i)*m;
+end;
+{$EndIf}
 
 function TRectF.IsEmpty: Boolean;
 begin

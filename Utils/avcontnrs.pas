@@ -2254,7 +2254,7 @@ begin
   FData[I2] := tmp;
 end;
 
-procedure TArray.Move(AFrom, ATo: Integer);
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.Move(AFrom, ATo: Integer);
 var tmp: TValue;
     i: Integer;
 begin
