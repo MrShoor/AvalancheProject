@@ -296,6 +296,7 @@ function RectI(LeftTop, RightBottom: TVec2I): TRectI; overload; {$IFNDEF NoInlin
 function Plane(const normal, point: TVec3): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Plane(A,B,C,D: single): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Plane(const pt1, pt2, pt3: TVec3): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Line(const APt, ADir: TVec3): TLine; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function AABB(const AMin, AMax: TVec3): TAABB; overload;
 function Line2D(const APt1, APt2: TVec2): TLine2D; {$IFNDEF NoInline} inline; {$ENDIF}
 function Line2D_normalized(const APt1, APt2: TVec2): TLine2D; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -329,6 +330,7 @@ function Intersect(const Line1, Line2: TLine2D): TVec2; overload;{$IFNDEF NoInli
 function Intersect(const Seg: TSegment2D; const Line: TLine2D; out IntPoint: TVec2): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const Plane: TPlane; Line: TLine; out IntPt: TVec3): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Distance(const Pt: TVec2; const Seg: TSegment2D): Single; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Distance(const Pt: TVec2; const Seg: TSegment2D; out AClosestPt: TVec2): Single; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Projection(const Pt: TVec2; const Line: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat2): TMat2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat3): TMat3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
@@ -1045,6 +1047,12 @@ begin
   Result := Plane(Cross(pt2 - pt1, pt3 - pt1), pt1);
 end;
 
+function Line(const APt, ADir: TVec3): TLine;
+begin
+  Result.Pnt := APt;
+  Result.Dir := ADir;
+end;
+
 function AABB(const AMin, AMax: TVec3): TAABB;
 begin
   Result.min := AMin;
@@ -1716,6 +1724,38 @@ begin
   begin
     Result := Min(LenSqr(v1), LenSqr(v2));
     Result := sqrt(Result);
+  end;
+end;
+
+function Distance(const Pt: TVec2; const Seg: TSegment2D; out AClosestPt: TVec2): Single;
+var dir, v1, v2: TVec2;
+    segline: TLine2D;
+    d1, d2: Single;
+begin
+  dir := Seg.Pt2 - Seg.Pt1;
+  v1 := Pt - Seg.Pt1;
+  v2 := Pt - Seg.Pt2;
+  if (Dot(v1, dir) > 0) and (Dot(v2, dir) < 0) then
+  begin
+    segline := Seg.Line(True);
+    Result := (dot(segline.Norm, Pt) + segline.C);
+    AClosestPt := segline.Norm * Result + Pt;
+    Result := abs(Result);
+  end
+  else
+  begin
+    d1 := LenSqr(v1);
+    d2 := LenSqr(v2);
+    if d1 < d2 then
+    begin
+      Result := sqrt(d1);
+      AClosestPt := Seg.Pt1;
+    end
+    else
+    begin
+      Result := sqrt(d2);
+      AClosestPt := Seg.Pt2;
+    end;
   end;
 end;
 

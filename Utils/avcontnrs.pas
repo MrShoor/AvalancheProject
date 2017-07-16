@@ -2260,7 +2260,6 @@ var tmp: TValue;
 begin
   if AFrom = ATo then Exit;
 
-
   tmp := FData[AFrom];
   if AFrom < ATo then
   begin

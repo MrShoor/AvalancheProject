@@ -805,7 +805,7 @@ end;
 
 procedure Init;
 begin
-  SetTextureAllocator(avCreateTexturePage, avDestroyTexturePage);
+  SetTextureAllocator({$IfDef FPC}@{$EndIf}avCreateTexturePage, {$IfDef FPC}@{$EndIf}avDestroyTexturePage);
 end;
 
 initialization

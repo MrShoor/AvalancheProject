@@ -9,7 +9,7 @@
       <PathDelim Value="\"/>
       <SearchPaths>
         <IncludeFiles Value="."/>
-        <OtherUnitFiles Value="."/>
+        <OtherUnitFiles Value=".;.."/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
       <CodeGeneration>
@@ -24,7 +24,7 @@
         </Debugging>
       </Linking>
     </CompilerOptions>
-    <Files Count="7">
+    <Files Count="9">
       <Item1>
         <Filename Value="avcontnrs.pas"/>
         <UnitName Value="avContnrs"/>
@@ -53,6 +53,14 @@
         <Filename Value="avConfig.inc"/>
         <Type Value="Include"/>
       </Item7>
+      <Item8>
+        <Filename Value="avpolygon.pas"/>
+        <UnitName Value="avPolygon"/>
+      </Item8>
+      <Item9>
+        <Filename Value="..\superobject.pas"/>
+        <UnitName Value="superobject"/>
+      </Item9>
     </Files>
     <RequiredPkgs Count="1">
       <Item1>

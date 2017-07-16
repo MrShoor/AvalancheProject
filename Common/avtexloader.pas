@@ -583,6 +583,7 @@ begin
     key := StreamToKey(ms);
     if not FTexHash.TryGetValue(key, Result) then
     begin
+      if not FileExists(fullName) then Exit(nil);
       Result := avTexLoader.LoadTexture(fullName, targetWidth, targetHeight, targetFormat);
       FTexHash.Add(key, Result);
     end;

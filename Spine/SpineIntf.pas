@@ -2,6 +2,11 @@ unit SpineIntf;
 
 interface
 
+{$IfDef FPC}
+  {$mode objfpc}{$H+}
+  {$ModeSwitch advancedrecords}
+{$EndIf}
+
 //some help: http://ru.esotericsoftware.com/spine-c
 
 uses
@@ -260,7 +265,7 @@ begin
   bd := nil;
   try
     bd := spSkeletonBinary_create(FAtlas.Handle);
-    bd.scale := AScale;//1.8/686;
+    bd^.scale := AScale;//1.8/686;
     FspSkeletonData := spSkeletonBinary_readSkeletonDataFile(bd, PspPChar(AnsiString(ASkelFileName)));
   finally
     spSkeletonBinary_dispose(bd);
@@ -301,12 +306,12 @@ end;
 
 function TSkeleton.GetFlipX: Boolean;
 begin
-  Result := FspSkeleton.flip.x <> 0;
+  Result := FspSkeleton^.flip.x <> 0;
 end;
 
 function TSkeleton.GetFlipY: Boolean;
 begin
-  Result := FspSkeleton.flip.y <> 0;
+  Result := FspSkeleton^.flip.y <> 0;
 end;
 
 function TSkeleton.GetPos: TVec2;
@@ -322,17 +327,17 @@ end;
 procedure TSkeleton.SetFlipX(const Value: Boolean);
 begin
   if Value then
-    FspSkeleton.flip.x := 1
+    FspSkeleton^.flip.x := 1
   else
-    FspSkeleton.flip.x := 0;
+    FspSkeleton^.flip.x := 0;
 end;
 
 procedure TSkeleton.SetFlipY(const Value: Boolean);
 begin
   if Value then
-    FspSkeleton.flip.y := 1
+    FspSkeleton^.flip.y := 1
   else
-    FspSkeleton.flip.y := 0;
+    FspSkeleton^.flip.y := 0;
 end;
 
 procedure TSkeleton.SetPos(const Value: TVec2);
@@ -379,22 +384,22 @@ begin
   for i := 0 to FspSkeleton^.slotsCount - 1 do
   try
     if slot^ = nil then Continue;
-    if slot^.attachment = nil then Continue;
+    if slot^^.attachment = nil then Continue;
 
-    v.vsColor := FspSkeleton^.color * slot^.color;
+    v.vsColor := FspSkeleton^.color * slot^^.color;
     v.vsCoord.z := AZ;
 
-    case slot^.attachment^.atype of
+    case slot^^.attachment^.atype of
       SP_ATTACHMENT_REGION:
       begin
-        regionAtt := PspRegionAttachment(slot^.attachment);
-        mip := ITextureMip(PspAtlasRegion(regionAtt.userData).page.UserData);
+        regionAtt := PspRegionAttachment(slot^^.attachment);
+        mip := ITextureMip(PspAtlasRegion(regionAtt^.userData)^.page^.UserData);
         sprite := tex.ObtainSprite(mip);
         FSprites.Add(sprite);
         v.vsAtlasRef := sprite.Index;
 
         ZeroClear(regionWorldPos, SizeOf(regionWorldPos));
-        spRegionAttachment_computeWorldVertices(regionAtt, slot^.bone, @regionWorldPos[0], 0, 2);
+        spRegionAttachment_computeWorldVertices(regionAtt, slot^^.bone, @regionWorldPos[0], 0, 2);
 
         v.vsCoord.xy := regionWorldPos[0];
         v.vsTexCrd := Vec(regionAtt^.uvs[0], regionAtt^.uvs[1]);
@@ -423,10 +428,10 @@ begin
 
       SP_ATTACHMENT_MESH:
       begin
-        meshAtt := PspMeshAttachment(slot^.attachment);
+        meshAtt := PspMeshAttachment(slot^^.attachment);
         if meshAtt^.super.worldVerticesLength = 0 then Continue;
 
-        mip := ITextureMip(PspAtlasRegion(meshAtt.userData).page.UserData);
+        mip := ITextureMip(PspAtlasRegion(meshAtt^.userData)^.page^.UserData);
         sprite := tex.ObtainSprite(mip);
         FSprites.Add(sprite);
         v.vsAtlasRef := sprite.Index;
@@ -467,7 +472,7 @@ end;
 
 procedure Init;
 begin
-  SetTextureAllocator(avCreateTexturePage, avDestroyTexturePage);
+  SetTextureAllocator({$IfDef FPC}@{$EndIf}avCreateTexturePage, {$IfDef FPC}@{$EndIf}avDestroyTexturePage);
 end;
 
 { TSpineVertex }
@@ -517,7 +522,7 @@ end;
 
 function TAnimationState.GetTimeScale: Single;
 begin
-  Result := FspAnimationState.timeScale;
+  Result := FspAnimationState^.timeScale;
 end;
 
 function TAnimationState.Handle: PspAnimationState;
@@ -534,7 +539,7 @@ end;
 
 procedure TAnimationState.SetTimeScale(const Value: Single);
 begin
-  FspAnimationState.timeScale := Value;
+  FspAnimationState^.timeScale := Value;
 end;
 
 procedure TAnimationState.Update(const ADelta: Single);

@@ -51,6 +51,9 @@ type
     CanRotate  : boolean;
     MovePlane  : TPlane;
 
+    MouseBtn_Move  : Integer;
+    MouseBtn_Rotate: Integer;
+
     property AutoInvalidate: Boolean read FAutoInvalidate write FAutoInvalidate;
     property Enabled: Boolean read FEnabled write SetEnabled;
 
@@ -93,50 +96,60 @@ end;
 
 procedure TavCameraController.EMMouseDown(var msg: TavMouseDownMessage);
 begin
-  case msg.button of
-    1: begin
-         if CanMove then
-         begin
-           CaptureWindow;
-           FCaptured:=true;
-           FMoving:=true;
-           Intersect(MovePlane, Main.Cursor.Ray, FMovingPt);
+  if msg.button = MouseBtn_Move then
+  begin
+    if CanMove then
+    begin
+      CaptureWindow;
+      FCaptured:=true;
+      FMoving:=true;
+      Intersect(MovePlane, Main.Cursor.Ray, FMovingPt);
+    end;
+  end
+  else
+  if msg.button = MouseBtn_Rotate then
+  begin
+    If CanRotate Then
+    begin
+      CaptureWindow;
+      FCaptured:=true;
+      FRotating:=true;
+      FRotatingPt.x:=msg.xPos;
+      FRotatingPt.y:=msg.yPos;
+    end;
+  end
+  else
+  begin
+    case msg.button of
+      4: begin
+           if ZoomAtXBtn then
+           begin
+             CaptureWindow;
+             FCaptured:=true;
+             FZoomIn:=true;
+           end;
          end;
-       end;
-    2: begin
-         If CanRotate Then
-         begin
-           CaptureWindow;
-           FCaptured:=true;
-           FRotating:=true;
-           FRotatingPt.x:=msg.xPos;
-           FRotatingPt.y:=msg.yPos;
+      5: begin
+           if ZoomAtXBtn then
+           begin
+             CaptureWindow;
+             FCaptured:=true;
+             FZoomOut:=true;
+           end;
          end;
-       end;
-    4: begin
-         if ZoomAtXBtn then
-         begin
-           CaptureWindow;
-           FCaptured:=true;
-           FZoomIn:=true;
-         end;
-       end;
-    5: begin
-         if ZoomAtXBtn then
-         begin
-           CaptureWindow;
-           FCaptured:=true;
-           FZoomOut:=true;
-         end;
-       end;
+    end;
   end;
 end;
 
 procedure TavCameraController.EMMouseUp(var msg: TavMouseUpMessage);
 begin
+  if msg.button = MouseBtn_Move then
+    FMoving:=false
+  else
+  if msg.button = MouseBtn_Rotate then
+    FRotating := false
+  else
   case msg.button of
-    1: FMoving:=false;
-    2: FRotating:=false;
     4: FZoomIn:=false;
     5: FZoomOut:=false;
   end;
@@ -232,6 +245,9 @@ begin
   ZoomSpeed := 4;
   CanMove := false;
   MovePlane := Plane(Vec(0.0, 1.0, 0.0), Vec(0.0, 0.0, 0.0));
+
+  MouseBtn_Move := 1;
+  MouseBtn_Rotate := 2;
 end;
 
 end.

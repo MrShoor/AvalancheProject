@@ -2,13 +2,13 @@
   This source is only used to compile and install the package.
  }
 
-unit AvalancheUtils;
+unit avalancheGLUTess;
 
+{$warn 5023 off : no warning about unused units}
 interface
 
 uses
-  avContnrs, mutils, intfUtils, avContnrsDefaults, avPathFinder, avPolygon, 
-  superobject, LazarusPackageIntf;
+  avGLU, avGLUIntf, LazarusPackageIntf;
 
 implementation
 
@@ -17,5 +17,5 @@ begin
 end;
 
 initialization
-  RegisterPackage('AvalancheUtils', @Register);
+  RegisterPackage('avalancheGLUTess', @Register);
 end.
