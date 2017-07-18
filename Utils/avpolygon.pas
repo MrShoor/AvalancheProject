@@ -18,6 +18,8 @@ type
   TPathEdgeType = (etLine, erArc, etBezier2, etBezier3);
 
   IPathEdge = interface;
+  IVec2Arr = {$IfDef FPC}specialize{$EndIf}IArray<TVec2>;
+  TIVec2Arr = {$IfDef FPC}specialize{$EndIf}TArray<TVec2>;
 
   { IPathVertex }
 
@@ -43,6 +45,8 @@ type
 
     function EdgeType: TPathEdgeType;
     function SubPt(t: Single): TVec2;
+
+    function Tesselate(ATolerance: Single): IVec2Arr;
 
     procedure LoadJSON(const AObj: ISuperObject);
     function  SaveJSON: ISuperObject;
@@ -83,9 +87,6 @@ type
     property CPt1: TVec2 read GetCPt1 write SetCPt1;
     property CPt2: TVec2 read GetCPt2 write SetCPt2;
   end;
-
-  IVec2Arr = {$IfDef FPC}specialize{$EndIf}IArray<TVec2>;
-  TIVec2Arr = {$IfDef FPC}specialize{$EndIf}TArray<TVec2>;
 
   { IPath }
 
@@ -176,6 +177,7 @@ type
       procedure SetVEnd(const AValue: IPathVertex);
       procedure SetVStart(const AValue: IPathVertex);
 
+      function Tesselate(ATolerance: Single): IVec2Arr;
       procedure TesselateTo(const APts: IVec2Arr; ATolerance: Single); virtual;
 
       function EdgeType: TPathEdgeType; virtual;
@@ -542,9 +544,16 @@ begin
   FVStart := AValue;
 end;
 
+function TPath.TPolyEdge.Tesselate(ATolerance: Single): IVec2Arr;
+begin
+  Result := TIVec2Arr.Create();
+  TesselateTo(Result, ATolerance);
+  Result.Add(VEnd.Coord);
+end;
+
 procedure TPath.TPolyEdge.TesselateTo(const APts: IVec2Arr; ATolerance: Single);
 begin
-  //
+  APts.Add(VStart.Coord);
 end;
 
 function TPath.TPolyEdge.EdgeType: TPathEdgeType;
@@ -554,10 +563,7 @@ end;
 
 function TPath.TPolyEdge.SubPt(t: Single): TVec2;
 begin
-  if t < 0.5 then
-    Result := FVStart.Coord
-  else
-    Result := FVEnd.Coord;
+  Result := Lerp(FVStart.Coord, FVEnd.Coord, t);
 end;
 
 procedure TPath.TPolyEdge.LoadJSON(const AObj: ISuperObject);
@@ -571,7 +577,7 @@ begin
   Result := SO('{}');
   Result.S['EType'] := cPolyEdgeTypeNames[EdgeType];
   Result.O['Start'] := Vec2ToSO(FVStart.Coord);
-  Result.O['End'] := Vec2ToSO(FVStart.Coord);
+  Result.O['End'] := Vec2ToSO(FVEnd.Coord);
 end;
 
 function TPath.TPolyEdge.Obj: TPolyEdge;
