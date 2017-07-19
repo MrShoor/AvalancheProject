@@ -47,6 +47,7 @@ type
     function Count: Integer;
 
     function  Add(const item: TValue): Integer; //index of new added element
+    procedure Insert(const AIndex: Integer; const AItem: TValue);
     procedure AddArray(const arr: IArray{$IfDef DCC}<TValue>{$EndIf});
     procedure Delete(const index: Integer);
     procedure DeleteWithSwap(const index: Integer);
@@ -144,6 +145,7 @@ type
     function Count: Integer;
 
     function  Add(const item: TValue): Integer; //return index of new added element
+    procedure Insert(const AIndex: Integer; const AItem: TValue);
     procedure AddArray(const arr: IArr); //index of new added element
     procedure Delete(const index: Integer);
     procedure DeleteWithSwap(const index: Integer);
@@ -2196,6 +2198,23 @@ begin
       Capacity := Capacity * 2;
   FData[FCount] := item;
   Inc(FCount);
+end;
+
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.Insert(const AIndex: Integer; const AItem: TValue);
+var
+  i: Integer;
+begin
+  if (AIndex < 0) or (AIndex > FCount) then raise ERangeError.Create('Index out of range: ' + IntToStr(AIndex));
+
+  if Capacity < 8 then
+    Capacity := 8
+  else
+    if Capacity <= FCount then
+      Capacity := Capacity * 2;
+  Inc(FCount);
+  for i := FCount - 1 downto AIndex+1 do
+    FData[i] := FData[i-1];
+  FData[AIndex] := AItem;
 end;
 
 procedure TArray{$IfDef DCC}<TValue>{$EndIf}.AddArray(const arr: IArr);

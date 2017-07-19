@@ -96,6 +96,7 @@ type
     function Vertex(Index: Integer): IPathVertex;
 
     function AddEdge(NewType: TPathEdgeType): IPathEdge;
+    function InsertFirstEdge(NewType: TPathEdgeType): IPathEdge;
     function EdgeCount: Integer;
     function Edge(Index: Integer): IPathEdge;
     function IndexOfEdge(const AEdge: IPathEdge): Integer;
@@ -137,6 +138,7 @@ type
       procedure SetVEnd(const AValue: IPathVertex);
       procedure SetVStart(const AValue: IPathVertex);
 
+      function  Split(const t: single; const AVertex: IPathVertex): IPathEdge_Internal; //return next edge
       procedure TesselateTo(const APts: IVec2Arr; ATolerance: Single);
 
       function Obj: TPolyEdge;
@@ -177,7 +179,8 @@ type
       procedure SetVEnd(const AValue: IPathVertex);
       procedure SetVStart(const AValue: IPathVertex);
 
-      function Tesselate(ATolerance: Single): IVec2Arr;
+      function  Split(const t: single; const AVertex: IPathVertex): IPathEdge_Internal; virtual; //return next edge
+      function  Tesselate(ATolerance: Single): IVec2Arr;
       procedure TesselateTo(const APts: IVec2Arr; ATolerance: Single); virtual;
 
       function EdgeType: TPathEdgeType; virtual;
@@ -207,6 +210,7 @@ type
       procedure SetCPt1(const AValue: TVec2);
       procedure SetCPt2(const AValue: TVec2);
 
+      function  Split(const t: single; const AVertex: IPathVertex): IPathEdge_Internal; override; //return next edge
       procedure TesselateTo(const APts: IVec2Arr; ATolerance: Single); override;
 
       property CPt1: TVec2 read GetCPt1 write SetCPt1;
@@ -222,6 +226,7 @@ type
     function Vertex(Index: Integer): IPathVertex;
 
     function AddEdge(NewType: TPathEdgeType): IPathEdge;
+    function InsertFirstEdge(NewType: TPathEdgeType): IPathEdge;
     function EdgeCount: Integer;
     function Edge(Index: Integer): IPathEdge;
     function IndexOfEdge(const AEdge: IPathEdge): Integer;
@@ -299,9 +304,43 @@ begin
   FCPt2 := AValue;
 end;
 
+function TPath.TPolyEdge_Bezier3.Split(const t: single; const AVertex: IPathVertex): IPathEdge_Internal;
+var
+    Pt1, Pt2, Pt3, Pt4: TVec2;
+    lpt2, lpt3: TVec2;
+    rpt2, rpt3: TVec2;
+    tmppt: TVec2;
+    splitpt: TVec2;
+
+    bobj: TPolyEdge_Bezier3;
+begin
+  Pt1 := VStart.Coord;
+  Pt4 := VEnd.Coord;
+  Pt2 := Pt1 + FCPt1;
+  Pt3 := Pt4 + FCPt2;
+
+  lpt2 := lerp(Pt1, Pt2, t);
+  rpt3 := lerp(Pt3, Pt4, t);
+  tmppt := lerp(Pt2, Pt3, t);
+  lpt3 := lerp(lpt2, tmppt, t);
+  rpt2 := lerp(tmppt, rpt3, t);
+  splitpt := lerp(lpt3, rpt2, t);
+
+  AVertex.Coord := splitpt;
+  bobj := TPolyEdge_Bezier3.Create(FOwner, AVertex, FVEnd);
+  Result := bobj;
+  FVEnd := AVertex;
+
+  FCPt1 := lpt2 - Pt1;
+  FCPt2 := lpt3 - splitpt;
+
+  bobj.FCPt1 := rpt2 - splitpt;
+  bobj.FCPt2 := rpt3 - Pt4;
+end;
+
 procedure TPath.TPolyEdge_Bezier3.TesselateTo(const APts: IVec2Arr; ATolerance: Single);
 
-  procedure Split(const Pt1, Pt2, Pt3, Pt4: TVec2);
+  procedure SplitRecursive(const Pt1, Pt2, Pt3, Pt4: TVec2);
 
     function IsStraight: boolean;
     var seg: TSegment2D;
@@ -327,15 +366,15 @@ procedure TPath.TPolyEdge_Bezier3.TesselateTo(const APts: IVec2Arr; ATolerance: 
     lpt3 := (lpt2 + tmppt) * 0.5;
     rpt2 := (tmppt + rpt3) * 0.5;
     splitpt := (lpt3 + rpt2) * 0.5;
-    Split(Pt1, lpt2, lpt3, splitpt);
-    Split(splitpt, rpt2, rpt3, Pt4);
+    SplitRecursive(Pt1, lpt2, lpt3, splitpt);
+    SplitRecursive(splitpt, rpt2, rpt3, Pt4);
   end;
 
 var s, e: TVec2;
 begin
   s := VStart.Coord;
   e := VEnd.Coord;
-  Split(s, s+FCPt1, e+FCPt2, e);
+  SplitRecursive(s, s+FCPt1, e+FCPt2, e);
 end;
 
 { TPolyLine }
@@ -389,6 +428,24 @@ begin
   Result := newEdge;
 end;
 
+function TPath.InsertFirstEdge(NewType: TPathEdgeType): IPathEdge;
+var Vstart: IPathVertex;
+    Vend  : IPathVertex;
+    newEdge: IPathEdge_Internal;
+begin
+  if FEdges.Count = 0 then
+    Vend := TPolyVertex.Create
+  else
+    Vend := FEdges.Item[0].VStart;
+  Vstart := TPolyVertex.Create;
+  Vstart.Coord := Vend.Coord;
+
+  newEdge := CreateEdge(NewType, Vstart, Vend);
+  Assert(newEdge <> nil);
+  FEdges.Insert(0, newEdge);
+  Result := newEdge;
+end;
+
 function TPath.EdgeCount: Integer;
 begin
   Result := FEdges.Count;
@@ -412,8 +469,13 @@ begin
 end;
 
 procedure TPath.SplitEdge(AEdgeIndex: Integer; ASplitPoint: Single);
+var newEdge: IPathEdge_Internal;
+    newVert: IPathVertex;
 begin
-  Assert(False, 'todo');
+  ASplitPoint := Clamp(ASplitPoint, 0, 1);
+  newVert := TPolyVertex.Create;
+  newEdge := FEdges[AEdgeIndex].Split(ASplitPoint, newVert);
+  FEdges.Insert(AEdgeIndex+1, newEdge);
 end;
 
 procedure TPath.DelEdge(Index: Integer);
@@ -421,7 +483,7 @@ var currEdge: IPathEdge;
     nextEdge: IPathEdge;
 begin
   currEdge := FEdges[Index];
-  if Index < FEdges.Count-1 then
+  if (Index < FEdges.Count-1) and (Index > 0) then
   begin
     nextEdge := FEdges[Index+1];
     (nextEdge as IPathEdge_Internal).VStart := currEdge.VStart;
@@ -542,6 +604,13 @@ end;
 procedure TPath.TPolyEdge.SetVStart(const AValue: IPathVertex);
 begin
   FVStart := AValue;
+end;
+
+function TPath.TPolyEdge.Split(const t: single; const AVertex: IPathVertex): IPathEdge_Internal;
+begin
+  AVertex.Coord := SubPt(t);
+  Result := TPolyEdge.Create(FOwner, AVertex, FVEnd);
+  FVEnd := AVertex;
 end;
 
 function TPath.TPolyEdge.Tesselate(ATolerance: Single): IVec2Arr;
