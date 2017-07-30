@@ -359,6 +359,8 @@ function BitsCount(x: UInt64): Integer; overload;
 function GetMipsCount(Width, Height: Integer): Integer;
 
 function Bezier3(const pt1, pt2, pt3, pt4: TVec2; t: single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function DistanceToBezier3(const APt: TVec2; const pt1, pt2, pt3, pt4: TVec2): Single; overload;
+function DistanceToBezier3(const APt: TVec2; const pt1, pt2, pt3, pt4: TVec2; out ClosestPt: TVec2; out T: Single): Single; overload;
 
 function SetViewMatrix(var MatrixView: TMat4; const From, At, Worldup: TVec3; leftHanded: boolean = true): HResult;
 function GetUIMatrix(const AWidth, AHeight: Single; const ADepth: Single = 10000): TMat4;
@@ -446,6 +448,185 @@ begin
     Result[i].xy := E;
     Result[i].z := 0;
     Result[i].w := 0;
+  end;
+end;
+
+type
+  TDoubleArr = array of Double;
+
+function EvalN(const Params: TDoubleArr; X: Double): Double;
+var i: Integer;
+    tmpX: Double;
+begin
+  Result := 0;
+  tmpX := 1;
+  for i := Length(Params) - 1 downto 0 do
+  begin
+    Result := Result + Params[i]*tmpX;
+    tmpX := tmpX * X;
+  end;
+end;
+
+function GetDerivativeN(const Params: TDoubleArr): TDoubleArr;
+var
+  i: Integer;
+begin
+  SetLength(Result, Length(Params)-1);
+  for i := 0 to Length(Params)-2 do
+    Result[i] := (Length(Params)-i-1)*Params[i];
+end;
+
+function SolveN(const Params: TDoubleArr; const Steps: Integer; const EPS: Double): TDoubleArr;
+const XEPS: Double = 0.0001;
+  function MergeRoots(const Roots1, Roots2: TDoubleArr): TDoubleArr;
+  var i, j, k, realLen: Integer;
+      R1, R2: Double;
+  begin
+    if Roots1 = nil then Exit(Roots2);
+    if Roots2 = nil then Exit(Roots1);
+
+    SetLength(Result, Length(Roots1) + Length(Roots2));
+    realLen := 0;
+    i := 0;
+    j := 0;
+    for k := 0 to Length(Result) - 1 do
+    begin
+      if i = Length(Roots1) then
+        R1 := Math.Infinity
+      else
+        R1 := Roots1[i];
+      if j = Length(Roots2) then
+        R2 := Math.Infinity
+      else
+        R2 := Roots2[j];
+
+      if R1 < R2 then
+      begin
+        if (realLen=0) or (Result[realLen-1] <> R1) then
+        begin
+          Result[realLen] := R1;
+          Inc(realLen);
+        end;
+        Inc(i);
+      end
+      else
+      begin
+        if (realLen=0) or (Result[realLen-1] <> R2) then
+        begin
+          Result[realLen] := R2;
+          Inc(realLen);
+        end;
+        Inc(j);
+      end;
+    end;
+    if Length(Result) <> realLen then SetLength(Result, realLen);
+  end;
+
+  procedure ResolveRange(var x1, x2: Double; var f1, f2: Double; out newX, newF: Double); //binary search
+  begin
+    newX := (x2+x1)*0.5;
+    newF := EvalN(Params, newX);
+
+    if Sign(NewF) = Sign(f1) then
+    begin
+      x1 := NewX;
+      f1 := NewF;
+    end
+    else
+    begin
+      x2 := NewX;
+      f2 := NewF;
+    end;
+  end;
+
+  function FindOtherRange(const deriv: TDoubleArr; const x1, f1, startOffset: Double; out x2, f2: Double): Boolean;
+  var Fd: Double;
+  begin
+    //todo use derivative for find exact interval
+    x2 := x1 + startOffset;
+    f2 := EvalN(Params, x2);
+    if sign(f2) <> sign(f1) then Exit(True);
+    Exit(False);
+    //if Sign(f2) = Sign(EvalN(deriv, x2)) then Exit(False);
+    //
+    //while sign(f2) = sign(f1) do
+    //begin
+    //  Fd := EvalN(deriv, x2);
+    //  if (Fd = 0) then Break;
+    //  x2 := x2 - f2 / Fd;
+    //  f2 := EvalN(Params, x2);
+    //end;
+    //Result := True;
+  end;
+
+var deriv: TDoubleArr;
+    derivRoots: TDoubleArr;
+    i, j: Integer;
+
+    X, Fx, Fd: Double;
+    RangeX: array [0..1] of Double;
+    RangeF: array [0..1] of Double;
+    NewX, NewF: Double;
+begin
+  Result := nil;
+  if Length(Params) = 1 then Exit;
+  if Length(Params) = 2 then
+  begin
+    if Params[0] <> 0 then
+    begin
+      SetLength(Result, 1);
+      Result[0] := -Params[1]/Params[0];
+    end;
+    Exit;
+  end;
+
+  deriv := GetDerivativeN(Params);
+  //derivRoots := MergeRoots(SolveN(deriv, Steps, EPS), SolveN( GetDerivativeN(deriv), Steps, EPS ));
+  derivRoots := SolveN(deriv, Steps, EPS);
+  if derivRoots = nil then
+  begin
+    SetLength(derivRoots, 1);
+    derivRoots[0] := 0.5;
+  end;
+
+  for j := 0 to Length(derivRoots) do
+  begin
+    if j = 0 then
+    begin
+      RangeX[1] := derivRoots[0];
+      RangeF[1] := EvalN(Params, RangeX[1]);
+      if not FindOtherRange(deriv, RangeX[1], RangeF[1], -10.0, RangeX[0], RangeF[0]) then Continue; //no roots at this interval
+    end
+    else
+      if j = Length(derivRoots) then
+      begin
+        RangeX[0] := derivRoots[j-1];
+        RangeF[0] := EvalN(Params, RangeX[0]);
+        if not FindOtherRange(deriv, RangeX[0], RangeF[0], +10.0, RangeX[1], RangeF[1]) then Continue; //no roots at this interval
+      end
+      else
+      begin
+        RangeX[0] := derivRoots[j-1];
+        RangeX[1] := derivRoots[j];
+        RangeF[0] := EvalN(Params, RangeX[0]);
+        RangeF[1] := EvalN(Params, RangeX[1]);
+        if Sign(RangeF[0]) = Sign(RangeF[1]) then Continue; //no roots at this interval
+      end;
+
+    for i := 0 to Steps - 1 do
+    begin
+      ResolveRange(RangeX[0], RangeX[1], RangeF[0], RangeF[1], NewX, NewF);
+
+//      if (abs(NewF)<EPS) then
+      if (abs(RangeX[1]-RangeX[0])<XEPS) then //root found
+      begin
+        if Length(Result) > 0 then
+          if NewX - Result[High(Result)] < XEPS then Break; //current root already exists, skip it
+        SetLength(Result, Length(Result)+1);
+        Result[High(Result)] := NewX;
+        Break;
+      end;
+    end;
   end;
 end;
 
@@ -1426,6 +1607,67 @@ var t2: single;
 begin
   t2 := 1 - t;
   Result := pt1*(t2*t2*t2) + pt2*(3*t*t2*t2) + pt3*(3*t*t*t2) + pt4*(t*t*t);
+end;
+
+function DistanceToBezier3(const APt: TVec2; const pt1, pt2, pt3, pt4: TVec2): Single;
+var dummy: TVec2;
+    dummyT: Single;
+begin
+  Result := DistanceToBezier3(APt, pt1, pt2, pt3, pt4, dummy, dummyT);
+end;
+
+function DistanceToBezier3(const APt: TVec2; const pt1, pt2, pt3, pt4: TVec2; out ClosestPt: TVec2; out T: Single): Single; overload;
+var A, B, C, D: TVec2;
+    Params, roots: TDoubleArr;
+    minPt, Pb: TVec2;
+    minDist, dist: Single;
+    k: Integer;
+begin
+  A := pt4 - pt3*3 + pt2*3 - pt1;
+  B :=       pt3*3 - pt2*6 + pt1*3;
+  C :=               pt2*3 - pt1*3;
+  D :=                       pt1;
+
+  SetLength(Params, 6);
+  Params[0] := 3*Dot(A, A);
+  Params[1] := 5*Dot(A, B);
+  Params[2] := 4*Dot(A, C) + 2*Dot(B, B);
+  Params[3] := 3*Dot(B, C) + 3*Dot(A, D);// - 3*Dot(A, APt);
+  Params[4] := Dot(C, C) + 2*Dot(B, D);// - 2*Dot(B, APt);
+  Params[5] := Dot(D, C);// - Dot(C, APt);
+
+  Params[3] := Params[3] - 3*Dot(A, APt);
+  Params[4] := Params[4] - 2*Dot(B, APt);
+  Params[5] := Params[5] - Dot(C, APt);
+
+  roots := SolveN(params, 100000, 1);
+
+  minPt := pt1;
+  minDist := LenSqr(APt-minPt);
+  T := 0;
+  dist := LenSqr(APt-pt4);
+  if dist < minDist then
+  begin
+    minPt := pt4;
+    minDist := dist;
+    T := 1;
+  end;
+
+  for k := 0 to Length(roots) - 1 do
+  begin
+    if roots[k] < 0 then Continue;
+    if roots[k] > 1 then Continue;
+    Pb := Bezier3(pt1, pt2, pt3, pt4, roots[k]);
+    dist := LenSqr(APt-Pb);
+    if dist < minDist then
+    begin
+      minPt := Pb;
+      minDist := dist;
+      T := roots[k];
+    end;
+  end;
+  ClosestPt := minPt;
+  Result := sqrt(minDist);
 end;
 
 function SetViewMatrix(var MatrixView: TMat4; const From, At, Worldup: TVec3; leftHanded: boolean = true): HResult;

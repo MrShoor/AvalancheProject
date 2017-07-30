@@ -183,17 +183,16 @@ type
       function  Tesselate(ATolerance: Single): IVec2Arr;
       procedure TesselateTo(const APts: IVec2Arr; ATolerance: Single); virtual;
 
-      function EdgeType: TPathEdgeType; virtual;
       function SubPt(t: Single): TVec2;
-
-      procedure LoadJSON(const AObj: ISuperObject);
-      function  SaveJSON: ISuperObject;
 
       property VStart: IPathVertex read GetVStart;
       property VEnd  : IPathVertex read GetVEnd;
 
       function Obj: TPolyEdge;
     protected
+      procedure LoadJSON(const AObj: ISuperObject); virtual;
+      function  SaveJSON: ISuperObject; virtual;
+      function EdgeType: TPathEdgeType; virtual;
     public
       constructor Create(const AOwner: TPath; const AVStart, AVEnd: IPathVertex);
       destructor Destroy; override;
@@ -215,6 +214,10 @@ type
 
       property CPt1: TVec2 read GetCPt1 write SetCPt1;
       property CPt2: TVec2 read GetCPt2 write SetCPt2;
+    protected
+      procedure LoadJSON(const AObj: ISuperObject); override;
+      function  SaveJSON: ISuperObject; override;
+      function EdgeType: TPathEdgeType; override;
     end;
 
   private
@@ -377,6 +380,25 @@ begin
   SplitRecursive(s, s+FCPt1, e+FCPt2, e);
 end;
 
+procedure TPath.TPolyEdge_Bezier3.LoadJSON(const AObj: ISuperObject);
+begin
+  inherited LoadJSON(AObj);
+  FCPt1 := SOToVec2_Def(AObj.O['CPt1'], Vec(0,0));
+  FCPt2 := SOToVec2_Def(AObj.O['CPt2'], Vec(0,0));
+end;
+
+function TPath.TPolyEdge_Bezier3.SaveJSON: ISuperObject;
+begin
+  Result := inherited SaveJSON;
+  Result.O['CPt1'] := Vec2ToSO(FCPt1);
+  Result.O['CPt2'] := Vec2ToSO(FCPt2);
+end;
+
+function TPath.TPolyEdge_Bezier3.EdgeType: TPathEdgeType;
+begin
+  Result := etBezier3;
+end;
+
 { TPolyLine }
 
 function TPath.CreateEdge(NewType: TPathEdgeType; const VStart, VEnd: IPathVertex): IPathEdge_Internal;
@@ -504,10 +526,7 @@ var
 begin
   Result := TIVec2Arr.Create();
   for i := 0 to FEdges.Count - 1 do
-  begin
-    Result.Add(FEdges[i].VStart.Coord);
     FEdges[i].TesselateTo(Result, ATolerance);
-  end;
   if FEdges.Count > 0 then
     Result.Add(FEdges.Last.VEnd.Coord);
 end;
