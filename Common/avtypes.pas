@@ -375,6 +375,15 @@ const
       Wrap_Y     : twRepeat;
       Border     : (x: 0; y: 0; z: 0; w: 0);
     );
+    Sampler_Linear_NoAnisotropy : TSamplerInfo = (
+      MinFilter  : tfLinear;
+      MagFilter  : tfLinear;
+      MipFilter  : tfLinear;
+      Anisotropy : 0;
+      Wrap_X     : twRepeat;
+      Wrap_Y     : twRepeat;
+      Border     : (x: 0; y: 0; z: 0; w: 0);
+    );
 
     Sampler_LinearClamped : TSamplerInfo = (
       MinFilter  : tfLinear;

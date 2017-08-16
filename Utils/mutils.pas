@@ -301,6 +301,9 @@ function AABB(const AMin, AMax: TVec3): TAABB; overload;
 function Line2D(const APt1, APt2: TVec2): TLine2D; {$IFNDEF NoInline} inline; {$ENDIF}
 function Line2D_normalized(const APt1, APt2: TVec2): TLine2D; {$IFNDEF NoInline} inline; {$ENDIF}
 
+function Pow(const v: TVec2; const s: Single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Pow(const v: TVec3; const s: Single): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Pow(const v: TVec4; const s: Single): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Len(const v: TVec2): Single; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Len(const v: TVec3): Single; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Len(const v: TVec4): Single; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -1256,6 +1259,27 @@ begin
   Result.Norm.x := Result.Norm.x*nLen;
   Result.Norm.y := Result.Norm.y*nLen;
   Result.Offset := - Result.Norm.x*APt1.x - Result.Norm.y*APt1.y;
+end;
+
+function Pow(const v: TVec2; const s: Single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.x := Power(v.x, s);
+  Result.y := Power(v.y, s);
+end;
+
+function Pow(const v: TVec3; const s: Single): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.x := Power(v.x, s);
+  Result.y := Power(v.y, s);
+  Result.z := Power(v.z, s);
+end;
+
+function Pow(const v: TVec4; const s: Single): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.x := Power(v.x, s);
+  Result.y := Power(v.y, s);
+  Result.z := Power(v.z, s);
+  Result.w := Power(v.w, s);
 end;
 
 function Len(const v: TVec2): Single; overload; {$IFNDEF NoInline} inline; {$ENDIF}

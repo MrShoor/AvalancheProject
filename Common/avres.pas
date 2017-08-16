@@ -1021,7 +1021,7 @@ begin
   begin
     if FbufH = nil then FbufH := Main.Context.CreateStructBuffer;
     FbufH.ElementSize := FVert.Layout.Size;
-    FbufH.AllocMem(FVert.Data.size, FVert.Data.data);
+    FbufH.AllocMem(Max(FVert.Data.size, FVert.Layout.Size), FVert.Data.data);
   end;
   if FDropLocalAfterBuild then FVert := nil;
   Result := True;
@@ -1130,6 +1130,8 @@ begin
     AllocQuad(Vec(sprite.FData.Width,sprite.FData.Height), sprite.FQuad, sprite.FSlice);
     region.Rect := sprite.FQuad.Rect.v;
     region.Slice := sprite.FSlice;
+    region.Rect.xy := region.Rect.xy + Vec(1,1);
+    region.Rect.zw := region.Rect.zw - Vec(1,1);
     FRegions[sprite.FIndex] := region;
   end;
   FRegionsBuffer.Invalidate;
@@ -1140,7 +1142,10 @@ function TavAtlasArrayReferenced.DoBuild: Boolean;
 var page: PPageInfo;
     sprite: TSpriteIndex;
     rct: TRectI;
-    i: Integer;
+    i, j: Integer;
+    col: TByteArr;
+    w,h,slice,px: Integer;
+    pf: TImageFormat;
 begin
   Result := True;
   if FPages.Count = 0 then Exit;
@@ -1162,7 +1167,31 @@ begin
     page := PPageInfo(FPages.PItem[sprite.FSlice]);
     if page^.Valid then Continue;
     rct := sprite.FQuad.Rect;
-    FTexH.SetMipImage(rct.Left, rct.Top, rct.Right-rct.Left, rct.Bottom-rct.Top, 0, sprite.FSlice, sprite.FData.PixelFormat, sprite.FData.Data);
+
+    w := sprite.FData.Width;
+    h := sprite.FData.Height;
+    pf:= sprite.FData.PixelFormat;
+    px:= ImagePixelSize[pf];
+    slice := sprite.FSlice;
+
+    FTexH.SetMipImage(rct.Left+1, rct.Top,      rct.Right-rct.Left-2, 1,                    0, slice, pf, sprite.FData.Pixel(0, h-1));
+    FTexH.SetMipImage(rct.Left+1, rct.Top+1,    rct.Right-rct.Left-2, rct.Bottom-rct.Top-2, 0, slice, pf, sprite.FData.Data);
+    FTexH.SetMipImage(rct.Left+1, rct.Bottom-1, rct.Right-rct.Left-2, 1,                    0, slice, pf, sprite.FData.Data);
+
+    if Length(col) <> (h + 2)*px then
+      SetLength(col, (h + 2)*px);
+
+    Move(sprite.FData.Pixel(w-1,h-1)^, col[0], px);
+    for j := 0 to h - 1 do
+      Move(sprite.FData.Pixel(w-1,j)^, col[(j+1)*px], px);
+    Move(sprite.FData.Pixel(w-1,0)^, col[(h+1)*px], px);
+    FTexH.SetMipImage(rct.Left, rct.Top, 1, rct.Bottom-rct.Top, 0, slice, pf, @col[0]);
+
+    Move(sprite.FData.Pixel(0,h-1)^, col[0], px);
+    for j := 0 to h - 1 do
+      Move(sprite.FData.Pixel(0,j)^, col[(j+1)*px], px);
+    Move(sprite.FData.Pixel(0,0)^, col[(h+1)*px], px);
+    FTexH.SetMipImage(rct.Right-1, rct.Top, 1, rct.Bottom-rct.Top, 0, slice, pf, @col[0]);
   end;
 
   for i := 0 to FPages.Count - 1 do
@@ -1183,16 +1212,21 @@ var spriteObj: TSpriteIndex;
     slice: Integer;
     freeIndex: Integer;
     region: TSpriteRegion;
+    allocSize: TVec2i;
 begin
   if not FSprites.TryGetValue(ASprite, spriteObj) then
   begin
-    AllocQuad(Vec(ASprite.Width, ASprite.Height), range, slice);
+    allocSize.x := ASprite.Width+2;
+    allocSize.y := ASprite.Height+2;
+    AllocQuad(allocSize, range, slice);
     freeIndex := AllocIndex();
     spriteObj := TSpriteIndex.Create(Self, freeIndex, ASprite, slice, range);
     FSpriteList[freeIndex] := spriteObj;
     FSprites.Add(ASprite, spriteObj);
     region.Slice := spriteObj.FSlice;
     region.Rect := spriteObj.FQuad.Rect.v;
+    region.Rect.xy := region.Rect.xy + Vec(1,1);
+    region.Rect.zw := region.Rect.zw - Vec(1,1);
     FRegions[freeIndex] := region;
     FRegionsBuffer.Invalidate;
   end;

@@ -222,6 +222,7 @@ type
   function Clamp(const v: TCompType; minval, maxval: TCompType): TCompType; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   function Clamp(const v: TV2; minval, maxval: TCompType): TV2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   function Clamp(const v: TV3; minval, maxval: TCompType): TV3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+  function Clamp(const v: TV4; minval, maxval: TCompType): TV4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   function Sign(const V: TV2): TV2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   function Sign(const V: TV3): TV3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
   function Sign(const V: TV4): TV4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -951,6 +952,13 @@ type
       Result.y := min(maxval, max(minval, v.y));
       Result.z := min(maxval, max(minval, v.z));
   end;
+  function Clamp(const v: TV4; minval, maxval: TCompType): TV4; overload;
+  begin
+      Result.x := min(maxval, max(minval, v.x));
+      Result.y := min(maxval, max(minval, v.y));
+      Result.z := min(maxval, max(minval, v.z));
+	  Result.w := min(maxval, max(minval, v.w));
+  end;  
 
   function Sign(const V: TV2): TV2; overload;
   begin
