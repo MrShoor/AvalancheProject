@@ -21,6 +21,8 @@ procedure InvalidateWindow(Window: TWindow; EraseBackground: Boolean);
 function  IsValidWindow(Window: TWindow): Boolean;
 function  IsKeyPressed(const VKey: Integer): Boolean;
 
+function IsFocusedWindow(Window: TWindow): Boolean;
+
 function GetCursorPos(Window: TWindow; isLocal: boolean; isAbsolute: boolean): TVec2;
 function GetTime64: Int64;
 function GetTime: Double;
@@ -258,6 +260,11 @@ end;
 function  IsKeyPressed(const VKey: Integer): Boolean;
 begin
   Result := GetKeyState(VKey) < 1;
+end;
+
+function IsFocusedWindow(Window: TWindow): Boolean;
+begin
+  Result := GetFocus() = Window;
 end;
 
 function GetCursorPos(Window: TWindow; isLocal: boolean; isAbsolute: boolean): TVec2;

@@ -614,6 +614,10 @@ type
     function Index: Integer;
     function Data : ITextureMip;
   end;
+  ISpriteIndexArr = {$IfDef FPC}specialize{$EndIf} IArray<ISpriteIndex>;
+  TSpriteIndexArr = {$IfDef FPC}specialize{$EndIf} TArray<ISpriteIndex>;
+  ISpriteIndexSet = {$IfDef FPC}specialize{$EndIf} IHashSet<ISpriteIndex>;
+  TSpriteIndexSet = {$IfDef FPC}specialize{$EndIf} THashSet<ISpriteIndex>;
 
   { TavAtlasArrayReferenced }
 

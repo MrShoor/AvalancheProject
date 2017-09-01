@@ -29,6 +29,10 @@ type
   ISpineVertices = {$IfDef FPC}specialize{$EndIf} IArray<TSpineVertex>;
   TSpineVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TSpineVertex>;
 
+  ISpineAddVertexCallback = interface
+    procedure AddVertex(const Coord: TVec3; const TexCoord: TVec2; const Color: TVec4; const AtlasRef: Single);
+  end;
+
   IspAtlas = interface
     function Handle: PspAtlas;
   end;
@@ -42,7 +46,7 @@ type
     function Data : IspSkeletonData;
     function Texture: TavAtlasArrayReferenced;
 
-    function WriteVertices(const AVert: ISpineVertices; const AZ: Single; const DoUpdateWorldTransform: Boolean = True): Integer;
+    function WriteVertices(const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single; const DoUpdateWorldTransform: Boolean = True): Integer;
 
     function  GetPos: TVec2;
     function  GetFlipX: Boolean;
@@ -141,7 +145,7 @@ type
     function Data : IspSkeletonData;
     function Texture: TavAtlasArrayReferenced;
 
-    function WriteVertices(const AVert: ISpineVertices; const AZ: Single; const DoUpdateWorldTransform: Boolean = True): Integer;
+    function WriteVertices(const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single; const DoUpdateWorldTransform: Boolean = True): Integer;
 
     property Pos: TVec2 read GetPos write SetPos;
     property FlipX: Boolean read GetFlipX write SetFlipX;
@@ -358,7 +362,7 @@ begin
   Result := FTexture.Obj as TavAtlasArrayReferenced;
 end;
 
-function TSkeleton.WriteVertices(const AVert: ISpineVertices; const AZ: Single; const DoUpdateWorldTransform: Boolean): Integer;
+function TSkeleton.WriteVertices(const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single; const DoUpdateWorldTransform: Boolean): Integer;
   type TWordArr = array of Word;
 var slot: PPspSlot;
     i, j, n: Integer;
@@ -403,27 +407,27 @@ begin
 
         v.vsCoord.xy := regionWorldPos[0];
         v.vsTexCrd := Vec(regionAtt^.uvs[0], regionAtt^.uvs[1]);
-        AVert.Add(v);
+        AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
 
         v.vsCoord.xy := regionWorldPos[1];
         v.vsTexCrd := Vec(regionAtt^.uvs[2], regionAtt^.uvs[3]);
-        AVert.Add(v);
+        AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
 
         v.vsCoord.xy := regionWorldPos[2];
         v.vsTexCrd := Vec(regionAtt^.uvs[4], regionAtt^.uvs[5]);
-        AVert.Add(v);
+        AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
 
         v.vsCoord.xy := regionWorldPos[0];
         v.vsTexCrd := Vec(regionAtt^.uvs[0], regionAtt^.uvs[1]);
-        AVert.Add(v);
+        AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
 
         v.vsCoord.xy := regionWorldPos[2];
         v.vsTexCrd := Vec(regionAtt^.uvs[4], regionAtt^.uvs[5]);
-        AVert.Add(v);
+        AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
 
         v.vsCoord.xy := regionWorldPos[3];
         v.vsTexCrd := Vec(regionAtt^.uvs[6], regionAtt^.uvs[7]);
-        AVert.Add(v);
+        AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
       end;
 
       SP_ATTACHMENT_MESH:
@@ -446,7 +450,7 @@ begin
           n := TWordArr(meshAtt^.triangles)[j];
           v.vsCoord.xy := GV_BuildBuffer[n];
           v.vsTexCrd := TVec2Arr(meshAtt^.uvs)[n];
-          AVert.Add(v);
+          AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
         end;
       end;
 

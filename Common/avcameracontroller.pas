@@ -33,6 +33,8 @@ type
     procedure CaptureWindow;
     procedure ReleaseCaptureWindow;
     procedure SetEnabled(AValue: Boolean);
+
+    function  MouseInClient: Boolean;
   protected
     procedure EMUps       (var msg: TavMessage);          message EM_UPS;
     procedure EMMouseDown (var msg: TavMouseDownMessage); message EM_MOUSEDOWN;
@@ -42,6 +44,8 @@ type
   protected
     function CanRegister(target: TavObject): boolean; override;
   public
+    WhellOnlyHovered: Boolean;
+
     CameraType : TavCameraType;
     RotateSens : TVec2;
     WellSens   : single;
@@ -88,8 +92,24 @@ begin
   FEnabled := AValue;
 end;
 
+function TavCameraController.MouseInClient: Boolean;
+var cpt: TVec2;
+    wndSize: TVec2i;
+begin
+  Result := False;
+  cpt := GetCursorPos(FMain.Window, True, False);
+  if cpt.x < 0 then Exit;
+  if cpt.y < 0 then Exit;
+  wndSize := FMain.WindowSize;
+  if cpt.x >= wndSize.x then Exit;
+  if cpt.y >= wndSize.y then Exit;
+  Result := True;
+end;
+
 procedure TavCameraController.EMUps(var msg: TavMessage);
 begin
+  if WhellOnlyHovered and not MouseInClient then Exit;
+
   if FZoomIn  then Main.Camera.MoveDeep( msg.param*0.001*ZoomSpeed);
   if FZoomOut then Main.Camera.MoveDeep(-msg.param*0.001*ZoomSpeed);
 end;
@@ -218,6 +238,8 @@ end;
 
 procedure TavCameraController.EMMouseWheel(var msg: TavMouseMessage);
 begin
+  if WhellOnlyHovered and not MouseInClient then Exit;
+
   if CameraType=ctThirdPerson then
   begin
     Main.Camera.MoveDeep(Len(Main.Camera.At - Main.Camera.Eye) * 0.05 * Sign(msg.wheelShift));
