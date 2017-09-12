@@ -37,20 +37,20 @@ const
 type
   TavMessage = packed record
     msg    : Cardinal;
+    result : boolean;
     param  : Integer;
     sender : TObject;
-    result : boolean;      //setup at true if message is processing (broadcasting will stop)
   end;
 
   TShifts = set of (sShift, sAlt, sCtrl, sLeft, sRight, sMiddle, sDouble, sXMButton1, sXMButton2, sLast = SETSIZE_IN_BYTES * 8 - 1);
   TavMouseBtnMessage = packed record
     msg       : Cardinal;
+    result    : boolean;
     button    : integer; // 0=nothing 1=left 2=right 3=middle 4=xbutton1 5=xbutton2
     xPos      : integer;
     yPos      : integer;
     wheelShift: integer;
     shifts    : TShifts;
-    result    : boolean; //setup at true if message is processing (broadcasting will be stopped)
   end;
   TavMouseMessage     = TavMouseBtnMessage;
   TavMouseDownMessage = TavMouseBtnMessage;
@@ -59,10 +59,10 @@ type
 
   TavKeyMessage = packed record
     msg      : Cardinal;
+    result   : boolean;
     shifts   : TShifts;
     Sys      : boolean;
     Dead     : boolean;
-    Result   : boolean;
     case Cardinal of
       0: (Key : Cardinal);
       1: (Char: WideChar);
