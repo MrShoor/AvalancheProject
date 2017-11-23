@@ -11,6 +11,7 @@ type
   TavCamera = class;
   TavProjection = class;
   TavCursor = class;
+  TavFrameBuffer = class;
 
   { TavMainRender }
 
@@ -21,6 +22,7 @@ type
     FContext   : IRenderContext;
     FWindow    : TWindow;
     FActiveProgram: TavProgram;
+    FActiveFrameBuffer: TavFrameBuffer;
 
     FCamera: TavCamera;
     FProjection: TavProjection;
@@ -35,6 +37,7 @@ type
     function GetWindowSize: TVec2i;
     procedure SetActiveProgram(AValue: TavProgram);
     procedure SetWindow(AValue: TWindow);
+    function SetActiveFrameBuffer(const AFBO: TavFrameBuffer): TavFrameBuffer;
 
     procedure AfterInit3D_Broadcast;
     procedure BeforeFree3D_Broadcast;
@@ -74,6 +77,7 @@ type
     property Window: TWindow read GetWindow write SetWindow;
     property WindowSize: TVec2i read GetWindowSize;
     property ActiveProgram: TavProgram read GetActiveProgram write SetActiveProgram;
+    function ActiveFrameBuffer: TavFrameBuffer;
 
     procedure Dispatch(var message); override;
     constructor Create(AParent: TavObject); override;
@@ -717,12 +721,12 @@ type
 
   { TavUAV }
 
-  TavUAV = class(TavRes)
+  TavUAV = class(TavStructuredBase)
   private
     FElementsCount : Integer;
     FStrideSize    : Integer;
     FAppendable    : Boolean;
-    FBufH          : IctxUAV;
+    FUAVBufH       : IctxUAV;
     FInitialElement: TByteArr;
   protected
     procedure BeforeFree3D; override;
@@ -849,7 +853,7 @@ type
     procedure BeforeFree3D; override;
     function DoBuild: Boolean; override;
   public
-    procedure Select(UpdateProjMatrix: Boolean = True);
+    function Select(UpdateProjMatrix: Boolean = True): TavFrameBuffer;
 
     property FrameRect: TRectI read FFrameRect write SetFrameRect;
     property ForcedPOT: Boolean read FForcedPOT write FForcedPOT;
@@ -860,14 +864,16 @@ type
     function GetColor(Index: Integer): TavTextureBase;
     function GetColorMipLevel(Index: Integer): Integer;
     procedure SetColor(Index: Integer; AValue: TavTextureBase; mipLevel: Integer = 0);
-    procedure SetUAV(Index: Integer; AValue: TavUAV);
+    procedure SetUAV(Index: Integer; AValue: TavUAV); overload;
+    procedure SetUAV(Index: Integer; AValue: TavTextureBase); overload;
     procedure SetStreamOut(Index: Integer; ABuffer: TavVerticesBase; Offset: Integer);
 
-    function GetDepth: TavTextureBase;
+    function  GetDepth: TavTextureBase;
     procedure SetDepth(AValue: TavTextureBase; mipLevel: Integer);
 
     procedure Clear(index: Integer; color: TVec4);
     procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
+    procedure ClearUAV(index: Integer; color: TVec4i);
 
     procedure BlitToWindow(index: Integer = 0);
 
@@ -1541,8 +1547,8 @@ end;
 procedure TavUAV.BeforeFree3D;
 begin
   inherited;
-  if FBufH <> nil then Invalidate;
-  FBufH := nil;
+  if FUAVBufH <> nil then Invalidate;
+  FUAVBufH := nil;
 end;
 
 function TavUAV.DoBuild: Boolean;
@@ -1559,7 +1565,8 @@ begin
       Move(FInitialElement[0], initData[i*FStrideSize], FStrideSize);
     initDataPtr := @initData[0];
   end;
-  FBufH := Main.Context.CreateUAV(FElementsCount, FStrideSize, FAppendable, initDataPtr);
+  FUAVBufH := Main.Context.CreateUAV(FElementsCount, FStrideSize, FAppendable, initDataPtr);
+  FbufH := FUAVBufH;
 end;
 
 function TavUAV.ElementsCount: Cardinal;
@@ -1577,13 +1584,13 @@ begin
   if FBufH = nil then
     Result := 0
   else
-    Result := FBufH.ReadCounter;
+    Result := FUAVBufH.ReadCounter;
 end;
 
 function TavUAV.ReadRAWData(const AElementsCount: Integer = -1): TByteArr;
 begin
   if FBufH = nil then Exit(Nil);
-  Result := FBufH.ReadRAWData(AElementsCount);
+  Result := FUAVBufH.ReadRAWData(AElementsCount);
 end;
 
 procedure TavUAV.SetSize(const AElementsCount, AStrideSize: Integer; const AAppendable: Boolean; AInitialElement: Pointer);
@@ -2158,6 +2165,18 @@ begin
   Invalidate;
 end;
 
+procedure TavFrameBuffer.SetUAV(Index: Integer; AValue: TavTextureBase);
+var oldCount: Integer;
+    i: Integer;
+begin
+  oldCount := FUAVs.Count;
+  for i := oldCount to Index do
+    FUAVs.Add(nil);
+  if Assigned(AValue) then
+    FUAVs.Item[index] := AValue.WeakRef;
+  Invalidate;
+end;
+
 procedure TavFrameBuffer.SetStreamOut(Index: Integer; ABuffer: TavVerticesBase; Offset: Integer);
 var oldCount: Integer;
     i: Integer;
@@ -2194,6 +2213,11 @@ procedure TavFrameBuffer.ClearDS(depth: Single; clearDepth: Boolean;
   stencil: Integer; clearStencil: Boolean);
 begin
   FFrameBuf.ClearDS(depth, clearDepth, stencil, clearStencil);
+end;
+
+procedure TavFrameBuffer.ClearUAV(index: Integer; color: TVec4i);
+begin
+  FFrameBuf.ClearUAV(index, color);
 end;
 
 procedure TavFrameBuffer.BlitToWindow(index: Integer);
@@ -2291,12 +2315,27 @@ begin
 
   for i := 0 to FUAVs.Count - 1 do
   begin
-    uav := TavUAV(FUAVs[i].Obj);
-    uav.Build;
-    if Assigned(uav) then
-      FFrameBuf.SetUAV(i, uav.FBufH)
+    if FUAVs[i].Obj is TavUAV then
+    begin
+      uav := TavUAV(FUAVs[i].Obj);
+      uav.Build;
+      if Assigned(uav) then
+        FFrameBuf.SetUAV(i, uav.FUAVBufH)
+      else
+        FFrameBuf.SetUAV(i, nil);
+    end
     else
-      FFrameBuf.SetUAV(i, nil);
+    if FUAVs[i].Obj is TavTextureBase then
+    begin
+      tex := TavTextureBase(FUAVs[i].Obj);
+      tex.Build;
+      if Assigned(tex) then
+        FFrameBuf.SetUAVTex(i, tex.FTexH)
+      else
+        FFrameBuf.SetUAVTex(i, nil);
+    end
+    else
+      Assert(False);
   end;
 
   for i := 0 to FStreams.Count - 1 do
@@ -2318,13 +2357,14 @@ begin
     FFrameBuf.SetDepthStencil(nil, FDepth.mipLevel);
 end;
 
-procedure TavFrameBuffer.Select(UpdateProjMatrix: Boolean);
+function TavFrameBuffer.Select(UpdateProjMatrix: Boolean): TavFrameBuffer;
 begin
   Build;
   Main.Context.States.ViewPort := FFrameRect;
   if UpdateProjMatrix then
     Main.Projection.Aspect := (FFrameRect.Bottom - FFrameRect.Top)/(FFrameRect.Right - FFrameRect.Left);
   FFrameBuf.Select;
+  Result := Main.SetActiveFrameBuffer(Self);
 end;
 
 procedure TavFrameBuffer.ClearColorList;
@@ -2988,6 +3028,11 @@ begin
   Result := FActiveProgram;
 end;
 
+function TavMainRender.ActiveFrameBuffer: TavFrameBuffer;
+begin
+  Result := FActiveFrameBuffer;
+end;
+
 procedure TavMainRender.SetActiveProgram(AValue: TavProgram);
 begin
   if FActiveProgram <> AValue then
@@ -2999,6 +3044,12 @@ begin
       if Assigned(FContext) then
         FContext.ActiveProgram := nil;
   end;
+end;
+
+function TavMainRender.SetActiveFrameBuffer(const AFBO: TavFrameBuffer): TavFrameBuffer;
+begin
+  Result := FActiveFrameBuffer;
+  FActiveFrameBuffer := AFBO;
 end;
 
 function TavMainRender.ActiveApi: T3DAPI;

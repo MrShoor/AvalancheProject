@@ -1007,11 +1007,13 @@ type
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
+    procedure SetUAVTex(index: Integer; UAV: IctxTexture);
     procedure SetUAV(index: Integer; UAV: IctxUAV);
     procedure SetStreamOut(index: Integer; buffer: IctxVetexBuffer; Offset: Integer);
 
     procedure Clear(index: Integer; color: TVec4);
     procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
+    procedure ClearUAV(index: Integer; color: TVec4i);
     procedure ResetUAVCounters;
 
     procedure BlitToWindow(index: Integer; const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
@@ -1175,6 +1177,11 @@ begin
   Assert(False, 'qwe not implemented');
 end;
 
+procedure TFrameBuffer.SetUAVTex(index: Integer; UAV: IctxTexture);
+begin
+  Assert(False, 'qwe not implemented');
+end;
+
 procedure TFrameBuffer.SetUAV(index: Integer; UAV: IctxUAV);
 begin
   Assert(False, 'qwe not implemented');
@@ -1195,6 +1202,11 @@ begin
   else
   if clearStencil then
     glClearBufferiv(GL_STENCIL, 0, @stencil);
+end;
+
+procedure TFrameBuffer.ClearUAV(index: Integer; color: TVec4i);
+begin
+  Assert(False, 'qwe not implemented');
 end;
 
 procedure TFrameBuffer.BlitToWindow(index: Integer; const srcRect, dstRect: TRectI; const Filter: TTextureFilter);

@@ -104,7 +104,7 @@ type
                        const ASrcRes: IctxTexture; const SrcMipLevel: Integer; const SrcRect: TRectI);
   end;
 
-  IctxUAV = interface
+  IctxUAV = interface (IctxStructuredBuffer)
   ['{8CA32553-D7C1-4A87-9AFA-3D348CAC64AB}']
     function ElementsCount: Cardinal;
     function StrideSize: Cardinal;
@@ -165,11 +165,13 @@ type
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0);
+    procedure SetUAVTex(index: Integer; UAV: IctxTexture);
     procedure SetUAV(index: Integer; UAV: IctxUAV);
     procedure SetStreamOut(index: Integer; buffer: IctxVetexBuffer; Offset: Integer);
 
     procedure Clear(index: Integer; color: TVec4);
     procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
+    procedure ClearUAV(index: Integer; color: TVec4i);
     procedure ResetUAVCounters;
 
     procedure BlitToWindow(index: Integer; const srcRect, dstRect: TRectI; const Filter: TTextureFilter);

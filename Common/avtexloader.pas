@@ -87,7 +87,7 @@ BestImageFormat : array [TTextureFormat] of TImageFormat = (
     { R       } TImageFormat.R32,
     { R16     } TImageFormat.R16,
     { R16f    } TImageFormat.R16F,
-    { R32F    } TImageFormat.Unknown,
+    { R32     } TImageFormat.R32,
     { R32f    } TImageFormat.R32F,
     { DXT1    } TImageFormat.DXT1,
     { DXT3    } TImageFormat.DXT3,
