@@ -812,6 +812,8 @@ type
     procedure SetUniform (const AName: string; const tex: TavTextureBase; const sampler: TSamplerInfo); overload;
     procedure SetUniform (const AName: string; const buf: TavStructuredBase); overload;
 
+    procedure SetComputeUAV(const Index: Integer; const uav: TavUAV; const initial: Integer = 0);
+
     procedure Load(const AProgram: string; FromResource: boolean = false; const AProgramPath: string = ''); overload;
     procedure Load(const AProgram: string; const AStremOutputLayout: IDataLayout; FromResource: boolean = false; const AProgramPath: string = ''); overload;
 
@@ -3596,6 +3598,19 @@ begin
   if buf = nil then Exit;
   buf.Build;
   FProgram.SetUniform(GetUniformField(AName), buf.FbufH);
+end;
+
+procedure TavProgram.SetComputeUAV(const Index: Integer; const uav: TavUAV; const initial: Integer);
+begin
+  if uav = nil then
+  begin
+    FProgram.SetComputeUAV(Index, nil, initial);
+  end
+  else
+  begin
+    uav.Build;
+    FProgram.SetComputeUAV(Index, uav.FUAVBufH, initial);
+  end;
 end;
 
 procedure TavProgram.Load(const AProgram: string; FromResource: boolean = false; const AProgramPath: string = '');

@@ -894,6 +894,8 @@ type
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
 
+    procedure SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
+
     procedure Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode; IndexedGeometry: Boolean;
                    InstanceCount: Integer;
                    Start: integer; Count: integer;
@@ -911,6 +913,16 @@ begin
     Device.VSSetShaderResources(FResourceIndex[stVertex], 1, @FResourceView);
   if FSamplerIndex[stVertex]>=0 then
     Device.VSSetSamplers(FSamplerIndex[stVertex], 1, @FSamplerState);
+
+  if FResourceIndex[stTessControl]>=0 then
+    Device.HSSetShaderResources(FResourceIndex[stTessControl], 1, @FResourceView);
+  if FSamplerIndex[stTessControl]>=0 then
+    Device.HSSetSamplers(FSamplerIndex[stTessControl], 1, @FSamplerState);
+
+  if FResourceIndex[stTessEval]>=0 then
+    Device.DSSetShaderResources(FResourceIndex[stTessEval], 1, @FResourceView);
+  if FSamplerIndex[stTessEval]>=0 then
+    Device.DSSetSamplers(FSamplerIndex[stTessEval], 1, @FSamplerState);
 
   if FResourceIndex[stGeometry]>=0 then
     Device.GSSetShaderResources(FResourceIndex[stGeometry], 1, @FResourceView);
@@ -1263,7 +1275,7 @@ begin
   if DXField = nil then Exit;
   if {$IFDEF NOCACHE_UNIFORMS}True{$ELSE}not CompareMem(DXField.Data, @data, datasize){$ENDIF} then
   begin
-    for st := stVertex to stFragment do
+    for st := stVertex to High(TShaderType) do
       if assigned(DXField.FCB[st]) then
       begin
         Move(data, DXField.FData[st]^, datasize);
@@ -1293,7 +1305,7 @@ procedure TProgram.SyncCB;
 var st: TShaderType;
     i: Integer;
 begin
-  for st := stVertex to stFragment do
+  for st := stVertex to High(TShaderType) do
     if Assigned(FCB[st]) then
         FCB[st].SyncToGPU;
   for i := 0 to Length(FResUniforms) - 1 do
@@ -1310,22 +1322,34 @@ begin
   FContext.FDeviceContext.DSSetShader(ID3D11DomainShader(FShader[stTessEval]), nil, 0);
   FContext.FDeviceContext.GSSetShader(ID3D11GeometryShader(FShader[stGeometry]), nil, 0);
   FContext.FDeviceContext.PSSetShader(ID3D11PixelShader(FShader[stFragment]), nil, 0);
-  for st := stVertex to stFragment do
-    if Assigned(FCB[st]) then
+  FContext.FDeviceContext.CSSetShader(ID3D11ComputeShader(FShader[stCompute]), nil, 0);
+  if FShader[stCompute] <> nil then
+  begin
+    if Assigned(FCB[stCompute]) then
     begin
-      FCB[st].SyncToGPU;
-      case st of
-        stVertex     : FContext.FDeviceContext.VSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
-        stTessControl: FContext.FDeviceContext.HSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
-        stTessEval   : FContext.FDeviceContext.DSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
-        stGeometry   : FContext.FDeviceContext.GSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
-        stFragment   : FContext.FDeviceContext.PSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
-      end;
+      FCB[stCompute].SyncToGPU;
+      FContext.FDeviceContext.CSSetConstantBuffers(0, 1, @FCB[stCompute].FBuffer);
     end;
+  end
+  else
+  begin
+    for st := stVertex to stFragment do
+      if Assigned(FCB[st]) then
+      begin
+        FCB[st].SyncToGPU;
+        case st of
+          stVertex     : FContext.FDeviceContext.VSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+          stTessControl: FContext.FDeviceContext.HSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+          stTessEval   : FContext.FDeviceContext.DSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+          stGeometry   : FContext.FDeviceContext.GSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+          stFragment   : FContext.FDeviceContext.PSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+        end;
+      end;
+    if APatchSize > 0 then
+      FSelectedPathSize := APatchSize;
+  end;
   for i := 0 to Length(FResUniforms) - 1 do
     FResUniforms[i].FResChanged := True;
-  if APatchSize > 0 then
-    FSelectedPathSize := APatchSize;
 end;
 
 procedure TProgram.Load(const AProgram: string; FromResource: Boolean; const AStreamOutLayout: IDataLayout);
@@ -1492,6 +1516,7 @@ begin
                                  end;
                                end;
                 stFragment   : Check3DError(FContext.FDevice.CreatePixelShader   (@FData[st][0], Length(FData[st]), nil, ID3D11PixelShader   (ShaderIntf)));
+                stCompute    : Check3DError(FContext.FDevice.CreateComputeShader (@FData[st][0], Length(FData[st]), nil, ID3D11ComputeShader (ShaderIntf)));
               end;
               FShader[st] := ShaderIntf;
               Continue;
@@ -1540,7 +1565,7 @@ begin
     end;
   end;
 
-  for st := stVertex to stFragment do
+  for st := stVertex to High(TShaderType) do
     if Assigned(FCB[st]) then FCB[st].Invalidate;
 end;
 
@@ -1634,7 +1659,7 @@ begin
 
   if Same then Exit;
 
-  for st := stVertex to stFragment do
+  for st := stVertex to High(TShaderType) do
     if Assigned(DXField.FCB[st]) then
     begin
       PV := PVec4(DXField.FData[st]);
@@ -1698,6 +1723,11 @@ begin
     FContext.FDeviceContext.PSSetShaderResources(DXField.FResourceIndex[stFragment], 1, @resview);
   if DXField.FSamplerIndex[stFragment]>=0 then
     FContext.FDeviceContext.PSSetSamplers(DXField.FSamplerIndex[stFragment], 1, @SamplerState);
+
+  if DXField.FResourceIndex[stCompute]>=0 then
+    FContext.FDeviceContext.CSSetShaderResources(DXField.FResourceIndex[stCompute], 1, @resview);
+  if DXField.FSamplerIndex[stCompute]>=0 then
+    FContext.FDeviceContext.CSSetSamplers(DXField.FSamplerIndex[stCompute], 1, @SamplerState);
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer);
@@ -1723,6 +1753,24 @@ begin
 
   if DXField.FResourceIndex[stFragment]>=0 then
     FContext.FDeviceContext.PSSetShaderResources(DXField.FResourceIndex[stFragment], 1, @resview);
+
+  if DXField.FResourceIndex[stCompute]>=0 then
+    FContext.FDeviceContext.CSSetShaderResources(DXField.FResourceIndex[stCompute], 1, @resview);
+end;
+
+procedure TProgram.SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
+var view: ID3D11UnorderedAccessView;
+begin
+  Assert(FShader[stCompute] <> nil);
+  if uav = nil then
+  begin
+    FContext.FDeviceContext.CSSetUnorderedAccessViews(0, 1, nil, @initial);
+  end
+  else
+  begin
+    view := (uav as IctxUAV_DX11).GetView;
+    FContext.FDeviceContext.CSSetUnorderedAccessViews(0, 1, @view, @initial);
+  end;
 end;
 
 procedure TProgram.Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode;

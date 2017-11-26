@@ -976,6 +976,9 @@ type
     procedure SetUniform(const Field: TUniformField; const m: TMat4); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
+
+    procedure SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
+
     procedure Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode; IndexedGeometry: Boolean;
                    InstanceCount: Integer;
                    Start: integer; Count: integer;
@@ -2534,6 +2537,11 @@ begin
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer);
+begin
+  Assert(False, 'Not implemented yet');
+end;
+
+procedure TProgram.SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
 begin
   Assert(False, 'Not implemented yet');
 end;
