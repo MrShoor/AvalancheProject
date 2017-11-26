@@ -898,6 +898,7 @@ type
                    InstanceCount: Integer;
                    Start: integer; Count: integer;
                    BaseVertex: integer; BaseInstance: Integer);
+    procedure Dispatch(GroupDims: TVec3i);
   end;
 
 { TUniformField_DX }
@@ -1756,6 +1757,12 @@ begin
     else
       FContext.FDeviceContext.DrawInstanced(Count, InstanceCount, Start, BaseInstance);
   end;
+end;
+
+procedure TProgram.Dispatch(GroupDims: TVec3i);
+begin
+  SyncCB;
+  FContext.FDeviceContext.Dispatch(GroupDims.x, GroupDims.y, GroupDims.z);
 end;
 
 { TStates }

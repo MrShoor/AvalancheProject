@@ -153,6 +153,7 @@ type
                    InstanceCount: Integer;
                    Start: integer; Count: integer;
                    BaseVertex: integer; BaseInstance: Integer);
+    procedure Dispatch(GroupDims: TVec3i);
   end;
 
   { IctxFrameBuffer }

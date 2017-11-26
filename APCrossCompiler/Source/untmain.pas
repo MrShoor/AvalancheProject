@@ -80,6 +80,9 @@ begin
   begin
     if i = stUnknown then Continue;
     if prog.Shader[i] = '' then Continue;
+    if i <> stCompute then
+      if (prog.Shader[stCompute] <> '') then
+        RaiseHLSL('Compute shader can''t be compile and linked with other shaders');
 
     filename := prog.FullFileName(prog.Shader[i]);
     if filename = '' then

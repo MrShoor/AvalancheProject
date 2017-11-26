@@ -28,6 +28,9 @@ type
     function ExtractTop(): T;
     procedure Insert(const Value: T);
 
+    procedure Reset;
+    function Next(out AItem: T): Boolean;
+
     procedure Trim;
     procedure Clear(const NewCapacity: Integer);
   end;

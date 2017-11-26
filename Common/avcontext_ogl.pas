@@ -980,6 +980,7 @@ type
                    InstanceCount: Integer;
                    Start: integer; Count: integer;
                    BaseVertex: integer; BaseInstance: Integer);
+    procedure Dispatch(GroupDims: TVec3i);
   public
     constructor Create(AContext: TContext_OGL); override;
     destructor Destroy; override;
@@ -2599,6 +2600,11 @@ begin
       else
         glDrawArraysInstanced(GLPrimitiveType[PrimTopology], Start, Count, InstanceCount);
   end;
+end;
+
+procedure TProgram.Dispatch(GroupDims: TVec3i);
+begin
+  Assert(False,'not implemeted yet');
 end;
 
 constructor TProgram.Create(AContext: TContext_OGL);

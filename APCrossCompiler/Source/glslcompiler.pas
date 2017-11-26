@@ -21,8 +21,8 @@ procedure CompileGLSL(const code: AnsiString; st: TShaderType);
 procedure LinkGLSL(const prog: TProgramInfo; code: TShadersString; const OutFile: string);
 
 implementation
-                                                    {stUnknown,    stVertex,      stTessControl,          stTessEval,                stGeometry,         stFragment}
-const GL_ShaderType: array [TShaderType] of GLuint = (GL_ZERO, GL_VERTEX_SHADER, GL_TESS_CONTROL_SHADER, GL_TESS_EVALUATION_SHADER, GL_GEOMETRY_SHADER, GL_FRAGMENT_SHADER);
+                                                    {stUnknown,    stVertex,      stTessControl,          stTessEval,                stGeometry,         stFragment,        stCompute}
+const GL_ShaderType: array [TShaderType] of GLuint = (GL_ZERO, GL_VERTEX_SHADER, GL_TESS_CONTROL_SHADER, GL_TESS_EVALUATION_SHADER, GL_GEOMETRY_SHADER, GL_FRAGMENT_SHADER, GL_COMPUTE_SHADER);
 
 type
   TGLContext = class

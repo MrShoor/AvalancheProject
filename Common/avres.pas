@@ -728,10 +728,17 @@ type
     FAppendable    : Boolean;
     FUAVBufH       : IctxUAV;
     FInitialElement: TByteArr;
+  private
+    FDropLocalAfterBuild: Boolean;
+    FVert: IVerticesData;
+    procedure SetVert(AValue: IVerticesData);
   protected
     procedure BeforeFree3D; override;
     function DoBuild: Boolean; override;
   public
+    property DropLocalAfterBuild: Boolean read FDropLocalAfterBuild write FDropLocalAfterBuild;
+    property Vertices: IVerticesData read FVert write SetVert;
+
     function ElementsCount: Cardinal;
     function StrideSize: Cardinal;
 
@@ -815,6 +822,7 @@ type
                    InstanceCount: Integer = 0;
                    Start: integer = 0; Count: integer = - 1;
                    BaseVertex: integer = 0; BaseInstance: Integer = 0); overload;
+    procedure Dispatch(GroupDims: TVec3i);
 
     destructor Destroy; override;
   end;
@@ -1544,6 +1552,17 @@ end;
 
 { TavUAV }
 
+procedure TavUAV.SetVert(AValue: IVerticesData);
+begin
+  if FVert = AValue then Exit;
+  FVert := AValue;
+  FElementsCount := AValue.VerticesCount;
+  FStrideSize := AValue.Layout.Size;
+  FInitialElement := nil;
+  FAppendable := False;
+  Invalidate;
+end;
+
 procedure TavUAV.BeforeFree3D;
 begin
   inherited;
@@ -1557,15 +1576,20 @@ var initData: TByteArr;
     i: Integer;
 begin
   Result := inherited DoBuild;
-  initDataPtr := nil;
-  if FInitialElement <> nil then
+  if FVert = nil then
   begin
-    SetLength(initData, FElementsCount*FStrideSize);
-    for i := 0 to FElementsCount - 1 do
-      Move(FInitialElement[0], initData[i*FStrideSize], FStrideSize);
-    initDataPtr := @initData[0];
-  end;
-  FUAVBufH := Main.Context.CreateUAV(FElementsCount, FStrideSize, FAppendable, initDataPtr);
+    initDataPtr := nil;
+    if FInitialElement <> nil then
+    begin
+      SetLength(initData, FElementsCount*FStrideSize);
+      for i := 0 to FElementsCount - 1 do
+        Move(FInitialElement[0], initData[i*FStrideSize], FStrideSize);
+      initDataPtr := @initData[0];
+    end;
+    FUAVBufH := Main.Context.CreateUAV(FElementsCount, FStrideSize, FAppendable, initDataPtr);
+  end
+  else
+    FUAVBufH := Main.Context.CreateUAV(FElementsCount, FStrideSize, FAppendable, FVert.Data.data);
   FbufH := FUAVBufH;
 end;
 
@@ -1595,6 +1619,7 @@ end;
 
 procedure TavUAV.SetSize(const AElementsCount, AStrideSize: Integer; const AAppendable: Boolean; AInitialElement: Pointer);
 begin
+  FVert := nil;
   if FElementsCount <> AElementsCount then
   begin
     FElementsCount := AElementsCount;
@@ -3621,6 +3646,11 @@ begin
   end;
 
   FProgram.Draw(PrimTopology, CullMode, IndexedGeometry, InstanceCount, Start, ICount, BaseVertex, BaseInstance);
+end;
+
+procedure TavProgram.Dispatch(GroupDims: TVec3i);
+begin
+  FProgram.Dispatch(GroupDims);
 end;
 
 destructor TavProgram.Destroy;
