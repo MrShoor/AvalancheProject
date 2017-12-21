@@ -213,6 +213,8 @@ type
     function IsEmpty : Boolean;
     function Point(index: Integer): TVec3;
     function Edge(index: Integer): TLine;
+
+    function InFrustum(const AViewProj: TMat4; const ADepthRange: TVec2): Boolean;
     {$IfDef DCC}
     class operator Add (const AABB: TAABB; const v: TVec3): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
     class operator Add (const Box1, Box2: TAABB): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -720,6 +722,43 @@ begin
     Result.Dir := Vec(0,0,0);
     Result.Pnt := Vec(0,0,0);
   end;
+end;
+
+function TAABB.InFrustum(const AViewProj: TMat4; const ADepthRange: TVec2): Boolean;
+var
+  i: Integer;
+  pts: array [0..7] of TVec4;
+begin
+  for i := 0 to 7 do
+    pts[i] := Vec(Point(i), 1.0) * AViewProj;
+
+  Result := False;
+
+  i := 0;
+  while (i < 8) and (pts[i].x < -pts[i].w) do inc(i);
+  if i = 8 then exit;
+
+  i := 0;
+  while (i < 8) and (pts[i].x >  pts[i].w) do inc(i);
+  if i = 8 then exit;
+
+  i := 0;
+  while (i < 8) and (pts[i].y < -pts[i].w) do inc(i);
+  if i = 8 then exit;
+
+  i := 0;
+  while (i < 8) and (pts[i].y >  pts[i].w) do inc(i);
+  if i = 8 then exit;
+
+  i := 0;
+  while (i < 8) and (pts[i].z < pts[i].w*ADepthRange.x) do inc(i);
+  if i = 8 then exit;
+
+  i := 0;
+  while (i < 8) and (pts[i].z > pts[i].w*ADepthRange.y) do inc(i);
+  if i = 8 then exit;
+
+  Result := True;
 end;
 
 {$IfDef DCC}

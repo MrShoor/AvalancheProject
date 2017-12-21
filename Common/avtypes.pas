@@ -86,11 +86,11 @@ const
   API_Suffix : array [T3DAPI] of string = ('.glsl', '.hlsl', '.hlsl');
 
 type
-  TShaderType = (stUnknown, stVertex, stTessControl, stTessEval, stGeometry, stFragment);
+  TShaderType = (stUnknown, stVertex, stTessControl, stTessEval, stGeometry, stFragment, stCompute);
 
 const
-  ShaderType_Name : array [TShaderType] of string = ('Unknown', 'Vertex', 'TessControl', 'TessEval', 'Geometry', 'Fragment');
-  ShaderType_FourCC : array [TShaderType] of Cardinal = (0, $54524556, $4E4F4354, $4C564554, $4D4F4547, $47415246);
+  ShaderType_Name : array [TShaderType] of string = ('Unknown', 'Vertex', 'TessControl', 'TessEval', 'Geometry', 'Fragment', 'Compute');
+  ShaderType_FourCC : array [TShaderType] of Cardinal = (0, $54524556, $4E4F4354, $4C564554, $4D4F4547, $47415246, $504D4F43);
 
 type
   TCullingMode = (cmNone, cmBack, cmFront);

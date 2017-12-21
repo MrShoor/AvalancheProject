@@ -60,6 +60,7 @@ type
     OpenDialog: TOpenDialog;
     Panel1: TPanel;
     RenderPanel: TPanel;
+    Timer1: TTimer;
     procedure ApplicationProperties1Idle(Sender: TObject; var Done: Boolean);
     procedure btnClearClick(Sender: TObject);
     procedure btnLoadClick(Sender: TObject);
@@ -70,6 +71,7 @@ type
     procedure btnFitClick(Sender: TObject);
     procedure RenderPanelMouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
+    procedure Timer1Timer(Sender: TObject);
   private
     procedure Sync3DApi;
     procedure RenderScene;
@@ -478,6 +480,12 @@ begin
     Caption := Format('File: %s; Cursor Pos: (x: %f.3, z: %f.3)', [FLoadedFile, IntPt.x, IntPt.z])
   else
     Caption := 'File: '+FLoadedFile;
+end;
+
+procedure TfrmMain.Timer1Timer(Sender: TObject);
+begin
+  if FMain <> nil then
+    FMain.InvalidateWindow;
 end;
 
 end.

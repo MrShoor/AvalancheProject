@@ -106,7 +106,7 @@ const
   {R} DXGI_FORMAT_R8_UNORM,
   {R16} DXGI_FORMAT_R16_UNORM,
   {R16f} DXGI_FORMAT_R16_FLOAT,
-  {R32} DXGI_FORMAT_R32_SINT,
+  {R32} DXGI_FORMAT_R32_UINT,
   {R32f} DXGI_FORMAT_R32_FLOAT,
   {DXT1} DXGI_FORMAT_BC1_UNORM,
   {DXT3} DXGI_FORMAT_BC2_UNORM,
@@ -138,7 +138,7 @@ const
   {R} DXGI_FORMAT_R8_UNORM,
   {R16} DXGI_FORMAT_R16_UNORM,
   {R16f} DXGI_FORMAT_R16_FLOAT,
-  {R32} DXGI_FORMAT_R32_SINT,
+  {R32} DXGI_FORMAT_R32_UINT,
   {R32f} DXGI_FORMAT_R32_FLOAT,
   {DXT1} DXGI_FORMAT_BC1_UNORM,
   {DXT3} DXGI_FORMAT_BC2_UNORM,
@@ -170,7 +170,7 @@ const
   {R} DXGI_FORMAT_R8_UNORM,
   {R16} DXGI_FORMAT_R16_UNORM,
   {R16f} DXGI_FORMAT_R16_FLOAT,
-  {R32} DXGI_FORMAT_R32_SINT,
+  {R32} DXGI_FORMAT_R32_UINT,
   {R32f} DXGI_FORMAT_R32_FLOAT,
   {DXT1} DXGI_FORMAT_UNKNOWN,
   {DXT3} DXGI_FORMAT_UNKNOWN,
@@ -518,9 +518,15 @@ type
     function GetResCubeView: ID3D11ShaderResourceView;
   end;
 
+  IctxUAV_DX11 = interface
+  ['{07D7CCE8-A382-4667-8A3A-BEF73928C2A5}']
+    procedure InvalidateCounter;
+    function GetView: ID3D11UnorderedAccessView;
+  end;
+
   { TTexture }
 
-  TTexture = class (THandleObject, IctxTexture, IctxTexture_DX11)
+  TTexture = class (THandleObject, IctxTexture, IctxTexture_DX11, IctxUAV_DX11)
   private
     FTargetFormat: TTextureFormat;
     FWidth: Integer;
@@ -536,11 +542,16 @@ type
     FResView: ID3D11ShaderResourceView;
     FCubeResView: ID3D11ShaderResourceView;
 
-    function BuildDesc(AWidth, AHeight, ADeep: Integer; WithMips: Boolean): TD3D11_Texture2DDesc;
+    FUAVView: ID3D11UnorderedAccessView;
 
+    function BuildDesc(AWidth, AHeight, ADeep: Integer; WithMips: Boolean): TD3D11_Texture2DDesc;
+  private //IctxTexture_DX11
     function GetHandle : ID3D11Texture2D;
     function GetResView: ID3D11ShaderResourceView;
     function GetResCubeView: ID3D11ShaderResourceView;
+  private //IctxUAV_DX11
+    procedure InvalidateCounter;
+    function GetView: ID3D11UnorderedAccessView;
   public
     //*******
     function GetTargetFormat: TTextureFormat;
@@ -580,12 +591,6 @@ type
     function GetObj: TFrameBuffer;
   end;
 
-  IctxUAV_DX11 = interface (IctxUAV)
-  ['{7CF255BF-6B18-49E9-927A-8C2D59D36A0C}']
-    procedure InvalidateCounter;
-    function GetView: ID3D11UnorderedAccessView;
-  end;
-
   { TFrameBuffer }
 
   TFrameBuffer = class (THandleObject, IctxFrameBuffer, IctxFrameBuffer_DX11)
@@ -619,18 +624,22 @@ type
 
     FValid: Boolean;
     function GetObj: TFrameBuffer;
+
+    procedure SetUAV_Internal(index: Integer; const UAV: IctxUAV_DX11);
   public
     procedure Select;
 
     procedure ClearColorList;
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0);
+    procedure SetUAVTex(index: Integer; UAV: IctxTexture);
     procedure SetUAV(index: Integer; UAV: IctxUAV);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0);
     procedure SetStreamOut(index: Integer; buffer: IctxVetexBuffer; Offset: Integer);
 
     procedure Clear(index: Integer; color: TVec4);
     procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
+    procedure ClearUAV(index: Integer; color: TVec4i);
     procedure ResetUAVCounters;
 
     procedure BlitToWindow(index: Integer; const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
@@ -750,12 +759,14 @@ type
 
   { TUAV }
 
-  TUAV = class(THandleObject, IctxUAV, IctxUAV_DX11)
+  TUAV = class(THandleObject, IctxUAV, IctxUAV_DX11, IctxStructuredBuffer_DX)
   private
     FElementsCount: Cardinal;
     FStrideSize: Cardinal;
     FBuffer: ID3D11Buffer;
     FView: ID3D11UnorderedAccessView;
+
+    FShaderView: ID3D11ShaderResourceView;
 
     FLastCounterValid: Boolean;
     FLastCounter: Cardinal;
@@ -768,6 +779,22 @@ type
     function ReadRAWData(AElementsCount: Integer = -1): TByteArr;
 
     function GetView: ID3D11UnorderedAccessView;
+  private //IctxBuffer
+    function GetTargetPoolType : TBufferPoolType;
+    procedure SetTargetPoolType(Value : TBufferPoolType);
+
+    function Size : Integer;
+
+    function Map(usage: TMapingUsage): PByte;
+    function Unmap: Boolean;
+    procedure AllocMem(ASize : Integer; Data : PByte); Overload;
+    procedure SetSubData(AOffset, ASize : Integer; Data : PByte); Overload;
+  private //IctxStructuredBuffer
+    function  GetElementSize: Integer;
+    procedure SetElementSize(const AValue: Integer);
+  private //IctxStructuredBuffer_DX
+    function Handle: ID3D11Buffer;
+    function View  : ID3D11ShaderResourceView;
   public
     constructor Create(const AContext: TContext_DX11; const AElementsCount, AStrideSize: Cardinal; const Appendable: Boolean; const AInitialData: Pointer); reintroduce;
     //destructor Destroy; override;
@@ -867,10 +894,13 @@ type
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
 
+    procedure SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
+
     procedure Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode; IndexedGeometry: Boolean;
                    InstanceCount: Integer;
                    Start: integer; Count: integer;
                    BaseVertex: integer; BaseInstance: Integer);
+    procedure Dispatch(GroupDims: TVec3i);
   end;
 
 { TUniformField_DX }
@@ -883,6 +913,16 @@ begin
     Device.VSSetShaderResources(FResourceIndex[stVertex], 1, @FResourceView);
   if FSamplerIndex[stVertex]>=0 then
     Device.VSSetSamplers(FSamplerIndex[stVertex], 1, @FSamplerState);
+
+  if FResourceIndex[stTessControl]>=0 then
+    Device.HSSetShaderResources(FResourceIndex[stTessControl], 1, @FResourceView);
+  if FSamplerIndex[stTessControl]>=0 then
+    Device.HSSetSamplers(FSamplerIndex[stTessControl], 1, @FSamplerState);
+
+  if FResourceIndex[stTessEval]>=0 then
+    Device.DSSetShaderResources(FResourceIndex[stTessEval], 1, @FResourceView);
+  if FSamplerIndex[stTessEval]>=0 then
+    Device.DSSetSamplers(FSamplerIndex[stTessEval], 1, @FSamplerState);
 
   if FResourceIndex[stGeometry]>=0 then
     Device.GSSetShaderResources(FResourceIndex[stGeometry], 1, @FResourceView);
@@ -1235,7 +1275,7 @@ begin
   if DXField = nil then Exit;
   if {$IFDEF NOCACHE_UNIFORMS}True{$ELSE}not CompareMem(DXField.Data, @data, datasize){$ENDIF} then
   begin
-    for st := stVertex to stFragment do
+    for st := stVertex to High(TShaderType) do
       if assigned(DXField.FCB[st]) then
       begin
         Move(data, DXField.FData[st]^, datasize);
@@ -1265,7 +1305,7 @@ procedure TProgram.SyncCB;
 var st: TShaderType;
     i: Integer;
 begin
-  for st := stVertex to stFragment do
+  for st := stVertex to High(TShaderType) do
     if Assigned(FCB[st]) then
         FCB[st].SyncToGPU;
   for i := 0 to Length(FResUniforms) - 1 do
@@ -1282,22 +1322,34 @@ begin
   FContext.FDeviceContext.DSSetShader(ID3D11DomainShader(FShader[stTessEval]), nil, 0);
   FContext.FDeviceContext.GSSetShader(ID3D11GeometryShader(FShader[stGeometry]), nil, 0);
   FContext.FDeviceContext.PSSetShader(ID3D11PixelShader(FShader[stFragment]), nil, 0);
-  for st := stVertex to stFragment do
-    if Assigned(FCB[st]) then
+  FContext.FDeviceContext.CSSetShader(ID3D11ComputeShader(FShader[stCompute]), nil, 0);
+  if FShader[stCompute] <> nil then
+  begin
+    if Assigned(FCB[stCompute]) then
     begin
-      FCB[st].SyncToGPU;
-      case st of
-        stVertex     : FContext.FDeviceContext.VSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
-        stTessControl: FContext.FDeviceContext.HSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
-        stTessEval   : FContext.FDeviceContext.DSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
-        stGeometry   : FContext.FDeviceContext.GSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
-        stFragment   : FContext.FDeviceContext.PSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
-      end;
+      FCB[stCompute].SyncToGPU;
+      FContext.FDeviceContext.CSSetConstantBuffers(0, 1, @FCB[stCompute].FBuffer);
     end;
+  end
+  else
+  begin
+    for st := stVertex to stFragment do
+      if Assigned(FCB[st]) then
+      begin
+        FCB[st].SyncToGPU;
+        case st of
+          stVertex     : FContext.FDeviceContext.VSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+          stTessControl: FContext.FDeviceContext.HSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+          stTessEval   : FContext.FDeviceContext.DSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+          stGeometry   : FContext.FDeviceContext.GSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+          stFragment   : FContext.FDeviceContext.PSSetConstantBuffers(0, 1, @FCB[st].FBuffer);
+        end;
+      end;
+    if APatchSize > 0 then
+      FSelectedPathSize := APatchSize;
+  end;
   for i := 0 to Length(FResUniforms) - 1 do
     FResUniforms[i].FResChanged := True;
-  if APatchSize > 0 then
-    FSelectedPathSize := APatchSize;
 end;
 
 procedure TProgram.Load(const AProgram: string; FromResource: Boolean; const AStreamOutLayout: IDataLayout);
@@ -1330,7 +1382,7 @@ procedure TProgram.Load(const AProgram: string; FromResource: Boolean; const ASt
       if blockSize > 0 then
       begin
         Result := TConstantBuffer.Create(FContext);
-        Result.AllocMem(blockSize, nil);
+        Result.AllocMem(Ceil(blockSize/16)*16, nil);
       end;
 
       Stream.ReadBuffer(n, SizeOf(n));
@@ -1464,6 +1516,7 @@ begin
                                  end;
                                end;
                 stFragment   : Check3DError(FContext.FDevice.CreatePixelShader   (@FData[st][0], Length(FData[st]), nil, ID3D11PixelShader   (ShaderIntf)));
+                stCompute    : Check3DError(FContext.FDevice.CreateComputeShader (@FData[st][0], Length(FData[st]), nil, ID3D11ComputeShader (ShaderIntf)));
               end;
               FShader[st] := ShaderIntf;
               Continue;
@@ -1512,7 +1565,7 @@ begin
     end;
   end;
 
-  for st := stVertex to stFragment do
+  for st := stVertex to High(TShaderType) do
     if Assigned(FCB[st]) then FCB[st].Invalidate;
 end;
 
@@ -1606,7 +1659,7 @@ begin
 
   if Same then Exit;
 
-  for st := stVertex to stFragment do
+  for st := stVertex to High(TShaderType) do
     if Assigned(DXField.FCB[st]) then
     begin
       PV := PVec4(DXField.FData[st]);
@@ -1670,6 +1723,11 @@ begin
     FContext.FDeviceContext.PSSetShaderResources(DXField.FResourceIndex[stFragment], 1, @resview);
   if DXField.FSamplerIndex[stFragment]>=0 then
     FContext.FDeviceContext.PSSetSamplers(DXField.FSamplerIndex[stFragment], 1, @SamplerState);
+
+  if DXField.FResourceIndex[stCompute]>=0 then
+    FContext.FDeviceContext.CSSetShaderResources(DXField.FResourceIndex[stCompute], 1, @resview);
+  if DXField.FSamplerIndex[stCompute]>=0 then
+    FContext.FDeviceContext.CSSetSamplers(DXField.FSamplerIndex[stCompute], 1, @SamplerState);
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer);
@@ -1695,6 +1753,24 @@ begin
 
   if DXField.FResourceIndex[stFragment]>=0 then
     FContext.FDeviceContext.PSSetShaderResources(DXField.FResourceIndex[stFragment], 1, @resview);
+
+  if DXField.FResourceIndex[stCompute]>=0 then
+    FContext.FDeviceContext.CSSetShaderResources(DXField.FResourceIndex[stCompute], 1, @resview);
+end;
+
+procedure TProgram.SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
+var view: ID3D11UnorderedAccessView;
+begin
+  Assert(FShader[stCompute] <> nil);
+  if uav = nil then
+  begin
+    FContext.FDeviceContext.CSSetUnorderedAccessViews(0, 1, nil, @initial);
+  end
+  else
+  begin
+    view := (uav as IctxUAV_DX11).GetView;
+    FContext.FDeviceContext.CSSetUnorderedAccessViews(0, 1, @view, @initial);
+  end;
 end;
 
 procedure TProgram.Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode;
@@ -1729,6 +1805,12 @@ begin
     else
       FContext.FDeviceContext.DrawInstanced(Count, InstanceCount, Start, BaseInstance);
   end;
+end;
+
+procedure TProgram.Dispatch(GroupDims: TVec3i);
+begin
+  SyncCB;
+  FContext.FDeviceContext.Dispatch(GroupDims.x, GroupDims.y, GroupDims.z);
 end;
 
 { TStates }
@@ -2512,6 +2594,12 @@ begin
       Result.BindFlags := Result.BindFlags or DWord(D3D11_BIND_RENDER_TARGET);
   end;
 
+  case FTargetFormat of
+    TTextureFormat.R32f,
+    TTextureFormat.R32:
+      Result.BindFlags := Result.BindFlags or DWord(D3D11_BIND_UNORDERED_ACCESS);
+  end;
+
   Result.ArraySize := ADeep;
   Result.Format := D3D11TextureFormat[FTargetFormat];
   if FsRGB then Result.Format := Add_sRGB(Result.Format);
@@ -2590,6 +2678,31 @@ begin
   Result := FTargetFormat;
 end;
 
+function TTexture.GetView: ID3D11UnorderedAccessView;
+var
+  uavdesc: TD3D11_UnorderedAccessViewDesc;
+begin
+  if FUAVView = nil then
+  begin
+    uavdesc.Format := D3D11ShaderViewFormat[FFormat];
+
+    if (FDeep > 1) or FForcedArray then
+    begin
+      uavdesc.ViewDimension := D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
+      uavdesc.Texture2DArray.ArraySize := FDeep;
+      uavdesc.Texture2DArray.MipSlice := 0;
+    end
+    else
+    begin
+      uavdesc.ViewDimension := D3D11_UAV_DIMENSION_TEXTURE2D;
+      uavdesc.Texture2D.MipSlice := 0;
+    end;
+
+    Check3DError(FContext.FDevice.CreateUnorderedAccessView(FTexture, @uavdesc, FUAVView));
+  end;
+  Result := FUAVView;
+end;
+
 function TTexture.Get_sRGB: Boolean;
 begin
   Result := FsRGB;
@@ -2613,6 +2726,11 @@ end;
 function TTexture.Height: Integer;
 begin
   Result := FHeight;
+end;
+
+procedure TTexture.InvalidateCounter;
+begin
+
 end;
 
 function TTexture.Deep: Integer;
@@ -2973,7 +3091,7 @@ begin
   FValid := False;
 end;
 
-procedure TFrameBuffer.SetUAV(index: Integer; UAV: IctxUAV);
+procedure TFrameBuffer.SetUAV_Internal(index: Integer; const UAV: IctxUAV_DX11);
 begin
   Assert(Length(FStreams)=0, 'You can''t mix stream output with render to UAV');
   if index <= Length(FUAV) then
@@ -2985,11 +3103,21 @@ begin
 
   if FUAV[index].UAV = UAV then Exit;
 
-  FUAV[index].UAV := IctxUAV_DX11(UAV);
-  FUAVViews[index] := IctxUAV_DX11(UAV).GetView;
+  FUAV[index].UAV := UAV;
+  FUAVViews[index] := UAV.GetView;
   FUAVInitials[index] := 0;
+end;
 
-//  FValid := False;
+procedure TFrameBuffer.SetUAVTex(index: Integer; UAV: IctxTexture);
+begin
+  Assert(Length(FStreams)=0, 'You can''t mix stream output with render to UAV');
+  SetUAV_Internal(index, UAV as IctxUAV_DX11);
+end;
+
+procedure TFrameBuffer.SetUAV(index: Integer; UAV: IctxUAV);
+begin
+  Assert(Length(FStreams)=0, 'You can''t mix stream output with render to UAV');
+  SetUAV_Internal(index, UAV as IctxUAV_DX11);
 end;
 
 procedure TFrameBuffer.Clear(index: Integer; color: TVec4);
@@ -3008,6 +3136,12 @@ begin
   if clearStencil then flags := flags or DWord(D3D11_CLEAR_STENCIL);
   if flags = 0 then Exit;
   FContext.FDeviceContext.ClearDepthStencilView(FDepthView, flags, depth, stencil);
+end;
+
+procedure TFrameBuffer.ClearUAV(index: Integer; color: TVec4i);
+begin
+  Assert(FUAVViews[index] <> nil);
+  FContext.FDeviceContext.ClearUnorderedAccessViewUint(FUAVViews[index], TQuadArray_UInt(color));
 end;
 
 procedure TFrameBuffer.BlitToWindow(index: Integer; const srcRect,
@@ -3361,6 +3495,11 @@ end;
 
 { TUAV }
 
+procedure TUAV.AllocMem(ASize: Integer; Data: PByte);
+begin
+  Assert(False, 'not available for UAV');
+end;
+
 constructor TUAV.Create(const AContext: TContext_DX11; const AElementsCount, AStrideSize: Cardinal; const Appendable: Boolean; const AInitialData: Pointer);
 var bufdesc: TD3D11_BufferDesc;
     uavdesc: TD3D11_UnorderedAccessViewDesc;
@@ -3373,7 +3512,7 @@ begin
   // create sbuf + view
   bufdesc.ByteWidth := FElementsCount*FStrideSize;
   bufdesc.Usage := D3D11_USAGE_DEFAULT;
-  bufdesc.BindFlags := Cardinal(D3D11_BIND_UNORDERED_ACCESS);
+  bufdesc.BindFlags := Cardinal(D3D11_BIND_UNORDERED_ACCESS) Or Cardinal(D3D11_BIND_SHADER_RESOURCE);
   bufdesc.CPUAccessFlags := 0;
   bufdesc.MiscFlags := Cardinal(D3D11_RESOURCE_MISC_BUFFER_STRUCTURED);
   bufdesc.StructureByteStride := AStrideSize;
@@ -3404,14 +3543,34 @@ begin
   Result := FElementsCount;
 end;
 
+function TUAV.GetElementSize: Integer;
+begin
+  Result := FStrideSize;
+end;
+
+function TUAV.GetTargetPoolType: TBufferPoolType;
+begin
+  Result := TBufferPoolType.StaticDraw;
+end;
+
 function TUAV.GetView: ID3D11UnorderedAccessView;
 begin
   Result := FView;
 end;
 
+function TUAV.Handle: ID3D11Buffer;
+begin
+  Result := FBuffer;
+end;
+
 procedure TUAV.InvalidateCounter;
 begin
   FLastCounterValid := False;
+end;
+
+function TUAV.Map(usage: TMapingUsage): PByte;
+begin
+  Assert(False, 'not available for UAV');
 end;
 
 function TUAV.ReadCounter: Cardinal;
@@ -3471,9 +3630,48 @@ begin
   FContext.GetDeviceContext.Unmap(cpubuf, 0);
 end;
 
+procedure TUAV.SetElementSize(const AValue: Integer);
+begin
+  Assert(False, 'not available for UAV');
+end;
+
+procedure TUAV.SetSubData(AOffset, ASize: Integer; Data: PByte);
+begin
+  Assert(False, 'not available for UAV');
+end;
+
+procedure TUAV.SetTargetPoolType(Value: TBufferPoolType);
+begin
+  Assert(False, 'not available for UAV');
+end;
+
+function TUAV.Size: Integer;
+begin
+  Result := FElementsCount * FStrideSize;
+end;
+
 function TUAV.StrideSize: Cardinal;
 begin
   Result := FStrideSize;
+end;
+
+function TUAV.Unmap: Boolean;
+begin
+  Assert(False, 'not available for UAV');
+end;
+
+function TUAV.View: ID3D11ShaderResourceView;
+var desc: TD3D11_ShaderResourceViewDesc;
+begin
+  if FShaderView = nil then
+  begin
+    desc.Format := DXGI_FORMAT_UNKNOWN;
+    desc.ViewDimension := D3D11_SRV_DIMENSION_BUFFER;
+    desc.Buffer.FirstElement := 0;
+    desc.Buffer.NumElements :=  FElementsCount;
+    Check3DError( FContext.FDevice.CreateShaderResourceView(FBuffer, @desc, FShaderView) );
+  end;
+  Result := FShaderView;
 end;
 
 { TStructuredBuffer }

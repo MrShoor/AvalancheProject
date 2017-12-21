@@ -976,10 +976,14 @@ type
     procedure SetUniform(const Field: TUniformField; const m: TMat4); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
+
+    procedure SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
+
     procedure Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode; IndexedGeometry: Boolean;
                    InstanceCount: Integer;
                    Start: integer; Count: integer;
                    BaseVertex: integer; BaseInstance: Integer);
+    procedure Dispatch(GroupDims: TVec3i);
   public
     constructor Create(AContext: TContext_OGL); override;
     destructor Destroy; override;
@@ -1007,11 +1011,13 @@ type
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
+    procedure SetUAVTex(index: Integer; UAV: IctxTexture);
     procedure SetUAV(index: Integer; UAV: IctxUAV);
     procedure SetStreamOut(index: Integer; buffer: IctxVetexBuffer; Offset: Integer);
 
     procedure Clear(index: Integer; color: TVec4);
     procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
+    procedure ClearUAV(index: Integer; color: TVec4i);
     procedure ResetUAVCounters;
 
     procedure BlitToWindow(index: Integer; const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
@@ -1175,6 +1181,11 @@ begin
   Assert(False, 'qwe not implemented');
 end;
 
+procedure TFrameBuffer.SetUAVTex(index: Integer; UAV: IctxTexture);
+begin
+  Assert(False, 'qwe not implemented');
+end;
+
 procedure TFrameBuffer.SetUAV(index: Integer; UAV: IctxUAV);
 begin
   Assert(False, 'qwe not implemented');
@@ -1195,6 +1206,11 @@ begin
   else
   if clearStencil then
     glClearBufferiv(GL_STENCIL, 0, @stencil);
+end;
+
+procedure TFrameBuffer.ClearUAV(index: Integer; color: TVec4i);
+begin
+  Assert(False, 'qwe not implemented');
 end;
 
 procedure TFrameBuffer.BlitToWindow(index: Integer; const srcRect, dstRect: TRectI; const Filter: TTextureFilter);
@@ -2525,6 +2541,11 @@ begin
   Assert(False, 'Not implemented yet');
 end;
 
+procedure TProgram.SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
+begin
+  Assert(False, 'Not implemented yet');
+end;
+
 procedure TProgram.Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode;
   IndexedGeometry: Boolean; InstanceCount: Integer; Start: integer;
   Count: integer; BaseVertex: integer; BaseInstance: Integer);
@@ -2587,6 +2608,11 @@ begin
       else
         glDrawArraysInstanced(GLPrimitiveType[PrimTopology], Start, Count, InstanceCount);
   end;
+end;
+
+procedure TProgram.Dispatch(GroupDims: TVec3i);
+begin
+  Assert(False,'not implemeted yet');
 end;
 
 constructor TProgram.Create(AContext: TContext_OGL);

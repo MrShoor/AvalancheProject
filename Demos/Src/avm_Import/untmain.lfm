@@ -8,7 +8,7 @@ object frmMain: TfrmMain
   ClientWidth = 1044
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  LCLVersion = '1.8.0.1'
+  LCLVersion = '1.8.0.3'
   object RenderPanel: TPanel
     Left = 186
     Height = 728
@@ -71,7 +71,6 @@ object frmMain: TfrmMain
       Width = 184
       ItemHeight = 0
       MultiSelect = True
-      Options = [lboDrawFocusRect]
       TabOrder = 3
     end
     object Label2: TLabel
@@ -89,7 +88,6 @@ object frmMain: TfrmMain
       Width = 184
       Anchors = [akTop, akLeft, akBottom]
       ItemHeight = 0
-      Options = [lboDrawFocusRect]
       TabOrder = 4
     end
     object btnLoad: TButton
@@ -129,5 +127,11 @@ object frmMain: TfrmMain
     Filter = '*.dat;*.avm|*.dat;*.avm'
     left = 64
     top = 128
+  end
+  object Timer1: TTimer
+    Interval = 1
+    OnTimer = Timer1Timer
+    left = 406
+    top = 229
   end
 end
