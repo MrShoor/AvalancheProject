@@ -1,6 +1,6 @@
 unit DXTypes_JSB;
 
-// adoptation of JSB unit for FPC by MrShoor
+// adaptation of JSB unit for FPC by MrShoor
 
 ///////////////////////////////////////////////////////////////////////////////
 //

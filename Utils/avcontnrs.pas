@@ -45,6 +45,7 @@ type
     procedure SetLast(const AValue: TValue);
 
     function Count: Integer;
+    procedure SetSize(const ANewSize: Integer);
 
     function  Add(const item: TValue): Integer; //index of new added element
     procedure Insert(const AIndex: Integer; const AItem: TValue);
@@ -143,6 +144,7 @@ type
     procedure SetLast(const AValue: TValue);
 
     function Count: Integer;
+    procedure SetSize(const ANewSize: Integer);
 
     function  Add(const item: TValue): Integer; //return index of new added element
     procedure Insert(const AIndex: Integer; const AItem: TValue);
@@ -2186,6 +2188,13 @@ end;
 function TArray{$IfDef DCC}<TValue>{$EndIf}.Count: Integer;
 begin
   Result := FCount;
+end;
+
+procedure TArray{$IfDef DCC}<TValue>{$EndIf}.SetSize(const ANewSize: Integer);
+begin
+  if Capacity < ANewSize then
+    Capacity := ANewSize;
+  FCount := ANewSize;
 end;
 
 function TArray{$IfDef DCC}<TValue>{$EndIf}.Add(const item: TValue): Integer;

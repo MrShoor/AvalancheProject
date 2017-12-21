@@ -1,6 +1,6 @@
 unit D3DX10_JSB;
 
-// adoptation of JSB unit for FPC by MrShoor
+// adaptation of JSB unit for FPC by MrShoor
 
 ///////////////////////////////////////////////////////////////////////////////
 // Title: Translation of DirectX C++ header files for use with Delphi 2009 and later
