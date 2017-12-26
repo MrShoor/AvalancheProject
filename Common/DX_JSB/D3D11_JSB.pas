@@ -1,6 +1,6 @@
 unit D3D11_JSB;
 
-// adoptation of JSB unit for FPC by MrShoor
+// adaptation of JSB unit for FPC by MrShoor
 
 ///////////////////////////////////////////////////////////////////////////////
 // Title: Translation of DirectX C++ header files for use with Delphi 2009 and later
@@ -2852,7 +2852,7 @@ type
 
     function CreateQuery
     (
-      const QueryDesc:TD3D11_QueryDesc; (* __in *)
+      QueryDesc:PTD3D11_QueryDesc; (* __in *)
       {$IFDEF UsePointersForOptionalOutputInterfaces}pQuery:PID3D11Query{$ELSE}out Query:ID3D11Query{$ENDIF} (* __out_opt *)
     ):HResult; stdcall;
 

@@ -1,7 +1,9 @@
 unit avCanvas;
 
-{$mode objfpc}{$H+}
-{$ModeSwitch advancedrecords}
+{$IfDef FPC}
+  {$mode objfpc}{$H+}
+  {$ModeSwitch advancedrecords}
+{$EndIf}
 
 interface
 
