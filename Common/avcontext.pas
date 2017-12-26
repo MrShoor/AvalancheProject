@@ -224,7 +224,9 @@ type
     property BlendSrc [RenderTargetIndex: Integer] : TBlendFunc   read GetBlendSrc;  //use SetBlendFunctions for set this parametrs
     property BlendDest[RenderTargetIndex: Integer] : TBlendFunc   read GetBlendDest; //use SetBlendFunctions for set this parametrs
     procedure SetBlendFunctions(Src, Dest : TBlendFunc; RenderTargetIndex: Integer = AllTargets);
+    procedure SetBlendFunctions_SeparateAlpha(Src, Dest, AlphaSrc, AlphaDest : TBlendFunc; RenderTargetIndex: Integer = AllTargets);
     procedure SetBlendOperation(BlendOp : TBlendOp; RenderTargetIndex: Integer = AllTargets);
+    procedure SetBlendOperation_SeparateAlpha(BlendOp, AlphaBlendOp : TBlendOp; RenderTargetIndex: Integer = AllTargets);
 
     property DepthTest              : Boolean      read GetDepthTest              write SetDepthTest;
     property DepthFunc              : TCompareFunc read GetDepthFunc              write SetDepthFunc;

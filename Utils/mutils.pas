@@ -376,6 +376,7 @@ function ToStr(const v: TVec3): string; overload;
 function ToStr(const v: TVec4): string; overload;
 
 function NormalizeAngle(angle: single): single;
+function ShortestRotation(from: single; at: single): single;
 
 function VecSinCos(const Angle: Single): TVec2;
 
@@ -1830,6 +1831,12 @@ const PI2 = 2*Pi;
 begin
   Result := frac(angle/PI2)*PI2;
   if Result < 0 then Result := Result + PI2;
+end;
+
+function ShortestRotation(from: single; at: single): single;
+begin
+  Result := NormalizeAngle(at-from);
+  if (Result > Pi) then Result := Result - 2*Pi;
 end;
 
 function VecSinCos(const Angle: Single): TVec2;

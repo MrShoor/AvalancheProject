@@ -477,7 +477,9 @@ type
 
     procedure SetStencil(Enabled : Boolean; StencilFunc : TCompareFunc; Ref : Integer; Mask : Byte; sFail, dFail, dPass : TStencilAction);
     procedure SetBlendFunctions(Src, Dest : TBlendFunc; RenderTargetIndex: Integer = AllTargets);
+    procedure SetBlendFunctions_SeparateAlpha(Src, Dest, AlphaSrc, AlphaDest : TBlendFunc; RenderTargetIndex: Integer = AllTargets);
     procedure SetBlendOperation(BlendOp : TBlendOp; RenderTargetIndex: Integer = AllTargets);
+    procedure SetBlendOperation_SeparateAlpha(BlendOp, AlphaBlendOp : TBlendOp; RenderTargetIndex: Integer = AllTargets);
     // getters/setters
 
     property Scissor                : TRectI       read GetScissor                write SetScissor;
@@ -1763,14 +1765,10 @@ var view: ID3D11UnorderedAccessView;
 begin
   Assert(FShader[stCompute] <> nil);
   if uav = nil then
-  begin
-    FContext.FDeviceContext.CSSetUnorderedAccessViews(0, 1, nil, @initial);
-  end
+    view := nil
   else
-  begin
     view := (uav as IctxUAV_DX11).GetView;
-    FContext.FDeviceContext.CSSetUnorderedAccessViews(0, 1, @view, @initial);
-  end;
+  FContext.FDeviceContext.CSSetUnorderedAccessViews(0, 1, @view, @initial);
 end;
 
 procedure TProgram.Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode;
@@ -2114,6 +2112,11 @@ begin
 end;
 
 procedure TStates.SetBlendOperation(BlendOp: TBlendOp; RenderTargetIndex: Integer);
+begin
+  SetBlendOperation_SeparateAlpha(BlendOp, BlendOp, RenderTargetIndex);
+end;
+
+procedure TStates.SetBlendOperation_SeparateAlpha(BlendOp, AlphaBlendOp: TBlendOp; RenderTargetIndex: Integer);
 var i: Integer;
 begin
   if RenderTargetIndex = AllTargets then
@@ -2121,19 +2124,19 @@ begin
     for i := 0 to Length(FBDesc.RenderTarget) - 1 do
     begin
       FBDescDirty := FBDescDirty or
-                     (FBDesc.RenderTarget[i].BlendOp <> DXBlendOp[BlendOp]);
-      // ToDo separate alpha blendstate
+                     (FBDesc.RenderTarget[i].BlendOp <> DXBlendOp[BlendOp]) or
+                     (FBDesc.RenderTarget[i].BlendOpAlpha <> DXBlendOp[AlphaBlendOp]);
       FBDesc.RenderTarget[i].BlendOp := DXBlendOp[BlendOp];
-      FBDesc.RenderTarget[i].BlendOpAlpha := DXBlendOp[BlendOp];
+      FBDesc.RenderTarget[i].BlendOpAlpha := DXBlendOp[AlphaBlendOp];
     end;
   end
   else
   begin
       FBDescDirty := FBDescDirty or
-                     (FBDesc.RenderTarget[RenderTargetIndex].BlendOp <> DXBlendOp[BlendOp]);
-      // ToDo separate alpha blendstate
+                     (FBDesc.RenderTarget[RenderTargetIndex].BlendOp <> DXBlendOp[BlendOp]) or
+                     (FBDesc.RenderTarget[RenderTargetIndex].BlendOpAlpha <> DXBlendOp[AlphaBlendOp]);
       FBDesc.RenderTarget[RenderTargetIndex].BlendOp := DXBlendOp[BlendOp];
-      FBDesc.RenderTarget[RenderTargetIndex].BlendOpAlpha := DXBlendOp[BlendOp];
+      FBDesc.RenderTarget[RenderTargetIndex].BlendOpAlpha := DXBlendOp[AlphaBlendOp];
   end;
 end;
 
@@ -2210,6 +2213,11 @@ begin
 end;
 
 procedure TStates.SetBlendFunctions(Src, Dest: TBlendFunc; RenderTargetIndex: Integer);
+begin
+  SetBlendFunctions_SeparateAlpha(Src, Dest, Src, Dest, RenderTargetIndex);
+end;
+
+procedure TStates.SetBlendFunctions_SeparateAlpha(Src, Dest, AlphaSrc, AlphaDest: TBlendFunc; RenderTargetIndex: Integer);
 var i: Integer;
 begin
   if RenderTargetIndex = AllTargets then
@@ -2218,23 +2226,24 @@ begin
     begin
       FBDescDirty := FBDescDirty or
                      (FBDesc.RenderTarget[i].SrcBlend <> DXBlend[Src]) or
-                     (FBDesc.RenderTarget[i].DestBlend <> DXBlend[Dest]);
+                     (FBDesc.RenderTarget[i].DestBlend <> DXBlend[Dest]) or
+                     (FBDesc.RenderTarget[i].SrcBlendAlpha <> DXBlend[AlphaSrc]) or
+                     (FBDesc.RenderTarget[i].DestBlendAlpha <> DXBlend[AlphaDest]);
       FBDesc.RenderTarget[i].SrcBlend := DXBlend[Src];
       FBDesc.RenderTarget[i].DestBlend := DXBlend[Dest];
 
-      // ToDo separate alpha blendstate
-      case Src of
+      case AlphaSrc of
         bfDstColor : FBDesc.RenderTarget[i].SrcBlendAlpha := DXBlend[bfDstAlpha];
         bfSrcColor : FBDesc.RenderTarget[i].SrcBlendAlpha := DXBlend[bfSrcAlpha];
       else
-        FBDesc.RenderTarget[i].SrcBlendAlpha := FBDesc.RenderTarget[i].SrcBlend;
+        FBDesc.RenderTarget[i].SrcBlendAlpha := DXBlend[AlphaSrc];
       end;
 
-      case Dest of
+      case AlphaDest of
         bfDstColor : FBDesc.RenderTarget[i].DestBlendAlpha := DXBlend[bfDstAlpha];
         bfSrcColor : FBDesc.RenderTarget[i].DestBlendAlpha := DXBlend[bfSrcAlpha];
       else
-        FBDesc.RenderTarget[i].DestBlendAlpha := FBDesc.RenderTarget[i].DestBlend;
+        FBDesc.RenderTarget[i].DestBlendAlpha := DXBlend[AlphaDest];
       end;
     end;
   end
@@ -2242,23 +2251,24 @@ begin
   begin
     FBDescDirty := FBDescDirty or
                    (FBDesc.RenderTarget[RenderTargetIndex].SrcBlend <> DXBlend[Src]) or
-                   (FBDesc.RenderTarget[RenderTargetIndex].DestBlend <> DXBlend[Dest]);
+                   (FBDesc.RenderTarget[RenderTargetIndex].DestBlend <> DXBlend[Dest]) or
+                   (FBDesc.RenderTarget[RenderTargetIndex].SrcBlendAlpha <> DXBlend[AlphaSrc]) or
+                   (FBDesc.RenderTarget[RenderTargetIndex].DestBlendAlpha <> DXBlend[AlphaDest]);
     FBDesc.RenderTarget[RenderTargetIndex].SrcBlend := DXBlend[Src];
     FBDesc.RenderTarget[RenderTargetIndex].DestBlend := DXBlend[Dest];
 
-    // ToDo separate alpha blendstate
-    case Src of
+    case AlphaSrc of
       bfDstColor : FBDesc.RenderTarget[RenderTargetIndex].SrcBlendAlpha := DXBlend[bfDstAlpha];
       bfSrcColor : FBDesc.RenderTarget[RenderTargetIndex].SrcBlendAlpha := DXBlend[bfSrcAlpha];
     else
-      FBDesc.RenderTarget[RenderTargetIndex].SrcBlendAlpha := FBDesc.RenderTarget[RenderTargetIndex].SrcBlend;
+      FBDesc.RenderTarget[RenderTargetIndex].SrcBlendAlpha := DXBlend[AlphaSrc];
     end;
 
-    case Dest of
+    case AlphaDest of
       bfDstColor : FBDesc.RenderTarget[RenderTargetIndex].DestBlendAlpha := DXBlend[bfDstAlpha];
       bfSrcColor : FBDesc.RenderTarget[RenderTargetIndex].DestBlendAlpha := DXBlend[bfSrcAlpha];
     else
-      FBDesc.RenderTarget[RenderTargetIndex].DestBlendAlpha := FBDesc.RenderTarget[RenderTargetIndex].DestBlend;
+      FBDesc.RenderTarget[RenderTargetIndex].DestBlendAlpha := DXBlend[AlphaDest];
     end;
   end;
 end;
@@ -3448,6 +3458,7 @@ end;
 constructor TContext_DX11.Create(const Wnd: TWindow; const WARP: Boolean);
 var SwapChainDesc: TDXGI_SwapChainDesc;
     DriverType : TD3D_DriverType;
+    dxgidev: IDXGIDevice1;
 begin
   FStates := TStates.Create(Self);
   FStatesIntf := TStates(FStates);
@@ -3478,6 +3489,8 @@ begin
                                   DriverType, 0, 0{LongWord(D3D11_CREATE_DEVICE_SINGLETHREADED)} {Or LongWord(D3D11_CREATE_DEVICE_DEBUG)}, nil, 0, D3D11_SDK_VERSION,
                                   @SwapChainDesc, FSwapChain, FDevice, nil, FDeviceContext)
   );
+  if Supports(FDevice, IDXGIDevice1, dxgidev) then
+    dxgidev.SetMaximumFrameLatency(1);
 end;
 
 destructor TContext_DX11.Destroy;

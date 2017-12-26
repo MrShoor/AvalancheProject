@@ -10,15 +10,19 @@ interface
 //some help: http://ru.esotericsoftware.com/spine-c
 
 uses
+  SysUtils,
   SpineH,
   intfUtils,
   mutils,
   avRes,
   avContnrs,
+  avContnrsDefaults,
   avTess,
   avTypes;
 
 type
+  ESpineError = class (Exception);
+
   TSpineVertex = packed record
     vsCoord    : TVec3;
     vsTexCrd   : TVec2;
@@ -41,12 +45,18 @@ type
     function Handle: PspSkeletonData;
   end;
 
+  { IspSkeleton }
+
   IspSkeleton = interface
     function Handle : PspSkeleton;
     function Data : IspSkeletonData;
     function Texture: TavAtlasArrayReferenced;
 
     function WriteVertices(const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single; const DoUpdateWorldTransform: Boolean = True): Integer;
+    procedure UpdateWorldTransform;
+
+    function FindBone(const ABoneName: string): PspBone;
+    function SetSkinByName(const ASkinName: string): Integer;
 
     function  GetPos: TVec2;
     function  GetFlipX: Boolean;
@@ -87,6 +97,11 @@ type
     property  TimeScale: Single read GetTimeScale write SetTimeScale;
   end;
 
+  IspSkeletonCache = interface
+    function ObtainSkeleton(const AAtlasFileName, ASkelFileName: string; const ATexture: TavAtlasArrayReferenced; const AScale: Single = 1): IspSkeleton;
+    procedure ClearCache(const ASkeletons: Boolean = True; const AAtlases: Boolean = True);
+  end;
+
 function Create_IspAtlas(const AFileName: string): IspAtlas;
 function Create_IspSkeletonData(const ASkelFileName: string; const AAtlas: IspAtlas; const AScale: Single = 1): IspSkeletonData;
 
@@ -97,7 +112,10 @@ function Create_IspAnimationStateData(const ASkeletonData: IspSkeletonData): Isp
 function Create_IspAnimationState(const AData: IspAnimationStateData): IspAnimationState; overload;
 function Create_IspAnimationState(const ASkel: IspSkeleton; const ADefaultMix: Single): IspAnimationState; overload;
 
+function SkeletonCache: IspSkeletonCache;
 procedure ClearCache;
+
+function EvalAbsBoneTransform(const ABone: PspBone): TMat3;
 
 implementation
 
@@ -124,6 +142,8 @@ type
     destructor Destroy; override;
   end;
 
+  { TSkeleton }
+
   TSkeleton = class(TInterfacedObject, IspSkeleton)
   private type
     ISpritesSet = {$IfDef FPC}specialize{$EndIf} IHashSet<ISpriteIndex>;
@@ -146,6 +166,10 @@ type
     function Texture: TavAtlasArrayReferenced;
 
     function WriteVertices(const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single; const DoUpdateWorldTransform: Boolean = True): Integer;
+    procedure UpdateWorldTransform;
+
+    function FindBone(const ABoneName: string): PspBone;
+    function SetSkinByName(const ASkinName: string): Integer;
 
     property Pos: TVec2 read GetPos write SetPos;
     property FlipX: Boolean read GetFlipX write SetFlipX;
@@ -196,12 +220,51 @@ type
     destructor Destroy; override;
   end;
 
+  TspSkeletonCache = class(TInterfacedObject, IspSkeletonCache)
+  private type
+    TSkelDataKey = packed record
+      Skel : string;
+      Scale: single;
+    end;
+    TKeyEQComparer = class(TInterfacedObject, IEqualityComparer)
+    private
+      function Hash(const Value): Cardinal;
+      function IsEqual(const Left, Right): Boolean;
+    end;
+    TSkelSet = {$IfDef FPC}specialize{$EndIf} THashMap<TSkelDataKey, IspSkeletonData>;
+    ISkelSet = {$IfDef FPC}specialize{$EndIf} IHashMap<TSkelDataKey, IspSkeletonData>;
+    TAtlasSet = {$IfDef FPC}specialize{$EndIf} THashMap<string, IspAtlas>;
+    IAtlasSet = {$IfDef FPC}specialize{$EndIf} IHashMap<string, IspAtlas>;
+  private
+    FAtlases  : IAtlasSet;
+    FSkeletons: ISkelSet;
+    function ObtainAtlas(const AAtlasFileName: string): IspAtlas;
+  public
+    function ObtainSkeleton(const AAtlasFileName, ASkelFileName: string; const ATexture: TavAtlasArrayReferenced; const AScale: Single = 1): IspSkeleton;
+    procedure ClearCache(const ASkeletons: Boolean = True; const AAtlases: Boolean = True);
+    procedure AfterConstruction; override;
+  end;
+
 //threadvar GV_BuildBuffer: TVec2Arr;
 var GV_BuildBuffer: TVec2Arr;
+    GV_SkeletonCache: IspSkeletonCache;
+
+function SkeletonCache: IspSkeletonCache;
+begin
+  if GV_SkeletonCache = nil then
+    GV_SkeletonCache := TspSkeletonCache.Create;
+  Result := GV_SkeletonCache;
+end;
 
 procedure ClearCache;
 begin
+  if GV_SkeletonCache <> nil then
+    GV_SkeletonCache.ClearCache();
   Default_ITextureManager.DropCache;
+end;
+
+function EvalAbsBoneTransform(const ABone: PspBone): TMat3;
+begin
 end;
 
 function Create_IspAtlas(const AFileName: string): IspAtlas;
@@ -308,6 +371,20 @@ begin
   inherited;
 end;
 
+function TSkeleton.FindBone(const ABoneName: string): PspBone;
+var bn: AnsiString;
+begin
+  bn := AnsiString(ABoneName);
+  Result := spSkeleton_findBone(FspSkeleton, PAnsiChar(bn));
+end;
+
+function TSkeleton.SetSkinByName(const ASkinName: string): Integer;
+var sn: AnsiString;
+begin
+  sn := AnsiString(ASkinName);
+  Result := spSkeleton_setSkinByName(FspSkeleton, PAnsiChar(sn));
+end;
+
 function TSkeleton.GetFlipX: Boolean;
 begin
   Result := FspSkeleton^.flip.x <> 0;
@@ -362,6 +439,11 @@ begin
   Result := FTexture.Obj as TavAtlasArrayReferenced;
 end;
 
+procedure TSkeleton.UpdateWorldTransform;
+begin
+  spSkeleton_updateWorldTransform(FspSkeleton);
+end;
+
 function TSkeleton.WriteVertices(const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single; const DoUpdateWorldTransform: Boolean): Integer;
   type TWordArr = array of Word;
 var slot: PPspSlot;
@@ -378,6 +460,7 @@ var slot: PPspSlot;
 
     tex: TavAtlasArrayReferenced;
 begin
+  Result := 0;
   tex := Texture;
   if tex = nil then Exit(0);
 
@@ -428,6 +511,8 @@ begin
         v.vsCoord.xy := regionWorldPos[3];
         v.vsTexCrd := Vec(regionAtt^.uvs[6], regionAtt^.uvs[7]);
         AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+
+        Inc(Result, 6);
       end;
 
       SP_ATTACHMENT_MESH:
@@ -452,6 +537,7 @@ begin
           v.vsTexCrd := TVec2Arr(meshAtt^.uvs)[n];
           AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
         end;
+        Inc(Result, meshAtt^.trianglesCount);
       end;
 
     end;
@@ -583,6 +669,70 @@ end;
 function TAnimationStateData.SkeletonData: IspSkeletonData;
 begin
   Result := FSkeleton;
+end;
+
+{ TspSkeletonCache }
+
+procedure TspSkeletonCache.AfterConstruction;
+var eqc: IEqualityComparer;
+begin
+  inherited;
+  eqc := TKeyEQComparer.Create;
+  FSkeletons := TSkelSet.Create(eqc);
+  FAtlases := TAtlasSet.Create;
+end;
+
+procedure TspSkeletonCache.ClearCache(const ASkeletons, AAtlases: Boolean);
+begin
+  if AAtlases then FAtlases.Clear;
+  if ASkeletons then FSkeletons.Clear;
+end;
+
+function TspSkeletonCache.ObtainAtlas(const AAtlasFileName: string): IspAtlas;
+begin
+  if not FAtlases.TryGetValue(AAtlasFileName, Result) then
+  begin
+    if not FileExists(AAtlasFileName) then
+      raise ESpineError.Create('File: "' + AAtlasFileName + '" not found."');
+    Result := Create_IspAtlas(AAtlasFileName);
+    FAtlases.AddOrSet(AAtlasFileName, Result);
+  end;
+end;
+
+function TspSkeletonCache.ObtainSkeleton(const AAtlasFileName,
+  ASkelFileName: string; const ATexture: TavAtlasArrayReferenced;
+  const AScale: Single): IspSkeleton;
+var key: TSkelDataKey;
+    skelData: IspSkeletonData;
+begin
+  key.Skel := ASkelFileName;
+  key.Scale := AScale;
+  if not FSkeletons.TryGetValue(key, skelData) then
+  begin
+    if not FileExists(key.Skel) then
+      raise ESpineError.Create('File: "' + key.Skel + '" not found."');
+    skelData := Create_IspSkeletonData(key.Skel, ObtainAtlas(AAtlasFileName), key.Scale);
+    FSkeletons.AddOrSet(key, skelData);
+  end;
+  Result := Create_IspSkeleton(skelData, ATexture);
+end;
+
+{ TspSkeletonCache.TKeyEQComparer }
+
+function TspSkeletonCache.TKeyEQComparer.Hash(const Value): Cardinal;
+var K: TSkelDataKey absolute Value;
+begin
+  Result := 0;
+  if Length(K.Skel) > 0 then
+    Result := Result xor Murmur2DefSeed(K.Skel[1], Length(K.Skel)*SizeOf(Char));
+  Result := Result xor Murmur2DefSeed(K.Scale, SizeOf(K.Scale));
+end;
+
+function TspSkeletonCache.TKeyEQComparer.IsEqual(const Left, Right): Boolean;
+var L: TSkelDataKey absolute Left;
+    R: TSkelDataKey absolute Right;
+begin
+  Result := (L.Skel = R.Skel) and (L.Scale = R.Scale);
 end;
 
 initialization

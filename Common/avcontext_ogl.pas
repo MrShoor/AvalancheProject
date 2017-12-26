@@ -632,7 +632,9 @@ type
     procedure SetWireframe(const Value: Boolean);
   public
     procedure SetBlendFunctions(Src, Dest: TBlendFunc; RenderTargetIndex: Integer = AllTargets);
+    procedure SetBlendFunctions_SeparateAlpha(Src, Dest, AlphaSrc, AlphaDest : TBlendFunc; RenderTargetIndex: Integer = AllTargets);
     procedure SetBlendOperation(BlendOp : TBlendOp; RenderTargetIndex: Integer = AllTargets);
+    procedure SetBlendOperation_SeparateAlpha(BlendOp, AlphaBlendOp : TBlendOp; RenderTargetIndex: Integer = AllTargets);
 
     constructor Create(AContext: TContext_OGL);
 
@@ -1613,6 +1615,11 @@ begin
   Assert(False, 'Not implemented yet');
 end;
 
+procedure TStates_OGL.SetBlendOperation_SeparateAlpha(BlendOp, AlphaBlendOp: TBlendOp; RenderTargetIndex: Integer);
+begin
+  Assert(False, 'Not implemented yet');
+end;
+
 procedure TStates_OGL.SetViewport(const Value: TRectI);
 begin
   if ((FViewport.Left   <> Value.Left  ) or
@@ -1681,6 +1688,11 @@ begin
     else
       glBlendFunci( RenderTargetIndex, GLBlendFunction[Src], GLBlendFunction[Dest] );
   end;
+end;
+
+procedure TStates_OGL.SetBlendFunctions_SeparateAlpha(Src, Dest, AlphaSrc, AlphaDest: TBlendFunc; RenderTargetIndex: Integer);
+begin
+  Assert(False, 'Not implemented yet');
 end;
 
 constructor TStates_OGL.Create(AContext: TContext_OGL);
