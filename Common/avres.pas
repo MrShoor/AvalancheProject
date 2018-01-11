@@ -824,7 +824,7 @@ type
                    InstanceCount: Integer = 0;
                    Start: integer = 0; Count: integer = - 1;
                    BaseVertex: integer = 0; BaseInstance: Integer = 0); overload;
-    procedure Dispatch(GroupDims: TVec3i);
+    procedure DispatchDraw(GroupDims: TVec3i);
 
     destructor Destroy; override;
   end;
@@ -3663,7 +3663,7 @@ begin
   FProgram.Draw(PrimTopology, CullMode, IndexedGeometry, InstanceCount, Start, ICount, BaseVertex, BaseInstance);
 end;
 
-procedure TavProgram.Dispatch(GroupDims: TVec3i);
+procedure TavProgram.DispatchDraw(GroupDims: TVec3i);
 begin
   FProgram.Dispatch(GroupDims);
 end;

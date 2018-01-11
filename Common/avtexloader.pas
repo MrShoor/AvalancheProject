@@ -9,6 +9,7 @@ uses SysUtils,
      ImagingTypes,
      ImagingUtility,
      Imaging,
+     ImagingCanvases,
      {$EndIf}
      avTypes,
      avContnrs,
@@ -29,15 +30,18 @@ type
     function LoadTexture(const FileData    : TByteArr;
                          const targetWidth : Integer = SIZE_DEFAULT;
                          const targetHeight: Integer = SIZE_DEFAULT;
-                         const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
+                         const targetFormat: TImageFormat = FORMAT_DEFAULT;
+                         const premultAlpha: Boolean = False): ITextureData; overload;
     function LoadTexture(const FileName    : string;
                          const targetWidth : Integer = SIZE_DEFAULT;
                          const targetHeight: Integer = SIZE_DEFAULT;
-                         const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
+                         const targetFormat: TImageFormat = FORMAT_DEFAULT;
+                         const premultAlpha: Boolean = False): ITextureData; overload;
     function LoadTexture(const Files       : array of string;
                          const targetWidth : Integer = SIZE_DEFAULT;
                          const targetHeight: Integer = SIZE_DEFAULT;
-                         const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
+                         const targetFormat: TImageFormat = FORMAT_DEFAULT;
+                         const premultAlpha: Boolean = False): ITextureData; overload;
   end;
 
 function EmptyTexData(Width, Height: Integer; Format: TTextureFormat; withMips: Boolean = False; AllocateTextureMemory: Boolean = False): ITextureData; overload;
@@ -47,15 +51,18 @@ function EmptyTexData: ITextureData; overload;
 function LoadTexture(const data        : TByteArr;
                      const targetWidth : Integer = SIZE_DEFAULT;
                      const targetHeight: Integer = SIZE_DEFAULT;
-                     const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
+                     const targetFormat: TImageFormat = FORMAT_DEFAULT;
+                     const premultAlpha: Boolean = False): ITextureData; overload;
 function LoadTexture(const FileName    : string;
                      const targetWidth : Integer = SIZE_DEFAULT;
                      const targetHeight: Integer = SIZE_DEFAULT;
-                     const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
+                     const targetFormat: TImageFormat = FORMAT_DEFAULT;
+                     const premultAlpha: Boolean = False): ITextureData; overload;
 function LoadTextures(const Files       : array of string;
                       const targetWidth : Integer = SIZE_DEFAULT;
                       const targetHeight: Integer = SIZE_DEFAULT;
-                      const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
+                      const targetFormat: TImageFormat = FORMAT_DEFAULT;
+                      const premultAlpha: Boolean = False): ITextureData; overload;
 
 function LoadRaw(const FileName: string; Width, Height: Integer; Format: TTextureFormat; withMips: Boolean = False): ITextureData; overload;
 
@@ -158,15 +165,18 @@ type
     function LoadTexture(const FileData    : TByteArr;
                          const targetWidth : Integer = SIZE_DEFAULT;
                          const targetHeight: Integer = SIZE_DEFAULT;
-                         const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
+                         const targetFormat: TImageFormat = FORMAT_DEFAULT;
+                         const premultAlpha: Boolean = False): ITextureData; overload;
     function LoadTexture(const FileName    : string;
                          const targetWidth : Integer = SIZE_DEFAULT;
                          const targetHeight: Integer = SIZE_DEFAULT;
-                         const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
+                         const targetFormat: TImageFormat = FORMAT_DEFAULT;
+                         const premultAlpha: Boolean = False): ITextureData; overload;
     function LoadTexture(const Files       : array of string;
                          const targetWidth : Integer = SIZE_DEFAULT;
                          const targetHeight: Integer = SIZE_DEFAULT;
-                         const targetFormat: TImageFormat = FORMAT_DEFAULT): ITextureData; overload;
+                         const targetFormat: TImageFormat = FORMAT_DEFAULT;
+                         const premultAlpha: Boolean = False): ITextureData; overload;
     procedure AfterConstruction; override;
   end;
 
@@ -218,10 +228,12 @@ type
     {$IfDef VAMPYRE}
     constructor Create(ImgData: TDynImageDataArray;
                        targetWidth, targetHeight : Integer;
-                       targetFormat              : TImageFormat); overload;
+                       targetFormat              : TImageFormat;
+                       premultAlpha              : Boolean); overload;
     constructor Create(ImgData: array of TDynImageDataArray;
                        targetWidth, targetHeight : Integer;
-                       targetFormat              : TImageFormat); overload;
+                       targetFormat              : TImageFormat;
+                       premultAlpha              : Boolean); overload;
     {$EndIf}
     constructor CreateEmpty(AWidth, AHeight: Integer; AFormat: TImageFormat; withMips: Boolean = False; AllocateTextureMemory: Boolean = False);
     destructor Destroy; override;
@@ -249,6 +261,39 @@ begin
 end;
 
 {$IfDef VAMPYRE}
+procedure DoPremultAlpha(const image: PImageData); overload;
+var cnv: TImagingCanvas;
+    pCol: PVec4b;
+    i: Integer;
+    k: Double;
+begin
+  if image^.Format = ImagingTypes.TImageFormat.ifA8R8G8B8 then
+  begin
+    pCol := image^.Bits;
+    for i := 0 to image^.Width*image^.Height - 1 do
+    begin
+      k := pCol^.w/255;
+      pCol^.x := Round(pCol^.x*k);
+      pCol^.y := Round(pCol^.y*k);
+      pCol^.z := Round(pCol^.z*k);
+      Inc(pCol);
+    end;
+  end
+  else
+  begin
+    cnv := TImagingCanvas.CreateForData(image);
+    cnv.PremultiplyAlpha;
+    FreeAndNil(cnv);
+  end;
+end;
+
+procedure DoPremultAlpha(const images: TDynImageDataArray); overload;
+var i: Integer;
+begin
+  for i := 0 to Length(images) - 1 do
+    DoPremultAlpha(PImageData(@images[i]));
+end;
+
 function VampToAv(srcFormat: ImagingTypes.TImageFormat): TImageFormat;
 begin
    case srcFormat of
@@ -365,13 +410,14 @@ end;
 {$IfDef VAMPYRE}
 function LoadTexture(const data                      : TByteArr;
                      const targetWidth, targetHeight : Integer;
-                     const targetFormat              : TImageFormat): ITextureData;
+                     const targetFormat              : TImageFormat;
+                     const premultAlpha              : Boolean): ITextureData;
 var imgs: TDynImageDataArray;
 begin
   imgs := nil;
   if not LoadMultiImageFromMemory(@data[0], Length(data), imgs) then Exit(nil);
   try
-    Result := TTextureData.Create(imgs, targetWidth, targetHeight, targetFormat);
+    Result := TTextureData.Create(imgs, targetWidth, targetHeight, targetFormat, premultAlpha);
   finally
     FreeImagesInArray(imgs);
   end;
@@ -388,13 +434,13 @@ end;
 
 {$IfDef VAMPYRE}
 function LoadTexture(const FileName: string; const targetWidth: Integer;
-  const targetHeight: Integer; const targetFormat: TImageFormat): ITextureData;
+  const targetHeight: Integer; const targetFormat: TImageFormat; const premultAlpha: Boolean): ITextureData;
 var imgs: TDynImageDataArray;
 begin
   imgs := nil;
   if not LoadMultiImageFromFile(FileName, imgs) then Exit(nil);
   try
-    Result := TTextureData.Create(imgs, targetWidth, targetHeight, targetFormat);
+    Result := TTextureData.Create(imgs, targetWidth, targetHeight, targetFormat, premultAlpha);
   finally
     FreeImagesInArray(imgs);
   end;
@@ -410,7 +456,7 @@ end;
 
 {$IfDef VAMPYRE}
 function LoadTextures(const Files: array of string; const targetWidth: Integer;
-  const targetHeight: Integer; const targetFormat: TImageFormat): ITextureData;
+  const targetHeight: Integer; const targetFormat: TImageFormat; const premultAlpha: Boolean): ITextureData;
 var imgs: array of TDynImageDataArray;
     i: Integer;
 begin
@@ -418,7 +464,7 @@ begin
   try
     for i := 0 to Length(imgs) - 1 do
       if not LoadMultiImageFromFile(Files[i], imgs[i]) then Exit(nil);
-    Result := TTextureData.Create(imgs, targetWidth, targetHeight, targetFormat);
+    Result := TTextureData.Create(imgs, targetWidth, targetHeight, targetFormat, premultAlpha);
   finally
     for i := 0 to Length(imgs) - 1 do
       FreeImagesInArray(imgs[i]);
@@ -538,7 +584,7 @@ end;
 
 function TTextureManager.LoadTexture(const FileData: TByteArr;
   const targetWidth: Integer; const targetHeight: Integer;
-  const targetFormat: TImageFormat): ITextureData;
+  const targetFormat: TImageFormat; const premultAlpha: Boolean): ITextureData;
 const
   MethodID: Integer = 0;
 var ms: TMemoryStream;
@@ -551,10 +597,11 @@ begin
     ms.WriteBuffer(targetWidth, SizeOf(targetWidth));
     ms.WriteBuffer(targetHeight, SizeOf(targetHeight));
     ms.WriteBuffer(targetFormat, SizeOf(targetFormat));
+    ms.WriteBuffer(premultAlpha, SizeOf(premultAlpha));
     key := StreamToKey(ms);
     if not FTexHash.TryGetValue(key, Result) then
     begin
-      Result := avTexLoader.LoadTexture(FileData, targetWidth, targetHeight, targetFormat);
+      Result := avTexLoader.LoadTexture(FileData, targetWidth, targetHeight, targetFormat, premultAlpha);
       FTexHash.Add(key, Result);
     end;
   finally
@@ -564,7 +611,7 @@ end;
 
 function TTextureManager.LoadTexture(const FileName: string;
   const targetWidth: Integer; const targetHeight: Integer;
-  const targetFormat: TImageFormat): ITextureData;
+  const targetFormat: TImageFormat; const premultAlpha: Boolean): ITextureData;
 const
   MethodID: Integer = 1;
 var ms: TMemoryStream;
@@ -580,11 +627,12 @@ begin
     ms.WriteBuffer(targetWidth, SizeOf(targetWidth));
     ms.WriteBuffer(targetHeight, SizeOf(targetHeight));
     ms.WriteBuffer(targetFormat, SizeOf(targetFormat));
+    ms.WriteBuffer(premultAlpha, SizeOf(premultAlpha));
     key := StreamToKey(ms);
     if not FTexHash.TryGetValue(key, Result) then
     begin
       if not FileExists(fullName) then Exit(nil);
-      Result := avTexLoader.LoadTexture(fullName, targetWidth, targetHeight, targetFormat);
+      Result := avTexLoader.LoadTexture(fullName, targetWidth, targetHeight, targetFormat, premultAlpha);
       FTexHash.Add(key, Result);
     end;
   finally
@@ -594,7 +642,7 @@ end;
 
 function TTextureManager.LoadTexture(const Files: array of string;
   const targetWidth: Integer; const targetHeight: Integer;
-  const targetFormat: TImageFormat): ITextureData;
+  const targetFormat: TImageFormat; const premultAlpha: Boolean): ITextureData;
 const
   MethodID: Integer = 2;
 var ms: TMemoryStream;
@@ -612,10 +660,11 @@ begin
     ms.WriteBuffer(targetWidth, SizeOf(targetWidth));
     ms.WriteBuffer(targetHeight, SizeOf(targetHeight));
     ms.WriteBuffer(targetFormat, SizeOf(targetFormat));
+    ms.WriteBuffer(premultAlpha, SizeOf(premultAlpha));
     key := StreamToKey(ms);
     if not FTexHash.TryGetValue(key, Result) then
     begin
-      Result := avTexLoader.LoadTextures(Files, targetWidth, targetHeight, targetFormat);
+      Result := avTexLoader.LoadTextures(Files, targetWidth, targetHeight, targetFormat, premultAlpha);
       FTexHash.Add(key, Result);
     end;
   finally
@@ -779,7 +828,8 @@ end;
 {$IfDef VAMPYRE}
 constructor TTextureData.Create(ImgData: TDynImageDataArray;
                                 targetWidth, targetHeight : Integer;
-                                targetFormat              : TImageFormat);
+                                targetFormat              : TImageFormat;
+                                premultAlpha              : Boolean);
   type
       TOrderDesc = record
         MipsCount   : Integer;
@@ -938,6 +988,7 @@ begin
       i := GetMipDataIndex(slice, mip, VampMipOrder);
 
       if NewVamp <> ImgData[i].Format then ConvertImage(ImgData[i], NewVamp);
+      if premultAlpha then DoPremultAlpha(PImageData(@ImgData[i]));
       if (targetWidth <> ImgData[i].Width) or (targetHeight <> ImgData[i].Height) then
         ResizeImage(ImgData[i], targetWidth, targetHeight, rfBicubic);
 
@@ -955,7 +1006,7 @@ begin
 end;
 
 constructor TTextureData.Create(ImgData: array of TDynImageDataArray;
-  targetWidth, targetHeight: Integer; targetFormat: TImageFormat);
+  targetWidth, targetHeight: Integer; targetFormat: TImageFormat; premultAlpha: Boolean);
 var NewVamp: ImagingTypes.TImageFormat;
     PImg: PImageData;
     j, i: Integer;
@@ -1001,6 +1052,7 @@ begin
         PImg := @ImgData[j][i];
 
       if NewVamp <> PImg^.Format then ConvertImage(PImg^, NewVamp);
+      if premultAlpha then DoPremultAlpha(PImg);
       if (w <> PImg^.Width) or (h <> PImg^.Height) then
         ResizeImage(PImg^, w, h, rfBicubic);
       FMips[j][i] := TMipImage.Create(PImg^.Width, PImg^.Height, PImg^.Bits, PImg^.Size, FFormat);
