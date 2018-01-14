@@ -543,23 +543,64 @@ type
   end;
   PspAnimationStateData = ^TspAnimationStateData;
 
+//***TspIntArray***
+  TspIntArray = record
+    size: Integer;
+    capacity: Integer;
+    items: PInteger;
+  end;
+  PspIntArray = ^TspIntArray;
+
+//some forward declarations
+  PspTrackEntry = ^TspTrackEntry;
+  PPspTrackEntry = ^PspTrackEntry;
+
+//***TspTrackEntryArray***
+  TspTrackEntryArray = record
+    size: Integer;
+    capacity: Integer;
+    items: PspTrackEntry;
+  end;
+  PspTrackEntryArray = ^TspTrackEntryArray;
+
+//typedef void (*spAnimationStateListener) (spAnimationState* state, spEventType type, spTrackEntry* entry, spEvent* event);
+TspEventType = (SP_ANIMATION_START, SP_ANIMATION_INTERRUPT, SP_ANIMATION_END, SP_ANIMATION_COMPLETE, SP_ANIMATION_DISPOSE, SP_ANIMATION_EVENT);
+TspAnimationStateListener = procedure (state: PspAnimation; event_type: TspEventType; entry: PspTrackEntry; event: PspEvent);
+
 //***TrackEntry***
-  PspTrackEntry = Pointer; //todo add spTrackEntry as the record
+  TspTrackEntry = record
+    animation: PspAnimation;
+    next: PspTrackEntry;
+    mixingFrom: PspTrackEntry;
+    listener: TspAnimationStateListener;
+    trackIndex: Integer;
+    loop: Integer;// (boolean)
+    eventThreshold, attachmentThreshold, drawOrderThreshold: Single;
+    animationStart, animationEnd, animationLast, nextAnimationLast: Single;
+    delay, trackTime, trackLast, nextTrackLast, trackEnd, timeScale: Single;
+    alpha, mixTime, mixDuration, interruptAlpha, totalAlpha: Single;
+    timelineData: PspIntArray;
+	  timelineDipMix: PspTrackEntryArray;
+    timelinesRotation: PSingle;
+    timelinesRotationCount: Integer;
+    rendererObject: Pointer;
+    userData: Pointer;
+  end;
 
 //***AnimationState***
   TspAnimationState = record
     data: PspAnimationStateData;
 
     tracksCount: Integer;
-    tracks: Pointer; //todo add PspTrackEntry  | spTrackEntry** tracks;
+    tracks: PPspTrackEntry;
 
-    listener: Pointer; //todo add PspAnimationStateListener   | spAnimationStateListener listener;
+    listener: TspAnimationStateListener;
 
     timeScale: Single;
 
-    mixingTo: Pointer; //todo add PspTrackEntryArray  | spTrackEntryArray* mixingTo;
+    mixingTo: PspTrackEntryArray;
 
-    UserData: Pointer;
+    userData: Pointer;
   end;
   PspAnimationState = ^TspAnimationState;
 
