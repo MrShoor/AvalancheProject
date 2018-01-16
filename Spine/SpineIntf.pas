@@ -21,6 +21,10 @@ uses
   avTypes;
 
 type
+  PspAnimation = SpineH.PspAnimation;
+  PspTrackEntry = SpineH.PspTrackEntry;
+  TspEventType = SpineH.TspEventType;
+
   ESpineError = class (Exception);
 
   TSpineVertex = packed record
@@ -83,9 +87,11 @@ type
   IspAnimationState = interface;
 
   TspOnUserEvent = procedure(const AAnimState: IspAnimationState; const AName: string; AState: PspAnimation; AEntry: PspTrackEntry) of object;
+  TspOnAnimEvent = procedure(const AAnimState: IspAnimationState; event_type: TspEventType; AState: PspAnimation; AEntry: PspTrackEntry) of object;
 
   IspEventSubscriber = interface
   ['{3E8EC925-80BF-4504-8A25-694E8AB5BF0F}']
+    procedure Event_OnAnimEvent(const AAnimState: IspAnimationState; state: PspAnimation; entry: PspTrackEntry; event_type: TspEventType);
     procedure Event_OnUserEvent(const AAnimState: IspAnimationState; const AName: string; AState: PspAnimation; AEntry: PspTrackEntry);
   end;
 
@@ -101,8 +107,8 @@ type
 
     procedure SetAnimationByName(ATrackIndex: Integer; const AnimationName: string; loop: Boolean);
 
-    function  Subscribe_UserEvent(const AEvent: TspOnUserEvent; const AAnimation: string = ''; const AUserEventName: string = ''): IspEventSubscriber; overload;
-    procedure Subscribe_UserEvent(const AEvent: IspEventSubscriber); overload;
+    function  Subscribe_UserEvent(const AEvent: TspOnUserEvent; const AAnimEvent: TspOnAnimEvent; const AAnimation: string = ''; const AUserEventName: string = ''): IspEventSubscriber;
+    procedure Subscribe_UserEventIntf(const AEvent: IspEventSubscriber);
 
     function  GetTimeScale: Single;
     procedure SetTimeScale(const Value: Single);
@@ -209,17 +215,20 @@ type
 
   TspUserEventPublisher = class(TPublisherBase, IspEventSubscriber)
   private
+    procedure Event_OnAnimEvent(const AAnimState: IspAnimationState; state: PspAnimation; entry: PspTrackEntry; event_type: TspEventType);
     procedure Event_OnUserEvent(const AAnimState: IspAnimationState; const AName: string; state: PspAnimation; entry: PspTrackEntry);
   end;
 
   TspUserEventSubscriber = class(TWeakedInterfacedObject, IspEventSubscriber)
   private
-    FListener: TspOnUserEvent;
+    FAnimListener: TspOnAnimEvent;
+    FUserListener: TspOnUserEvent;
     FAnimFilter: AnsiString;
     FEventFilter: string;
+    procedure Event_OnAnimEvent(const AAnimState: IspAnimationState; state: PspAnimation; entry: PspTrackEntry; event_type: TspEventType);
     procedure Event_OnUserEvent(const AAnimState: IspAnimationState; const AName: string; state: PspAnimation; entry: PspTrackEntry);
   public
-    constructor Create(const AListener: TspOnUserEvent; const AAnimFilter: string; const AEventFilter: string);
+    constructor Create(const AUserListener: TspOnUserEvent; const AAnimListener: TspOnAnimEvent; const AAnimFilter: string; const AEventFilter: string);
   end;
 
   TAnimationState = class(TInterfacedObject, IspAnimationState)
@@ -229,6 +238,7 @@ type
 
     FUserEventPublisher : IspEventSubscriber;
 
+    procedure DoNotifyAnimEvent(state: PspAnimation; entry: PspTrackEntry; event_type: TspEventType); inline;
     procedure DoNotifyUserEvent(state: PspAnimation; entry: PspTrackEntry; const EventName: string); inline;
   public
     function Handle : PspAnimationState;
@@ -247,8 +257,8 @@ type
     procedure SetTimeScale(const Value: Single);
     property  TimeScale: Single read GetTimeScale write SetTimeScale;
 
-    function  Subscribe_UserEvent(const AEvent: TspOnUserEvent; const AAnimation: string = ''; const AUserEventName: string = ''): IspEventSubscriber; overload;
-    procedure Subscribe_UserEvent(const AEvent: IspEventSubscriber); overload;
+    function  Subscribe_UserEvent(const AUserEvent: TspOnUserEvent; const AAnimEvent: TspOnAnimEvent; const AAnimation: string = ''; const AUserEventName: string = ''): IspEventSubscriber;
+    procedure Subscribe_UserEventIntf(const AEvent: IspEventSubscriber);
 
     procedure CallBackEvent(state: PspAnimation; event_type: TspEventType; entry: PspTrackEntry; event: PspEvent);
 
@@ -668,6 +678,11 @@ begin
   inherited;
 end;
 
+procedure TAnimationState.DoNotifyAnimEvent(state: PspAnimation; entry: PspTrackEntry; event_type: TspEventType);
+begin
+
+end;
+
 procedure TAnimationState.DoNotifyUserEvent(state: PspAnimation; entry: PspTrackEntry; const EventName: string);
 begin
   FUserEventPublisher.Event_OnUserEvent(Self, EventName, state, entry);
@@ -700,14 +715,13 @@ begin
   FspAnimationState^.timeScale := Value;
 end;
 
-function TAnimationState.Subscribe_UserEvent(const AEvent: TspOnUserEvent; const AAnimation: string; const AUserEventName: string): IspEventSubscriber;
-var subs: IspEventSubscriber;
+function TAnimationState.Subscribe_UserEvent(const AUserEvent: TspOnUserEvent; const AAnimEvent: TspOnAnimEvent; const AAnimation: string; const AUserEventName: string): IspEventSubscriber;
 begin
-  subs := TspUserEventSubscriber.Create(AEvent, AAnimation, AUserEventName);
-  Subscribe_UserEvent(subs);
+  Result := TspUserEventSubscriber.Create(AUserEvent, AAnimEvent, AAnimation, AUserEventName);
+  Subscribe_UserEventIntf(Result);
 end;
 
-procedure TAnimationState.Subscribe_UserEvent(const AEvent: IspEventSubscriber);
+procedure TAnimationState.Subscribe_UserEventIntf(const AEvent: IspEventSubscriber);
 begin
   (FUserEventPublisher as IPublisher).Subscribe(AEvent as IWeakedInterface);
 end;
@@ -817,26 +831,45 @@ end;
 
 { TspUserEventSubscriber }
 
-constructor TspUserEventSubscriber.Create(const AListener: TspOnUserEvent; const AAnimFilter: string; const AEventFilter: string);
+constructor TspUserEventSubscriber.Create(const AUserListener: TspOnUserEvent; const AAnimListener: TspOnAnimEvent; const AAnimFilter: string; const AEventFilter: string);
 begin
-  Assert(Assigned(FListener));
-  FListener := AListener;
+  FUserListener := AUserListener;
+  FAnimListener := AAnimListener;
   FAnimFilter := AnsiString(AAnimFilter);
   FEventFilter := AEventFilter;
 end;
 
+procedure TspUserEventSubscriber.Event_OnAnimEvent(const AAnimState: IspAnimationState; state: PspAnimation; entry: PspTrackEntry; event_type: TspEventType);
+begin
+  if not Assigned(FAnimListener) then Exit;
+  if FAnimFilter <> '' then
+    if FAnimFilter <> state^.name then
+      Exit;
+  FAnimListener(AAnimState, event_type, state, entry);
+end;
+
 procedure TspUserEventSubscriber.Event_OnUserEvent(const AAnimState: IspAnimationState; const AName: string; state: PspAnimation; entry: PspTrackEntry);
 begin
+  if not Assigned(FUserListener) then Exit;
   if FAnimFilter <> '' then
     if FAnimFilter <> state^.name then
       Exit;
   if FEventFilter <> '' then
     if FEventFilter <> AName then
       Exit;
-  FListener(AAnimState, AName, state, entry);
+  FUserListener(AAnimState, AName, state, entry);
 end;
 
 { TspUserEventPublisher }
+
+procedure TspUserEventPublisher.Event_OnAnimEvent(const AAnimState: IspAnimationState; state: PspAnimation; entry: PspTrackEntry; event_type: TspEventType);
+var subs: TSubsList;
+    i: Integer;
+begin
+  subs := GetSubsList;
+  for i := 0 to Length(subs) - 1 do
+    (subs[i] as IspEventSubscriber).Event_OnAnimEvent(AAnimState, state, entry, event_type);
+end;
 
 procedure TspUserEventPublisher.Event_OnUserEvent(const AAnimState: IspAnimationState; const AName: string; state: PspAnimation; entry: PspTrackEntry);
 var subs: TSubsList;
