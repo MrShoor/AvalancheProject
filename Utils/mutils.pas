@@ -292,7 +292,8 @@ function MatScale(const Scale: TVec3): TMat4; overload; {$IFNDEF NoInline} inlin
 function Mat3Scale(const Scale: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Mat3Translate(const newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
-function RectF(Left, Top, Right, Bottom: Single): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
+function RectF(Left, Top, Right, Bottom: Single): TRectF; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function RectF(const AMin, AMax: TVec2): TRectF; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function RectI(Left, Top, Right, Bottom: Integer): TRectI; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function RectI(LeftTop, RightBottom: TVec2I): TRectI; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Plane(const normal, point: TVec3): TPlane; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -334,6 +335,7 @@ function Rotate90(const v: TVec2; const CW: Boolean): TVec2; overload; {$IFNDEF 
 function Intersect(const Line1, Line2: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const Seg: TSegment2D; const Line: TLine2D; out IntPoint: TVec2): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const Plane: TPlane; Line: TLine; out IntPt: TVec3): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Intersect(const R1: TRectF; R2: TRectF): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Distance(const Pt: TVec2; const Seg: TSegment2D): Single; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Distance(const Pt: TVec2; const Seg: TSegment2D; out AClosestPt: TVec2): Single; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Projection(const Pt: TVec2; const Line: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
@@ -1238,6 +1240,12 @@ begin
   Result.Bottom := Bottom;
 end;
 
+function RectF(const AMin, AMax: TVec2): TRectF;
+begin
+  Result.min := AMin;
+  Result.max := AMax;
+end;
+
 function RectI(Left, Top, Right, Bottom: Integer): TRectI; {$IFNDEF NoInline} inline; {$ENDIF}
 begin
   Result.Left := Left;
@@ -2018,6 +2026,12 @@ begin
   k := (Plane.D - Da) / (Db - Da);
   IntPt := Line.Pnt + (Line.Dir * k);
   Result := True;
+end;
+
+function Intersect(const R1: TRectF; R2: TRectF): Boolean;
+begin
+  Result := (R1.max.x >= R2.min.x) And (R1.min.x <= R2.max.x) And
+            (R1.max.y >= R2.min.y) And (R1.min.y <= R2.max.y);
 end;
 
 function Distance(const Pt: TVec2; const Seg: TSegment2D): Single;

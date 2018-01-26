@@ -280,6 +280,8 @@ type
     function Intersection(const ASet: IHashSet{$IfDef DCC}<TKey>{$EndIf}): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
     function SymetricDiff(const ASet: IHashSet{$IfDef DCC}<TKey>{$EndIf}): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
 
+    function ToIArray(): {$IfDef FPC}specialize{$EndIf}IArray<TKey>;
+
     procedure Reset;
     function Next(out AKey: TKey): Boolean;
 
@@ -373,6 +375,9 @@ type
     IMap = {$IfDef FPC}specialize{$EndIf} IHashMap<TKey, Boolean>;
     IHSet = {$IfDef FPC}specialize{$EndIf} IHashSet<TKey>;
     THSet = {$IfDef FPC}specialize{$EndIf} THashSet<TKey>;
+
+    TArr = {$IfDef FPC}specialize{$EndIf} TArray<TKey>;
+    IArr = {$IfDef FPC}specialize{$EndIf} IArray<TKey>;
   strict private
     FHash : IMap;
     FComparer : IEqualityComparer;
@@ -394,6 +399,8 @@ type
     function  Union        (const ASet: IHSet): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
     function  Intersection (const ASet: IHSet): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
     function  SymetricDiff (const ASet: IHSet): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
+
+    function ToIArray(): {$IfDef FPC}specialize{$EndIf}IArray<TKey>;
 
     procedure Reset;
     function Next(out AKey: TKey): Boolean;
@@ -1771,6 +1778,16 @@ begin
   while ASet.Next(k) do
     if not Contains(k) then
       Result.Add(k);
+end;
+
+function THashSet{$IfDef DCC}<TKey>{$EndIf}.ToIArray(): {$IfDef FPC}specialize{$EndIf}IArray<TKey>;
+var i: Integer;
+    k: TKey;
+begin
+  Result := TArr.Create();
+  Reset;
+  while Next(k) do
+    Result.Add(k);
 end;
 
 procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.Reset;
