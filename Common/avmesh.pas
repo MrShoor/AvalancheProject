@@ -282,6 +282,7 @@ type
 
 procedure LoadFromStream(const stream: TStream; out meshes: IavMeshes; out meshInst: IavMeshInstances; TexManager: ITextureManager = Nil);
 procedure LoadFromFile(const FileName: string; out meshes: IavMeshes; out meshInst: IavMeshInstances; const TexManager: ITextureManager = Nil);
+function  LoadInstancesFromFile(const FileName: string; const TexManager: ITextureManager = Nil) : IavMeshInstances;
 
 function Create_IavAnimationController(const APose: IavPose; const ATime: Int64): IavAnimationController;
 
@@ -1034,6 +1035,12 @@ begin
     SetCurrentDir(oldDir);
     FreeAndNil(fs);
   end;
+end;
+
+function LoadInstancesFromFile(const FileName: string; const TexManager: ITextureManager): IavMeshInstances;
+var dummy: IavMeshes;
+begin
+  LoadFromFile(FileName, dummy, Result);
 end;
 
 function Create_IavAnimationController(const APose: IavPose; const ATime: Int64

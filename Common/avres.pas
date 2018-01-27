@@ -863,6 +863,8 @@ type
     procedure BeforeFree3D; override;
     function DoBuild: Boolean; override;
   public
+    procedure SetFrameRectFromWindow();
+
     function Select(UpdateProjMatrix: Boolean = True): TavFrameBuffer;
 
     property FrameRect: TRectI read FFrameRect write SetFrameRect;
@@ -2382,6 +2384,13 @@ begin
   end
   else
     FFrameBuf.SetDepthStencil(nil, FDepth.mipLevel);
+end;
+
+procedure TavFrameBuffer.SetFrameRectFromWindow;
+var s: TVec2i;
+begin
+  s := Main.WindowSize;
+  FrameRect := RectI(0,0,s.x,s.y);
 end;
 
 function TavFrameBuffer.Select(UpdateProjMatrix: Boolean): TavFrameBuffer;
