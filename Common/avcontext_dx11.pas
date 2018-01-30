@@ -60,6 +60,7 @@ type
     function CreateStructBuffer: IctxStructuredBuffer;
     function CreateProgram : IctxProgram;
     function CreateTexture : IctxTexture;
+    function CreateTexture3D : IctxTexture3D;
     function CreateFrameBuffer : IctxFrameBuffer;
     function CreateUAV(const AElementsCount, AStrideSize: Cardinal; const Appendable: Boolean; const AInitialData: Pointer): IctxUAV;
 
@@ -526,6 +527,12 @@ type
     function GetView: ID3D11UnorderedAccessView;
   end;
 
+  IctxTexture3D_DX11 = interface(IctxTexture3D)
+  ['{C0A913F6-36E9-43B4-A289-2357D31A3B8A}']
+    function GetHandle : ID3D11Texture3D;
+    function GetResView: ID3D11ShaderResourceView;
+  end;
+
   { TTexture }
 
   TTexture = class (THandleObject, IctxTexture, IctxTexture_DX11, IctxUAV_DX11)
@@ -586,6 +593,49 @@ type
     procedure ReadBack(const ATexData: ITextureData; const ASlice: Integer; const AMipLevel: Integer); //-1 for all mip levels
   end;
 
+  { TTexture3D }
+
+  TTexture3D = class(THandleObject, IctxTexture3D, IctxTexture3D_DX11, IctxUAV_DX11)
+  private
+    FTargetFormat: TTextureFormat;
+    FSize: TVec3i;
+    FFormat: TTextureFormat;
+    FsRGB: Boolean;
+    FMipsCount: Integer;
+
+    FTexture: ID3D11Texture3D;
+    FResView: ID3D11ShaderResourceView;
+    FUAVView: ID3D11UnorderedAccessView;
+  private
+    function BuildDesc(AWidth, AHeight, ADeep: Integer; WithMips: Boolean): TD3D11_Texture3DDesc;
+  private //IctxTexture3D_DX11
+    function GetHandle : ID3D11Texture3D;
+    function GetResView: ID3D11ShaderResourceView;
+  private //IctxUAV_DX11
+    procedure InvalidateCounter;
+    function GetView: ID3D11UnorderedAccessView;
+  public
+    //*******
+    function GetTargetFormat: TTextureFormat;
+    function Get_sRGB: Boolean;
+    procedure SetTargetFormat(Value: TTextureFormat);
+    procedure Set_sRGB(Value: Boolean);
+    //*******
+    property TargetFormat: TTextureFormat read GetTargetFormat write SetTargetFormat;
+    property sRGB: Boolean read Get_sRGB write Set_sRGB;
+
+    function Width : Integer;
+    function Height: Integer;
+    function Deep  : Integer;
+    function MipsCount: Integer;
+
+    function Format: TTextureFormat;
+
+    procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean); overload;
+
+    procedure GenerateMips;
+  end;
+
   TFrameBuffer = class;
 
   IctxFrameBuffer_DX11 = interface
@@ -635,6 +685,7 @@ type
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0);
     procedure SetUAVTex(index: Integer; UAV: IctxTexture);
+    procedure SetUAVTex3D(index: Integer; UAV: IctxTexture3D);
     procedure SetUAV(index: Integer; UAV: IctxUAV);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0);
     procedure SetStreamOut(index: Integer; buffer: IctxVetexBuffer; Offset: Integer);
@@ -874,6 +925,7 @@ type
     procedure SetIL(const AKey: TILKey);
 
     procedure SetUniform(const DXField: TUniformField_DX; const data; const datasize: Integer); overload; //inline;
+    procedure SetUniform(const DXField: TUniformField_DX; const tex: ID3D11ShaderResourceView; const Sampler: TSamplerInfo); overload;
   public
     procedure AfterConstruction; override;
     destructor Destroy; override;
@@ -894,6 +946,7 @@ type
     procedure SetUniform(const Field: TUniformField; const v: TVec4arr); overload;
     procedure SetUniform(const Field: TUniformField; const m: TMat4); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
+    procedure SetUniform(const Field: TUniformField; const tex: IctxTexture3D; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
 
     procedure SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
@@ -902,8 +955,144 @@ type
                    InstanceCount: Integer;
                    Start: integer; Count: integer;
                    BaseVertex: integer; BaseInstance: Integer);
-    procedure Dispatch(GroupDims: TVec3i);
+    procedure DispatchDraw(GroupDims: TVec3i);
   end;
+
+{ TTexture3D }
+
+function TTexture3D.BuildDesc(AWidth, AHeight, ADeep: Integer; WithMips: Boolean): TD3D11_Texture3DDesc;
+begin
+  Result.Width  := AWidth;
+  Result.Height := AHeight;
+  Result.Depth := ADeep;
+
+  if WithMips then
+    FMipsCount := GetMipsCount(Result.Width, Result.Height, Result.Depth)
+  else
+    FMipsCount := 1;
+  Result.MipLevels := FMipsCount;
+
+  Result.BindFlags := DWord(D3D11_BIND_SHADER_RESOURCE) or DWord(D3D11_BIND_RENDER_TARGET);
+
+  case FTargetFormat of
+    TTextureFormat.R32f,
+    TTextureFormat.R32:
+      Result.BindFlags := Result.BindFlags or DWord(D3D11_BIND_UNORDERED_ACCESS);
+  end;
+
+  Result.Format := D3D11TextureFormat[FTargetFormat];
+  if FsRGB then Result.Format := Add_sRGB(Result.Format);
+  Result.Usage := D3D11_USAGE_DEFAULT;
+
+  Result.CPUAccessFlags := 0;
+  Result.MiscFlags := 0;
+  if WithMips and (Result.BindFlags and DWord(D3D11_BIND_RENDER_TARGET) = DWord(D3D11_BIND_RENDER_TARGET))  then
+    Result.MiscFlags := Result.MiscFlags or DWord(D3D11_RESOURCE_MISC_GENERATE_MIPS);
+  FFormat := FTargetFormat;
+end;
+
+function TTexture3D.GetHandle: ID3D11Texture3D;
+begin
+  Result := FTexture;
+end;
+
+function TTexture3D.GetResView: ID3D11ShaderResourceView;
+var desc: TD3D11_ShaderResourceViewDesc;
+begin
+  if FResView = nil then
+  begin
+    desc.Format := D3D11ShaderViewFormat[FFormat];
+    if FsRGB then desc.Format := Add_sRGB(desc.Format);
+    desc.ViewDimension := D3D11_SRV_DIMENSION_TEXTURE3D;
+    desc.Texture3D.MostDetailedMip := 0;
+    desc.Texture3D.MipLevels := FMipsCount;
+    Check3DError(FContext.FDevice.CreateShaderResourceView(FTexture, @desc, FResView));
+  end;
+  Result := FResView;
+end;
+
+procedure TTexture3D.InvalidateCounter;
+begin
+
+end;
+
+function TTexture3D.GetView: ID3D11UnorderedAccessView;
+var
+  uavdesc: TD3D11_UnorderedAccessViewDesc;
+begin
+  if FUAVView = nil then
+  begin
+    uavdesc.Format := D3D11ShaderViewFormat[FFormat];
+
+    uavdesc.ViewDimension := D3D11_UAV_DIMENSION_TEXTURE3D;
+    uavdesc.Texture3D.MipSlice := 0;
+    uavdesc.Texture3D.FirstWSlice := 0;
+    uavdesc.Texture3D.WSize := FSize.z;
+
+    Check3DError(FContext.FDevice.CreateUnorderedAccessView(FTexture, @uavdesc, FUAVView));
+  end;
+  Result := FUAVView;
+end;
+
+function TTexture3D.GetTargetFormat: TTextureFormat;
+begin
+  Result := FTargetFormat;
+end;
+
+function TTexture3D.Get_sRGB: Boolean;
+begin
+  Result := FsRGB;
+end;
+
+procedure TTexture3D.SetTargetFormat(Value: TTextureFormat);
+begin
+  FTargetFormat := Value;
+end;
+
+procedure TTexture3D.Set_sRGB(Value: Boolean);
+begin
+
+end;
+
+function TTexture3D.Width: Integer;
+begin
+  Result := FSize.x;
+end;
+
+function TTexture3D.Height: Integer;
+begin
+  Result := FSize.y;
+end;
+
+function TTexture3D.Deep: Integer;
+begin
+  Result := FSize.z;
+end;
+
+function TTexture3D.MipsCount: Integer;
+begin
+  Result := FMipsCount;
+end;
+
+function TTexture3D.Format: TTextureFormat;
+begin
+  Result := FFormat;
+end;
+
+procedure TTexture3D.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean);
+var desc: TD3D11_Texture3DDesc;
+begin
+  FResView := nil;
+  FUAVView := nil;
+  desc := BuildDesc(AWidth, AHeight, ADeep, WithMips);
+  Check3DError(FContext.FDevice.CreateTexture3D(desc, nil, FTexture));
+  FSize := Vec(AWidth, AHeight, ADeep);
+end;
+
+procedure TTexture3D.GenerateMips;
+begin
+  FContext.FDeviceContext.GenerateMips(GetResView);
+end;
 
 { TUniformField_DX }
 
@@ -1284,6 +1473,43 @@ begin
         DXField.FCB[st].Invalidate;
       end;
   end;
+end;
+
+procedure TProgram.SetUniform(const DXField: TUniformField_DX; const tex: ID3D11ShaderResourceView; const Sampler: TSamplerInfo);
+var SamplerState: ID3D11SamplerState;
+begin
+  SamplerState := FContext.ObtainSamplerState(Sampler);
+  DXField.SetResource(tex, SamplerState);
+
+  if DXField.FResourceIndex[stVertex]>=0 then
+    FContext.FDeviceContext.VSSetShaderResources(DXField.FResourceIndex[stVertex], 1, @tex);
+  if DXField.FSamplerIndex[stVertex]>=0 then
+    FContext.FDeviceContext.VSSetSamplers(DXField.FSamplerIndex[stVertex], 1, @SamplerState);
+
+  if DXField.FResourceIndex[stTessControl]>=0 then
+      FContext.FDeviceContext.HSSetShaderResources(DXField.FResourceIndex[stTessControl], 1, @tex);
+  if DXField.FSamplerIndex[stTessControl]>=0 then
+      FContext.FDeviceContext.HSSetSamplers(DXField.FSamplerIndex[stTessControl], 1, @SamplerState);
+
+  if DXField.FResourceIndex[stTessEval]>=0 then
+      FContext.FDeviceContext.DSSetShaderResources(DXField.FResourceIndex[stTessEval], 1, @tex);
+  if DXField.FSamplerIndex[stTessEval]>=0 then
+      FContext.FDeviceContext.DSSetSamplers(DXField.FSamplerIndex[stTessEval], 1, @SamplerState);
+
+  if DXField.FResourceIndex[stGeometry]>=0 then
+      FContext.FDeviceContext.GSSetShaderResources(DXField.FResourceIndex[stGeometry], 1, @tex);
+  if DXField.FSamplerIndex[stGeometry]>=0 then
+      FContext.FDeviceContext.GSSetSamplers(DXField.FSamplerIndex[stGeometry], 1, @SamplerState);
+
+  if DXField.FResourceIndex[stFragment]>=0 then
+    FContext.FDeviceContext.PSSetShaderResources(DXField.FResourceIndex[stFragment], 1, @tex);
+  if DXField.FSamplerIndex[stFragment]>=0 then
+    FContext.FDeviceContext.PSSetSamplers(DXField.FSamplerIndex[stFragment], 1, @SamplerState);
+
+  if DXField.FResourceIndex[stCompute]>=0 then
+    FContext.FDeviceContext.CSSetShaderResources(DXField.FResourceIndex[stCompute], 1, @tex);
+  if DXField.FSamplerIndex[stCompute]>=0 then
+    FContext.FDeviceContext.CSSetSamplers(DXField.FSamplerIndex[stCompute], 1, @SamplerState);
 end;
 
 procedure TProgram.AfterConstruction;
@@ -1690,7 +1916,6 @@ procedure TProgram.SetUniform(const Field: TUniformField; const tex: IctxTexture
 var DXField: TUniformField_DX absolute Field;
     dxtex: IctxTexture_DX11;
     resview: ID3D11ShaderResourceView;
-    SamplerState: ID3D11SamplerState;
 begin
   if Field = nil then Exit;
   if not Supports(tex, IctxTexture_DX11, dxtex) then Exit;
@@ -1698,38 +1923,16 @@ begin
     resview := dxtex.GetResCubeView
   else
     resview := dxtex.GetResView;
-  SamplerState := FContext.ObtainSamplerState(Sampler);
-  DXField.SetResource(resview, SamplerState);
+  SetUniform(DXField, resview, Sampler);
+end;
 
-  if DXField.FResourceIndex[stVertex]>=0 then
-    FContext.FDeviceContext.VSSetShaderResources(DXField.FResourceIndex[stVertex], 1, @resview);
-  if DXField.FSamplerIndex[stVertex]>=0 then
-    FContext.FDeviceContext.VSSetSamplers(DXField.FSamplerIndex[stVertex], 1, @SamplerState);
-
-  if DXField.FResourceIndex[stTessControl]>=0 then
-      FContext.FDeviceContext.HSSetShaderResources(DXField.FResourceIndex[stTessControl], 1, @resview);
-  if DXField.FSamplerIndex[stTessControl]>=0 then
-      FContext.FDeviceContext.HSSetSamplers(DXField.FSamplerIndex[stTessControl], 1, @SamplerState);
-
-  if DXField.FResourceIndex[stTessEval]>=0 then
-      FContext.FDeviceContext.DSSetShaderResources(DXField.FResourceIndex[stTessEval], 1, @resview);
-  if DXField.FSamplerIndex[stTessEval]>=0 then
-      FContext.FDeviceContext.DSSetSamplers(DXField.FSamplerIndex[stTessEval], 1, @SamplerState);
-
-  if DXField.FResourceIndex[stGeometry]>=0 then
-      FContext.FDeviceContext.GSSetShaderResources(DXField.FResourceIndex[stGeometry], 1, @resview);
-  if DXField.FSamplerIndex[stGeometry]>=0 then
-      FContext.FDeviceContext.GSSetSamplers(DXField.FSamplerIndex[stGeometry], 1, @SamplerState);
-
-  if DXField.FResourceIndex[stFragment]>=0 then
-    FContext.FDeviceContext.PSSetShaderResources(DXField.FResourceIndex[stFragment], 1, @resview);
-  if DXField.FSamplerIndex[stFragment]>=0 then
-    FContext.FDeviceContext.PSSetSamplers(DXField.FSamplerIndex[stFragment], 1, @SamplerState);
-
-  if DXField.FResourceIndex[stCompute]>=0 then
-    FContext.FDeviceContext.CSSetShaderResources(DXField.FResourceIndex[stCompute], 1, @resview);
-  if DXField.FSamplerIndex[stCompute]>=0 then
-    FContext.FDeviceContext.CSSetSamplers(DXField.FSamplerIndex[stCompute], 1, @SamplerState);
+procedure TProgram.SetUniform(const Field: TUniformField; const tex: IctxTexture3D; const Sampler: TSamplerInfo);
+var DXField: TUniformField_DX absolute Field;
+    dxtex: IctxTexture3D_DX11;
+begin
+  if Field = nil then Exit;
+  if not Supports(tex, IctxTexture3D_DX11, dxtex) then Exit;
+  SetUniform(DXField, dxtex.GetResView, Sampler);
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer);
@@ -1805,7 +2008,7 @@ begin
   end;
 end;
 
-procedure TProgram.Dispatch(GroupDims: TVec3i);
+procedure TProgram.DispatchDraw(GroupDims: TVec3i);
 begin
   SyncCB;
   FContext.FDeviceContext.Dispatch(GroupDims.x, GroupDims.y, GroupDims.z);
@@ -2812,6 +3015,7 @@ var desc: TD3D11_Texture2DDesc;
 begin
   FResView := nil;
   FCubeResView := nil;
+  FUAVView := nil;
   desc := BuildDesc(AWidth, AHeight, ADeep, WithMips);
   Check3DError(FContext.FDevice.CreateTexture2D(desc, nil, FTexture));
   FSampleCount := 1;
@@ -2827,6 +3031,7 @@ var desc: TD3D11_Texture2DDesc;
 begin
   FResView := nil;
   FCubeResView := nil;
+  FUAVView := nil;
   desc := BuildDesc(AWidth, AHeight, ADeep, WithMips);
   //todo: initialization with data
   Check3DError(FContext.FDevice.CreateTexture2D(desc, nil, FTexture));
@@ -3124,6 +3329,12 @@ begin
   SetUAV_Internal(index, UAV as IctxUAV_DX11);
 end;
 
+procedure TFrameBuffer.SetUAVTex3D(index: Integer; UAV: IctxTexture3D);
+begin
+  Assert(Length(FStreams)=0, 'You can''t mix stream output with render to UAV');
+  SetUAV_Internal(index, UAV as IctxUAV_DX11);
+end;
+
 procedure TFrameBuffer.SetUAV(index: Integer; UAV: IctxUAV);
 begin
   Assert(Length(FStreams)=0, 'You can''t mix stream output with render to UAV');
@@ -3377,6 +3588,11 @@ end;
 function TContext_DX11.CreateTexture: IctxTexture;
 begin
   Result := TTexture.Create(Self);
+end;
+
+function TContext_DX11.CreateTexture3D: IctxTexture3D;
+begin
+  Result := TTexture3D.Create(Self);
 end;
 
 function TContext_DX11.CreateUAV(const AElementsCount, AStrideSize: Cardinal; const Appendable: Boolean; const AInitialData: Pointer): IctxUAV;

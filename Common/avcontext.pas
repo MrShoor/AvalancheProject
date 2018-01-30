@@ -104,6 +104,29 @@ type
                        const ASrcRes: IctxTexture; const SrcMipLevel: Integer; const SrcRect: TRectI);
   end;
 
+  IctxTexture3D = interface
+  ['{43B96A4F-0010-4C0F-9836-902E4F45A1DD}']
+    //*******
+    function GetTargetFormat: TTextureFormat;
+    function Get_sRGB: Boolean;
+    procedure SetTargetFormat(Value: TTextureFormat);
+    procedure Set_sRGB(Value: Boolean);
+    //*******
+    property TargetFormat: TTextureFormat read GetTargetFormat write SetTargetFormat;
+    property sRGB: Boolean read Get_sRGB write Set_sRGB;
+
+    function Width : Integer;
+    function Height: Integer;
+    function Deep  : Integer;
+    function MipsCount: Integer;
+
+    function Format: TTextureFormat;
+
+    procedure AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean); overload;
+
+    procedure GenerateMips;
+  end;
+
   IctxUAV = interface (IctxStructuredBuffer)
   ['{8CA32553-D7C1-4A87-9AFA-3D348CAC64AB}']
     function ElementsCount: Cardinal;
@@ -147,6 +170,7 @@ type
     procedure SetUniform(const Field: TUniformField; const v: TVec4arr); overload;
     procedure SetUniform(const Field: TUniformField; const m: TMat4); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
+    procedure SetUniform(const Field: TUniformField; const tex: IctxTexture3D; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
 
     procedure SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
@@ -155,7 +179,7 @@ type
                    InstanceCount: Integer;
                    Start: integer; Count: integer;
                    BaseVertex: integer; BaseInstance: Integer);
-    procedure Dispatch(GroupDims: TVec3i);
+    procedure DispatchDraw(GroupDims: TVec3i);
   end;
 
   { IctxFrameBuffer }
@@ -169,6 +193,7 @@ type
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0);
     procedure SetUAVTex(index: Integer; UAV: IctxTexture);
+    procedure SetUAVTex3D(index: Integer; UAV: IctxTexture3D);
     procedure SetUAV(index: Integer; UAV: IctxUAV);
     procedure SetStreamOut(index: Integer; buffer: IctxVetexBuffer; Offset: Integer);
 
@@ -243,6 +268,7 @@ type
     function CreateStructBuffer: IctxStructuredBuffer;
     function CreateProgram     : IctxProgram;
     function CreateTexture     : IctxTexture;
+    function CreateTexture3D   : IctxTexture3D;
     function CreateFrameBuffer : IctxFrameBuffer;
     function CreateUAV(const AElementsCount, AStrideSize: Cardinal; const Appendable: Boolean; const AInitialData: Pointer) : IctxUAV;
 

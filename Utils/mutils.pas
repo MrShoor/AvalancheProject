@@ -363,7 +363,8 @@ function NextPow2(Vec: TVec2i): TVec2i; overload;
 function Log2Int(v: Integer): Integer; overload;
 function Log2Int(v: UInt64): Integer; overload;
 function BitsCount(x: UInt64): Integer; overload;
-function GetMipsCount(Width, Height: Integer): Integer;
+function GetMipsCount(Width, Height: Integer): Integer; overload;
+function GetMipsCount(Width, Height, Deep: Integer): Integer; overload;
 
 function Bezier3(const pt1, pt2, pt3, pt4: TVec2; t: single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function DistanceToBezier3(const APt: TVec2; const pt1, pt2, pt3, pt4: TVec2): Single; overload;
@@ -1672,6 +1673,11 @@ end;
 function GetMipsCount(Width, Height: Integer): Integer;
 begin
   Result := Log2Int(Min(Width, Height))+1;
+end;
+
+function GetMipsCount(Width, Height, Deep: Integer): Integer;
+begin
+  Result := Log2Int(Min(Min(Width, Height), Deep))+1;
 end;
 
 function Bezier3(const pt1, pt2, pt3, pt4: TVec2; t: single): TVec2;
