@@ -49,6 +49,7 @@ type
     function CreateIndexBuffer : IctxIndexBuffer;
     function CreateProgram : IctxProgram;
     function CreateTexture : IctxTexture;
+    function CreateTexture3D   : IctxTexture3D;
     function CreateFrameBuffer : IctxFrameBuffer;
     function CreateUAV(const AElementsCount, AStrideSize: Cardinal; const Appendable: Boolean; const AInitialData: Pointer): IctxUAV;
 
@@ -977,6 +978,7 @@ type
     procedure SetUniform(const Field: TUniformField; const v: TVec4arr); overload;
     procedure SetUniform(const Field: TUniformField; const m: TMat4); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
+    procedure SetUniform(const Field: TUniformField; const tex: IctxTexture3D; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
 
     procedure SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
@@ -985,7 +987,7 @@ type
                    InstanceCount: Integer;
                    Start: integer; Count: integer;
                    BaseVertex: integer; BaseInstance: Integer);
-    procedure Dispatch(GroupDims: TVec3i);
+    procedure DispatchDraw(GroupDims: TVec3i);
   public
     constructor Create(AContext: TContext_OGL); override;
     destructor Destroy; override;
@@ -1014,6 +1016,7 @@ type
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
     procedure SetUAVTex(index: Integer; UAV: IctxTexture);
+    procedure SetUAVTex3D(index: Integer; UAV: IctxTexture3D);
     procedure SetUAV(index: Integer; UAV: IctxUAV);
     procedure SetStreamOut(index: Integer; buffer: IctxVetexBuffer; Offset: Integer);
 
@@ -1184,6 +1187,11 @@ begin
 end;
 
 procedure TFrameBuffer.SetUAVTex(index: Integer; UAV: IctxTexture);
+begin
+  Assert(False, 'qwe not implemented');
+end;
+
+procedure TFrameBuffer.SetUAVTex3D(index: Integer; UAV: IctxTexture3D);
 begin
   Assert(False, 'qwe not implemented');
 end;
@@ -2548,6 +2556,11 @@ begin
   glTexParameterfv(TexTarget, GL_TEXTURE_BORDER_COLOR, @Sampler.Border);
 end;
 
+procedure TProgram.SetUniform(const Field: TUniformField; const tex: IctxTexture3D; const Sampler: TSamplerInfo);
+begin
+  Assert(False, 'Not implemented yet');
+end;
+
 procedure TProgram.SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer);
 begin
   Assert(False, 'Not implemented yet');
@@ -2622,7 +2635,7 @@ begin
   end;
 end;
 
-procedure TProgram.Dispatch(GroupDims: TVec3i);
+procedure TProgram.DispatchDraw(GroupDims: TVec3i);
 begin
   Assert(False,'not implemeted yet');
 end;
@@ -2770,6 +2783,13 @@ end;
 function TContext_OGL.CreateTexture: IctxTexture;
 begin
   Result := TTexture.Create(Self);
+end;
+
+function TContext_OGL.CreateTexture3D: IctxTexture3D;
+begin
+  //todo
+  Assert(False,'not implemeted yet');
+  Result := nil;
 end;
 
 function TContext_OGL.CreateUAV(const AElementsCount, AStrideSize: Cardinal; const Appendable: Boolean; const AInitialData: Pointer): IctxUAV;

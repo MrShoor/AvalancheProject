@@ -1781,10 +1781,10 @@ begin
 end;
 
 function THashSet{$IfDef DCC}<TKey>{$EndIf}.ToIArray(): {$IfDef FPC}specialize{$EndIf}IArray<TKey>;
-var i: Integer;
-    k: TKey;
+var k: TKey;
 begin
   Result := TArr.Create();
+  Result.Capacity := Count;
   Reset;
   while Next(k) do
     Result.Add(k);

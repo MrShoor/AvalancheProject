@@ -3674,7 +3674,7 @@ end;
 
 procedure TavProgram.DispatchDraw(GroupDims: TVec3i);
 begin
-  FProgram.Dispatch(GroupDims);
+  FProgram.DispatchDraw(GroupDims);
 end;
 
 destructor TavProgram.Destroy;
