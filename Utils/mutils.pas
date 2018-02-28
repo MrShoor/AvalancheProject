@@ -281,6 +281,7 @@ Operator * (const a: TLine; const b: TMat4): TLine; {$IFNDEF NoInline} inline; {
 
 function Quat(const Dir: TVec3; Angle: Single): TQuat; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
+function Mat2(const Angle: Single): TMat2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Mat3(const Angle: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Mat3(const Angle: Single; newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Mat3(const Scale: TVec2; Angle: Single; newPos: TVec2): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -1139,6 +1140,14 @@ function Quat(const Dir: TVec3; Angle: Single): TQuat; overload; {$IFNDEF NoInli
 begin
   Result.v := Dir * sin(0.5 * angle);
   Result.a := cos(0.5 * angle);
+end;
+
+function Mat2(const Angle: Single): TMat2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+var sn, cs: Extended;
+begin
+  sincos(Angle, sn, cs);
+  Result.Row[0] := Vec(cs,  sn);
+  Result.Row[1] := Vec(-sn, cs);
 end;
 
 function Mat3(const Angle: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}

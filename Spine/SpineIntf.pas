@@ -49,18 +49,33 @@ type
     function Handle: PspSkeletonData;
   end;
 
+  TOnWriteVertices = procedure (const ASlot: PspSlot; const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single) of object;
+
+  IspSkeletonSlotRenderSubscriber = interface
+  ['{B262DA7D-8790-47B0-BA80-1A47C798710E}']
+    procedure OnWriteVertices(const ASlot: PspSlot; const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single);
+  end;
+
+  ISpritesSet = {$IfDef FPC}specialize{$EndIf} IHashSet<ISpriteIndex>;
+  TSpritesSet = {$IfDef FPC}specialize{$EndIf} THashSet<ISpriteIndex>;
+
   { IspSkeleton }
 
   IspSkeleton = interface
     function Handle : PspSkeleton;
     function Data : IspSkeletonData;
     function Texture: TavAtlasArrayReferenced;
+    function CachedSprites: ISpritesSet;
 
+    function  SubscribeOnSlotRender(const ASlotName: string; const AOnWriteVertices: TOnWriteVertices): IspSkeletonSlotRenderSubscriber;
+    procedure SubscribeOnSlotRender(const ASlotName: string; const ASubscriber: IspSkeletonSlotRenderSubscriber);
     function WriteVertices(const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single; const DoUpdateWorldTransform: Boolean = True): Integer;
     procedure UpdateWorldTransform;
 
     function FindBone(const ABoneName: string): PspBone;
     function SetSkinByName(const ASkinName: string): Integer;
+
+    //function FindSlotIndex(const ASlotName): Integer;
 
     function  GetPos: TVec2;
     function  GetFlipX: Boolean;
@@ -135,6 +150,8 @@ procedure ClearCache;
 
 function EvalAbsBoneTransform(const ABone: PspBone): TMat3;
 
+function WriteAttachementVertices(const ASkeleton: IspSkeleton; const ASlot: PspSlot; const AAttachment: PspAttachment; const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single): Integer;
+
 implementation
 
 uses
@@ -160,30 +177,55 @@ type
     destructor Destroy; override;
   end;
 
+  { TSkeletonSlotRenderSubscriber }
+
+  TSkeletonSlotRenderSubscriber = class(TWeakedInterfacedObject, IspSkeletonSlotRenderSubscriber)
+  private
+    FOnWriteVertices: TOnWriteVertices;
+    procedure OnWriteVertices(const ASlot: PspSlot; const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single);
+  public
+    constructor Create(const AOnWriteVertices: TOnWriteVertices);
+  end;
+
+  { TSkeletonSlotRenderPublisher }
+
+  TSkeletonSlotRenderPublisher = class(TPublisherBase, IspSkeletonSlotRenderSubscriber)
+    procedure OnWriteVertices(const ASlot: PspSlot; const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single);
+  end;
+
   { TSkeleton }
 
   TSkeleton = class(TInterfacedObject, IspSkeleton)
   private type
-    ISpritesSet = {$IfDef FPC}specialize{$EndIf} IHashSet<ISpriteIndex>;
-    TSpritesSet = {$IfDef FPC}specialize{$EndIf} THashSet<ISpriteIndex>;
+    TSlotPublisher = packed record
+      slot: PspSlot;
+      publisher: IspSkeletonSlotRenderSubscriber;
+    end;
+    PSlotPublisher = ^TSlotPublisher;
   private
     FspSkeleton : PspSkeleton;
     FData       : IspSkeletonData;
     FTexture    : IWeakRef; //TavAtlasArrayReferenced
 
     FSprites    : ISpritesSet;
+    FSubscribers: array of TSlotPublisher;
     function  GetPos: TVec2;
     function  GetFlipX: Boolean;
     function  GetFlipY: Boolean;
     procedure SetPos(const Value: TVec2);
     procedure SetFlipX(const Value: Boolean);
     procedure SetFlipY(const Value: Boolean);
+
+    function FindSubscribers(const ASlot: PspSlot): PSlotPublisher;
   public
     function Handle : PspSkeleton;
     function Data : IspSkeletonData;
     function Texture: TavAtlasArrayReferenced;
+    function CachedSprites: ISpritesSet;
 
-    function WriteVertices(const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single; const DoUpdateWorldTransform: Boolean = True): Integer;
+    function  SubscribeOnSlotRender(const ASlotName: string; const AOnWriteVertices: TOnWriteVertices): IspSkeletonSlotRenderSubscriber;
+    procedure SubscribeOnSlotRender(const ASlotName: string; const ASubscriber: IspSkeletonSlotRenderSubscriber);
+    function  WriteVertices(const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single; const DoUpdateWorldTransform: Boolean = True): Integer;
     procedure UpdateWorldTransform;
 
     function FindBone(const ABoneName: string): PspBone;
@@ -319,6 +361,97 @@ function EvalAbsBoneTransform(const ABone: PspBone): TMat3;
 begin
 end;
 
+function WriteAttachementVertices(const ASkeleton: IspSkeleton; const ASlot: PspSlot; const AAttachment: PspAttachment; const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single): Integer;
+  type TWordArr = array of Word;
+var i, j, n: Integer;
+    regionAtt: PspRegionAttachment;
+    meshAtt: PspMeshAttachment;
+
+    mip: ITextureMip;
+    sprite: ISpriteIndex;
+
+    v: TSpineVertex;
+
+    regionWorldPos: array [0..3] of TVec2;
+
+    tex: TavAtlasArrayReferenced;
+    sprites: ISpritesSet;
+begin
+  Result := 0;
+
+  tex := ASkeleton.Texture;
+  sprites := ASkeleton.CachedSprites;
+
+  v.vsColor := ASkeleton.Handle^.color * ASlot^.color;
+  v.vsCoord.z := AZ;
+
+  case AAttachment^.atype of
+    SP_ATTACHMENT_REGION:
+    begin
+      regionAtt := PspRegionAttachment(AAttachment);
+      mip := ITextureMip(PspAtlasRegion(regionAtt^.userData)^.page^.UserData);
+      sprite := tex.ObtainSprite(mip);
+      sprites.Add(sprite);
+      v.vsAtlasRef := sprite.Index;
+
+      ZeroClear(regionWorldPos, SizeOf(regionWorldPos));
+      spRegionAttachment_computeWorldVertices(regionAtt, ASlot^.bone, @regionWorldPos[0], 0, 2);
+
+      v.vsCoord.xy := regionWorldPos[0];
+      v.vsTexCrd := Vec(regionAtt^.uvs[0], regionAtt^.uvs[1]);
+      AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+
+      v.vsCoord.xy := regionWorldPos[1];
+      v.vsTexCrd := Vec(regionAtt^.uvs[2], regionAtt^.uvs[3]);
+      AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+
+      v.vsCoord.xy := regionWorldPos[2];
+      v.vsTexCrd := Vec(regionAtt^.uvs[4], regionAtt^.uvs[5]);
+      AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+
+      v.vsCoord.xy := regionWorldPos[0];
+      v.vsTexCrd := Vec(regionAtt^.uvs[0], regionAtt^.uvs[1]);
+      AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+
+      v.vsCoord.xy := regionWorldPos[2];
+      v.vsTexCrd := Vec(regionAtt^.uvs[4], regionAtt^.uvs[5]);
+      AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+
+      v.vsCoord.xy := regionWorldPos[3];
+      v.vsTexCrd := Vec(regionAtt^.uvs[6], regionAtt^.uvs[7]);
+      AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+
+      Inc(Result, 6);
+    end;
+
+    SP_ATTACHMENT_MESH:
+    begin
+      meshAtt := PspMeshAttachment(ASlot^.attachment);
+      if meshAtt^.super.worldVerticesLength = 0 then Exit;
+
+      mip := ITextureMip(PspAtlasRegion(meshAtt^.userData)^.page^.UserData);
+      sprite := tex.ObtainSprite(mip);
+      sprites.Add(sprite);
+      v.vsAtlasRef := sprite.Index;
+
+      if Length(GV_BuildBuffer) < meshAtt^.super.worldVerticesLength then
+        SetLength(GV_BuildBuffer, meshAtt^.super.worldVerticesLength*2);
+
+      spVertexAttachment_computeWorldVertices(@meshAtt^.super, ASlot, 0, meshAtt^.super.worldVerticesLength, @GV_BuildBuffer[0], 0, 2);
+
+      for j := 0 to meshAtt^.trianglesCount-1 do
+      begin
+        n := TWordArr(meshAtt^.triangles)[j];
+        v.vsCoord.xy := GV_BuildBuffer[n];
+        v.vsTexCrd := TVec2Arr(meshAtt^.uvs)[n];
+        AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+      end;
+      Inc(Result, meshAtt^.trianglesCount);
+    end;
+
+  end;
+end;
+
 function Create_IspAtlas(const AFileName: string): IspAtlas;
 begin
   Result := TAtlas.Create(AFileName);
@@ -355,6 +488,30 @@ begin
   asd := Create_IspAnimationStateData(ASkel.Data);
   asd.DefaultMix := ADefaultMix;
   Result := Create_IspAnimationState(asd);
+end;
+
+{ TSkeletonSlotRenderSubscriber }
+
+procedure TSkeletonSlotRenderSubscriber.OnWriteVertices(const ASlot: PspSlot; const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single);
+begin
+  FOnWriteVertices(ASlot, AVertAddCallback, AZ);
+end;
+
+constructor TSkeletonSlotRenderSubscriber.Create(const AOnWriteVertices: TOnWriteVertices);
+begin
+  Assert(Assigned(AOnWriteVertices));
+  FOnWriteVertices := AOnWriteVertices;
+end;
+
+{ TSkeletonSlotRenderPublisher }
+
+procedure TSkeletonSlotRenderPublisher.OnWriteVertices(const ASlot: PspSlot; const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single);
+var subs: TSubsList;
+    i: Integer;
+begin
+  subs := GetSubsList;
+  for i := 0 to Length(subs) - 1 do
+    (subs[i] as IspSkeletonSlotRenderSubscriber).OnWriteVertices(ASlot, AVertAddCallback, AZ);
 end;
 
 { TAtlas }
@@ -473,6 +630,15 @@ begin
     FspSkeleton^.flip.y := 0;
 end;
 
+function TSkeleton.FindSubscribers(const ASlot: PspSlot): PSlotPublisher;
+var i: Integer;
+begin
+  for i := 0 to Length(FSubscribers) - 1 do
+    if FSubscribers[i].slot = ASlot then
+      Exit(@FSubscribers[i]);
+  Result := nil;
+end;
+
 procedure TSkeleton.SetPos(const Value: TVec2);
 begin
   FspSkeleton^.pos := Value;
@@ -491,6 +657,36 @@ begin
   Result := FTexture.Obj as TavAtlasArrayReferenced;
 end;
 
+function TSkeleton.CachedSprites: ISpritesSet;
+begin
+  Result := FSprites;
+end;
+
+function TSkeleton.SubscribeOnSlotRender(const ASlotName: string; const AOnWriteVertices: TOnWriteVertices): IspSkeletonSlotRenderSubscriber;
+begin
+  Result := TSkeletonSlotRenderSubscriber.Create(AOnWriteVertices);
+  SubscribeOnSlotRender(ASlotName, Result);
+end;
+
+procedure TSkeleton.SubscribeOnSlotRender(const ASlotName: string; const ASubscriber: IspSkeletonSlotRenderSubscriber);
+var psubs: PSlotPublisher;
+    subs : TSlotPublisher;
+    slot: PspSlot;
+begin
+  slot := spSkeleton_findSlot(FspSkeleton, PspPChar(ASlotName));
+  Assert(slot <> nil, 'Slot "' + ASlotName + '" not found');
+  psubs := FindSubscribers(slot);
+  if psubs = nil then
+  begin
+    subs.slot := slot;
+    subs.publisher := TSkeletonSlotRenderPublisher.Create;
+    psubs := @subs;
+    SetLength(FSubscribers, Length(FSubscribers) + 1);
+    FSubscribers[Length(FSubscribers) - 1] := subs;
+  end;
+  (psubs^.publisher as IPublisher).Subscribe(ASubscriber as IWeakedInterface);
+end;
+
 procedure TSkeleton.UpdateWorldTransform;
 begin
   spSkeleton_updateWorldTransform(FspSkeleton);
@@ -505,6 +701,7 @@ var slot: PPspSlot;
 
     mip: ITextureMip;
     sprite: ISpriteIndex;
+    subs: PSlotPublisher;
 
     v: TSpineVertex;
 
@@ -523,76 +720,12 @@ begin
   for i := 0 to FspSkeleton^.slotsCount - 1 do
   try
     if slot^ = nil then Continue;
+    subs := FindSubscribers(slot^);
+    if (subs <> nil) and (subs^.publisher <> nil) then
+      subs^.publisher.OnWriteVertices(slot^, AVertAddCallback, AZ);
     if slot^^.attachment = nil then Continue;
 
-    v.vsColor := FspSkeleton^.color * slot^^.color;
-    v.vsCoord.z := AZ;
-
-    case slot^^.attachment^.atype of
-      SP_ATTACHMENT_REGION:
-      begin
-        regionAtt := PspRegionAttachment(slot^^.attachment);
-        mip := ITextureMip(PspAtlasRegion(regionAtt^.userData)^.page^.UserData);
-        sprite := tex.ObtainSprite(mip);
-        FSprites.Add(sprite);
-        v.vsAtlasRef := sprite.Index;
-
-        ZeroClear(regionWorldPos, SizeOf(regionWorldPos));
-        spRegionAttachment_computeWorldVertices(regionAtt, slot^^.bone, @regionWorldPos[0], 0, 2);
-
-        v.vsCoord.xy := regionWorldPos[0];
-        v.vsTexCrd := Vec(regionAtt^.uvs[0], regionAtt^.uvs[1]);
-        AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
-
-        v.vsCoord.xy := regionWorldPos[1];
-        v.vsTexCrd := Vec(regionAtt^.uvs[2], regionAtt^.uvs[3]);
-        AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
-
-        v.vsCoord.xy := regionWorldPos[2];
-        v.vsTexCrd := Vec(regionAtt^.uvs[4], regionAtt^.uvs[5]);
-        AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
-
-        v.vsCoord.xy := regionWorldPos[0];
-        v.vsTexCrd := Vec(regionAtt^.uvs[0], regionAtt^.uvs[1]);
-        AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
-
-        v.vsCoord.xy := regionWorldPos[2];
-        v.vsTexCrd := Vec(regionAtt^.uvs[4], regionAtt^.uvs[5]);
-        AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
-
-        v.vsCoord.xy := regionWorldPos[3];
-        v.vsTexCrd := Vec(regionAtt^.uvs[6], regionAtt^.uvs[7]);
-        AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
-
-        Inc(Result, 6);
-      end;
-
-      SP_ATTACHMENT_MESH:
-      begin
-        meshAtt := PspMeshAttachment(slot^^.attachment);
-        if meshAtt^.super.worldVerticesLength = 0 then Continue;
-
-        mip := ITextureMip(PspAtlasRegion(meshAtt^.userData)^.page^.UserData);
-        sprite := tex.ObtainSprite(mip);
-        FSprites.Add(sprite);
-        v.vsAtlasRef := sprite.Index;
-
-        if Length(GV_BuildBuffer) < meshAtt^.super.worldVerticesLength then
-          SetLength(GV_BuildBuffer, meshAtt^.super.worldVerticesLength*2);
-
-        spVertexAttachment_computeWorldVertices(@meshAtt^.super, slot^, 0, meshAtt^.super.worldVerticesLength, @GV_BuildBuffer[0], 0, 2);
-
-        for j := 0 to meshAtt^.trianglesCount-1 do
-        begin
-          n := TWordArr(meshAtt^.triangles)[j];
-          v.vsCoord.xy := GV_BuildBuffer[n];
-          v.vsTexCrd := TVec2Arr(meshAtt^.uvs)[n];
-          AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
-        end;
-        Inc(Result, meshAtt^.trianglesCount);
-      end;
-
-    end;
+    Inc(Result, WriteAttachementVertices(Self, slot^, slot^^.attachment, AVertAddCallback, AZ));
   finally
     Inc(slot);
   end;

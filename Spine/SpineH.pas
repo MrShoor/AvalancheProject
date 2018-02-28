@@ -379,6 +379,38 @@ type
   end;
   PspVertexAttachment = ^TspVertexAttachment;
 
+//***BoundingBoxAttachment***
+  TspBoundingBoxAttachment = record
+    super : TspVertexAttachment;
+  end;
+  PspBoundingBoxAttachment = ^TspBoundingBoxAttachment;
+
+//***PathAttachment***
+  TspPathAttachment = record
+    super         : TspVertexAttachment;
+    lengthsLength : Integer;
+    lengths       : PSingle;
+    closed        : LongBool;
+    constantSpeed : LongBool;
+  end;
+  PspPathAttachment = ^TspPathAttachment;
+
+//***PointAttachment***
+  TspPointAttachment = record
+    super    : TspVertexAttachment;
+    xy       : TVec2;
+    rotation : Single;
+    color    : TVec4;
+  end;
+  PspPointAttachment = ^TspPointAttachment;
+
+//***ClippingAttachment***
+  TspClippingAttachment = record
+    super   : TspVertexAttachment;
+    endSlot : PspSlotData;
+  end;
+  PspClippingAttachment = ^TspClippingAttachment;
+
 //***MeshAttachment***
   PspMeshAttachment = ^TspMeshAttachment;
   TspMeshAttachment = record
@@ -633,14 +665,12 @@ function  spSlotData_create (index: Integer; name: PspPChar; boneData: PspBoneDa
 procedure spSlotData_dispose (self: PspSlotData); external cSpineWrapperDll;
 procedure spSlotData_setAttachmentName (self: PspSlotData; attachmentName: PspPChar); external cSpineWrapperDll;
 
-//todo add skin functions
-//spSkin* spSkin_create (const char* name);
-//void spSkin_dispose (spSkin* self);
-//void spSkin_addAttachment (spSkin* self, int slotIndex, const char* name, spAttachment* attachment);
-//spAttachment* spSkin_getAttachment (const spSkin* self, int slotIndex, const char* name);
-//const char* spSkin_getAttachmentName (const spSkin* self, int slotIndex, int attachmentIndex);
-//void spSkin_attachAll (const spSkin* self, struct spSkeleton* skeleton, const spSkin* oldspSkin);
-
+function  spSkin_create(const name: PspPChar): PspSkin; external cSpineWrapperDll;
+procedure spSkin_dispose(skin: PspSkin); external cSpineWrapperDll;
+procedure spSkin_addAttachment(self: PspSkin; slotIndex: Integer; name: PspPChar; attachment: PspAttachment); external cSpineWrapperDll;
+function  spSkin_getAttachment(self: PspSkin; slotIndex: Integer; name: PspPChar): PspAttachment; external cSpineWrapperDll;
+function  spSkin_getAttachmentName(self: PspSkin; slotIndex: Integer; attachmentIndex: Integer): PspPChar; external cSpineWrapperDll;
+procedure spSkin_attachAll(self: PspSkin; skeleton: PspSkeleton; oldspSkin: PspSkin); external cSpineWrapperDll;
 
 function  spEventData_create  (name: PspPChar): PspEventData; external cSpineWrapperDll;
 procedure spEventData_dispose (self: PspEventData); external cSpineWrapperDll;
