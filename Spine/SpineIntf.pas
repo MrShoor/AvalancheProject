@@ -337,10 +337,10 @@ type
 var GV_BuildBuffer: TVec2Arr;
     GV_SkeletonCache: IspSkeletonCache;
 
-procedure AnimationCallBacks(state: PspAnimation; event_type: TspEventType; entry: PspTrackEntry; event: PspEvent);
+procedure AnimationCallBacks(state: PspAnimation; event_type: TspEventType; entry: PspTrackEntry; event: PspEvent); //sometime state comes corrupted?
 begin
   if entry^.userData = nil then Exit;
-  TAnimationState(entry^.userData).CallBackEvent(state, event_type, entry, event);
+  TAnimationState(entry^.userData).CallBackEvent(entry^.animation, event_type, entry, event);
 end;
 
 function SkeletonCache: IspSkeletonCache;
@@ -771,11 +771,11 @@ end;
 procedure TAnimationState.CallBackEvent(state: PspAnimation; event_type: TspEventType; entry: PspTrackEntry; event: PspEvent);
 begin
   case event_type of
-    SP_ANIMATION_START: ;
-    SP_ANIMATION_INTERRUPT: ;
-    SP_ANIMATION_END: ;
-    SP_ANIMATION_COMPLETE: ;
-    SP_ANIMATION_DISPOSE: ;
+    SP_ANIMATION_START: DoNotifyAnimEvent(state, entry, event_type);
+    SP_ANIMATION_INTERRUPT: DoNotifyAnimEvent(state, entry, event_type);
+    SP_ANIMATION_END: DoNotifyAnimEvent(state, entry, event_type);
+    SP_ANIMATION_COMPLETE: DoNotifyAnimEvent(state, entry, event_type);
+    SP_ANIMATION_DISPOSE: DoNotifyAnimEvent(state, entry, event_type);
     SP_ANIMATION_EVENT: DoNotifyUserEvent(state, entry, event^.data^.name);
   end;
 end;
@@ -813,7 +813,8 @@ end;
 
 procedure TAnimationState.DoNotifyAnimEvent(state: PspAnimation; entry: PspTrackEntry; event_type: TspEventType);
 begin
-
+  WriteLn(AnsiString(state^.name));
+  FUserEventPublisher.Event_OnAnimEvent(Self, state, entry, event_type);
 end;
 
 procedure TAnimationState.DoNotifyUserEvent(state: PspAnimation; entry: PspTrackEntry; const EventName: string);
@@ -832,9 +833,24 @@ begin
 end;
 
 procedure TAnimationState.SetAnimationByName(ATrackIndex: Integer; const AnimationName: string; loop: Boolean);
+  function TestAnimationExists(): Boolean;
+  var i: Integer;
+      skel: PspSkeletonData;
+      anim: PspAnimation;
+  begin
+    skel := FspAnimationState^.data^.skeletonData;
+    anim := skel^.animations^;
+    for i := 0 to  skel^.animationsCount - 1 do
+    begin
+      if AnsiString(anim^.name) = AnimationName then Exit(true);
+      Inc(anim);
+    end;
+    Result := false;
+  end;
 var n: Integer;
     track: PPspTrackEntry;
 begin
+  //Assert(TestAnimationExists());
   if loop then n := 1 else n := 0;
   spAnimationState_setAnimationByName(FspAnimationState, ATrackIndex, PspPChar(AnsiString(AnimationName)), n);
 
