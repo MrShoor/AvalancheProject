@@ -1267,7 +1267,7 @@ begin
   FRegionsBuffer := TavSB.Create(Self);
   FRegionsBuffer.Vertices := FRegions as IVerticesData;
 
-  FTargetSize := Vec(1024, 1024);
+  FTargetSize := Vec(4096, 4096);
 end;
 
 destructor TavAtlasArrayReferenced.Destroy;
