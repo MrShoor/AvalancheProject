@@ -11,93 +11,6 @@ uses
   Classes, SysUtils, intfUtils, avBase, avRes, mutils, avTypes, avContnrs, avTess;
 
 type
-  TPolyEdgeType = (etLine, erArc, etBezier2, etBezier3);
-
-  IPolyEdge = interface;
-
-  { IPolyVertex }
-
-  IPolyVertex = interface
-  ['{F8310B64-F98D-460C-A7F3-E0DA7EB07326}']
-    function GetCoord: TVec2;
-    function GetLeftEdge: IPolyEdge;
-    function GetRightEdge: IPolyEdge;
-    procedure SetCoord(AValue: TVec2);
-
-    property Coord: TVec2 read GetCoord write SetCoord;
-
-    property LeftEdge : IPolyEdge read GetLeftEdge;
-    property RightEdge: IPolyEdge read GetRightEdge;
-  end;
-
-  { IPolyEdge }
-
-  IPolyEdge = interface
-  ['{791120DA-026D-4884-BA1B-2D743151A1BA}']
-    function GetVEnd: IPolyVertex;
-    function GetVStart: IPolyVertex;
-    procedure SetVEnd(AValue: IPolyVertex);
-    procedure SetVStart(AValue: IPolyVertex);
-
-    function EdgeType: TPolyEdgeType;
-    function SubPt(t: Single): TVec2;
-
-    property VStart: IPolyVertex read GetVStart write SetVStart;
-    property VEnd  : IPolyVertex read GetVEnd write SetVEnd;
-  end;
-
-  { IPolyEdge_Arc }
-
-  IPolyEdge_Arc = interface (IPolyEdge)
-  ['{F0A60BF6-934E-461B-9237-9934C1A5CB68}']
-    function GetH: Single;
-    procedure SetH(AValue: Single);
-
-    property H: Single read GetH write SetH;
-  end;
-
-  { IPolyEdge_Bezier2 }
-
-  IPolyEdge_Bezier2 = interface (IPolyEdge)
-  ['{9EDBC337-AF26-4204-8027-AEAF36AEE67E}']
-    function GetCPt: TVec2;
-    procedure SetCPt(AValue: TVec2);
-
-    property CPt: TVec2 read GetCPt write SetCPt;
-  end;
-
-  { IPolyEdge_Bezier3 }
-
-  IPolyEdge_Bezier3 = interface (IPolyEdge)
-  ['{9EDBC337-AF26-4204-8027-AEAF36AEE67E}']
-    function GetCPt1: TVec2;
-    function GetCPt2: TVec2;
-    procedure SetCPt1(AValue: TVec2);
-    procedure SetCPt2(AValue: TVec2);
-
-    property CPt1: TVec2 read GetCPt1 write SetCPt1;
-    property CPt2: TVec2 read GetCPt2 write SetCPt2;
-  end;
-
-  { IPolyLine }
-
-  IPolyLine = interface
-  ['{05079DAB-2343-4794-B257-08278E578A3A}']
-    function VertexCount: Integer;
-    function Vertex(Index: Integer): IPolyVertex;
-    function IndexOfVertex(const AVertex: IPolyVertex): Integer;
-    procedure AddVertex(const pt: TVec2; NewEdgeType: TPolyEdgeType = etLine);
-    procedure DelVertex(Index: Integer; NewEdgeType: TPolyEdgeType = etLine);
-    procedure InsertVertex(const pt: TVec2; Index: Integer); overload;
-    procedure InsertVertex(const pt: TVec2; Index: Integer; PrevEdgeType, NextEdgeType: TPolyEdgeType); overload;
-
-    function EdgeCount: Integer;
-    function Edge(Index: Integer): IPolyEdge;
-    function IndexOfEdge(const AEdge: IPolyEdge): Integer;
-    procedure ChangeEdgeType(EdgeIndex: Integer; NewType: TPolyEdgeType);
-    procedure DelEdge(Index: Integer);
-  end;
-
   { TLinePointVertex }
 
   TLinePointVertex = packed record
@@ -138,21 +51,100 @@ type
     property MinPixWidth: Integer read FMinPixWidth write SetMinPixWidth;
   end;
 
-  { TavCanvasCommonData }
+  { TFontStyle }
+  TGlyphStyle = (gsBold, gsItalic, gsUnderline, gsStroke);
+  TGlyphStyles = set of TGlyphStyle;
 
-  TavCanvasCommonData = class (TavRes)
+  TFontStyle = class (TPersistent)
   private
-    FLineQuad: TavVB;
-    FLineProg: TavProgram;
+    FColor: TVec4b;
+    FName: string;
+    FSDFOffset: Single;
+    FSize: Single;
+    FStyle: TGlyphStyles;
+    procedure SetColor(const AValue: TVec4b);
+    procedure SetName(const AValue: string);
+    procedure SetSDFOffset(const AValue: Single);
+    procedure SetSize(const AValue: Single);
+    procedure SetStyle(const AValue: TGlyphStyles);
+  protected
+    procedure AssignTo(Dest: TPersistent); override;
+  public
+    property Name     : string       read FName      write SetName;
+    property Style    : TGlyphStyles read FStyle     write SetStyle;
+    property Color    : TVec4b       read FColor     write SetColor;
+    property Size     : Single       read FSize      write SetSize;
+    property SDFOffset: Single       read FSDFOffset write SetSDFOffset;
+  end;
+
+  { ITextLines }
+
+  ITextLines = interface
+    function GetBoundsX: TVec2;
+    function GetVAlign: Single;
+    procedure SetBoundsX(const AValue: TVec2);
+    procedure SetVAlign(const AValue: Single);
+
+    function LinesCount: Integer;
+    function LineSize(const i: Integer): TVec2;
+    function MaxLineWidth(): Single;
+    function TotalHeight() : Single;
+
+    property BoundsX: TVec2  read GetBoundsX write SetBoundsX;
+    property VAlign : Single read GetVAlign  write SetVAlign;
+  end;
+
+  TLineAlign = (laLeft, laCenter, laRight);
+
+  { ITextBuilder }
+
+  ITextBuilder = interface
+    function  GetAlign: TLineAlign;
+    function  GetFont: TFontStyle;
+    procedure SetAlign(const AValue: TLineAlign);
+    procedure SetFont(const AValue: TFontStyle);
+
+    procedure Write(const AStr: string);
+    procedure WriteLn(const AStr: string);
+    procedure WriteLn;
+
+    function Finish(): ITextLines;
+
+    property Font : TFontStyle read GetFont write SetFont;
+    property Align: TLineAlign read GetAlign write SetAlign;
+  end;
+
+  { TavCanvasCommonData }
+  TavCanvasCommonData = class (TavRes)
+  private type
+    TGlyphKey = packed record
+      font : string[255];
+      glyph: WideChar;
+      style: TGlyphStyles;
+    end;
+    TGlyphsMap = {$IfDef FPC}specialize{$EndIf}THashMap<TGlyphKey, ITextureMip>;
+    IGlyphsMap = {$IfDef FPC}specialize{$EndIf}IHashMap<TGlyphKey, ITextureMip>;
+  private
+    FLineQuad : TavVB;
+    FLineProg : TavProgram;
     FWndMatrix: TMat4;
+
+    FGlyphsAtlas: TavAtlasArrayReferenced;
+
+    FGlyphs : IGlyphsMap;
+
     procedure SetWndMatrix(AValue: TMat4);
   protected
     procedure AfterInit3D; override;
     procedure BeforeFree3D; override;
   public
+    function GetGlyphImage (const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out YYMetrics: TVec2): ITextureMip;
+    function GetGlyphSprite(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out YYMetrics: TVec2): ISpriteIndex;
+
     property WndMatrix: TMat4 read FWndMatrix write SetWndMatrix;
 
     procedure ReloadShaders;
+    function GlyphsAtlas: TavAtlasArrayReferenced;
     property LineQuad: TavVB      read FLineQuad;
     property LineProg: TavProgram read FLineProg;
 
@@ -170,7 +162,7 @@ type
     FPen: TPenStyle;
 
     FLineData: ILinePointVertices;
-    FValid: Boolean;
+    FValid   : Boolean;
     FVBLines : TavVB;
 
     procedure SetPen(AValue: TPenStyle);
@@ -203,6 +195,100 @@ const
   NAME_TavCanvasCommonData = 'TavCanvasCommonData';
 
 type
+  { TGlyphVertex }
+
+  TGlyphVertex = packed record
+  private
+    procedure SetGlyph(const AValue: ISpriteIndex);
+  public
+    Pos       : TVec2;
+    Align     : Single;
+    Size      : TVec2;
+    SDFOffset : Single;
+    Color     : TVec4b;
+    GlyphID   : Integer;
+
+    _Glyph    : ISpriteIndex;
+    class function Layout: IDataLayout; static;
+
+    property Glyph: ISpriteIndex read _Glyph write SetGlyph;
+  end;
+  PGlyphVertex = ^TGlyphVertex;
+  TGlyphVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TGlyphVertex>;
+  IGlyphVertices = {$IfDef FPC}specialize{$EndIf} IArray<TGlyphVertex>;
+
+  TLineInfo = packed record
+    align: TLineAlign;
+    yymetrics: TVec2;
+    width: Single;
+  end;
+  PLineInfo = ^TLineInfo;
+  TLineInfoArr = {$IfDef FPC}specialize{$EndIf} TArray<TLineInfo>;
+  ILineInfoArr = {$IfDef FPC}specialize{$EndIf} IArray<TLineInfo>;
+
+  { TTextLines }
+
+  TTextLines = class(TInterfacedObject, ITextLines)
+  private
+    FBoundsX     : TVec2;
+    FGlyphs      : IGlyphVertices;
+    FLines       : ILineInfoArr;
+    FMaxLineWidth: Single;
+    FTotalHeight : Single;
+    FVAlign      : Single;
+  public
+    function  GetBoundsX: TVec2;
+    function  GetVAlign: Single;
+    procedure SetBoundsX(const AValue: TVec2);
+    procedure SetVAlign(const AValue: Single);
+
+    function LinesCount: Integer;
+    function LineSize(const i: Integer): TVec2;
+    function MaxLineWidth(): Single;
+    function TotalHeight() : Single;
+
+    property BoundsX: TVec2 read GetBoundsX write SetBoundsX;
+  public
+    constructor Create(const AGlyphs: IGlyphVertices; const ALines: ILineInfoArr);
+  end;
+
+  { TTextBuilder }
+
+  TTextBuilder = class (TInterfacedObject, ITextBuilder)
+  private type
+    TVec2Arr = {$IfDef FPC}specialize{$EndIf} TArray<TVec2>;
+    IVec2Arr = {$IfDef FPC}specialize{$EndIf} IArray<TVec2>;
+  private
+    FCommon: TavCanvasCommonData;
+    FFont  : TFontStyle;
+    FAlign : TLineAlign;
+
+    FGlyphs: IGlyphVertices;
+    FLines : ILineInfoArr;
+
+    FLineInited     : Boolean;
+    FPos            : TVec2;
+    FLineStart      : Integer;
+    FLineInfo       : TLineInfo;
+    FLineYYMetrics  : IVec2Arr;
+
+    procedure Write(const AStr: UnicodeString);
+  private
+    function  GetAlign: TLineAlign;
+    function  GetFont: TFontStyle;
+    procedure SetAlign(const AValue: TLineAlign);
+    procedure SetFont(const AValue: TFontStyle);
+
+    procedure Write(const AStr: string);
+    procedure WriteLn(const AStr: string);
+    procedure WriteLn;
+
+    function Finish(): ITextLines;
+  public
+    constructor Create(const AFont: TFontStyle; const ACommon: TavCanvasCommonData);
+    destructor  Destroy; override;
+  end;
+
   { TLineQuadVertex }
 
   TLineQuadVertex = packed record
@@ -220,6 +306,275 @@ begin
     Result := TavCanvasCommonData.Create(RenderMain);
     Result.Name := NAME_TavCanvasCommonData;
   end;
+end;
+
+{ TGlyphVertexGPU }
+
+procedure TGlyphVertex.SetGlyph(const AValue: ISpriteIndex);
+begin
+  if _Glyph = AValue then Exit;
+  _Glyph := AValue;
+  GlyphID := _Glyph.Index;
+end;
+
+class function TGlyphVertex.Layout: IDataLayout;
+begin
+  Result := LB.Add('vsPos', ctFloat, 2)
+              .Add('vsAlign', ctFloat, 1)
+              .Add('vsSize', ctFloat, 2)
+              .Add('vsSDFOffset', ctFloat, 1)
+              .Add('vsColor', ctByte, 4, true)
+              .Add('vsGlyph', ctInt, 1)
+              .Finish(SizeOf(TGlyphVertex));
+end;
+
+{ TTextBuilder }
+
+procedure TTextBuilder.Write(const AStr: UnicodeString);
+  procedure ScaleMetrics(var abc: TVec3; var yy: TVec2);
+  begin
+    //todo
+  end;
+var ch: WideChar;
+    abc: TVec3;
+    yy: TVec2;
+    glyph: PGlyphVertex;
+    dummy: TGlyphVertex;
+    i: Integer;
+begin
+  if not FLineInited then
+  begin
+    FLineInited := True;
+    FLineStart := FGlyphs.Count;
+    FLineInfo.align := FAlign;
+    FLineInfo.yymetrics := Vec(0,0);
+    FLineInfo.width := 0;
+  end;
+
+  for i := 1 to Length(AStr) - 1 do
+  begin
+    ch := AStr[i];
+    glyph := PGlyphVertex( FGlyphs.PItem[FGlyphs.Add(dummy)] );
+    glyph^.Glyph := FCommon.GetGlyphSprite(FFont.Name, ch, FFont.Style, abc, yy);
+    ScaleMetrics(abc, yy);
+
+    FLineYYMetrics.Add(yy);
+    FLineInfo.width := FLineInfo.width + abc.x + abc.y + abc.z;
+
+    FPos.x := FPos.x + abc.x + abc.y*0.5;
+    glyph^.Pos.x := FPos.x;
+    FPos.x := FPos.x + abc.y*0.5 + abc.z;
+    glyph^.Size.x := abc.y;
+    glyph^.Size.y := yy.x + yy.y;
+
+    glyph^.SDFOffset := 0;
+    glyph^.Color := FFont.Color;
+
+    FLineInfo.yymetrics := Max(FLineInfo.yymetrics, yy);
+  end;
+end;
+
+function TTextBuilder.GetAlign: TLineAlign;
+begin
+  Result := FAlign;
+end;
+
+function TTextBuilder.GetFont: TFontStyle;
+begin
+  Result := FFont;
+end;
+
+procedure TTextBuilder.SetAlign(const AValue: TLineAlign);
+begin
+  FAlign := AValue;
+end;
+
+procedure TTextBuilder.SetFont(const AValue: TFontStyle);
+begin
+  FFont.Assign(AValue);
+end;
+
+procedure TTextBuilder.Write(const AStr: string);
+begin
+  Write(UnicodeString(AStr));
+end;
+
+procedure TTextBuilder.WriteLn(const AStr: string);
+begin
+  Write(UnicodeString(AStr));
+  WriteLn;
+end;
+
+procedure TTextBuilder.WriteLn;
+var glyph: PGlyphVertex;
+    i: Integer;
+begin
+  if not FLineInited then
+  begin
+    FPos.y := FPos.y + FFont.Size;
+  end
+  else
+  begin
+    glyph := PGlyphVertex( FGlyphs.PItem[FLineStart] );
+    for i := 0 to FLineYYMetrics.Count - 1 do
+    begin
+      case FLineInfo.align of
+        laLeft : glyph^.Align := 0;
+        laCenter :
+          begin
+            glyph^.Pos.x := glyph^.Pos.x - FLineInfo.width * 0.5;
+            glyph^.Align := 0.5;
+          end;
+        laRight  :
+          begin
+            glyph^.Pos.x := glyph^.Pos.x - FLineInfo.width;
+            glyph^.Align := 1;
+          end;
+      end;
+      glyph^.Pos.y := FPos.y + FLineInfo.yymetrics.x - FLineYYMetrics[i].x + glyph^.Size.y * 0.5;
+      Inc(glyph);
+    end;
+    FLines.Add(FLineInfo);
+    FLineYYMetrics.Clear();
+  end;
+  FPos.x := 0;
+  FPos.y := FPos.y + FLineInfo.yymetrics.x + FLineInfo.yymetrics.y;
+  FLineInited := False;
+end;
+
+function TTextBuilder.Finish: ITextLines;
+begin
+  Result := TTextLines.Create(FGlyphs, FLines);
+
+  FGlyphs := TGlyphVertices.Create();
+  FLines := TLineInfoArr.Create();
+  FLineInited := False;
+  FLineStart := 0;
+  FLineYYMetrics := TVec2Arr.Create();
+end;
+
+constructor TTextBuilder.Create(const AFont: TFontStyle; const ACommon: TavCanvasCommonData);
+begin
+  FCommon := ACommon;
+  FFont := AFont;
+  FGlyphs := TGlyphVertices.Create();
+  FLines := TLineInfoArr.Create();
+  FLineInited := False;
+  FLineStart := 0;
+  FLineYYMetrics := TVec2Arr.Create();
+end;
+
+destructor TTextBuilder.Destroy;
+begin
+  inherited Destroy;
+
+end;
+
+{ TTextLines }
+
+function TTextLines.GetBoundsX: TVec2;
+begin
+  Result := FBoundsX;
+end;
+
+function TTextLines.GetVAlign: Single;
+begin
+  Result := FVAlign;
+end;
+
+procedure TTextLines.SetBoundsX(const AValue: TVec2);
+begin
+  FBoundsX := AValue;
+end;
+
+procedure TTextLines.SetVAlign(const AValue: Single);
+begin
+  FVAlign := AValue;
+end;
+
+function TTextLines.LinesCount: Integer;
+begin
+  Result := FLines.Count;
+end;
+
+function TTextLines.LineSize(const i: Integer): TVec2;
+var pl: PLineInfo;
+begin
+  pl := PLineInfo( FLines.PItem[i] );
+  Result.x := pl^.width;
+  Result.y := pl^.yymetrics.x + pl^.yymetrics.y;
+end;
+
+function TTextLines.MaxLineWidth: Single;
+begin
+  Result := FMaxLineWidth;
+end;
+
+function TTextLines.TotalHeight: Single;
+begin
+  Result := FTotalHeight;
+end;
+
+constructor TTextLines.Create(const AGlyphs: IGlyphVertices; const ALines: ILineInfoArr);
+var i: Integer;
+    pl: PLineInfo;
+begin
+  FGlyphs := AGlyphs;
+  FLines := ALines;
+
+  FMaxLineWidth := 0;
+  FTotalHeight := 0;
+  for i := 0 to FLines.Count - 1 do
+  begin
+    pl := FLines.PItem[i];
+    FMaxLineWidth := Max(FMaxLineWidth, pl^.width);
+    FTotalHeight := FTotalHeight + pl^.yymetrics.x + pl^.yymetrics.y;
+  end;
+  FBoundsX.x := -0.5 * FMaxLineWidth;
+  FBoundsX.y :=  0.5 * FMaxLineWidth;
+end;
+
+{ TFontStyle }
+
+procedure TFontStyle.SetName(const AValue: string);
+begin
+  if FName = AValue then Exit;
+  FName := AValue;
+end;
+
+procedure TFontStyle.SetSDFOffset(const AValue: Single);
+begin
+  if FSDFOffset = AValue then Exit;
+  FSDFOffset := AValue;
+end;
+
+procedure TFontStyle.SetSize(const AValue: Single);
+begin
+  if FSize = AValue then Exit;
+  FSize := AValue;
+end;
+
+procedure TFontStyle.SetColor(const AValue: TVec4b);
+begin
+  if FColor = AValue then Exit;
+  FColor := AValue;
+end;
+
+procedure TFontStyle.SetStyle(const AValue: TGlyphStyles);
+begin
+  if FStyle = AValue then Exit;
+  FStyle := AValue;
+end;
+
+procedure TFontStyle.AssignTo(Dest: TPersistent);
+var FontDest: TFontStyle absolute Dest;
+begin
+  Assert(Dest is TFontStyle);
+  FontDest.FColor := FColor;
+  FontDest.FName := FName;
+  FontDest.FSDFOffset := FSDFOffset;
+  FontDest.FSize := FSize;
+  FontDest.FStyle := FStyle;
 end;
 
 { TLinePointVertex }
@@ -259,11 +614,30 @@ begin
   inherited BeforeFree3D;
 end;
 
+function TavCanvasCommonData.GetGlyphImage(const AFontName: string;
+  AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out
+  YYMetrics: TVec2): ITextureMip;
+begin
+  //todo
+end;
+
+function TavCanvasCommonData.GetGlyphSprite(const AFontName: string;
+  AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out
+  YYMetrics: TVec2): ISpriteIndex;
+begin
+  Result := FGlyphsAtlas.ObtainSprite(GetGlyphImage(AFontName, AChar, AStyle, ABCMetrics, YYMetrics));
+end;
+
 procedure TavCanvasCommonData.ReloadShaders;
 const LOADFROMRES = False;
       DIR = 'E:\Projects\AvalancheProject\Canvas_Shaders\!Out\';
 begin
   FLineProg.Load('CanvasLine', LOADFROMRES, DIR);
+end;
+
+function TavCanvasCommonData.GlyphsAtlas: TavAtlasArrayReferenced;
+begin
+  Result := FGlyphsAtlas;
 end;
 
 constructor TavCanvasCommonData.Create(AParent: TavObject);
@@ -281,6 +655,9 @@ begin
   V.quadCoord := Vec(1.0,  1.0); Vert.Add(V);
   FLineQuad.Vertices := Vert as IVerticesData;
   FLineQuad.PrimType := ptTriangleStrip;
+
+  FGlyphs := TGlyphsMap.Create();
+  FGlyphsAtlas := TavAtlasArrayReferenced.Create(Self);
 end;
 
 { TavCanvas }
