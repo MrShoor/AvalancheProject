@@ -1,4 +1,2 @@
 DX_CanvasLine RCDATA "!Out\DX_CanvasLine.hlsl"
-OGL_CanvasLine RCDATA "!Out\OGL_CanvasLine.glsl"
-DX_Drawing RCDATA "!Out\DX_Drawing.hlsl"
-OGL_Drawing RCDATA "!Out\OGL_Drawing.glsl"
+DX_CanvasFont RCDATA "!Out\DX_CanvasFont.hlsl"

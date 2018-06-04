@@ -8,7 +8,7 @@ unit avCanvas;
 interface
 
 uses
-  Classes, SysUtils, intfUtils, avBase, avRes, mutils, avTypes, avContnrs, avTess;
+  Classes, SysUtils, intfUtils, avBase, avRes, mutils, avTypes, avContnrs, avTess, avContext, avGlyphGenerator;
 
 type
   { TLinePointVertex }
@@ -20,8 +20,40 @@ type
     HintingAlign: TVec4;
     class function Layout: IDataLayout; static;
   end;
-  TLinePointVertices = specialize TVerticesRec<TLinePointVertex>;
-  ILinePointVertices = specialize IArray<TLinePointVertex>;
+  TLinePointVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TLinePointVertex>;
+  ILinePointVertices = {$IfDef FPC}specialize{$EndIf} IArray<TLinePointVertex>;
+
+  { TGlyphVertex }
+
+  TGlyphVertex = packed record
+  private
+    procedure SetGlyph(const AValue: ISpriteIndex);
+  public
+    Pos       : TVec2;
+    Align     : Single;
+    Size      : TVec2;
+    SDFOffset : Single;
+    Color     : TVec4b;
+    GlyphID   : Integer;
+
+    _Glyph    : ISpriteIndex;
+    class function Layout: IDataLayout; static;
+
+    property Glyph: ISpriteIndex read _Glyph write SetGlyph;
+  end;
+  PGlyphVertex = ^TGlyphVertex;
+  TGlyphVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TGlyphVertex>;
+  IGlyphVertices = {$IfDef FPC}specialize{$EndIf} IArray<TGlyphVertex>;
+
+  TLineAlign = (laLeft, laCenter, laRight);
+  TLineInfo = packed record
+    align: TLineAlign;
+    yymetrics: TVec2;
+    width: Single;
+  end;
+  PLineInfo = ^TLineInfo;
+  TLineInfoArr = {$IfDef FPC}specialize{$EndIf} TArray<TLineInfo>;
+  ILineInfoArr = {$IfDef FPC}specialize{$EndIf} IArray<TLineInfo>;
 
   {$SCOPEDENUMS ON}
   TPenAlign = (Center, Left, Right);
@@ -90,11 +122,13 @@ type
     function MaxLineWidth(): Single;
     function TotalHeight() : Single;
 
+    function AllGlyphs(): IGlyphVertices;
+
     property BoundsX: TVec2  read GetBoundsX write SetBoundsX;
     property VAlign : Single read GetVAlign  write SetVAlign;
   end;
-
-  TLineAlign = (laLeft, laCenter, laRight);
+  TTextLinesArr = {$IfDef FPC}specialize{$EndIf} TArray<ITextLines>;
+  ITextLinesArr = {$IfDef FPC}specialize{$EndIf} IArray<ITextLines>;
 
   { ITextBuilder }
 
@@ -106,12 +140,33 @@ type
 
     procedure Write(const AStr: string);
     procedure WriteLn(const AStr: string);
-    procedure WriteLn;
 
     function Finish(): ITextLines;
 
     property Font : TFontStyle read GetFont write SetFont;
     property Align: TLineAlign read GetAlign write SetAlign;
+  end;
+
+  { TavUIProgram }
+
+  TavUIProgram = class (TavProgram)
+  private
+    FUniform_UIMatrix: TUniformField;
+    FUniform_UIMatrixInverse: TUniformField;
+    FUniform_ViewportSize: TUniformField;
+
+    FUniform_Transform: TUniformField;
+    FUniform_PixelToUnit: TUniformField;
+
+    FLastViewportSize: TVec2i;
+  protected
+    procedure BeforeFree3D; override;
+    function  DoBuild: Boolean; override;
+
+    procedure UpdateUniforms; override;
+  public
+    procedure SetTransform  (const ATransform: TMat4);
+    procedure SetPixelToUnit(const AScale: single);
   end;
 
   { TavCanvasCommonData }
@@ -122,11 +177,20 @@ type
       glyph: WideChar;
       style: TGlyphStyles;
     end;
-    TGlyphsMap = {$IfDef FPC}specialize{$EndIf}THashMap<TGlyphKey, ITextureMip>;
-    IGlyphsMap = {$IfDef FPC}specialize{$EndIf}IHashMap<TGlyphKey, ITextureMip>;
+    TGlyphData = packed record
+      img       : ITextureMip;
+      ABCMetrics: TVec3i;
+      YYMetrics : TVec2;
+    end;
+    PGlyphData = ^TGlyphData;
+
+    TGlyphsMap = {$IfDef FPC}specialize{$EndIf}THashMap<TGlyphKey, TGlyphData>;
+    IGlyphsMap = {$IfDef FPC}specialize{$EndIf}IHashMap<TGlyphKey, TGlyphData>;
   private
     FLineQuad : TavVB;
-    FLineProg : TavProgram;
+    FLineProg : TavUIProgram;
+    FFontProg : TavUIProgram;
+
     FWndMatrix: TMat4;
 
     FGlyphsAtlas: TavAtlasArrayReferenced;
@@ -145,8 +209,9 @@ type
 
     procedure ReloadShaders;
     function GlyphsAtlas: TavAtlasArrayReferenced;
-    property LineQuad: TavVB      read FLineQuad;
-    property LineProg: TavProgram read FLineProg;
+    property LineQuad: TavVB        read FLineQuad;
+    property LineProg: TavUIProgram read FLineProg;
+    property FontProg: TavUIProgram read FFontProg;
 
     constructor Create(AParent: TavObject); overload; override;
   end;
@@ -154,29 +219,57 @@ type
   { TavCanvas }
 
   TavCanvas = class(TavMainRenderChild)
+  private type
+    TGeometryKind = (gkUnknown, gkLines, gkFont);
+    TGeometryBatch = packed record
+      kind  : TGeometryKind;
+      ranges: TVec2i;
+    end;
+    TGeometry = {$IfDef FPC}specialize{$EndIf}TArray<TGeometryBatch>;
+    IGeometry = {$IfDef FPC}specialize{$EndIf}IArray<TGeometryBatch>;
+
+    TVec2iArray = {$IfDef FPC}specialize{$EndIf}TArray<TVec2i>;
+    IVec2iArray = {$IfDef FPC}specialize{$EndIf}IArray<TVec2i>;
   private
     FCommonData: IWeakRef;
     function GetCommonData: TavCanvasCommonData;
     property CommonData: TavCanvasCommonData read GetCommonData;
   private
-    FPen: TPenStyle;
+    FPen : TPenStyle;
+    FFont: TFontStyle;
 
     FLineData: ILinePointVertices;
     FValid   : Boolean;
     FVBLines : TavVB;
 
+    FTextLines      : ITextLinesArr;
+    FTextLineRanges : IVec2iArray;
+    FGlyphsData     : IGlyphVertices;
+    FVBGlyphs       : TavVB;
+
+    FGeometryBatches: IGeometry;
+    FCurrentBatch: TGeometryBatch;
+
+    procedure SetFont(const AValue: TFontStyle);
     procedure SetPen(AValue: TPenStyle);
     procedure AddLineSegment(Coords, Normals: TVec4);
-    procedure FillSegmentByPen(var Seg: TLinePointVertex);
+    procedure FillSegmentByPen(out Seg: TLinePointVertex);
 
     procedure SetValid(AValue: Boolean);
+    procedure SelectGeometryKind(const AKind: TGeometryKind);
   public
-    property Pen: TPenStyle read FPen write SetPen;
-    property Valid: Boolean read FValid write SetValid;
+    property Pen  : TPenStyle  read FPen   write SetPen;
+    property Font : TFontStyle read FFont  write SetFont;
+    property Valid: Boolean    read FValid write SetValid;
 
+    function TextBuilder: ITextBuilder;
+
+    //drawing functions
     procedure Clear;
     procedure Rectangle(Left, Top, Right, Bottom: Single); overload;
     procedure Rectangle(LeftTop, RightBottom: TVec2); overload;
+    procedure Text(const AText: ITextLines);
+
     procedure Draw(const ATransform: TMat4; const APixelToUnit: Single);
 
     constructor Create(AParent: TavObject); overload; override;
@@ -194,38 +287,12 @@ uses Math;
 const
   NAME_TavCanvasCommonData = 'TavCanvasCommonData';
 
+  GLYPH_DefaultSize = 24;
+  GLYPH_DFScale = 2;
+  GLYPH_DFSize = GLYPH_DefaultSize * GLYPH_DFScale;
+  GLYPH_DFSizeInv = 1.0/GLYPH_DFSize;
+
 type
-  { TGlyphVertex }
-
-  TGlyphVertex = packed record
-  private
-    procedure SetGlyph(const AValue: ISpriteIndex);
-  public
-    Pos       : TVec2;
-    Align     : Single;
-    Size      : TVec2;
-    SDFOffset : Single;
-    Color     : TVec4b;
-    GlyphID   : Integer;
-
-    _Glyph    : ISpriteIndex;
-    class function Layout: IDataLayout; static;
-
-    property Glyph: ISpriteIndex read _Glyph write SetGlyph;
-  end;
-  PGlyphVertex = ^TGlyphVertex;
-  TGlyphVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TGlyphVertex>;
-  IGlyphVertices = {$IfDef FPC}specialize{$EndIf} IArray<TGlyphVertex>;
-
-  TLineInfo = packed record
-    align: TLineAlign;
-    yymetrics: TVec2;
-    width: Single;
-  end;
-  PLineInfo = ^TLineInfo;
-  TLineInfoArr = {$IfDef FPC}specialize{$EndIf} TArray<TLineInfo>;
-  ILineInfoArr = {$IfDef FPC}specialize{$EndIf} IArray<TLineInfo>;
-
   { TTextLines }
 
   TTextLines = class(TInterfacedObject, ITextLines)
@@ -246,6 +313,8 @@ type
     function LineSize(const i: Integer): TVec2;
     function MaxLineWidth(): Single;
     function TotalHeight() : Single;
+
+    function AllGlyphs(): IGlyphVertices;
 
     property BoundsX: TVec2 read GetBoundsX write SetBoundsX;
   public
@@ -272,7 +341,8 @@ type
     FLineInfo       : TLineInfo;
     FLineYYMetrics  : IVec2Arr;
 
-    procedure Write(const AStr: UnicodeString);
+    procedure WriteInternal(const AStr: UnicodeString);
+    procedure WriteLnInternal;
   private
     function  GetAlign: TLineAlign;
     function  GetFont: TFontStyle;
@@ -281,7 +351,6 @@ type
 
     procedure Write(const AStr: string);
     procedure WriteLn(const AStr: string);
-    procedure WriteLn;
 
     function Finish(): ITextLines;
   public
@@ -295,8 +364,8 @@ type
     quadCoord: TVec2;
     class function Layout: IDataLayout; static;
   end;
-  TLineQuadVertices = specialize TVerticesRec<TLineQuadVertex>;
-  ILineQuadVertices = specialize IArray<TLineQuadVertex>;
+  TLineQuadVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TLineQuadVertex>;
+  ILineQuadVertices = {$IfDef FPC}specialize{$EndIf} IArray<TLineQuadVertex>;
 
 function GetCanvasCommonData(const RenderMain: TavMainRender): TavCanvasCommonData;
 begin
@@ -306,6 +375,55 @@ begin
     Result := TavCanvasCommonData.Create(RenderMain);
     Result.Name := NAME_TavCanvasCommonData;
   end;
+end;
+
+{ TavUIProgram }
+
+procedure TavUIProgram.BeforeFree3D;
+begin
+  inherited BeforeFree3D;
+  FUniform_UIMatrix := nil;
+  FUniform_UIMatrixInverse := nil;
+  FUniform_ViewportSize := nil;
+  FUniform_PixelToUnit := nil;
+end;
+
+function TavUIProgram.DoBuild: Boolean;
+begin
+  Result := inherited DoBuild;
+  if Result then
+  begin
+    FUniform_UIMatrix := GetUniformField('UIMatrix');
+    FUniform_UIMatrixInverse := GetUniformField('UIMatrixInverse');
+    FUniform_ViewportSize := GetUniformField('ViewPortSize');
+    FUniform_PixelToUnit := GetUniformField('PixelToUnit');
+    FUniform_Transform := GetUniformField('Transform');
+  end;
+end;
+
+procedure TavUIProgram.UpdateUniforms;
+var currViewportSize: TVec2i;
+    m: TMat4;
+begin
+  currViewportSize := Main.States.Viewport.Size;
+  if FLastViewportSize <> currViewportSize then
+  begin
+    FLastViewportSize := currViewportSize;
+    m := GetUIMatrix(FLastViewportSize.x, FLastViewportSize.y);
+    SetUniform(FUniform_UIMatrix, m);
+    SetUniform(FUniform_UIMatrixInverse, Inv(m));
+    SetUniform(FUniform_ViewportSize, FLastViewportSize*1.0);
+  end;
+end;
+
+procedure TavUIProgram.SetTransform(const ATransform: TMat4);
+begin
+  SetUniform(FUniform_Transform, ATransform);
+end;
+
+procedure TavUIProgram.SetPixelToUnit(const AScale: single);
+begin
+  SetUniform(FUniform_PixelToUnit, AScale);
 end;
 
 { TGlyphVertexGPU }
@@ -319,21 +437,22 @@ end;
 
 class function TGlyphVertex.Layout: IDataLayout;
 begin
-  Result := LB.Add('vsPos', ctFloat, 2)
-              .Add('vsAlign', ctFloat, 1)
-              .Add('vsSize', ctFloat, 2)
-              .Add('vsSDFOffset', ctFloat, 1)
-              .Add('vsColor', ctByte, 4, true)
-              .Add('vsGlyph', ctInt, 1)
+  Result := LB.Add('Pos', ctFloat, 2)
+              .Add('Align', ctFloat, 1)
+              .Add('Size', ctFloat, 2)
+              .Add('SDFOffset', ctFloat, 1)
+              .Add('Color', ctByte, 4, true)
+              .Add('GlyphID', ctUInt, 1)
               .Finish(SizeOf(TGlyphVertex));
 end;
 
 { TTextBuilder }
 
-procedure TTextBuilder.Write(const AStr: UnicodeString);
+procedure TTextBuilder.WriteInternal(const AStr: UnicodeString);
   procedure ScaleMetrics(var abc: TVec3; var yy: TVec2);
   begin
-    //todo
+    abc := abc * GLYPH_DFSizeInv * FFont.Size;
+    yy := yy * GLYPH_DFSizeInv * FFont.Size;
   end;
 var ch: WideChar;
     abc: TVec3;
@@ -374,38 +493,7 @@ begin
   end;
 end;
 
-function TTextBuilder.GetAlign: TLineAlign;
-begin
-  Result := FAlign;
-end;
-
-function TTextBuilder.GetFont: TFontStyle;
-begin
-  Result := FFont;
-end;
-
-procedure TTextBuilder.SetAlign(const AValue: TLineAlign);
-begin
-  FAlign := AValue;
-end;
-
-procedure TTextBuilder.SetFont(const AValue: TFontStyle);
-begin
-  FFont.Assign(AValue);
-end;
-
-procedure TTextBuilder.Write(const AStr: string);
-begin
-  Write(UnicodeString(AStr));
-end;
-
-procedure TTextBuilder.WriteLn(const AStr: string);
-begin
-  Write(UnicodeString(AStr));
-  WriteLn;
-end;
-
-procedure TTextBuilder.WriteLn;
+procedure TTextBuilder.WriteLnInternal;
 var glyph: PGlyphVertex;
     i: Integer;
 begin
@@ -440,6 +528,37 @@ begin
   FPos.x := 0;
   FPos.y := FPos.y + FLineInfo.yymetrics.x + FLineInfo.yymetrics.y;
   FLineInited := False;
+end;
+
+function TTextBuilder.GetAlign: TLineAlign;
+begin
+  Result := FAlign;
+end;
+
+function TTextBuilder.GetFont: TFontStyle;
+begin
+  Result := FFont;
+end;
+
+procedure TTextBuilder.SetAlign(const AValue: TLineAlign);
+begin
+  FAlign := AValue;
+end;
+
+procedure TTextBuilder.SetFont(const AValue: TFontStyle);
+begin
+  FFont.Assign(AValue);
+end;
+
+procedure TTextBuilder.Write(const AStr: string);
+begin
+  WriteInternal(UnicodeString(AStr));
+end;
+
+procedure TTextBuilder.WriteLn(const AStr: string);
+begin
+  WriteInternal(UnicodeString(AStr));
+  WriteLnInternal;
 end;
 
 function TTextBuilder.Finish: ITextLines;
@@ -513,6 +632,11 @@ end;
 function TTextLines.TotalHeight: Single;
 begin
   Result := FTotalHeight;
+end;
+
+function TTextLines.AllGlyphs: IGlyphVertices;
+begin
+  Result := FGlyphs;
 end;
 
 constructor TTextLines.Create(const AGlyphs: IGlyphVertices; const ALines: ILineInfoArr);
@@ -617,8 +741,24 @@ end;
 function TavCanvasCommonData.GetGlyphImage(const AFontName: string;
   AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out
   YYMetrics: TVec2): ITextureMip;
+var key  : TGlyphKey;
+    pdata: PGlyphData;
+    data : TGlyphData;
 begin
-  //todo
+  key.font := AFontName;
+  key.glyph := AChar;
+  key.style := AStyle;
+  if not FGlyphs.TryGetPValue(key, Pointer(pdata)) then
+  begin
+    //todo
+    data.img := GenerateGlyphImage('Arial', AChar, GLYPH_DefaultSize, False, False, False, data.ABCMetrics);
+    data.YYMetrics := Vec(GLYPH_DefaultSize*0.5, GLYPH_DefaultSize*0.5);
+    FGlyphs.Add(key, data);
+    pdata := @data;
+  end;
+  Result := pdata^.img;
+  ABCMetrics := pdata^.ABCMetrics;
+  YYMetrics := pdata^.YYMetrics;
 end;
 
 function TavCanvasCommonData.GetGlyphSprite(const AFontName: string;
@@ -630,9 +770,10 @@ end;
 
 procedure TavCanvasCommonData.ReloadShaders;
 const LOADFROMRES = False;
-      DIR = 'E:\Projects\AvalancheProject\Canvas_Shaders\!Out\';
+      DIR = 'D:\Projects\AvalancheProject\Canvas_Shaders\!Out\';
 begin
   FLineProg.Load('CanvasLine', LOADFROMRES, DIR);
+  FFontProg.Load('CanvasFont', LOADFROMRES, DIR);
 end;
 
 function TavCanvasCommonData.GlyphsAtlas: TavAtlasArrayReferenced;
@@ -646,7 +787,8 @@ var Vert: ILineQuadVertices;
 begin
   inherited Create(AParent);
   FLineQuad := TavVB.Create(Self);
-  FLineProg := TavProgram.Create(Self);
+  FLineProg := TavUIProgram.Create(Self);
+  FFontProg := TavUIProgram.Create(Self);
 
   Vert := TLineQuadVertices.Create;
   V.quadCoord := Vec(0.0, -1.0); Vert.Add(V);
@@ -675,6 +817,12 @@ begin
   FPen.Assign(AValue);
 end;
 
+procedure TavCanvas.SetFont(const AValue: TFontStyle);
+begin
+  if FFont = AValue then Exit;
+  FFont.Assign(AValue);
+end;
+
 procedure TavCanvas.AddLineSegment(Coords, Normals: TVec4);
 var Seg: TLinePointVertex;
 begin
@@ -685,7 +833,7 @@ begin
   FVBLines.Invalidate;
 end;
 
-procedure TavCanvas.FillSegmentByPen(var Seg: TLinePointVertex);
+procedure TavCanvas.FillSegmentByPen(out Seg: TLinePointVertex);
 begin
   Seg.Width := Vec(Pen.Width, Pen.MinPixWidth);
   if TPenHintingStyle.Horizontal in Pen.Hinting then
@@ -716,15 +864,55 @@ begin
   FValid := AValue;
 end;
 
+procedure TavCanvas.SelectGeometryKind(const AKind: TGeometryKind);
+
+  function GetRangeEnd(const AKind: TGeometryKind): Integer;
+  begin
+    case AKind of
+      gkUnknown: Exit(0);
+      gkLines  : Exit(FLineData.Count);
+      gkFont   : Exit(FTextLines.Count);
+    else
+      Result := 0;
+    end;
+  end;
+
+begin
+  if AKind = FCurrentBatch.kind then Exit;
+
+  if FCurrentBatch.kind <> gkUnknown then
+  begin
+    FCurrentBatch.ranges.y := GetRangeEnd(FCurrentBatch.kind) - FCurrentBatch.ranges.x;
+    FGeometryBatches.Add(FCurrentBatch);
+  end;
+  FCurrentBatch.kind := AKind;
+  FCurrentBatch.ranges.x := GetRangeEnd(FCurrentBatch.kind);
+  FCurrentBatch.ranges.y := 0;
+end;
+
+function TavCanvas.TextBuilder: ITextBuilder;
+begin
+  Result := TTextBuilder.Create(FFont, CommonData);
+end;
+
 procedure TavCanvas.Clear;
 begin
   FLineData.Clear();
   FVBLines.Invalidate;
+
+  FTextLineRanges.Clear();
+  FGlyphsData.Clear();
+  FVBGlyphs.Invalidate;
+
+  SelectGeometryKind(gkUnknown);
+  FGeometryBatches.Clear();
 end;
 
 procedure TavCanvas.Rectangle(Left, Top, Right, Bottom: Single);
 var Seg: TLinePointVertex;
 begin
+  SelectGeometryKind(gkLines);
+
   FillSegmentByPen(Seg);
 
   Seg.Coords.xy := Vec(Left, Top);
@@ -759,33 +947,100 @@ begin
   Rectangle(LeftTop.x, LeftTop.y, RightBottom.x, RightBottom.y);
 end;
 
-procedure TavCanvas.Draw(const ATransform: TMat4; const APixelToUnit: Single);
-var prog: TavProgram;
+procedure TavCanvas.Text(const AText: ITextLines);
+var range: TVec2i;
 begin
-  prog := CommonData.LineProg;
-  prog.Select;
-  prog.SetAttributes(CommonData.LineQuad, nil, FVBLines);
-  prog.SetUniform('UIMatrix', ATransform);
-  prog.SetUniform('UIMatrixInverse', Inv(ATransform) );
-  prog.SetUniform('ViewPortSize', Main.States.Viewport.Size);
-  prog.SetUniform('PixelToUnit', APixelToUnit);
-  prog.Draw(FVBLines.Vertices.VerticesCount);
+  SelectGeometryKind(gkFont);
+
+  FTextLines.Add(AText);
+  range.x := FGlyphsData.Count;
+  FGlyphsData.AddArray(AText.AllGlyphs());
+  range.y := FGlyphsData.Count - range.x;
+  FTextLineRanges.Add(range);
+end;
+
+procedure TavCanvas.Draw(const ATransform: TMat4; const APixelToUnit: Single);
+
+  function InitProg(const AProg: TavUIProgram): Boolean;
+  begin
+    AProg.SetTransform(ATransform);
+    AProg.SetPixelToUnit(APixelToUnit);
+    Result := True;
+  end;
+
+var prog: TavUIProgram;
+    batch: TGeometryBatch;
+    gk: TGeometryKind;
+    progInited: array [TGeometryKind] of Boolean;
+    i, j: Integer;
+    textRange: TVec2i;
+begin
+  SelectGeometryKind(gkUnknown);
+
+  for gk := Low(TGeometryKind) to High(TGeometryKind) do progInited[gk] := False;
+
+  for i := 0 to FGeometryBatches.Count - 1 do
+  begin
+    batch := FGeometryBatches[i];
+    if batch.kind = gkUnknown then Continue;
+    if batch.ranges.y = 0 then Continue;
+
+    case batch.kind of
+      gkLines:
+        begin
+          prog := CommonData.LineProg;
+          prog.Select;
+          prog.SetAttributes(CommonData.LineQuad, nil, FVBLines);
+          if not progInited[batch.kind] then
+            progInited[batch.kind] := InitProg(prog);
+          prog.Draw(batch.ranges.y, 0, -1, 0, batch.ranges.x);
+        end;
+      gkFont:
+        begin
+          prog := CommonData.FontProg;
+          prog.Select;
+          prog.SetAttributes(nil, nil, FVBGlyphs);
+          if not progInited[batch.kind] then
+            progInited[batch.kind] := InitProg(prog);
+
+          for j := batch.ranges.x to batch.ranges.x + batch.ranges.y - 1 do
+          begin
+            textRange := FTextLineRanges[j];
+            prog.Draw(ptTriangleStrip, cmNone, false, textRange.y, 0, 4, 0, textRange.x);
+          end;
+        end;
+    end;
+  end;
 end;
 
 constructor TavCanvas.Create(AParent: TavObject);
 begin
   inherited Create(AParent);
+  FGeometryBatches := TGeometry.Create;
+
   FPen := TPenStyle.Create;
   FPen.Width := 0.1;
+
+  FFont:= TFontStyle.Create;
+  FFont.Name := 'Segoe UI';
 
   FLineData := TLinePointVertices.Create;
   FVBLines := TavVB.Create(CommonData);
   FVBLines.Vertices := FLineData as IVerticesData;
+
+  FTextLines := TTextLinesArr.Create();
+  FGlyphsData:= TGlyphVertices.Create();
+  FTextLineRanges := TVec2iArray.Create();
+  FVBGlyphs := TavVB.Create(CommonData);
+  FVBGlyphs.Vertices := FGlyphsData as IVerticesData;
+
+  FCurrentBatch.kind := gkUnknown;
 end;
 
 destructor TavCanvas.Destroy;
 begin
   FreeAndNil(FPen);
+  FreeAndNil(FFont);
   inherited Destroy;
 end;
 
