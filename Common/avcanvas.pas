@@ -216,6 +216,22 @@ type
     constructor Create(AParent: TavObject); overload; override;
   end;
 
+  { TavFontProgram }
+
+  TavFontProgram = class (TavUIProgram)
+  private
+    FUniform_Atlas       : TUniformField;
+    FUniform_AtlasRegions: TUniformField;
+    FUniform_InvAtlasSize: TUniformField;
+    FCommon              : TavCanvasCommonData;
+  protected
+    procedure AfterInit3D; override;
+    procedure BeforeFree3D; override;
+    function  DoBuild: Boolean; override;
+
+    procedure UpdateUniforms; override;
+  end;
+
   { TavCanvas }
 
   TavCanvas = class(TavMainRenderChild)
@@ -377,6 +393,43 @@ begin
   end;
 end;
 
+{ TavFontProgram }
+
+procedure TavFontProgram.AfterInit3D;
+begin
+  inherited AfterInit3D;
+  FCommon := GetCanvasCommonData(Main);
+end;
+
+procedure TavFontProgram.BeforeFree3D;
+begin
+  inherited BeforeFree3D;
+  FUniform_Atlas       := nil;
+  FUniform_AtlasRegions:= nil;
+  FUniform_InvAtlasSize:= nil;
+end;
+
+function TavFontProgram.DoBuild: Boolean;
+begin
+  Result := inherited DoBuild;
+  if Result then
+  begin
+    FUniform_Atlas := GetUniformField('Atlas');
+    FUniform_AtlasRegions := GetUniformField('AtlasRegions');
+    FUniform_InvAtlasSize := GetUniformField('InvAtlasSize');
+  end;
+end;
+
+procedure TavFontProgram.UpdateUniforms;
+var s: TVec2;
+begin
+  inherited UpdateUniforms;
+  SetUniform(FUniform_Atlas, FCommon.GlyphsAtlas, Sampler_Linear);
+  SetUniform(FUniform_AtlasRegions, FCommon.GlyphsAtlas.RegionsVB);
+  s := FCommon.GlyphsAtlas.Size;
+  SetUniform(FUniform_InvAtlasSize, Vec(1.0/s.x, 1.0/s.y));
+end;
+
 { TavUIProgram }
 
 procedure TavUIProgram.BeforeFree3D;
@@ -398,6 +451,7 @@ begin
     FUniform_ViewportSize := GetUniformField('ViewPortSize');
     FUniform_PixelToUnit := GetUniformField('PixelToUnit');
     FUniform_Transform := GetUniformField('Transform');
+    FLastViewportSize := Vec(0,0);
   end;
 end;
 
@@ -441,7 +495,7 @@ begin
               .Add('Align', ctFloat, 1)
               .Add('Size', ctFloat, 2)
               .Add('SDFOffset', ctFloat, 1)
-              .Add('Color', ctByte, 4, true)
+              .Add('Color', ctUByte, 4, true)
               .Add('GlyphID', ctUInt, 1)
               .Finish(SizeOf(TGlyphVertex));
 end;
@@ -470,7 +524,7 @@ begin
     FLineInfo.width := 0;
   end;
 
-  for i := 1 to Length(AStr) - 1 do
+  for i := 1 to Length(AStr) do
   begin
     ch := AStr[i];
     glyph := PGlyphVertex( FGlyphs.PItem[FGlyphs.Add(dummy)] );
@@ -483,7 +537,7 @@ begin
     FPos.x := FPos.x + abc.x + abc.y*0.5;
     glyph^.Pos.x := FPos.x;
     FPos.x := FPos.x + abc.y*0.5 + abc.z;
-    glyph^.Size.x := abc.y;
+    glyph^.Size.x := abc.x + abc.y + abc.z;
     glyph^.Size.y := yy.x + yy.y;
 
     glyph^.SDFOffset := 0;
@@ -745,6 +799,7 @@ var key  : TGlyphKey;
     pdata: PGlyphData;
     data : TGlyphData;
 begin
+  ZeroClear(key, SizeOf(key));
   key.font := AFontName;
   key.glyph := AChar;
   key.style := AStyle;
@@ -788,7 +843,7 @@ begin
   inherited Create(AParent);
   FLineQuad := TavVB.Create(Self);
   FLineProg := TavUIProgram.Create(Self);
-  FFontProg := TavUIProgram.Create(Self);
+  FFontProg := TavFontProgram.Create(Self);
 
   Vert := TLineQuadVertices.Create;
   V.quadCoord := Vec(0.0, -1.0); Vert.Add(V);
@@ -997,6 +1052,8 @@ begin
         end;
       gkFont:
         begin
+          if FVBGlyphs.Vertices.VerticesCount = 0 then Continue;
+
           prog := CommonData.FontProg;
           prog.Select;
           prog.SetAttributes(nil, nil, FVBGlyphs);
@@ -1023,6 +1080,8 @@ begin
 
   FFont:= TFontStyle.Create;
   FFont.Name := 'Segoe UI';
+  FFont.Size := 14;
+  FFont.Color := Vec(255, 255, 255, 255);
 
   FLineData := TLinePointVertices.Create;
   FVBLines := TavVB.Create(CommonData);

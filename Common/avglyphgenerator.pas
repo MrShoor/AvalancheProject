@@ -98,7 +98,7 @@ begin
     bmp := TBitmap.Create;
     bmp.PixelFormat := pf24bit;
     bmp.Canvas.Font.Name := AFontName;
-    bmp.Canvas.Font.Size := ASize;
+    bmp.Canvas.Font.Height := ASize;
     bmp.Canvas.Font.Color := clWhite;
     bmp.Canvas.Font.Style := fstyle;
     bmp.Canvas.Font.Quality := fqAntialiased;

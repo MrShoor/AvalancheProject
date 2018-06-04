@@ -16,10 +16,18 @@ struct VS_Input {
 
 struct VS_Output {
     float4 Pos      : SV_Position;
-    float2 TexCoord : TexCoord;
+    float4 Color    : Color;
+    float3 TexCoord : TexCoord;
 };
 
 static const float2 QuadVertices[4] = { {-0.5,-0.5}, {-0.5, 0.5}, {0.5, -0.5}, {0.5, 0.5} };
+
+struct AtlasRegion {
+    float4 rect;
+    float slice;
+};
+StructuredBuffer<AtlasRegion> AtlasRegions;
+float2 InvAtlasSize;
 
 VS_Output VS(VS_Input In) {
     VS_Output Out;
@@ -31,9 +39,18 @@ VS_Output VS(VS_Input In) {
     
     crd = mul(crd, Transform);
     Out.Pos = mul(crd, UIMatrix);
-    Out.TexCoord = 1.0;
+    
+    AtlasRegion region = AtlasRegions[In.GlyphID];
+    region.rect *= InvAtlasSize.xyxy;
+    Out.TexCoord.xy = lerp(region.rect.xy, region.rect.zw, QuadVertices[In.VertexID] + 0.5);
+    Out.TexCoord.z = region.slice;
+    
+    Out.Color = In.Color;
+    
     return Out;
 }
+
+Texture2DArray Atlas; SamplerState AtlasSampler;
 
 struct PS_Output {
     float4 Color : SV_Target0;
@@ -41,7 +58,10 @@ struct PS_Output {
 
 PS_Output PS(VS_Output In) {
     PS_Output Out;
-    Out.Color = 1.0;
+    
+    float4 c = In.Color;
+    c.a *= Atlas.Sample(AtlasSampler, In.TexCoord).a;
+    Out.Color = c;
     
     return Out;
 }
