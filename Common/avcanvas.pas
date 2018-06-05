@@ -179,7 +179,7 @@ type
     end;
     TGlyphData = packed record
       img       : ITextureMip;
-      ABCMetrics: TVec3i;
+      ABCMetrics: TVec3;
       YYMetrics : TVec2;
     end;
     PGlyphData = ^TGlyphData;
@@ -303,9 +303,8 @@ uses Math;
 const
   NAME_TavCanvasCommonData = 'TavCanvasCommonData';
 
-  GLYPH_DefaultSize = 24;
-  GLYPH_DFScale = 2;
-  GLYPH_DFSize = GLYPH_DefaultSize * GLYPH_DFScale;
+  GLYPH_DefaultSize = 16;
+  GLYPH_DFSize = GLYPH_DefaultSize;
   GLYPH_DFSizeInv = 1.0/GLYPH_DFSize;
 
 type
@@ -806,7 +805,7 @@ begin
   if not FGlyphs.TryGetPValue(key, Pointer(pdata)) then
   begin
     //todo
-    data.img := GenerateGlyphImage('Arial', AChar, GLYPH_DefaultSize, False, False, False, data.ABCMetrics);
+    data.img := GenerateGlyphSDF(AFontName, AChar, GLYPH_DefaultSize, 8, False, False, False, data.ABCMetrics);
     data.YYMetrics := Vec(GLYPH_DefaultSize*0.5, GLYPH_DefaultSize*0.5);
     FGlyphs.Add(key, data);
     pdata := @data;
@@ -855,6 +854,7 @@ begin
 
   FGlyphs := TGlyphsMap.Create();
   FGlyphsAtlas := TavAtlasArrayReferenced.Create(Self);
+  FGlyphsAtlas.TargetFormat := TTextureFormat.R32f;
 end;
 
 { TavCanvas }

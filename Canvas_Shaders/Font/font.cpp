@@ -60,7 +60,9 @@ PS_Output PS(VS_Output In) {
     PS_Output Out;
     
     float4 c = In.Color;
-    c.a *= Atlas.Sample(AtlasSampler, In.TexCoord).a;
+    c.a *= Atlas.Sample(AtlasSampler, In.TexCoord).r;
+    c.a = 1.0;
+    c.rgb = abs(Atlas.Sample(AtlasSampler, In.TexCoord).r) * 0.25;
     Out.Color = c;
     
     return Out;
