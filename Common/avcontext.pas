@@ -174,12 +174,16 @@ type
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
 
     procedure SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
+    procedure SetComputeTex3D(const Index: Integer; const uav: IctxTexture3D);
 
     procedure Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode; IndexedGeometry: Boolean;
                    InstanceCount: Integer;
                    Start: integer; Count: integer;
                    BaseVertex: integer; BaseInstance: Integer);
+
     procedure DispatchDraw(GroupDims: TVec3i);
+    procedure ClearComputeUAV(const Index: Integer; const color: TVec4i);
+    procedure ResetUAVCounter(const Index: Integer);
   end;
 
   { IctxFrameBuffer }
@@ -190,8 +194,8 @@ type
 
     procedure ClearColorList;
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
-    procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0);
-    procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0);
+    procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
+    procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
     procedure SetUAVTex(index: Integer; UAV: IctxTexture);
     procedure SetUAVTex3D(index: Integer; UAV: IctxTexture3D);
     procedure SetUAV(index: Integer; UAV: IctxUAV);

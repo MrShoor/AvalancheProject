@@ -719,6 +719,29 @@ type
     property TargetSampleCount: Integer read FTargetSampleCount write FTargetSampleCount;
   end;
 
+  { TavTexture3D }
+
+  TavTexture3D = class(TavRes)
+  protected
+    FTexH: IctxTexture3D;
+    FTargetFormat: TTextureFormat;
+    FsRGB: Boolean;
+
+    FTargetSize: TVec3i;
+    FTargetWithMips: boolean;
+    procedure BeforeFree3D; override;
+  protected
+    function DoBuild: Boolean; override;
+  public
+    function Size: TVec3i;
+
+    procedure AllocMem(const ASize: TVec3i; const AWithMips: boolean);
+    procedure GenerateMips();
+
+    property TargetFormat: TTextureFormat read FTargetFormat write FTargetFormat;
+    property sRGB: Boolean read FsRGB write FsRGB;
+  end;
+
   { TavUAV }
 
   TavUAV = class(TavStructuredBase)
@@ -799,6 +822,7 @@ type
     procedure SetUniform (const Field: TUniformField; const v: TVec4arr);        overload;
     procedure SetUniform (const Field: TUniformField; const m: TMat4);           overload;
     procedure SetUniform (const Field: TUniformField; const tex: TavTextureBase;  const sampler: TSamplerInfo); overload;
+    procedure SetUniform (const Field: TUniformField; const tex: TavTexture3D; const sampler: TSamplerInfo); overload;
     procedure SetUniform (const Field: TUniformField; const buf: TavStructuredBase); overload;
 
     procedure SetUniform (const AName: string; const value: integer);     overload;
@@ -810,9 +834,11 @@ type
     procedure SetUniform (const AName: string; const v: TVec4arr);        overload;
     procedure SetUniform (const AName: string; const m: TMat4);           overload;
     procedure SetUniform (const AName: string; const tex: TavTextureBase; const sampler: TSamplerInfo); overload;
+    procedure SetUniform (const AName: string; const tex: TavTexture3D; const sampler: TSamplerInfo); overload;
     procedure SetUniform (const AName: string; const buf: TavStructuredBase); overload;
 
     procedure SetComputeUAV(const Index: Integer; const uav: TavUAV; const initial: Integer = 0);
+    procedure SetComputeTex3D(const Index: Integer; const uav: TavTexture3D);
 
     procedure Load(const AProgram: string; FromResource: boolean = false; const AProgramPath: string = ''); overload;
     procedure Load(const AProgram: string; const AStremOutputLayout: IDataLayout; FromResource: boolean = false; const AProgramPath: string = ''); overload;
@@ -824,7 +850,10 @@ type
                    InstanceCount: Integer = 0;
                    Start: integer = 0; Count: integer = - 1;
                    BaseVertex: integer = 0; BaseInstance: Integer = 0); overload;
+
     procedure DispatchDraw(GroupDims: TVec3i);
+    procedure ClearComputeUAV(const Index: Integer; const color: TVec4i);
+    procedure ResetUAVCounter(const Index: Integer);
 
     destructor Destroy; override;
   end;
@@ -836,6 +865,8 @@ type
     TAttachInfo = record
       tex: IWeakRef;
       mipLevel: Integer;
+      sliceStart: Integer;
+      sliceCount: Integer;
     end;
     TStreamAttachInfo = record
       buffer: IWeakRef;
@@ -875,13 +906,14 @@ type
 
     function GetColor(Index: Integer): TavTextureBase;
     function GetColorMipLevel(Index: Integer): Integer;
-    procedure SetColor(Index: Integer; AValue: TavTextureBase; mipLevel: Integer = 0);
+    procedure SetColor(Index: Integer; AValue: TavTextureBase; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
     procedure SetUAV(Index: Integer; AValue: TavUAV); overload;
     procedure SetUAV(Index: Integer; AValue: TavTextureBase); overload;
+    procedure SetUAV(Index: Integer; AValue: TavTexture3D); overload;
     procedure SetStreamOut(Index: Integer; ABuffer: TavVerticesBase; Offset: Integer);
 
     function  GetDepth: TavTextureBase;
-    procedure SetDepth(AValue: TavTextureBase; mipLevel: Integer);
+    procedure SetDepth(AValue: TavTextureBase; mipLevel: Integer; sliceStart: Integer = -1; sliceCount: Integer = 0);
 
     procedure Clear(index: Integer; color: TVec4);
     procedure ClearDS(depth: Single; clearDepth: Boolean = True; stencil: Integer = 0; clearStencil: Boolean = False);
@@ -1026,6 +1058,44 @@ begin
   end;
 
   AProg.Draw(PrimTopology, CullMode, Assigned(IndNode), InstCount, Start, Count, BaseVertex, BaseInst);
+end;
+
+{ TavTexture3D }
+
+procedure TavTexture3D.BeforeFree3D;
+begin
+  inherited BeforeFree3D;
+  if Assigned(FTexH) then Invalidate;
+  FTexH := nil;
+end;
+
+function TavTexture3D.DoBuild: Boolean;
+begin
+  if FTexH = nil then FTexH := Main.Context.CreateTexture3D;
+  FTexH.TargetFormat := FTargetFormat;
+  FTexH.sRGB := FsRGB;
+  FTexH.AllocMem(FTargetSize.x, FTargetSize.y, FTargetSize.z, FTargetWithMips);
+  Result := True;
+end;
+
+function TavTexture3D.Size: TVec3i;
+begin
+  Build();
+  if FTexH = nil then Exit(Vec(0,0,0));
+  Result := Vec(FTexH.Width, FTexH.Height, FTexH.Deep);
+end;
+
+procedure TavTexture3D.AllocMem(const ASize: TVec3i; const AWithMips: boolean);
+begin
+  FTargetSize := ASize;
+  FTargetWithMips := AWithMips;
+  Invalidate;
+end;
+
+procedure TavTexture3D.GenerateMips;
+begin
+  if FTexH = nil then Exit;
+  FTexH.GenerateMips();
 end;
 
 { TavSB }
@@ -2165,7 +2235,7 @@ begin
     Result := TavTextureBase(FDepth.tex.Obj);
 end;
 
-procedure TavFrameBuffer.SetColor(Index: Integer; AValue: TavTextureBase; mipLevel: Integer = 0);
+procedure TavFrameBuffer.SetColor(Index: Integer; AValue: TavTextureBase; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
 var oldCount: Integer;
     ainfo: TAttachInfo;
     i: Integer;
@@ -2177,6 +2247,8 @@ begin
   begin
     ainfo.tex := AValue.WeakRef;
     ainfo.mipLevel := mipLevel;
+    ainfo.sliceStart := sliceStart;
+    ainfo.sliceCount := sliceCount;
     FColors.Item[index] := ainfo;
   end;
   Invalidate;
@@ -2206,6 +2278,18 @@ begin
   Invalidate;
 end;
 
+procedure TavFrameBuffer.SetUAV(Index: Integer; AValue: TavTexture3D);
+var oldCount: Integer;
+    i: Integer;
+begin
+  oldCount := FUAVs.Count;
+  for i := oldCount to Index do
+    FUAVs.Add(nil);
+  if Assigned(AValue) then
+    FUAVs.Item[index] := AValue.WeakRef;
+  Invalidate;
+end;
+
 procedure TavFrameBuffer.SetStreamOut(Index: Integer; ABuffer: TavVerticesBase; Offset: Integer);
 var oldCount: Integer;
     i: Integer;
@@ -2223,13 +2307,15 @@ begin
   Invalidate;
 end;
 
-procedure TavFrameBuffer.SetDepth(AValue: TavTextureBase; mipLevel: Integer);
+procedure TavFrameBuffer.SetDepth(AValue: TavTextureBase; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
 begin
   if Assigned(AValue) then
     FDepth.tex := AValue.WeakRef
   else
     FDepth.tex := nil;
   FDepth.mipLevel := mipLevel;
+  FDepth.sliceStart := sliceStart;
+  FDepth.sliceCount := sliceCount;
   Invalidate;
 end;
 
@@ -2315,6 +2401,7 @@ function TavFrameBuffer.DoBuild: Boolean;
 
 var ainfo: TAttachInfo;
     tex: TavTextureBase;
+    tex3d: TavTexture3D;
     buf: TavVerticesBase;
     uav: TavUAV;
     sinfo: TStreamAttachInfo;
@@ -2336,10 +2423,10 @@ begin
     if Assigned(tex) then
     begin
       ResizeTex(tex, FrameSize, ainfo.mipLevel);
-      FFrameBuf.SetColor(i, tex.FTexH, ainfo.mipLevel);
+      FFrameBuf.SetColor(i, tex.FTexH, ainfo.mipLevel, ainfo.sliceStart, ainfo.sliceCount);
     end
     else
-      FFrameBuf.SetColor(i, nil, ainfo.mipLevel);
+      FFrameBuf.SetColor(i, nil, ainfo.mipLevel, ainfo.sliceStart, ainfo.sliceCount);
   end;
 
   for i := 0 to FUAVs.Count - 1 do
@@ -2364,6 +2451,16 @@ begin
         FFrameBuf.SetUAVTex(i, nil);
     end
     else
+    if FUAVs[i].Obj is TavTexture3D then
+    begin
+      tex3d := TavTexture3D(FUAVs[i].Obj);
+      tex3d.Build;
+      if Assigned(tex3d) then
+        FFrameBuf.SetUAVTex3D(i, tex3d.FTexH)
+      else
+        FFrameBuf.SetUAVTex3D(i, nil);
+    end
+    else
       Assert(False);
   end;
 
@@ -2380,10 +2477,10 @@ begin
   if Assigned(tex) then
   begin
     ResizeTex(tex, FrameSize, FDepth.mipLevel);
-    FFrameBuf.SetDepthStencil(tex.FTexH, FDepth.mipLevel);
+    FFrameBuf.SetDepthStencil(tex.FTexH, FDepth.mipLevel, FDepth.sliceStart, FDepth.sliceCount);
   end
   else
-    FFrameBuf.SetDepthStencil(nil, FDepth.mipLevel);
+    FFrameBuf.SetDepthStencil(nil, FDepth.mipLevel, FDepth.sliceStart, FDepth.sliceCount);
 end;
 
 procedure TavFrameBuffer.SetFrameRectFromWindow;
@@ -3548,6 +3645,13 @@ begin
   FProgram.SetUniform(Field, tex.FTexH, sampler);
 end;
 
+procedure TavProgram.SetUniform(const Field: TUniformField; const tex: TavTexture3D; const sampler: TSamplerInfo);
+begin
+  if tex = nil then Exit;
+  tex.Build;
+  FProgram.SetUniform(Field, tex.FTexH, sampler);
+end;
+
 procedure TavProgram.SetUniform(const Field: TUniformField; const buf: TavStructuredBase);
 begin
   if buf = nil then Exit;
@@ -3602,6 +3706,12 @@ begin
   FProgram.SetUniform(GetUniformField(AName), tex.FTexH, sampler);
 end;
 
+procedure TavProgram.SetUniform(const AName: string; const tex: TavTexture3D; const sampler: TSamplerInfo);
+begin
+  if tex = nil then Exit;
+  FProgram.SetUniform(GetUniformField(AName), tex.FTexH, sampler);
+end;
+
 procedure TavProgram.SetUniform(const AName: string; const buf: TavStructuredBase);
 begin
   if buf = nil then Exit;
@@ -3619,6 +3729,19 @@ begin
   begin
     uav.Build;
     FProgram.SetComputeUAV(Index, uav.FUAVBufH, initial);
+  end;
+end;
+
+procedure TavProgram.SetComputeTex3D(const Index: Integer; const uav: TavTexture3D);
+begin
+  if uav = nil then
+  begin
+    FProgram.SetComputeTex3D(Index, nil);
+  end
+  else
+  begin
+    uav.Build;
+    FProgram.SetComputeTex3D(Index, uav.FTexH);
   end;
 end;
 
@@ -3675,6 +3798,16 @@ end;
 procedure TavProgram.DispatchDraw(GroupDims: TVec3i);
 begin
   FProgram.DispatchDraw(GroupDims);
+end;
+
+procedure TavProgram.ClearComputeUAV(const Index: Integer; const color: TVec4i);
+begin
+  FProgram.ClearComputeUAV(Index, color);
+end;
+
+procedure TavProgram.ResetUAVCounter(const Index: Integer);
+begin
+  FProgram.ResetUAVCounter(Index);
 end;
 
 destructor TavProgram.Destroy;

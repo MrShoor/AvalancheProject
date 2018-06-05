@@ -153,6 +153,7 @@ Type
     Anisotropy : Integer;
     Wrap_X     : TTextureWrap;
     Wrap_Y     : TTextureWrap;
+    Wrap_Z     : TTextureWrap;
     Border     : TVec4;
   end;
 
@@ -346,6 +347,7 @@ const
       Anisotropy : 0;
       Wrap_X     : twRepeat;
       Wrap_Y     : twRepeat;
+      Wrap_Z     : twRepeat;
       Border     : (x: 0; y: 0; z: 0; w: 0);
     );
     Sampler_NoFilterClamped : TSamplerInfo = (
@@ -355,6 +357,7 @@ const
       Anisotropy : 0;
       Wrap_X     : twClamp;
       Wrap_Y     : twClamp;
+      Wrap_Z     : twClamp;
       Border     : (x: 0; y: 0; z: 0; w: 0);
     );
     Sampler_LinearNoMips : TSamplerInfo = (
@@ -364,6 +367,7 @@ const
       Anisotropy : 16;
       Wrap_X     : twRepeat;
       Wrap_Y     : twRepeat;
+      Wrap_Z     : twRepeat;
       Border     : (x: 0; y: 0; z: 0; w: 0);
     );
     Sampler_Linear : TSamplerInfo = (
@@ -373,6 +377,7 @@ const
       Anisotropy : 16;
       Wrap_X     : twRepeat;
       Wrap_Y     : twRepeat;
+      Wrap_Z     : twRepeat;
       Border     : (x: 0; y: 0; z: 0; w: 0);
     );
     Sampler_Linear_NoAnisotropy : TSamplerInfo = (
@@ -382,6 +387,7 @@ const
       Anisotropy : 0;
       Wrap_X     : twRepeat;
       Wrap_Y     : twRepeat;
+      Wrap_Z     : twRepeat;
       Border     : (x: 0; y: 0; z: 0; w: 0);
     );
 
@@ -392,6 +398,7 @@ const
       Anisotropy : 16;
       Wrap_X     : twClamp;
       Wrap_Y     : twClamp;
+      Wrap_Z     : twClamp;
       Border     : (x: 0; y: 0; z: 0; w: 0);
     );
 

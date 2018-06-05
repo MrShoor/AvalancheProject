@@ -648,9 +648,11 @@ type
   TFrameBuffer = class (THandleObject, IctxFrameBuffer, IctxFrameBuffer_DX11)
   private type
     TTexInfo = record
-      Tex    : IctxTexture;
-      Mip    : Integer;
-      Enabled: Boolean;
+      Tex       : IctxTexture;
+      Mip       : Integer;
+      SliceStart: Integer;
+      SliceCount: Integer;
+      Enabled   : Boolean;
     end;
     TUAVInfo = record
       UAV : IctxUAV_DX11;
@@ -670,9 +672,11 @@ type
     FStreamBuffers: array of ID3D11Buffer;
     FStreamOffsets: array of Integer;
 
-    FDepthView: ID3D11DepthStencilView;
-    FDepthTex : IctxTexture;
-    FDepthMip : Integer;
+    FDepthView : ID3D11DepthStencilView;
+    FDepthTex  : IctxTexture;
+    FDepthMip  : Integer;
+    FDepthSliceStart: Integer;
+    FDepthSliceCount: Integer;
 
     FValid: Boolean;
     function GetObj: TFrameBuffer;
@@ -683,11 +687,11 @@ type
 
     procedure ClearColorList;
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
-    procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0);
+    procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
     procedure SetUAVTex(index: Integer; UAV: IctxTexture);
     procedure SetUAVTex3D(index: Integer; UAV: IctxTexture3D);
     procedure SetUAV(index: Integer; UAV: IctxUAV);
-    procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0);
+    procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
     procedure SetStreamOut(index: Integer; buffer: IctxVetexBuffer; Offset: Integer);
 
     procedure Clear(index: Integer; color: TVec4);
@@ -918,6 +922,8 @@ type
 
     FSelectedPathSize: Integer;
 
+    FUAVList: array of IctxUAV_DX11;
+
     function ObtainUniformField(const name: string; out WasCreated: Boolean): TUniformField_DX;
     procedure ClearUniformList;
     procedure ClearILList;
@@ -950,12 +956,15 @@ type
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
 
     procedure SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
+    procedure SetComputeTex3D(const Index: Integer; const uav: IctxTexture3D);
 
     procedure Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode; IndexedGeometry: Boolean;
                    InstanceCount: Integer;
                    Start: integer; Count: integer;
                    BaseVertex: integer; BaseInstance: Integer);
     procedure DispatchDraw(GroupDims: TVec3i);
+    procedure ClearComputeUAV(const Index: Integer; const color: TVec4i);
+    procedure ResetUAVCounter(const Index: Integer);
   end;
 
 { TTexture3D }
@@ -1967,11 +1976,34 @@ procedure TProgram.SetComputeUAV(const Index: Integer; const uav: IctxUAV; const
 var view: ID3D11UnorderedAccessView;
 begin
   Assert(FShader[stCompute] <> nil);
+
+  if Length(FUAVList) < Index+1 then
+    SetLength(FUAVList, Index + 1);
+
+  if uav = nil then
+  begin
+    view := nil;
+    FUAVList[Index] := nil;
+  end
+  else
+  begin
+    FUAVList[Index] := uav as IctxUAV_DX11;
+    view := FUAVList[Index].GetView;
+  end;
+  FContext.FDeviceContext.CSSetUnorderedAccessViews(Index, 1, @view, @initial);
+end;
+
+procedure TProgram.SetComputeTex3D(const Index: Integer; const uav: IctxTexture3D);
+var view: ID3D11UnorderedAccessView;
+    initial: LongWord;
+begin
+  initial := 0;
+  Assert(FShader[stCompute] <> nil);
   if uav = nil then
     view := nil
   else
     view := (uav as IctxUAV_DX11).GetView;
-  FContext.FDeviceContext.CSSetUnorderedAccessViews(0, 1, @view, @initial);
+  FContext.FDeviceContext.CSSetUnorderedAccessViews(Index, 1, @view, @initial);
 end;
 
 procedure TProgram.Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode;
@@ -2012,6 +2044,22 @@ procedure TProgram.DispatchDraw(GroupDims: TVec3i);
 begin
   SyncCB;
   FContext.FDeviceContext.Dispatch(GroupDims.x, GroupDims.y, GroupDims.z);
+end;
+
+procedure TProgram.ClearComputeUAV(const Index: Integer; const color: TVec4i);
+var
+  view: ID3D11UnorderedAccessView;
+begin
+  FContext.FDeviceContext.CSGetUnorderedAccessViews(Index, 1, @view);
+  Assert(view <> nil);
+  FContext.FDeviceContext.ClearUnorderedAccessViewUint(view, TQuadArray_UInt(color));
+end;
+
+procedure TProgram.ResetUAVCounter(const Index: Integer);
+begin
+  if Length(FUAVList) <= Index then Exit;
+  if FUAVList[Index] = nil then Exit;
+  FUAVList[Index].InvalidateCounter;
 end;
 
 { TStates }
@@ -2823,7 +2871,7 @@ begin
   Result.MiscFlags := 0;
   if WithMips and (Result.BindFlags and DWord(D3D11_BIND_RENDER_TARGET) = DWord(D3D11_BIND_RENDER_TARGET))  then
     Result.MiscFlags := Result.MiscFlags or DWord(D3D11_RESOURCE_MISC_GENERATE_MIPS);
-  if (ADeep = 6) and (AWidth = AHeight) then
+  if (ADeep mod 6 = 0) and (AWidth = AHeight) then
     Result.MiscFlags := Result.MiscFlags or DWord(D3D11_RESOURCE_MISC_TEXTURECUBE);
   FFormat := FTargetFormat;
 end;
@@ -2844,7 +2892,7 @@ begin
     if (FDeep >= 12) or FForcedArray then
     begin
       desc.ViewDimension := D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
-      desc.TextureCubeArray.NumCubes := FDeep;
+      desc.TextureCubeArray.NumCubes := FDeep div 6;
       desc.TextureCubeArray.First2DArrayFace := 0;
       desc.TextureCubeArray.MostDetailedMip := 0;
       desc.TextureCubeArray.MipLevels := FMipsCount;
@@ -3205,12 +3253,31 @@ begin
       if FTex[i].Tex.sRGB then RTDesc.Format := Add_sRGB(RTDesc.Format);
       if FTex[i].Tex.SampleCount > 1 then
       begin
-        RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2DMS;
+        if FTex[i].SliceStart < 0 then
+        begin
+          RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2DMS;
+        end
+        else
+        begin
+          RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY;
+          RTDesc.Texture2DMSArray.ArraySize := FTex[i].SliceCount;
+          RTDesc.Texture2DMSArray.FirstArraySlice := FTex[i].SliceStart;
+        end;
       end
       else
       begin
-        RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2D;
-        RTDesc.Texture2D.MipSlice := FTex[i].Mip;
+        if FTex[i].SliceStart < 0 then
+        begin
+          RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2D;
+          RTDesc.Texture2D.MipSlice := FTex[i].Mip;
+        end
+        else
+        begin
+          RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+          RTDesc.Texture2DArray.MipSlice := FTex[i].Mip;
+          RTDesc.Texture2DArray.ArraySize := FTex[i].SliceCount;
+          RTDesc.Texture2DArray.FirstArraySlice := FTex[i].SliceStart;
+        end;
       end;
 
       Check3DError(FContext.FDevice.CreateRenderTargetView((FTex[i].Tex as IctxTexture_DX11).GetHandle, @RTDesc, FViews[i]));
@@ -3222,12 +3289,31 @@ begin
       DSDesc.Format := D3D11ViewFormat[FDepthTex.Format];
       if FDepthTex.SampleCount > 1 then
       begin
-        DSDesc.ViewDimension := D3D11_DSV_DIMENSION_TEXTURE2DMS;
+        if FDepthSliceStart < 0 then
+        begin
+          DSDesc.ViewDimension := D3D11_DSV_DIMENSION_TEXTURE2DMS;
+        end
+        else
+        begin
+          DSDesc.ViewDimension := D3D11_DSV_DIMENSION_TEXTURE2DMSARRAY;
+          DSDesc.Texture2DMSArray.ArraySize := FDepthSliceCount;
+          DSDesc.Texture2DMSArray.FirstArraySlice := FDepthSliceStart;
+        end;
       end
       else
       begin
-        DSDesc.ViewDimension := D3D11_DSV_DIMENSION_TEXTURE2D;
-        DSDesc.Texture2D.MipSlice := FDepthMip;
+        if FDepthSliceStart < 0 then
+        begin
+          DSDesc.ViewDimension := D3D11_DSV_DIMENSION_TEXTURE2D;
+          DSDesc.Texture2D.MipSlice := FDepthMip;
+        end
+        else
+        begin
+          DSDesc.ViewDimension := D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+          DSDesc.Texture2DArray.MipSlice := FDepthMip;
+          DSDesc.Texture2DArray.ArraySize := FDepthSliceCount;
+          DSDesc.Texture2DArray.FirstArraySlice := FDepthSliceStart;
+        end;
       end;
 
       Check3DError(FContext.FDevice.CreateDepthStencilView((FDepthTex as IctxTexture_DX11).GetHandle, @DSDesc, FDepthView));
@@ -3255,7 +3341,7 @@ begin
   FTex[index].Enabled := Enabled;
 end;
 
-procedure TFrameBuffer.SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
+procedure TFrameBuffer.SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
 begin
   Assert(Length(FStreams)=0, 'You can''t mix stream output with render to textures');
   if index <= Length(FTex) then
@@ -3268,13 +3354,15 @@ begin
 
   FTex[index].Tex := tex;
   FTex[index].Mip := mipLevel;
+  FTex[index].SliceStart := sliceStart;
+  FTex[index].SliceCount := sliceCount;
   FTex[index].Enabled := True;
   FViews[index] := nil;
 
   FValid := False;
 end;
 
-procedure TFrameBuffer.SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
+procedure TFrameBuffer.SetDepthStencil(tex: IctxTexture; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
 begin
   Assert((tex = nil) or (Length(FStreams)=0), 'You can''t mix stream output with render to textures');
   if FDepthTex = tex then Exit;
@@ -3282,6 +3370,8 @@ begin
   FDepthTex := tex;
   FDepthView := nil;
   FDepthMip := mipLevel;
+  FDepthSliceStart := sliceStart;
+  FDepthSliceCount := sliceCount;
 
   FValid := False;
 end;
@@ -3527,7 +3617,7 @@ begin
       Desc.Filter := DX_Filter[ASampler.MinFilter, ASampler.MagFilter, ASampler.MipFilter];
     Desc.AddressU := D3D11_Wrap[ASampler.Wrap_X];
     Desc.AddressV := D3D11_Wrap[ASampler.Wrap_Y];
-    Desc.AddressW := D3D11_TEXTURE_ADDRESS_WRAP;
+    Desc.AddressW := D3D11_Wrap[ASampler.Wrap_Z];
     Desc.MipLODBias := 0;
     Desc.MaxAnisotropy := Min(16, Max(1, ASampler.Anisotropy));
     Desc.ComparisonFunc := D3D11_COMPARISON_ALWAYS;

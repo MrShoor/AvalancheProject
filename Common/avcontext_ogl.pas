@@ -981,13 +981,16 @@ type
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture3D; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
 
-    procedure SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
+    procedure SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer); overload;
+    procedure SetComputeTex3D(const Index: Integer; const uav: IctxTexture3D); overload;
 
     procedure Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode; IndexedGeometry: Boolean;
                    InstanceCount: Integer;
                    Start: integer; Count: integer;
                    BaseVertex: integer; BaseInstance: Integer);
     procedure DispatchDraw(GroupDims: TVec3i);
+    procedure ClearComputeUAV(const Index: Integer; const color: TVec4i);
+    procedure ResetUAVCounter(const Index: Integer);
   public
     constructor Create(AContext: TContext_OGL); override;
     destructor Destroy; override;
@@ -1013,8 +1016,8 @@ type
 
     procedure ClearColorList;
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
-    procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
-    procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
+    procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
+    procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
     procedure SetUAVTex(index: Integer; UAV: IctxTexture);
     procedure SetUAVTex3D(index: Integer; UAV: IctxTexture3D);
     procedure SetUAV(index: Integer; UAV: IctxUAV);
@@ -1120,10 +1123,11 @@ begin
   FEnabledColorTargets[index] := Enabled;
 end;
 
-procedure TFrameBuffer.SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer);
+procedure TFrameBuffer.SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
 var ActiveObject: GLuint;
     TexH: GLuint;
 begin
+  Assert(sliceStart=-1, 'not implemeted yet for slices');
   if Assigned(tex) then
     TexH := (tex as IHandle).Handle
   else
@@ -1145,11 +1149,12 @@ begin
   Invalidate;
 end;
 
-procedure TFrameBuffer.SetDepthStencil(tex: IctxTexture; mipLevel: Integer);
+procedure TFrameBuffer.SetDepthStencil(tex: IctxTexture; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
 var ActiveObject: GLuint;
     GLAttType: GLuint;
     TexH: GLuint;
 begin
+  Assert(sliceStart=-1, 'not implemeted yet for slices');
   if Assigned(tex) then
   begin
     TexH := (tex as IHandle).Handle;
@@ -2552,6 +2557,7 @@ begin
   glTexParameteri(TexTarget, GL_TEXTURE_MIN_FILTER, GLMinTextureFilter[MipFilter, Sampler.MinFilter]);
   glTexParameteri(TexTarget, GL_TEXTURE_WRAP_S, GLWrap[Sampler.Wrap_X]);
   glTexParameteri(TexTarget, GL_TEXTURE_WRAP_T, GLWrap[Sampler.Wrap_Y]);
+  glTexParameteri(TexTarget, GL_TEXTURE_WRAP_R, GLWrap[Sampler.Wrap_Z]);
   glTexParameterf(TexTarget, GL_TEXTURE_MAX_ANISOTROPY_EXT, Max(Sampler.Anisotropy, 1.0));
   glTexParameterfv(TexTarget, GL_TEXTURE_BORDER_COLOR, @Sampler.Border);
 end;
@@ -2567,6 +2573,11 @@ begin
 end;
 
 procedure TProgram.SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
+begin
+  Assert(False, 'Not implemented yet');
+end;
+
+procedure TProgram.SetComputeTex3D(const Index: Integer; const uav: IctxTexture3D);
 begin
   Assert(False, 'Not implemented yet');
 end;
@@ -2636,6 +2647,16 @@ begin
 end;
 
 procedure TProgram.DispatchDraw(GroupDims: TVec3i);
+begin
+  Assert(False,'not implemeted yet');
+end;
+
+procedure TProgram.ClearComputeUAV(const Index: Integer; const color: TVec4i);
+begin
+  Assert(False,'not implemeted yet');
+end;
+
+procedure TProgram.ResetUAVCounter(const Index: Integer);
 begin
   Assert(False,'not implemeted yet');
 end;
