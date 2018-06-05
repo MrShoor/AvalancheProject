@@ -3,7 +3,7 @@
     "HLSLcc_flags": ["HLSLCC_FLAG_DISABLE_GLOBALS_STRUCT",
                      "HLSLCC_FLAG_INOUT_SEMANTIC_NAMES",
                      "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],    
-    "OGLTranslate" : true,
+    "OGLTranslate" : false,
     "OutDir" : "!Out",
     "VertexTarget" : "vs_4_0",
     "FragmentTarget" : "ps_4_0",
@@ -17,10 +17,10 @@
 	"Path"     :["Line"]
         },
         {
-        "Name"     : "Drawing",
-	"Vertex"   : "Drawing.cpp",
-	"Fragment" : "Drawing.cpp",
-	"Path"     :["Drawing"]
+        "Name"     : "CanvasFont",
+        "Vertex"   : "font.cpp",
+        "Fragment" : "font.cpp",
+        "Path"     : ["Font"]
         }
     ]
 }

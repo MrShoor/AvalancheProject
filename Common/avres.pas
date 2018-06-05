@@ -803,7 +803,7 @@ type
     procedure BeforeFree3D; override;
     function DoBuild: Boolean; override;
 
-    procedure UpdateMatrices;
+    procedure UpdateUniforms; virtual;
   public
     procedure Select(const APatchSize: Integer = 0); virtual;
     procedure SetAttributes(Model: TavVerticesBase;
@@ -1337,7 +1337,7 @@ begin
   FRegionsBuffer := TavSB.Create(Self);
   FRegionsBuffer.Vertices := FRegions as IVerticesData;
 
-  FTargetSize := Vec(1024, 1024);
+  FTargetSize := Vec(4096, 4096);
 end;
 
 destructor TavAtlasArrayReferenced.Destroy;
@@ -3511,7 +3511,7 @@ begin
   Result := True;
 end;
 
-procedure TavProgram.UpdateMatrices;
+procedure TavProgram.UpdateUniforms;
 var i: TUniformMatrices;
     MValid: array [TUniformMatrices] of Boolean;
 begin
@@ -3548,7 +3548,7 @@ begin
   Build;
   Main.ActiveProgram := Self;
   FProgram.Select(APatchSize);
-  UpdateMatrices;
+  UpdateUniforms;
 end;
 
 procedure TavProgram.SetAttributes(Model: TavVerticesBase; ModelIndices: TavIndicesBase; Instance: TavVerticesBase; InstanceStepRate: Integer);

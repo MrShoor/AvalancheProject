@@ -1,13 +1,8 @@
 #include "hlsl.h"
-#pragma pack_matrix( row_major )
+#include "UICommon.h"
 
 //float Rad;
 //float2 FiModifier;
-
-float4x4 UIMatrix;
-float4x4 UIMatrixInverse;
-float2 ViewPortSize;
-float PixelToUnit;
 
 struct VS_Input {
     float2 quadCoord : quadCoord;

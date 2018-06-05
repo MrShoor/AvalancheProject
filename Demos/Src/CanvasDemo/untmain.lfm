@@ -1,0 +1,18 @@
+object frmMain: TfrmMain
+  Left = 585
+  Height = 510
+  Top = 234
+  Width = 771
+  Caption = 'frmMain'
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnMouseDown = FormMouseDown
+  OnPaint = FormPaint
+  LCLVersion = '1.8.0.3'
+  object Timer1: TTimer
+    Interval = 1
+    OnTimer = Timer1Timer
+    left = 96
+    top = 16
+  end
+end
