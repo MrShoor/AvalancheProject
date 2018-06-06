@@ -222,7 +222,7 @@ type
   private
     FUniform_Atlas       : TUniformField;
     FUniform_AtlasRegions: TUniformField;
-    FUniform_InvAtlasSize: TUniformField;
+    FUniform_AtlasSize   : TUniformField;
     FCommon              : TavCanvasCommonData;
   protected
     procedure AfterInit3D; override;
@@ -303,7 +303,7 @@ uses Math;
 const
   NAME_TavCanvasCommonData = 'TavCanvasCommonData';
 
-  GLYPH_DefaultSize = 24;
+  GLYPH_DefaultSize = 64;
   GLYPH_DFSize = GLYPH_DefaultSize;
   GLYPH_DFSizeInv = 1.0/GLYPH_DFSize;
 
@@ -405,7 +405,7 @@ begin
   inherited BeforeFree3D;
   FUniform_Atlas       := nil;
   FUniform_AtlasRegions:= nil;
-  FUniform_InvAtlasSize:= nil;
+  FUniform_AtlasSize:= nil;
 end;
 
 function TavFontProgram.DoBuild: Boolean;
@@ -415,18 +415,16 @@ begin
   begin
     FUniform_Atlas := GetUniformField('Atlas');
     FUniform_AtlasRegions := GetUniformField('AtlasRegions');
-    FUniform_InvAtlasSize := GetUniformField('InvAtlasSize');
+    FUniform_AtlasSize := GetUniformField('AtlasSize');
   end;
 end;
 
 procedure TavFontProgram.UpdateUniforms;
-var s: TVec2;
 begin
   inherited UpdateUniforms;
   SetUniform(FUniform_Atlas, FCommon.GlyphsAtlas, Sampler_Linear);
   SetUniform(FUniform_AtlasRegions, FCommon.GlyphsAtlas.RegionsVB);
-  s := FCommon.GlyphsAtlas.Size;
-  SetUniform(FUniform_InvAtlasSize, Vec(1.0/s.x, 1.0/s.y));
+  SetUniform(FUniform_AtlasSize, FCommon.GlyphsAtlas.Size);
 end;
 
 { TavUIProgram }

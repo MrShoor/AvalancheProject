@@ -27,7 +27,7 @@ struct AtlasRegion {
     float slice;
 };
 StructuredBuffer<AtlasRegion> AtlasRegions;
-float2 InvAtlasSize;
+float2 AtlasSize;
 
 VS_Output VS(VS_Input In) {
     VS_Output Out;
@@ -41,7 +41,7 @@ VS_Output VS(VS_Input In) {
     Out.Pos = mul(crd, UIMatrix);
     
     AtlasRegion region = AtlasRegions[In.GlyphID];
-    region.rect *= InvAtlasSize.xyxy;
+    region.rect /= AtlasSize.xyxy;
     Out.TexCoord.xy = lerp(region.rect.xy, region.rect.zw, QuadVertices[In.VertexID] + 0.5);
     Out.TexCoord.z = region.slice;
     
@@ -59,12 +59,14 @@ struct PS_Output {
 PS_Output PS(VS_Output In) {
     PS_Output Out;
     
+    float tex_per_pixel = length(ddy(In.TexCoord));// + ddy(In.TexCoord));
+    tex_per_pixel *= AtlasSize.x;
+    
     float4 c = In.Color;
+    float Y = dot(c.xyz, float3(0.212656, 0.715158, 0.072186));
     float r = Atlas.Sample(AtlasSampler, In.TexCoord).r;
-    //c.a *= r;
-    //c.a = 1.0;
-    c.rgb = 1.0 - abs(Atlas.Sample(AtlasSampler, In.TexCoord).r) * 0.1;
-    c.a = r < 0.0 ? 1 : 0.5;
+    c.a *= saturate(-r/tex_per_pixel + 0.5 + lerp(0.5, 0.0, Y));
+    
     Out.Color = c;
     
     return Out;
