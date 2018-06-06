@@ -179,7 +179,7 @@ type
     end;
     TGlyphData = packed record
       img         : ITextureMip;
-      ABCMetrics  : TVec3;
+      XXXMetrics  : TVec3;
       YYYYMetrics : TVec4;
     end;
     PGlyphData = ^TGlyphData;
@@ -202,8 +202,8 @@ type
     procedure AfterInit3D; override;
     procedure BeforeFree3D; override;
   public
-    function GetGlyphImage(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out YYYYMetrics: TVec4): ITextureMip;
-    function GetGlyphSprite(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out YYYYMetrics: TVec4): ISpriteIndex;
+    function GetGlyphImage(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out YYYYMetrics: TVec4): ITextureMip;
+    function GetGlyphSprite(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out YYYYMetrics: TVec4): ISpriteIndex;
 
     property WndMatrix: TMat4 read FWndMatrix write SetWndMatrix;
 
@@ -212,6 +212,8 @@ type
     property LineQuad: TavVB        read FLineQuad;
     property LineProg: TavUIProgram read FLineProg;
     property FontProg: TavUIProgram read FFontProg;
+
+    procedure ExportGlyphs(const AFileName: string; const AFontName: string; AStyle: TGlyphStyles; const ACharFirst, ACharLast: WideChar);
 
     constructor Create(AParent: TavObject); overload; override;
   end;
@@ -303,7 +305,7 @@ uses Math;
 const
   NAME_TavCanvasCommonData = 'TavCanvasCommonData';
 
-  GLYPH_DefaultSize = 64;
+  GLYPH_DefaultSize = 32;
   GLYPH_DFSize = GLYPH_DefaultSize;
   GLYPH_DFSizeInv = 1.0/GLYPH_DFSize;
 
@@ -500,13 +502,13 @@ end;
 { TTextBuilder }
 
 procedure TTextBuilder.WriteInternal(const AStr: UnicodeString);
-  procedure ScaleMetrics(var abc: TVec3; var yyyy: TVec4);
+  procedure ScaleMetrics(var xxx: TVec3; var yyyy: TVec4);
   begin
-    abc := abc * GLYPH_DFSizeInv * FFont.Size;
+    xxx := xxx * GLYPH_DFSizeInv * FFont.Size;
     yyyy := yyyy * GLYPH_DFSizeInv * FFont.Size;
   end;
 var ch: WideChar;
-    abc: TVec3;
+    xxx: TVec3;
     yyyy: TVec4;
     glyph: PGlyphVertex;
     dummy: TGlyphVertex;
@@ -525,17 +527,17 @@ begin
   begin
     ch := AStr[i];
     glyph := PGlyphVertex( FGlyphs.PItem[FGlyphs.Add(dummy)] );
-    glyph^.Glyph := FCommon.GetGlyphSprite(FFont.Name, ch, FFont.Style, abc, yyyy);
-    ScaleMetrics(abc, yyyy);
+    glyph^.Glyph := FCommon.GetGlyphSprite(FFont.Name, ch, FFont.Style, xxx, yyyy);
+    ScaleMetrics(xxx, yyyy);
 
     FLineYYYYMetrics.Add(yyyy);
-    FLineInfo.width := FLineInfo.width + abc.x + abc.y + abc.z;
+    FLineInfo.width := FLineInfo.width + xxx.x + xxx.y + xxx.z;
 
-    FPos.x := FPos.x + abc.x + abc.y*0.5;
+    FPos.x := FPos.x + xxx.x + xxx.y*0.5;
     glyph^.Pos.x := FPos.x;
-    FPos.x := FPos.x + abc.y*0.5 + abc.z;
+    FPos.x := FPos.x + xxx.y*0.5 + xxx.z;
 
-    glyph^.Size.x := abc.y;
+    glyph^.Size.x := xxx.y;
     glyph^.Size.y := yyyy.y + yyyy.z;
 
     glyph^.SDFOffset := 0;
@@ -791,7 +793,7 @@ begin
 end;
 
 function TavCanvasCommonData.GetGlyphImage(const AFontName: string;
-  AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out
+  AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out
   YYYYMetrics: TVec4): ITextureMip;
 var key  : TGlyphKey;
     pdata: PGlyphData;
@@ -803,20 +805,20 @@ begin
   key.style := AStyle;
   if not FGlyphs.TryGetPValue(key, Pointer(pdata)) then
   begin
-    data.img := GenerateGlyphSDF(AFontName, AChar, GLYPH_DefaultSize, GLYPH_DefaultSize div 3, gsItalic in AStyle, gsBold in AStyle, gsUnderline in AStyle, data.ABCMetrics, data.YYYYMetrics);
+    data.img := GenerateGlyphSDF(AFontName, AChar, GLYPH_DefaultSize, GLYPH_DefaultSize div 4, gsItalic in AStyle, gsBold in AStyle, gsUnderline in AStyle, data.XXXMetrics, data.YYYYMetrics);
     FGlyphs.Add(key, data);
     pdata := @data;
   end;
   Result := pdata^.img;
-  ABCMetrics := pdata^.ABCMetrics;
+  XXXMetrics := pdata^.XXXMetrics;
   YYYYMetrics := pdata^.YYYYMetrics;
 end;
 
 function TavCanvasCommonData.GetGlyphSprite(const AFontName: string;
-  AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out
+  AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out
   YYYYMetrics: TVec4): ISpriteIndex;
 begin
-  Result := FGlyphsAtlas.ObtainSprite(GetGlyphImage(AFontName, AChar, AStyle, ABCMetrics, YYYYMetrics));
+  Result := FGlyphsAtlas.ObtainSprite(GetGlyphImage(AFontName, AChar, AStyle, XXXMetrics, YYYYMetrics));
 end;
 
 procedure TavCanvasCommonData.ReloadShaders;
@@ -831,6 +833,56 @@ end;
 function TavCanvasCommonData.GlyphsAtlas: TavAtlasArrayReferenced;
 begin
   Result := FGlyphsAtlas;
+end;
+
+procedure TavCanvasCommonData.ExportGlyphs(const AFileName: string; const AFontName: string; AStyle: TGlyphStyles; const ACharFirst, ACharLast: WideChar);
+  type
+    TExportInformation = record
+      ch    : WideChar;
+      XXX   : TVec3;
+      YYYY  : TVec4;
+      sprite: ISpriteIndex;
+    end;
+    procedure WriteGlyph(const AExp: TExportInformation; const AStream: TStream);
+    var region : TSpriteRegion;
+        picture: ITextureMip;
+    begin
+      AStream.WriteBuffer(AExp.ch, SizeOf(AExp.ch));
+      AStream.WriteBuffer(AExp.XXX, SizeOf(AExp.XXX));
+      AStream.WriteBuffer(AExp.YYYY, SizeOf(AExp.YYYY));
+      region := GlyphsAtlas.GetRegion(AExp.sprite.Index);
+      AStream.WriteBuffer(region, SizeOf(region));
+      picture := AExp.sprite.Data;
+      Assert(picture.Width = region.Rect.z - region.Rect.x);
+      Assert(picture.Height = region.Rect.w - region.Rect.y);
+      if picture.Width * picture.Height > 0 then
+        AStream.WriteBuffer(picture.Data, picture.Width*picture.Height*SizeOf(Single));
+    end;
+
+var fs    : TFileStream;
+    char  : WideChar;
+    n, i  : Integer;
+    exp   : array of TExportInformation;
+
+begin
+  fs := TFileStream.Create(AFileName, fmCreate);
+  try
+    n := Ord(ACharLast) - Ord(ACharFirst) + 1;
+    SetLength(exp, n);
+    n := 0;
+    for char := ACharLast downto ACharFirst do
+    begin
+      exp[n].ch := char;
+      exp[n].sprite := GetGlyphSprite(AFontName, char, AStyle, exp[n].XXX, exp[n].YYYY);
+      Inc(n);
+    end;
+
+    fs.WriteBuffer(n, SizeOf(n));
+    for i := 0 to n - 1 do
+      WriteGlyph(exp[i], fs);
+  finally
+    FreeAndNil(fs);
+  end;
 end;
 
 constructor TavCanvasCommonData.Create(AParent: TavObject);
@@ -852,6 +904,7 @@ begin
 
   FGlyphs := TGlyphsMap.Create();
   FGlyphsAtlas := TavAtlasArrayReferenced.Create(Self);
+  FGlyphsAtlas.TargetSize := Vec(512,512);
   FGlyphsAtlas.TargetFormat := TTextureFormat.R32f;
 end;
 

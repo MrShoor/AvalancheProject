@@ -99,6 +99,7 @@ begin
 
   FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], [true, false]);
 
+  {
   FDummy := TavCanvas.Create(FMain);
   FDummy.Font.Style := [];
   FDummy.Font.Name := 'Segoe UI';
@@ -109,6 +110,9 @@ begin
     WriteLn('');
     FDummy.Text(Finish());
   end;
+  }
+
+  //GetCanvasCommonData(FMain).ExportGlyphs('D:\font.glyphs', 'Segoe UI', [], Char(33), Char(255));
 
   FCnv := TavCanvas.Create(FMain);
   FCnv.Font.Color := Vec(byte(255),byte(255),byte(255),byte(255));

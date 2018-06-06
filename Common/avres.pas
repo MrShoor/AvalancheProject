@@ -623,6 +623,12 @@ type
   ISpriteIndexSet = {$IfDef FPC}specialize{$EndIf} IHashSet<ISpriteIndex>;
   TSpriteIndexSet = {$IfDef FPC}specialize{$EndIf} THashSet<ISpriteIndex>;
 
+  TSpriteRegion = packed record
+    Rect  : TVec4;
+    Slice : Single;
+    class function Layout(): IDataLayout; static;
+  end;
+
   { TavAtlasArrayReferenced }
 
   TavAtlasArrayReferenced  = class(TavTextureBase)
@@ -648,12 +654,6 @@ type
       Valid   : Boolean;
     end;
     PPageInfo = ^TPageInfo;
-
-    TSpriteRegion = packed record
-      Rect  : TVec4;
-      Slice : Single;
-      class function Layout(): IDataLayout; static;
-    end;
 
     ISpriteMap = {$IfDef FPC}specialize{$EndIf} IHashMap<ITextureMip, TSpriteIndex>;
     TSpriteMap = {$IfDef FPC}specialize{$EndIf} THashMap<ITextureMip, TSpriteIndex>;
@@ -700,6 +700,7 @@ type
     property TargetSize: TVec2i read FTargetSize write SetTargetSize;
 
     function ObtainSprite(const ASprite: ITextureMip): ISpriteIndex;
+    function GetRegion(AIndex: Integer): TSpriteRegion;
 
     procedure AfterConstruction; override;
     destructor Destroy; override;
@@ -1130,7 +1131,7 @@ end;
 
 { TSpriteRegion }
 
-class function TavAtlasArrayReferenced.TSpriteRegion.Layout: IDataLayout;
+class function TSpriteRegion.Layout: IDataLayout;
 begin
   Result := LB.Add('Rect', ctFloat, 4)
               .Add('Slice', ctFloat, 1)
@@ -1323,6 +1324,11 @@ begin
     FRegionsBuffer.Invalidate;
   end;
   Result := spriteObj;
+end;
+
+function TavAtlasArrayReferenced.GetRegion(AIndex: Integer): TSpriteRegion;
+begin
+  Result := FRegions[AIndex];
 end;
 
 procedure TavAtlasArrayReferenced.AfterConstruction;
