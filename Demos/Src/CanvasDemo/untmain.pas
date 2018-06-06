@@ -79,9 +79,11 @@ begin
   FCnv := TavCanvas.Create(FMain);
   FCnv.Font.Size := 128;
   FCnv.Font.Color := Vec(byte(255),byte(0),byte(0),byte(255));
+  FCnv.Font.Style := [gsItalic];
+  FCnv.Font.Name := 'Arial';
   with FCnv.TextBuilder do
   begin
-    WriteLn('Hello World!');
+    WriteLn('llHelloWorld');
     FCnv.Text(Finish());
   end;
 end;
@@ -143,9 +145,11 @@ begin
 
     FMain.Clear(Vec(0.0,0.2,0.4,1.0), True, FMain.Projection.DepthRange.y, True);
 
+    FMain.States.DepthTest := False;
+    FMain.States.Wireframe := GetTickCount64 mod 1000 < 500;
     FMain.States.Blending[0] := True;
     FMain.States.SetBlendFunctions(bfSrcAlpha, bfInvSrcAlpha);
-    FCnv.Draw(MatTranslate(Vec(10,10,0)), 1);
+    FCnv.Draw(MatTranslate(Vec(100,100,0)), 1);
 
     FFrameBuffer.BlitToWindow;
     FMain.Present;

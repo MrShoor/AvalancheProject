@@ -2,6 +2,7 @@ unit avGlyphGenerator;
 
 {$IfDef FPC}
   {$mode objfpc}{$H+}
+  {$ModeSwitch advancedrecords}
 {$EndIf}
 
 interface
@@ -27,7 +28,8 @@ function GenerateGlyphSDF(const AFontName  : string;
                           const AItalic    : Boolean;
                           const ABold      : Boolean;
                           const AUnderLine : Boolean;
-                          out   ABCMetrics : TVec3): ITextureMip;
+                          out   XXX        : TVec3;
+                          out   YYYY       : TVec4): ITextureMip;
 
 implementation
 
@@ -51,6 +53,16 @@ type
     constructor Create(const AWidth: Integer; const AData: TVec4bArr);
   end;
 
+  { TGlyphMonochrome }
+
+  TGlyphMonochrome = record
+    buf    : TByteArr;
+    YY     : TVec2i;
+    metrics: TGlyphMetrics;
+
+    procedure SaveToFile(const AFileName: string);
+  end;
+
   IVec2Field = interface
     function GetSize: TVec2i;
     function GetData: TVec2Arr;
@@ -67,12 +79,19 @@ type
     FWidth : Integer;
     FHeight: Integer;
     FData  : TVec2Arr;
+
+    function  GetPix(const x, y: Integer): TVec2;
+    procedure SetPix(const x, y: Integer; const v: TVec2);
+
     procedure ReBuild(const AInverted: Boolean);
 
     function GetSize: TVec2i;
     function GetData: TVec2Arr;
   public
+    procedure SaveToFile(const AFileName: string);
+
     constructor Create(const ABmp: TBitmap; const AInverted: Boolean);
+    constructor Create(const AGlyph: TGlyphMonochrome; const ABorder: Integer; const AInverted: Boolean);
   end;
 
   { TDField }
@@ -90,10 +109,9 @@ type
     function PixelFormat: TImageFormat;
     function Replicate  : ITextureMip;
     function Pixel(const x,y: Integer): PByte;
-
-    constructor Create(const ACopyFrom: TDField);
   public
     procedure Downscale(NTimes: Integer);
+    constructor Create(const ACopyFrom: TDField);
     constructor Create(const PositiveField, NegativeField: IVec2Field);
   end;
 
@@ -115,6 +133,34 @@ begin
   h := size.cy;
 end;
 {$EndIf}
+
+function GetGlyph(const Canvas: TCanvas; AChar: WideChar): TGlyphMonochrome;
+const
+  F_IDENTITY : Windows.TMAT2 = (eM11: (fract: 0; value: 1); eM12: (fract: 0; value: 0); eM21: (fract: 0; value: 0); eM22: (fract: 0; value: 1));
+var ch: Integer;
+    textM: TTextMetricW;
+    bufSize: Cardinal;
+begin
+  if not GetTextMetricsW(Canvas.Handle, @textM) then
+    RaiseLastOSError;
+  Result.YY.x := textM.tmAscent;
+  Result.YY.y := textM.tmDescent;
+
+  ch := Ord(AChar);
+  bufSize := GetGlyphOutlineW(Canvas.Handle, ch, GGO_BITMAP, Result.metrics, 0, nil, F_IDENTITY);
+  if bufSize = GDI_ERROR then
+    RaiseLastOSError;
+
+  if bufSize = 0 then
+  begin
+    Result.buf := nil;
+    Exit;
+  end;
+
+  SetLength(Result.buf, bufSize);
+  if GetGlyphOutlineW(Canvas.Handle, ch, GGO_BITMAP, Result.metrics, Length(Result.buf), @Result.buf[0], F_IDENTITY) = GDI_ERROR then
+    RaiseLastOSError;
+end;
 
 function GetGlyphMetrics(const Canvas: TCanvas; AChar: WideChar): TVec3I;
 var ch: Integer;
@@ -198,18 +244,16 @@ begin
   end;
 end;
 
-function GenerateGlyphSDF(const AFontName: string; const AChar: WideChar;
-  const ASize: Integer; const ABorder: Integer; const AItalic: Boolean;
-  const ABold: Boolean; const AUnderLine: Boolean; out ABCMetrics: TVec3
-  ): ITextureMip;
+function GenerateGlyphSDF(const AFontName: string; const AChar: WideChar; const ASize: Integer; const ABorder: Integer; const AItalic: Boolean;
+  const ABold: Boolean; const AUnderLine: Boolean; out XXX: TVec3; out YYYY: TVec4): ITextureMip;
 var bmp: TBitmap;
     fstyle: TFontStyles;
-    w, h, n: Integer;
 
     pos, neg: IVec2Field;
     df: TDField;
-    glyphHeight: Integer;
-    wholeHeight: Integer;
+    fontH: Integer;
+    scaledBorder, w, h: Integer;
+    glyph: TGlyphMonochrome;
 begin
   bmp := nil;
   try
@@ -218,13 +262,13 @@ begin
     if AItalic then fstyle := fstyle + [fsItalic];
     if AUnderLine then fstyle := fstyle + [fsUnderline];
 
-    glyphHeight := ASize * (1 shl GLYPH_DFOverscale);
-    wholeHeight := (ASize + (ABorder * 2)) * (1 shl GLYPH_DFOverscale);
+    fontH := ASize * (1 shl GLYPH_DFOverscale);
+    scaledBorder := ABorder * (1 shl GLYPH_DFOverscale);
 
     bmp := TBitmap.Create;
     bmp.PixelFormat := pf24bit;
     bmp.Canvas.Font.Name := AFontName;
-    bmp.Canvas.Font.Height := glyphHeight;
+    bmp.Canvas.Font.Height := fontH;
     bmp.Canvas.Font.Color := clWhite;
     bmp.Canvas.Font.Style := fstyle;
     bmp.Canvas.Font.Quality := fqNonAntialiased;
@@ -233,22 +277,88 @@ begin
 
     w := 0; h := 0;
     GetTextSize(bmp.Canvas, AChar, w, h);
-    bmp.Width := w + (ABorder * 2) * (1 shl GLYPH_DFOverscale);
-    bmp.Height := wholeHeight;
 
-    bmp.Canvas.TextOut((bmp.Width - w) div 2, (bmp.Height - h) div 2, AChar);
+    glyph := GetGlyph(bmp.Canvas, AChar);
+    glyph.SaveToFile('D:\debug.bmp');
 
-    pos := TVec2Field.Create(bmp, false);
-    neg := TVec2Field.Create(bmp, true);
+    pos := TVec2Field.Create(glyph, scaledBorder, false);
+    neg := TVec2Field.Create(glyph, scaledBorder, true);
     df := TDField.Create(pos, neg);
     df.Downscale(GLYPH_DFOverscale);
     Result := df;
 
-    ABCMetrics := GetGlyphMetrics(bmp.Canvas, AChar);
-    ABCMetrics := ABCMetrics * (1.0 / (1 shl GLYPH_DFOverscale));
-    ABCMetrics.x := ABCMetrics.x - ABorder;
-    ABCMetrics.y := ABCMetrics.x + ABorder + ABorder;
-    ABCMetrics.z := ABCMetrics.x - ABorder;
+    YYYY.x := glyph.YY.x - glyph.metrics.gmptGlyphOrigin.Y;
+    YYYY.y := glyph.metrics.gmptGlyphOrigin.Y;
+    YYYY.z := glyph.metrics.gmBlackBoxY - YYYY.y;
+    YYYY.w := glyph.YY.x + glyph.YY.y - YYYY.x - YYYY.y - YYYY.z;
+
+    Assert(YYYY.x + YYYY.y + YYYY.z + YYYY.w - fontH < 1);
+
+    YYYY.x := YYYY.x - scaledBorder;
+    YYYY.y := YYYY.y + scaledBorder;
+    YYYY.z := YYYY.z + scaledBorder;
+    YYYY.w := YYYY.w - scaledBorder;
+
+    XXX.x := glyph.metrics.gmptGlyphOrigin.X;
+    XXX.y := glyph.metrics.gmBlackBoxX;
+    XXX.z := glyph.metrics.gmCellIncX - glyph.metrics.gmBlackBoxX - glyph.metrics.gmptGlyphOrigin.X;
+
+    XXX.x := XXX.x - scaledBorder;
+    XXX.y := XXX.y + 2 * scaledBorder;
+    XXX.z := XXX.z - scaledBorder;
+
+    XXX  := XXX  * (1.0 / (1 shl GLYPH_DFOverscale));
+    YYYY := YYYY * (1.0 / (1 shl GLYPH_DFOverscale));
+  finally
+    FreeAndNil(bmp);
+  end;
+end;
+
+{ TGlyphMonochrome }
+
+procedure TGlyphMonochrome.SaveToFile(const AFileName: string);
+
+  procedure SetPix(bmp: TBitmap; x, y: Integer; b: Byte);
+  var pdest: PVec3b;
+  begin
+    pdest := bmp.ScanLine[y];
+    Inc(pdest, x);
+    pdest^.x := b;
+    pdest^.y := b;
+    pdest^.z := b;
+  end;
+
+var bmp: TBitmap;
+  rowsize: UINT;
+  j, i: Integer;
+  row: PByte;
+begin
+  bmp := nil;
+  try
+    bmp := TBitmap.Create;
+    bmp.PixelFormat := pf24bit;
+    bmp.Width := metrics.gmBlackBoxX;
+    bmp.Height := metrics.gmBlackBoxY;
+
+    if Length(buf) > 0 then
+    begin
+
+      rowsize := ((metrics.gmBlackBoxX + 31) div 32) * 4;
+      for j := 0 to metrics.gmBlackBoxY - 1 do
+      begin
+        row := @buf[j * rowsize];
+        for i := 0 to metrics.gmBlackBoxX - 1 do
+        begin
+          if ((TByteArr(row)[i div 8] shr (7 - i mod 8)) and 1 = 1) then
+            SetPix(bmp, i, j, 255)
+          else
+            SetPix(bmp, i, j, 0);
+        end;
+      end;
+
+    end;
+
+    bmp.SaveToFile(AFileName);
   finally
     FreeAndNil(bmp);
   end;
@@ -353,6 +463,16 @@ begin
 end;
 
 { TVec2Field }
+
+function TVec2Field.GetPix(const x, y: Integer): TVec2;
+begin
+  Result := FData[y * FWidth + x];
+end;
+
+procedure TVec2Field.SetPix(const x, y: Integer; const v: TVec2);
+begin
+  FData[y * FWidth + x] := v;
+end;
 
 // MEIJSTER distance transform alghoritm
 // http://fab.cba.mit.edu/classes/S62.12/docs/Meijster_distance.pdf
@@ -482,6 +602,37 @@ begin
   Result := FData;
 end;
 
+procedure TVec2Field.SaveToFile(const AFileName: string);
+var bmp: TBitmap;
+    j, i: Integer;
+    pdst: PVec3b;
+    v: TVec2;
+begin
+  bmp := TBitmap.Create;
+  try
+    bmp.PixelFormat := pf24bit;
+    bmp.Width := FWidth;
+    bmp.Height := FHeight;
+
+    for j := 0 to FHeight - 1 do
+    begin
+      pdst := bmp.ScanLine[j];
+      for i := 0 to FWidth - 1 do
+      begin
+        v := GetPix(i, j);
+        pdst^.x := Clamp(Round(abs(v.x) / 10 * 255), 0, 255);
+        pdst^.y := Clamp(Round(abs(v.y) / 10 * 255), 0, 255);
+        pdst^.z := 0;
+        Inc(pdst);
+      end;
+    end;
+
+    bmp.SaveToFile(AFileName);
+  finally
+    FreeAndNil(bmp);
+  end;
+end;
+
 constructor TVec2Field.Create(const ABmp: TBitmap; const AInverted: Boolean);
 var src: PVec3b;
     dst: PVec2;
@@ -499,12 +650,47 @@ begin
     src := ABmp.ScanLine[j];
     for i := 0 to ABmp.Width - 1 do
     begin
-      if (src^.x > 0) xor AInverted then
+      if (src^.x = 0) xor AInverted then
         dst^ := DIST_INFINITY
       else
         dst^ := DIST_ZERO;
       Inc(dst);
       Inc(src);
+    end;
+  end;
+
+  ReBuild(AInverted);
+end;
+
+constructor TVec2Field.Create(const AGlyph: TGlyphMonochrome; const ABorder: Integer; const AInverted: Boolean);
+var i, j: Integer;
+    rowsize: integer;
+    row: PByte;
+    v: TVec2;
+begin
+  FWidth := AGlyph.metrics.gmBlackBoxX + 2 * ABorder;
+  FHeight := AGlyph.metrics.gmBlackBoxY + 2 * ABorder;
+  SetLength(FData, FWidth * FHeight);
+
+  if not AInverted then
+    v := DIST_INFINITY
+  else
+    v := DIST_ZERO;
+  for i := 0 to Length(FData) - 1 do
+    FData[i] := v;
+
+  if Length(AGlyph.buf) = 0 then Exit;
+
+  rowsize := ((AGlyph.metrics.gmBlackBoxX + 31) div 32) * 4;
+  for j := 0 to AGlyph.metrics.gmBlackBoxY - 1 do
+  begin
+    row := @AGlyph.buf[j * rowsize];
+    for i := 0 to AGlyph.metrics.gmBlackBoxX - 1 do
+    begin
+      if ((TByteArr(row)[i div 8] shr (7 - i mod 8)) and 1 = 1) xor AInverted then
+        SetPix(i + ABorder, j + ABorder, DIST_ZERO)
+      else
+        SetPix(i + ABorder, j + ABorder, DIST_INFINITY);
     end;
   end;
 

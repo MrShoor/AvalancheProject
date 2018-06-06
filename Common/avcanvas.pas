@@ -178,9 +178,9 @@ type
       style: TGlyphStyles;
     end;
     TGlyphData = packed record
-      img       : ITextureMip;
-      ABCMetrics: TVec3;
-      YYMetrics : TVec2;
+      img         : ITextureMip;
+      ABCMetrics  : TVec3;
+      YYYYMetrics : TVec4;
     end;
     PGlyphData = ^TGlyphData;
 
@@ -202,8 +202,8 @@ type
     procedure AfterInit3D; override;
     procedure BeforeFree3D; override;
   public
-    function GetGlyphImage (const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out YYMetrics: TVec2): ITextureMip;
-    function GetGlyphSprite(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out YYMetrics: TVec2): ISpriteIndex;
+    function GetGlyphImage(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out YYYYMetrics: TVec4): ITextureMip;
+    function GetGlyphSprite(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out YYYYMetrics: TVec4): ISpriteIndex;
 
     property WndMatrix: TMat4 read FWndMatrix write SetWndMatrix;
 
@@ -303,7 +303,7 @@ uses Math;
 const
   NAME_TavCanvasCommonData = 'TavCanvasCommonData';
 
-  GLYPH_DefaultSize = 16;
+  GLYPH_DefaultSize = 24;
   GLYPH_DFSize = GLYPH_DefaultSize;
   GLYPH_DFSizeInv = 1.0/GLYPH_DFSize;
 
@@ -340,8 +340,8 @@ type
 
   TTextBuilder = class (TInterfacedObject, ITextBuilder)
   private type
-    TVec2Arr = {$IfDef FPC}specialize{$EndIf} TArray<TVec2>;
-    IVec2Arr = {$IfDef FPC}specialize{$EndIf} IArray<TVec2>;
+    TVec4Arr = {$IfDef FPC}specialize{$EndIf} TArray<TVec4>;
+    IVec4Arr = {$IfDef FPC}specialize{$EndIf} IArray<TVec4>;
   private
     FCommon: TavCanvasCommonData;
     FFont  : TFontStyle;
@@ -354,7 +354,7 @@ type
     FPos            : TVec2;
     FLineStart      : Integer;
     FLineInfo       : TLineInfo;
-    FLineYYMetrics  : IVec2Arr;
+    FLineYYYYMetrics  : IVec4Arr;
 
     procedure WriteInternal(const AStr: UnicodeString);
     procedure WriteLnInternal;
@@ -502,14 +502,14 @@ end;
 { TTextBuilder }
 
 procedure TTextBuilder.WriteInternal(const AStr: UnicodeString);
-  procedure ScaleMetrics(var abc: TVec3; var yy: TVec2);
+  procedure ScaleMetrics(var abc: TVec3; var yyyy: TVec4);
   begin
     abc := abc * GLYPH_DFSizeInv * FFont.Size;
-    yy := yy * GLYPH_DFSizeInv * FFont.Size;
+    yyyy := yyyy * GLYPH_DFSizeInv * FFont.Size;
   end;
 var ch: WideChar;
     abc: TVec3;
-    yy: TVec2;
+    yyyy: TVec4;
     glyph: PGlyphVertex;
     dummy: TGlyphVertex;
     i: Integer;
@@ -527,22 +527,23 @@ begin
   begin
     ch := AStr[i];
     glyph := PGlyphVertex( FGlyphs.PItem[FGlyphs.Add(dummy)] );
-    glyph^.Glyph := FCommon.GetGlyphSprite(FFont.Name, ch, FFont.Style, abc, yy);
-    ScaleMetrics(abc, yy);
+    glyph^.Glyph := FCommon.GetGlyphSprite(FFont.Name, ch, FFont.Style, abc, yyyy);
+    ScaleMetrics(abc, yyyy);
 
-    FLineYYMetrics.Add(yy);
+    FLineYYYYMetrics.Add(yyyy);
     FLineInfo.width := FLineInfo.width + abc.x + abc.y + abc.z;
 
     FPos.x := FPos.x + abc.x + abc.y*0.5;
     glyph^.Pos.x := FPos.x;
     FPos.x := FPos.x + abc.y*0.5 + abc.z;
-    glyph^.Size.x := abc.x + abc.y + abc.z;
-    glyph^.Size.y := yy.x + yy.y;
+
+    glyph^.Size.x := abc.y;
+    glyph^.Size.y := yyyy.y + yyyy.z;
 
     glyph^.SDFOffset := 0;
     glyph^.Color := FFont.Color;
 
-    FLineInfo.yymetrics := Max(FLineInfo.yymetrics, yy);
+    FLineInfo.yymetrics := Max(FLineInfo.yymetrics, Vec(yyyy.x + yyyy.y, yyyy.z + yyyy.w));
   end;
 end;
 
@@ -557,7 +558,7 @@ begin
   else
   begin
     glyph := PGlyphVertex( FGlyphs.PItem[FLineStart] );
-    for i := 0 to FLineYYMetrics.Count - 1 do
+    for i := 0 to FLineYYYYMetrics.Count - 1 do
     begin
       case FLineInfo.align of
         laLeft : glyph^.Align := 0;
@@ -572,11 +573,11 @@ begin
             glyph^.Align := 1;
           end;
       end;
-      glyph^.Pos.y := FPos.y + FLineInfo.yymetrics.x - FLineYYMetrics[i].x + glyph^.Size.y * 0.5;
+      glyph^.Pos.y := FPos.y + FLineInfo.yymetrics.x - FLineYYYYMetrics[i].y + glyph^.Size.y * 0.5;
       Inc(glyph);
     end;
     FLines.Add(FLineInfo);
-    FLineYYMetrics.Clear();
+    FLineYYYYMetrics.Clear();
   end;
   FPos.x := 0;
   FPos.y := FPos.y + FLineInfo.yymetrics.x + FLineInfo.yymetrics.y;
@@ -622,7 +623,7 @@ begin
   FLines := TLineInfoArr.Create();
   FLineInited := False;
   FLineStart := 0;
-  FLineYYMetrics := TVec2Arr.Create();
+  FLineYYYYMetrics := TVec4Arr.Create();
 end;
 
 constructor TTextBuilder.Create(const AFont: TFontStyle; const ACommon: TavCanvasCommonData);
@@ -633,7 +634,7 @@ begin
   FLines := TLineInfoArr.Create();
   FLineInited := False;
   FLineStart := 0;
-  FLineYYMetrics := TVec2Arr.Create();
+  FLineYYYYMetrics := TVec4Arr.Create();
 end;
 
 destructor TTextBuilder.Destroy;
@@ -793,7 +794,7 @@ end;
 
 function TavCanvasCommonData.GetGlyphImage(const AFontName: string;
   AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out
-  YYMetrics: TVec2): ITextureMip;
+  YYYYMetrics: TVec4): ITextureMip;
 var key  : TGlyphKey;
     pdata: PGlyphData;
     data : TGlyphData;
@@ -804,27 +805,26 @@ begin
   key.style := AStyle;
   if not FGlyphs.TryGetPValue(key, Pointer(pdata)) then
   begin
-    //todo
-    data.img := GenerateGlyphSDF(AFontName, AChar, GLYPH_DefaultSize, 8, False, False, False, data.ABCMetrics);
-    data.YYMetrics := Vec(GLYPH_DefaultSize*0.5, GLYPH_DefaultSize*0.5);
+    data.img := GenerateGlyphSDF(AFontName, AChar, GLYPH_DefaultSize, GLYPH_DefaultSize div 3, gsItalic in AStyle, gsBold in AStyle, gsUnderline in AStyle, data.ABCMetrics, data.YYYYMetrics);
     FGlyphs.Add(key, data);
     pdata := @data;
   end;
   Result := pdata^.img;
   ABCMetrics := pdata^.ABCMetrics;
-  YYMetrics := pdata^.YYMetrics;
+  YYYYMetrics := pdata^.YYYYMetrics;
 end;
 
 function TavCanvasCommonData.GetGlyphSprite(const AFontName: string;
   AChar: WideChar; AStyle: TGlyphStyles; out ABCMetrics: TVec3; out
-  YYMetrics: TVec2): ISpriteIndex;
+  YYYYMetrics: TVec4): ISpriteIndex;
 begin
-  Result := FGlyphsAtlas.ObtainSprite(GetGlyphImage(AFontName, AChar, AStyle, ABCMetrics, YYMetrics));
+  Result := FGlyphsAtlas.ObtainSprite(GetGlyphImage(AFontName, AChar, AStyle, ABCMetrics, YYYYMetrics));
 end;
 
 procedure TavCanvasCommonData.ReloadShaders;
 const LOADFROMRES = False;
-      DIR = 'D:\Projects\AvalancheProject\Canvas_Shaders\!Out\';
+      //DIR = 'D:\Projects\AvalancheProject\Canvas_Shaders\!Out\';
+      DIR = 'C:\MyProj\AvalancheProject\Canvas_Shaders\!Out\';
 begin
   FLineProg.Load('CanvasLine', LOADFROMRES, DIR);
   FFontProg.Load('CanvasFont', LOADFROMRES, DIR);
