@@ -11,7 +11,7 @@ uses
   Classes, SysUtils, avTypes, mutils;
 
 const
-  GLYPH_DFOverscale = 4;
+  GLYPH_DFOverscale = 3;
 
 function GenerateGlyphImage(const AFontName  : string;
                             const AChar      : WideChar;

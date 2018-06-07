@@ -927,7 +927,8 @@ type
 
 function Create_FrameBuffer(Parent: TavObject; textures: array of TTextureFormat): TavFrameBuffer; overload;
 function Create_FrameBuffer(Parent: TavObject; textures: array of TTextureFormat; srgb: array of Boolean): TavFrameBuffer; overload;
-function Create_FrameBufferMultiSampled(Parent: TavObject; textures: array of TTextureFormat; const ASampleCount: Integer): TavFrameBuffer;
+function Create_FrameBufferMultiSampled(Parent: TavObject; textures: array of TTextureFormat; const ASampleCount: Integer): TavFrameBuffer; overload;
+function Create_FrameBufferMultiSampled(Parent: TavObject; textures: array of TTextureFormat; const ASampleCount: Integer; srgb: array of Boolean): TavFrameBuffer; overload;
 
 procedure DrawManaged(const AProg: TavProgram;
                       const Vert: IVBManagedHandle; const Ind: IIBManagedHandle; const Inst: IVBManagedHandle); overload;
@@ -983,6 +984,17 @@ begin
 end;
 
 function Create_FrameBufferMultiSampled(Parent: TavObject; textures: array of TTextureFormat; const ASampleCount: Integer): TavFrameBuffer;
+var srgb: array of Boolean;
+    i: Integer;
+begin
+  SetLength(srgb, Length(textures));
+  for i := 0 to High(srgb) do srgb[i] := false;
+  Result := Create_FrameBufferMultiSampled(Parent, textures, ASampleCount, srgb);
+end;
+
+function Create_FrameBufferMultiSampled(Parent: TavObject;
+  textures: array of TTextureFormat; const ASampleCount: Integer;
+  srgb: array of Boolean): TavFrameBuffer;
 var i, colorIndex: Integer;
     tex: TavMultiSampleTexture;
     hasDepth: Boolean;
@@ -996,6 +1008,7 @@ begin
     tex := TavMultiSampleTexture.Create(Result);
     tex.TargetFormat := textures[i];
     tex.TargetSampleCount := ASampleCount;
+    tex.sRGB := srgb[i];
     if IsDepthTexture[textures[i]] then
     begin
         Result.SetDepth(tex, 0);

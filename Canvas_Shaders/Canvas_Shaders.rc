@@ -1,2 +1,3 @@
 DX_CanvasLine RCDATA "!Out\DX_CanvasLine.hlsl"
+DX_CanvasTris RCDATA "!Out\DX_CanvasTris.hlsl"
 DX_CanvasFont RCDATA "!Out\DX_CanvasFont.hlsl"

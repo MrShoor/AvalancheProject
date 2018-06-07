@@ -18,10 +18,31 @@ type
     Normals     : TVec4; //xy - normal at start point, zw - normal at end point
     Width       : TVec2; //x - real width, y - minimal width in pixels
     HintingAlign: TVec4;
+    Color       : TVec4;
     class function Layout: IDataLayout; static;
   end;
   TLinePointVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TLinePointVertex>;
   ILinePointVertices = {$IfDef FPC}specialize{$EndIf} IArray<TLinePointVertex>;
+
+  { TCanvasTriangleVertex }
+
+  TCanvasTriangleVertex = packed record
+  private
+    procedure SetSprite(const AValue: ISpriteIndex);
+  public
+    Coords   : TVec2;
+    Hinting  : TVec2;
+    Color    : TVec4;
+    TexCoord : TVec2;
+    SpriteID : Integer;
+
+    _Sprite     : ISpriteIndex;
+    class function Layout: IDataLayout; static;
+
+    property Sprite: ISpriteIndex read _Sprite write SetSprite;
+  end;
+  TCanvasTriangleVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TCanvasTriangleVertex>;
+  ICanvasTriangleVertices = {$IfDef FPC}specialize{$EndIf} IArray<TCanvasTriangleVertex>;
 
   { TGlyphVertex }
 
@@ -33,7 +54,7 @@ type
     Align     : Single;
     Size      : TVec2;
     SDFOffset : Single;
-    Color     : TVec4b;
+    Color     : TVec4;
     GlyphID   : Integer;
 
     _Glyph    : ISpriteIndex;
@@ -66,21 +87,44 @@ type
   TPenStyle = class (TPersistent)
   private
     FAlign: TPenAlign;
+    FColor: TVec4;
     FHinting: TPenHinting;
     FMinPixWidth: Integer;
     FWidth: Single;
     procedure SetAlign(AValue: TPenAlign);
+    procedure SetColor(const AValue: TVec4);
     procedure SetHinting(AValue: TPenHinting);
     procedure SetMinPixWidth(AValue: Integer);
     procedure SetWidth(AValue: Single);
   protected
     procedure AssignTo(Dest: TPersistent); override;
   public
+    property Color: TVec4 read FColor write SetColor;
     property Width: Single read FWidth write SetWidth;
     property Hinting: TPenHinting read FHinting write SetHinting;
     property Align: TPenAlign read FAlign write SetAlign;
 
     property MinPixWidth: Integer read FMinPixWidth write SetMinPixWidth;
+  end;
+
+  {$SCOPEDENUMS ON}
+  TBrushHintingStyle = (Vertical, Horizontal);
+  TBrushHinting = set of TBrushHintingStyle;
+  {$SCOPEDENUMS OFF}
+
+  { TBrushStyle }
+
+  TBrushStyle = class (TPersistent)
+  private
+    FColor: TVec4;
+    FHinting: TBrushHinting;
+    procedure SetColor(const AValue: TVec4);
+    procedure SetHinting(const AValue: TBrushHinting);
+  protected
+    procedure AssignTo(Dest: TPersistent); override;
+  public
+    property Color: TVec4 read FColor write SetColor;
+    property Hinting: TBrushHinting read FHinting write SetHinting;
   end;
 
   { TFontStyle }
@@ -89,12 +133,12 @@ type
 
   TFontStyle = class (TPersistent)
   private
-    FColor: TVec4b;
+    FColor: TVec4;
     FName: string;
     FSDFOffset: Single;
     FSize: Single;
     FStyle: TGlyphStyles;
-    procedure SetColor(const AValue: TVec4b);
+    procedure SetColor(const AValue: TVec4);
     procedure SetName(const AValue: string);
     procedure SetSDFOffset(const AValue: Single);
     procedure SetSize(const AValue: Single);
@@ -104,7 +148,7 @@ type
   public
     property Name     : string       read FName      write SetName;
     property Style    : TGlyphStyles read FStyle     write SetStyle;
-    property Color    : TVec4b       read FColor     write SetColor;
+    property Color    : TVec4        read FColor     write SetColor;
     property Size     : Single       read FSize      write SetSize;
     property SDFOffset: Single       read FSDFOffset write SetSDFOffset;
   end;
@@ -159,7 +203,7 @@ type
     FUniform_UIMatrixInverse: TUniformField;
     FUniform_ViewportSize: TUniformField;
 
-    FUniform_Transform: TUniformField;
+    FUniform_RotationOffset: TUniformField;
     FUniform_PixelToUnit: TUniformField;
 
     FLastViewportSize: TVec2i;
@@ -169,7 +213,7 @@ type
 
     procedure UpdateUniforms; override;
   public
-    procedure SetTransform  (const ATransform: TMat4);
+    procedure SetRotationOffset(const ARotation: Single; const AOffset: TVec2);
     procedure SetPixelToUnit(const AScale: single);
   end;
   TavFontProgram = class;
@@ -195,14 +239,12 @@ type
     FLineQuad : TavVB;
     FLineProg : TavUIProgram;
     FFontProg : TavFontProgram;
+    FTrisProg : TavUIProgram;
 
-    FWndMatrix: TMat4;
-
-    FGlyphsAtlas: TavAtlasArrayReferenced;
-
+    FGlyphsAtlas : TavAtlasArrayReferenced;
     FGlyphs : IGlyphsMap;
 
-    procedure SetWndMatrix(AValue: TMat4);
+    FSpritesAtlas: TavAtlasArrayReferenced;
   protected
     procedure AfterInit3D; override;
     procedure BeforeFree3D; override;
@@ -210,13 +252,14 @@ type
     function GetGlyphImage(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out YYYYMetrics: TVec4): ITextureMip;
     function GetGlyphSprite(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out YYYYMetrics: TVec4): ISpriteIndex;
 
-    property WndMatrix: TMat4 read FWndMatrix write SetWndMatrix;
+    property GlyphsAtlas : TavAtlasArrayReferenced read FGlyphsAtlas;
+    property SpritesAtlas: TavAtlasArrayReferenced read FSpritesAtlas;
+    property LineQuad: TavVB          read FLineQuad;
 
     procedure ReloadShaders;
-    function GlyphsAtlas: TavAtlasArrayReferenced;
-    property LineQuad: TavVB          read FLineQuad;
     property LineProg: TavUIProgram   read FLineProg;
     property FontProg: TavFontProgram read FFontProg;
+    property TrisProg: TavUIProgram   read FTrisProg;
 
     procedure ExportGlyphs(const AFileName: string; const AFontName: string; AStyle: TGlyphStyles; const ACharFirst, ACharLast: WideChar);
 
@@ -262,8 +305,9 @@ type
     function GetCommonData: TavCanvasCommonData;
     property CommonData: TavCanvasCommonData read GetCommonData;
   private
-    FPen : TPenStyle;
-    FFont: TFontStyle;
+    FPen  : TPenStyle;
+    FBrush: TBrushStyle;
+    FFont : TFontStyle;
 
     FLineData: ILinePointVertices;
     FValid   : Boolean;
@@ -278,26 +322,30 @@ type
     FCurrentBatch: TGeometryBatch;
 
     procedure SetFont(const AValue: TFontStyle);
+    procedure SetBrush(const AValue: TBrushStyle);
     procedure SetPen(AValue: TPenStyle);
     procedure AddLineSegment(Coords, Normals: TVec4);
     procedure FillSegmentByPen(out Seg: TLinePointVertex);
+    procedure FillVertexWithBrush(out V: TCanvasTriangleVertex);
 
     procedure SetValid(AValue: Boolean);
     procedure SelectGeometryKind(const AKind: TGeometryKind);
   public
-    property Pen  : TPenStyle  read FPen   write SetPen;
-    property Font : TFontStyle read FFont  write SetFont;
+    property Pen  : TPenStyle   read FPen   write SetPen;
+    property Brush: TBrushStyle read FBrush write SetBrush;
+    property Font : TFontStyle  read FFont  write SetFont;
+
     property Valid: Boolean    read FValid write SetValid;
 
     function TextBuilder: ITextBuilder;
 
     //drawing functions
     procedure Clear;
-    procedure Rectangle(Left, Top, Right, Bottom: Single); overload;
-    procedure Rectangle(LeftTop, RightBottom: TVec2); overload;
-    procedure Text(const AText: ITextLines);
+    procedure AddRectangle(Left, Top, Right, Bottom: Single); overload;
+    procedure AddRectangle(LeftTop, RightBottom: TVec2); overload;
+    procedure AddText(const AText: ITextLines);
 
-    procedure Draw(const ATransform: TMat4; const APixelToUnit: Single);
+    procedure Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single);
 
     constructor Create(AParent: TavObject); overload; override;
     destructor Destroy; override;
@@ -408,6 +456,49 @@ begin
   end;
 end;
 
+{ TBrushStyle }
+
+procedure TBrushStyle.SetColor(const AValue: TVec4);
+begin
+  if FColor = AValue then Exit;
+  FColor := AValue;
+end;
+
+procedure TBrushStyle.SetHinting(const AValue: TBrushHinting);
+begin
+  if FHinting = AValue then Exit;
+  FHinting := AValue;
+end;
+
+procedure TBrushStyle.AssignTo(Dest: TPersistent);
+var BrushDest: TBrushStyle absolute Dest;
+begin
+  Assert(Dest is TBrushStyle);
+  BrushDest.FColor := FColor;
+  BrushDest.FHinting := FHinting;
+end;
+
+{ TCanvasTriangleVertex }
+
+procedure TCanvasTriangleVertex.SetSprite(const AValue: ISpriteIndex);
+begin
+  _Sprite := AValue;
+  if Assigned(_Sprite) then
+    SpriteID := Sprite.Index
+  else
+    SpriteID := -1;
+end;
+
+class function TCanvasTriangleVertex.Layout: IDataLayout;
+begin
+  Result := LB.Add('Coords', ctFloat, 2).
+               Add('Hinting', ctFloat, 2).
+               Add('Color', ctFloat, 4).
+               Add('TexCoord', ctFloat, 2).
+               Add('SpriteID', ctInt, 1).
+               Finish(SizeOf(TCanvasTriangleVertex));
+end;
+
 { TavFontProgram }
 
 procedure TavFontProgram.AfterInit3D;
@@ -470,7 +561,7 @@ begin
     FUniform_UIMatrixInverse := GetUniformField('UIMatrixInverse');
     FUniform_ViewportSize := GetUniformField('ViewPortSize');
     FUniform_PixelToUnit := GetUniformField('PixelToUnit');
-    FUniform_Transform := GetUniformField('Transform');
+    FUniform_RotationOffset := GetUniformField('RotationOffset');
     FLastViewportSize := Vec(0,0);
   end;
 end;
@@ -490,9 +581,9 @@ begin
   end;
 end;
 
-procedure TavUIProgram.SetTransform(const ATransform: TMat4);
+procedure TavUIProgram.SetRotationOffset(const ARotation: Single; const AOffset: TVec2);
 begin
-  SetUniform(FUniform_Transform, ATransform);
+  SetUniform(FUniform_RotationOffset, Vec(ARotation, AOffset));
 end;
 
 procedure TavUIProgram.SetPixelToUnit(const AScale: single);
@@ -515,7 +606,7 @@ begin
               .Add('Align', ctFloat, 1)
               .Add('Size', ctFloat, 2)
               .Add('SDFOffset', ctFloat, 1)
-              .Add('Color', ctUByte, 4, true)
+              .Add('Color', ctFloat, 4)
               .Add('GlyphID', ctUInt, 1)
               .Finish(SizeOf(TGlyphVertex));
 end;
@@ -770,7 +861,7 @@ begin
   FSize := AValue;
 end;
 
-procedure TFontStyle.SetColor(const AValue: TVec4b);
+procedure TFontStyle.SetColor(const AValue: TVec4);
 begin
   if FColor = AValue then Exit;
   FColor := AValue;
@@ -801,6 +892,7 @@ begin
                Add('Normals', ctFloat, 4).
                Add('Width', ctFloat, 2).
                Add('HintingAlign', ctFloat, 4).
+               Add('Color', ctFloat, 4).
                Finish(SizeOf(TLinePointVertex));
 end;
 
@@ -812,12 +904,6 @@ begin
 end;
 
 { TavCanvasCommonData }
-
-procedure TavCanvasCommonData.SetWndMatrix(AValue: TMat4);
-begin
-  if FWndMatrix = AValue then Exit;
-  FWndMatrix := AValue;
-end;
 
 procedure TavCanvasCommonData.AfterInit3D;
 begin
@@ -866,11 +952,7 @@ const LOADFROMRES = False;
 begin
   FLineProg.Load('CanvasLine', LOADFROMRES, DIR);
   FFontProg.Load('CanvasFont', LOADFROMRES, DIR);
-end;
-
-function TavCanvasCommonData.GlyphsAtlas: TavAtlasArrayReferenced;
-begin
-  Result := FGlyphsAtlas;
+  FTrisProg.Load('CanvasTris', LOADFROMRES, DIR);
 end;
 
 procedure TavCanvasCommonData.ExportGlyphs(const AFileName: string; const AFontName: string; AStyle: TGlyphStyles; const ACharFirst, ACharLast: WideChar);
@@ -931,6 +1013,7 @@ begin
   FLineQuad := TavVB.Create(Self);
   FLineProg := TavUIProgram.Create(Self);
   FFontProg := TavFontProgram.Create(Self);
+  FTrisProg := TavUIProgram.Create(Self);
 
   Vert := TLineQuadVertices.Create;
   V.quadCoord := Vec(0.0, -1.0); Vert.Add(V);
@@ -943,6 +1026,10 @@ begin
   FGlyphs := TGlyphsMap.Create();
   FGlyphsAtlas := TavAtlasArrayReferenced.Create(Self);
   FGlyphsAtlas.TargetFormat := TTextureFormat.R32f;
+
+  FSpritesAtlas := TavAtlasArrayReferenced.Create(Self);
+  FSpritesAtlas.TargetFormat := TTextureFormat.RGBA;
+  FSpritesAtlas.sRGB := True;;
 end;
 
 { TavCanvas }
@@ -958,6 +1045,12 @@ procedure TavCanvas.SetPen(AValue: TPenStyle);
 begin
   if FPen = AValue then Exit;
   FPen.Assign(AValue);
+end;
+
+procedure TavCanvas.SetBrush(const AValue: TBrushStyle);
+begin
+  if FBrush = AValue then Exit;
+  FBrush.Assign(AValue);
 end;
 
 procedure TavCanvas.SetFont(const AValue: TFontStyle);
@@ -978,6 +1071,7 @@ end;
 
 procedure TavCanvas.FillSegmentByPen(out Seg: TLinePointVertex);
 begin
+  Seg.Color := Pen.Color;
   Seg.Width := Vec(Pen.Width, Pen.MinPixWidth);
   if TPenHintingStyle.Horizontal in Pen.Hinting then
     Seg.HintingAlign.x := 1
@@ -999,6 +1093,20 @@ begin
     TPenAlign.Left  : Seg.HintingAlign.w := 1;
     TPenAlign.Right : Seg.HintingAlign.w := -1;
   end;
+end;
+
+procedure TavCanvas.FillVertexWithBrush(out V: TCanvasTriangleVertex);
+begin
+  V.Color := Brush.Color;
+  if TBrushHintingStyle.Horizontal in Brush.Hinting then
+    V.Hinting.x := 1
+  else
+    V.Hinting.x := 0;
+
+  if TBrushHintingStyle.Vertical in Brush.Hinting then
+    V.Hinting.y := 1
+  else
+    V.Hinting.y := 0;
 end;
 
 procedure TavCanvas.SetValid(AValue: Boolean);
@@ -1040,18 +1148,20 @@ end;
 
 procedure TavCanvas.Clear;
 begin
+  SelectGeometryKind(gkUnknown);
+
   FLineData.Clear();
   FVBLines.Invalidate;
 
+  FTextLines.Clear();
   FTextLineRanges.Clear();
   FGlyphsData.Clear();
   FVBGlyphs.Invalidate;
 
-  SelectGeometryKind(gkUnknown);
   FGeometryBatches.Clear();
 end;
 
-procedure TavCanvas.Rectangle(Left, Top, Right, Bottom: Single);
+procedure TavCanvas.AddRectangle(Left, Top, Right, Bottom: Single);
 var Seg: TLinePointVertex;
 begin
   SelectGeometryKind(gkLines);
@@ -1085,12 +1195,12 @@ begin
   FVBLines.Invalidate;
 end;
 
-procedure TavCanvas.Rectangle(LeftTop, RightBottom: TVec2);
+procedure TavCanvas.AddRectangle(LeftTop, RightBottom: TVec2);
 begin
-  Rectangle(LeftTop.x, LeftTop.y, RightBottom.x, RightBottom.y);
+  AddRectangle(LeftTop.x, LeftTop.y, RightBottom.x, RightBottom.y);
 end;
 
-procedure TavCanvas.Text(const AText: ITextLines);
+procedure TavCanvas.AddText(const AText: ITextLines);
 var range: TVec2i;
 begin
   SelectGeometryKind(gkFont);
@@ -1102,11 +1212,12 @@ begin
   FTextLineRanges.Add(range);
 end;
 
-procedure TavCanvas.Draw(const ATransform: TMat4; const APixelToUnit: Single);
+procedure TavCanvas.Draw(const ARotation: Single; const AOffset: TVec2;
+  const APixelToUnit: Single);
 
   function InitProg(const AProg: TavUIProgram): Boolean;
   begin
-    AProg.SetTransform(ATransform);
+    AProg.SetRotationOffset(ARotation, AOffset);
     AProg.SetPixelToUnit(APixelToUnit);
     Result := True;
   end;
@@ -1174,10 +1285,13 @@ begin
   FPen := TPenStyle.Create;
   FPen.Width := 0.1;
 
+  FBrush := TBrushStyle.Create;
+  FBrush.Color := Vec(1,1,1,1);
+
   FFont:= TFontStyle.Create;
   FFont.Name := 'Segoe UI';
   FFont.Size := 18;
-  FFont.Color := Vec(255, 255, 255, 255);
+  FFont.Color := Vec(1,1,1,1);
 
   FLineData := TLinePointVertices.Create;
   FVBLines := TavVB.Create(CommonData);
@@ -1211,6 +1325,7 @@ procedure TPenStyle.AssignTo(Dest: TPersistent);
 var PenDest: TPenStyle absolute Dest;
 begin
   Assert(Dest is TPenStyle);
+  PenDest.FColor := FColor;
   PenDest.FAlign := FAlign;
   PenDest.FHinting := FHinting;
   PenDest.FMinPixWidth := FMinPixWidth;
@@ -1233,6 +1348,12 @@ procedure TPenStyle.SetAlign(AValue: TPenAlign);
 begin
   if FAlign = AValue then Exit;
   FAlign := AValue;
+end;
+
+procedure TPenStyle.SetColor(const AValue: TVec4);
+begin
+  if FColor = AValue then Exit;
+  FColor := AValue;
 end;
 
 end.

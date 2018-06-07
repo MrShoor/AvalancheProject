@@ -1,7 +1,6 @@
 #include "hlsl.h"
 #include "UICommon.h"
 
-float4x4 Transform;
 float3 XBoundsYPos;
 
 struct VS_Input {
@@ -39,7 +38,7 @@ VS_Output VS(VS_Input In) {
     crd.y += XBoundsYPos.z;
     crd.xy += In.Pos;
     
-    crd = mul(crd, Transform);
+    crd.xy = mul(float3(crd.xy,1), Mat(RotationOffset.x, RotationOffset.yz)).xy;
     Out.Pos = mul(crd, UIMatrix);
     
     AtlasRegion region = AtlasRegions[In.GlyphID];

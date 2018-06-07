@@ -12,9 +12,15 @@
     "Programs":[
         {
         "Name"     : "CanvasLine",
-	"Vertex"   : "line_v.cpp",
-	"Fragment" : "line_f.cpp",
+	"Vertex"   : "line.cpp",
+	"Fragment" : "line.cpp",
 	"Path"     :["Line"]
+        },
+        {
+        "Name"     : "CanvasTris",
+        "Vertex"   : "tris.cpp",
+        "Fragment" : "tris.cpp",
+        "Path"     : ["Tris"]
         },
         {
         "Name"     : "CanvasFont",

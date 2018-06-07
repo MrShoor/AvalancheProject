@@ -130,7 +130,7 @@ procedure TavDebugControl.DoValidateCanvas;
 var rct: TRectF;
 begin
   rct := GetAbsolutePosition;
-  Canvas.Rectangle(rct.LeftTop, rct.RightBottom);
+  Canvas.AddRectangle(rct.LeftTop, rct.RightBottom);
 end;
 
 { TavControl }
@@ -251,7 +251,7 @@ var rct: TRectF;
 begin
   inherited DoValidateCanvas;
   rct := GetAbsolutePosition;
-  Canvas.Rectangle(rct.LeftTop, rct.RightBottom);
+  Canvas.AddRectangle(rct.LeftTop, rct.RightBottom);
 end;
 
 procedure TavRootControl.Draw;
@@ -264,7 +264,6 @@ begin
   m.f[1,1] := -2 / WorkSize.y;
   m.f[0,3] := -1;
   m.f[1,3] := 1;
-  GetCanvasCommonData(FRender).WndMatrix := m;
   inherited Draw;
 end;
 

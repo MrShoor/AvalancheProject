@@ -38,6 +38,10 @@ type
 
     FCnv  : TavCanvas;
     FCnv2 : TavCanvas;
+    FCnv3 : TavCanvas;
+
+    FFPSCounter: Integer;
+    FFPSMeasureTime: Integer;
   public
     {$IfDef FPC}
     procedure EraseBackground(DC: HDC); override;
@@ -76,16 +80,17 @@ procedure TfrmMain.FormCreate(Sender: TObject);
     s := '0123456789 The quick brown fox jumps over the lazy dog';
     with cnv.TextBuilder do
     begin
-      Align := TLineAlign.laRight;
+      Align := TLineAlign.laCenter;
       while cnv.Font.Size > 8 do
       begin
         cnv.Font.Size := cnv.Font.Size * 0.85;
         WriteLn(s);
       end;
       txt := Finish();
-      txt.BoundsY := Vec(0, 1100);
+      txt.BoundsY := Vec(-1100, 1100);
+      txt.BoundsX := Vec(-1100, 1100);
       txt.VAlign := 0.5;
-      cnv.Text(txt);
+      cnv.AddText(txt);
     end;
   end;
 
@@ -101,7 +106,7 @@ begin
 
   //TavContextSwitcher.Create(FMain);
 
-  FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], [true, false]);
+  FFrameBuffer := Create_FrameBufferMultiSampled(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], 8, [true, false]);
 
   {
   FDummy := TavCanvas.Create(FMain);
@@ -112,19 +117,25 @@ begin
     for i := 0 to 255 do
       Write(Char(i));
     WriteLn('');
-    FDummy.Text(Finish());
+    FDummy.AddText(Finish());
   end;
   }
 
   //GetCanvasCommonData(FMain).ExportGlyphs('D:\font.glyphs', 'Segoe UI', [], Char(33), Char(255));
 
   FCnv := TavCanvas.Create(FMain);
-  FCnv.Font.Color := Vec(byte(255),byte(255),byte(255),byte(255));
+  FCnv.Font.Color := Vec(1,1,1,1);
   BuildCanvas(FCnv);
 
   FCnv2 := TavCanvas.Create(FMain);
-  FCnv2.Font.Color := Vec(byte(0),byte(0),byte(0),byte(255));
+  FCnv2.Font.Color := Vec(0,0,0,1);
   BuildCanvas(FCnv2);
+
+  FCnv3 := TavCanvas.Create(FMain);
+  FCnv3.Font.Name := 'Courier New';
+  FCnv3.Font.Style := [gsBold];
+  FCnv3.Font.Size := 35;
+  FCnv3.Font.Color := Vec(1,0,0,1);
 end;
 
 procedure TfrmMain.cbOGLChange(Sender: TObject);
@@ -172,8 +183,30 @@ end;
 {$EndIf}
 
 procedure TfrmMain.RenderScene;
+  procedure UpdateFPS;
+  var measureTime: Int64;
+  begin
+    measureTime := FMain.Time64 div 100;
+    if measureTime > FFPSMeasureTime then
+    begin
+      FCnv3.Clear;
+      with FCnv3.TextBuilder do
+      begin
+        WriteLn('FPS: ' + IntToStr(FFPSCounter*10 + Random(10)));
+        FCnv3.AddText(Finish());
+      end;
+      FFPSMeasureTime := measureTime;
+      FFPSCounter := 0;
+    end
+    else
+      Inc(FFPSCounter);
+  end;
+
+var a: single;
 begin
   if FMain = nil then Exit;
+
+  UpdateFPS;
 
   if FMain.Bind then
   try
@@ -185,26 +218,31 @@ begin
     //FMain.Clear(Vec(0.0,0.2,0.4,1.0), True, FMain.Projection.DepthRange.y, True);
 
     FMain.States.DepthTest := False;
-    //FMain.States.Wireframe := GetTickCount64 mod 1000 < 500;
     FMain.States.Blending[0] := True;
     FMain.States.SetBlendFunctions(bfSrcAlpha, bfInvSrcAlpha);
+
+    a := FMain.Time * 0.25;
+    a := 0;
 
     if GetTickCount mod 2000 < 1000 then
     begin
       FMain.Clear(Vec(0.0,0.0,0.0,1.0), True, FMain.Projection.DepthRange.y, True);
-      FCnv.Draw(MatTranslate(Vec(10,10,0)), 1);
+      FCnv.Draw(a, Vec(ClientWidth * 0.5, ClientHeight * 0.5), 1);
     end
     else
     begin
       FMain.Clear(Vec(1.0,1.0,1.0,1.0), True, FMain.Projection.DepthRange.y, True);
-      FCnv2.Draw(MatTranslate(Vec(10,10,0)), 1);
+      FCnv2.Draw(a, Vec(ClientWidth * 0.5, ClientHeight * 0.5), 1);
     end;
+    FCnv3.Draw(0, Vec(0,0), 1);
 
     FFrameBuffer.BlitToWindow;
     FMain.Present;
   finally
     FMain.Unbind;
   end;
+
+  FMain.InvalidateWindow;
 end;
 
 end.
