@@ -251,6 +251,7 @@ type
   public
     function GetGlyphImage(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out YYYYMetrics: TVec4): ITextureMip;
     function GetGlyphSprite(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out YYYYMetrics: TVec4): ISpriteIndex;
+    function GetImageSprite(const AFileName: string): ISpriteIndex;
 
     property GlyphsAtlas : TavAtlasArrayReferenced read FGlyphsAtlas;
     property SpritesAtlas: TavAtlasArrayReferenced read FSpritesAtlas;
@@ -286,11 +287,27 @@ type
     procedure SetXBoundsYPos(const XBoundsYPos: TVec3);
   end;
 
+  { TavTrisProgram }
+
+  TavTrisProgram = class (TavUIProgram)
+  private
+    FUniform_Atlas       : TUniformField;
+    FUniform_AtlasRegions: TUniformField;
+    FUniform_AtlasSize   : TUniformField;
+    FCommon              : TavCanvasCommonData;
+  protected
+    procedure AfterInit3D; override;
+    procedure BeforeFree3D; override;
+    function  DoBuild: Boolean; override;
+    procedure UpdateUniforms; override;
+  public
+  end;
+
   { TavCanvas }
 
   TavCanvas = class(TavMainRenderChild)
   private type
-    TGeometryKind = (gkUnknown, gkLines, gkFont);
+    TGeometryKind = (gkUnknown, gkLines, gkFont, gkTris);
     TGeometryBatch = packed record
       kind  : TGeometryKind;
       ranges: TVec2i;
@@ -318,6 +335,9 @@ type
     FGlyphsData     : IGlyphVertices;
     FVBGlyphs       : TavVB;
 
+    FTrisData : ICanvasTriangleVertices;
+    FVBTris   : TavVB;
+
     FGeometryBatches: IGeometry;
     FCurrentBatch: TGeometryBatch;
 
@@ -344,6 +364,7 @@ type
     procedure AddRectangle(Left, Top, Right, Bottom: Single); overload;
     procedure AddRectangle(LeftTop, RightBottom: TVec2); overload;
     procedure AddText(const AText: ITextLines);
+    procedure AddSprite(const v1, v2: TVec2; const AFileName: string); overload;
 
     procedure Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single);
 
@@ -357,7 +378,7 @@ implementation
 
 //{$R '..\Canvas_Shaders\Canvas_Shaders.rc'}
 
-uses Math;
+uses Math, avTexLoader;
 
 const
   NAME_TavCanvasCommonData = 'TavCanvasCommonData';
@@ -454,6 +475,41 @@ begin
     Result := TavCanvasCommonData.Create(RenderMain);
     Result.Name := NAME_TavCanvasCommonData;
   end;
+end;
+
+{ TavTrisProgram }
+
+procedure TavTrisProgram.AfterInit3D;
+begin
+  inherited AfterInit3D;
+  FCommon := GetCanvasCommonData(Main);
+end;
+
+procedure TavTrisProgram.BeforeFree3D;
+begin
+  inherited BeforeFree3D;
+  FUniform_Atlas       := nil;
+  FUniform_AtlasRegions:= nil;
+  FUniform_AtlasSize   := nil;
+end;
+
+function TavTrisProgram.DoBuild: Boolean;
+begin
+  Result := inherited DoBuild;
+  if Result then
+  begin
+    FUniform_Atlas := GetUniformField('Atlas');
+    FUniform_AtlasRegions := GetUniformField('AtlasRegions');
+    FUniform_AtlasSize := GetUniformField('AtlasSize');
+  end;
+end;
+
+procedure TavTrisProgram.UpdateUniforms;
+begin
+  inherited UpdateUniforms;
+  SetUniform(FUniform_Atlas, FCommon.SpritesAtlas, Sampler_Linear);
+  SetUniform(FUniform_AtlasRegions, FCommon.SpritesAtlas.RegionsVB);
+  SetUniform(FUniform_AtlasSize, FCommon.SpritesAtlas.Size);
 end;
 
 { TBrushStyle }
@@ -945,6 +1001,11 @@ begin
   Result := FGlyphsAtlas.ObtainSprite(GetGlyphImage(AFontName, AChar, AStyle, XXXMetrics, YYYYMetrics));
 end;
 
+function TavCanvasCommonData.GetImageSprite(const AFileName: string): ISpriteIndex;
+begin
+  Result := FSpritesAtlas.ObtainSprite(Default_ITextureManager.LoadTexture(AFileName, SIZE_DEFAULT, SIZE_DEFAULT, FORMAT_DEFAULT, True).MipData(0,0));
+end;
+
 procedure TavCanvasCommonData.ReloadShaders;
 const LOADFROMRES = False;
       DIR = 'D:\Projects\AvalancheProject\Canvas_Shaders\!Out\';
@@ -1013,7 +1074,7 @@ begin
   FLineQuad := TavVB.Create(Self);
   FLineProg := TavUIProgram.Create(Self);
   FFontProg := TavFontProgram.Create(Self);
-  FTrisProg := TavUIProgram.Create(Self);
+  FTrisProg := TavTrisProgram.Create(Self);
 
   Vert := TLineQuadVertices.Create;
   V.quadCoord := Vec(0.0, -1.0); Vert.Add(V);
@@ -1123,6 +1184,7 @@ procedure TavCanvas.SelectGeometryKind(const AKind: TGeometryKind);
       gkUnknown: Exit(0);
       gkLines  : Exit(FLineData.Count);
       gkFont   : Exit(FTextLines.Count);
+      gkTris   : Exit(FTrisData.Count);
     else
       Result := 0;
     end;
@@ -1157,6 +1219,9 @@ begin
   FTextLineRanges.Clear();
   FGlyphsData.Clear();
   FVBGlyphs.Invalidate;
+
+  FTrisData.Clear();
+  FVBTris.Invalidate;
 
   FGeometryBatches.Clear();
 end;
@@ -1212,8 +1277,42 @@ begin
   FTextLineRanges.Add(range);
 end;
 
-procedure TavCanvas.Draw(const ARotation: Single; const AOffset: TVec2;
-  const APixelToUnit: Single);
+procedure TavCanvas.AddSprite(const v1, v2: TVec2; const AFileName: string);
+var v: array [0..3] of TCanvasTriangleVertex;
+begin
+  SelectGeometryKind(gkTris);
+
+  FillVertexWithBrush(v[0]);
+  FillVertexWithBrush(v[1]);
+  FillVertexWithBrush(v[2]);
+  FillVertexWithBrush(v[3]);
+
+  v[0].Coords := v1;
+  v[0].TexCoord := Vec(0,0);
+  v[0].Sprite := CommonData.GetImageSprite(AFileName);
+
+  v[1].Coords := Vec(v1.x, v2.y);
+  v[1].TexCoord := Vec(0,1);
+  v[1].Sprite := v[0].Sprite;
+
+  v[2].Coords := Vec(v2.x, v1.y);
+  v[2].TexCoord := Vec(1,0);
+  v[2].Sprite := v[0].Sprite;
+
+  v[3].Coords := v2;
+  v[3].TexCoord := Vec(1,1);
+  v[3].Sprite := v[0].Sprite;
+
+  FTrisData.Add(v[0]);
+  FTrisData.Add(v[1]);
+  FTrisData.Add(v[2]);
+
+  FTrisData.Add(v[2]);
+  FTrisData.Add(v[1]);
+  FTrisData.Add(v[3]);
+end;
+
+procedure TavCanvas.Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single);
 
   function InitProg(const AProg: TavUIProgram): Boolean;
   begin
@@ -1273,6 +1372,15 @@ begin
             fontprog.Draw(ptTriangleStrip, cmNone, false, textRange.y, 0, 4, 0, textRange.x);
           end;
         end;
+      gkTris:
+        begin
+          prog := CommonData.TrisProg;
+          prog.Select;
+          prog.SetAttributes(FVBTris, nil, nil);
+          if not progInited[batch.kind] then
+            progInited[batch.kind] := InitProg(prog);
+          prog.Draw(0, batch.ranges.x, batch.ranges.y);
+        end;
     end;
   end;
 end;
@@ -1294,14 +1402,20 @@ begin
   FFont.Color := Vec(1,1,1,1);
 
   FLineData := TLinePointVertices.Create;
-  FVBLines := TavVB.Create(CommonData);
+  FVBLines := TavVB.Create(Self);
   FVBLines.Vertices := FLineData as IVerticesData;
 
   FTextLines := TTextLinesArr.Create();
   FGlyphsData:= TGlyphVertices.Create();
   FTextLineRanges := TVec2iArray.Create();
-  FVBGlyphs := TavVB.Create(CommonData);
+  FVBGlyphs := TavVB.Create(Self);
   FVBGlyphs.Vertices := FGlyphsData as IVerticesData;
+
+  FTrisData := TCanvasTriangleVertices.Create;
+  FVBTris   := TavVB.Create(Self);
+  FVBTris.Vertices := FTrisData as IVerticesData;
+  FVBTris.CullMode := cmNone;
+  FVBTris.PrimType := ptTriangles;
 
   FCurrentBatch.kind := gkUnknown;
 end;

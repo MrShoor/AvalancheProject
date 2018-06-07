@@ -65,6 +65,11 @@ implementation
   {$R *.lfm}
 {$EndIf}
 
+function RoseFileName(): string;
+begin
+  Result := ExtractFilePath(ParamStr(0)) + '..\Media\rose.png';
+end;
+
 { TfrmMain }
 
 procedure TfrmMain.FormCreate(Sender: TObject);
@@ -106,7 +111,8 @@ begin
 
   //TavContextSwitcher.Create(FMain);
 
-  FFrameBuffer := Create_FrameBufferMultiSampled(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], 8, [true, false]);
+  //FFrameBuffer := Create_FrameBufferMultiSampled(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], 8, [true, false]);
+  FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], [true, false]);
 
   {
   FDummy := TavCanvas.Create(FMain);
@@ -136,6 +142,7 @@ begin
   FCnv3.Font.Style := [gsBold];
   FCnv3.Font.Size := 35;
   FCnv3.Font.Color := Vec(1,0,0,1);
+  FCnv3.Brush.Hinting := [TBrushHintingStyle.Horizontal, TBrushHintingStyle.Vertical];
 end;
 
 procedure TfrmMain.cbOGLChange(Sender: TObject);
@@ -185,11 +192,14 @@ end;
 procedure TfrmMain.RenderScene;
   procedure UpdateFPS;
   var measureTime: Int64;
+      offset: Single;
   begin
     measureTime := FMain.Time64 div 100;
+    offset := FMain.Time;
     if measureTime > FFPSMeasureTime then
     begin
       FCnv3.Clear;
+      FCnv3.AddSprite(Vec(10 + offset, 10), Vec(266 + offset, 266), RoseFileName());
       with FCnv3.TextBuilder do
       begin
         WriteLn('FPS: ' + IntToStr(FFPSCounter*10 + Random(10)));
@@ -215,11 +225,11 @@ begin
     FFrameBuffer.FrameRect := RectI(0, 0, ClientWidth, ClientHeight);
     FFrameBuffer.Select;
 
-    //FMain.Clear(Vec(0.0,0.2,0.4,1.0), True, FMain.Projection.DepthRange.y, True);
+    FMain.Clear(Vec(0.0,0.2,0.4,1.0), True, FMain.Projection.DepthRange.y, True);
 
     FMain.States.DepthTest := False;
     FMain.States.Blending[0] := True;
-    FMain.States.SetBlendFunctions(bfSrcAlpha, bfInvSrcAlpha);
+    FMain.States.SetBlendFunctions(bfOne, bfInvSrcAlpha);
 
     a := FMain.Time * 0.25;
     a := 0;

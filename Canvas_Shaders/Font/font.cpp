@@ -67,6 +67,7 @@ PS_Output PS(VS_Output In) {
     float Y = dot(c.xyz, float3(0.212656, 0.715158, 0.072186));
     float r = Atlas.Sample(AtlasSampler, In.TexCoord).r;
     c.a *= saturate(-r/tex_per_pixel + 0.5 + lerp(0.3, 0.0, Y));
+    c.rgb *= c.a;
     
     Out.Color = c;
     

@@ -58,7 +58,9 @@ PS_Output PS(VS_Output In) {
     
     float3 texCrd = (In.TexCoord.z < 0) ? 0.0 : In.TexCoord;
     float4 texColor = (In.TexCoord.z < 0) ? 1.0 : Atlas.Sample(AtlasSampler, texCrd);
+    texColor.xyz /= texColor.a;
     Out.Color = In.Color * texColor;
+    Out.Color.rgb *= Out.Color.a;
     
     return Out;
 }
