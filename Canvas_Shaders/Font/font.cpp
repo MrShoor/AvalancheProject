@@ -2,6 +2,7 @@
 #include "UICommon.h"
 
 float4x4 Transform;
+float3 XBoundsYPos;
 
 struct VS_Input {
     float2 Pos       : Pos;
@@ -34,7 +35,8 @@ VS_Output VS(VS_Input In) {
     
     float4 crd = float4(QuadVertices[In.VertexID], 0.0, 1.0);
     crd.xy *= In.Size;
-    //todo apply align
+    crd.x += lerp(XBoundsYPos.x, XBoundsYPos.y, In.Align);
+    crd.y += XBoundsYPos.z;
     crd.xy += In.Pos;
     
     crd = mul(crd, Transform);
@@ -65,7 +67,7 @@ PS_Output PS(VS_Output In) {
     float4 c = In.Color;
     float Y = dot(c.xyz, float3(0.212656, 0.715158, 0.072186));
     float r = Atlas.Sample(AtlasSampler, In.TexCoord).r;
-    c.a *= saturate(-r/tex_per_pixel + 0.5 + lerp(0.5, 0.0, Y));
+    c.a *= saturate(-r/tex_per_pixel + 0.5 + lerp(0.3, 0.0, Y));
     
     Out.Color = c;
     

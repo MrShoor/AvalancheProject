@@ -279,8 +279,6 @@ begin
     GetTextSize(bmp.Canvas, AChar, w, h);
 
     glyph := GetGlyph(bmp.Canvas, AChar);
-    glyph.SaveToFile('D:\debug.bmp');
-
     pos := TVec2Field.Create(glyph, scaledBorder, false);
     neg := TVec2Field.Create(glyph, scaledBorder, true);
     df := TDField.Create(pos, neg);

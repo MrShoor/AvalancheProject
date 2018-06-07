@@ -113,8 +113,10 @@ type
 
   ITextLines = interface
     function GetBoundsX: TVec2;
+    function GetBoundsY: TVec2;
     function GetVAlign: Single;
     procedure SetBoundsX(const AValue: TVec2);
+    procedure SetBoundsY(const AValue: TVec2);
     procedure SetVAlign(const AValue: Single);
 
     function LinesCount: Integer;
@@ -123,8 +125,10 @@ type
     function TotalHeight() : Single;
 
     function AllGlyphs(): IGlyphVertices;
+    function BoundsXY(): TVec4;
 
     property BoundsX: TVec2  read GetBoundsX write SetBoundsX;
+    property BoundsY: TVec2  read GetBoundsY write SetBoundsY;
     property VAlign : Single read GetVAlign  write SetVAlign;
   end;
   TTextLinesArr = {$IfDef FPC}specialize{$EndIf} TArray<ITextLines>;
@@ -168,6 +172,7 @@ type
     procedure SetTransform  (const ATransform: TMat4);
     procedure SetPixelToUnit(const AScale: single);
   end;
+  TavFontProgram = class;
 
   { TavCanvasCommonData }
   TavCanvasCommonData = class (TavRes)
@@ -189,7 +194,7 @@ type
   private
     FLineQuad : TavVB;
     FLineProg : TavUIProgram;
-    FFontProg : TavUIProgram;
+    FFontProg : TavFontProgram;
 
     FWndMatrix: TMat4;
 
@@ -209,9 +214,9 @@ type
 
     procedure ReloadShaders;
     function GlyphsAtlas: TavAtlasArrayReferenced;
-    property LineQuad: TavVB        read FLineQuad;
-    property LineProg: TavUIProgram read FLineProg;
-    property FontProg: TavUIProgram read FFontProg;
+    property LineQuad: TavVB          read FLineQuad;
+    property LineProg: TavUIProgram   read FLineProg;
+    property FontProg: TavFontProgram read FFontProg;
 
     procedure ExportGlyphs(const AFileName: string; const AFontName: string; AStyle: TGlyphStyles; const ACharFirst, ACharLast: WideChar);
 
@@ -226,12 +231,16 @@ type
     FUniform_AtlasRegions: TUniformField;
     FUniform_AtlasSize   : TUniformField;
     FCommon              : TavCanvasCommonData;
+
+    FUniform_XBoundsYPos : TUniformField;
   protected
     procedure AfterInit3D; override;
     procedure BeforeFree3D; override;
     function  DoBuild: Boolean; override;
 
     procedure UpdateUniforms; override;
+  public
+    procedure SetXBoundsYPos(const XBoundsYPos: TVec3);
   end;
 
   { TavCanvas }
@@ -315,15 +324,18 @@ type
   TTextLines = class(TInterfacedObject, ITextLines)
   private
     FBoundsX     : TVec2;
+    FBoundsY     : TVec2;
     FGlyphs      : IGlyphVertices;
     FLines       : ILineInfoArr;
     FMaxLineWidth: Single;
     FTotalHeight : Single;
     FVAlign      : Single;
   public
-    function  GetBoundsX: TVec2;
-    function  GetVAlign: Single;
+    function GetBoundsX: TVec2;
+    function GetBoundsY: TVec2;
+    function GetVAlign: Single;
     procedure SetBoundsX(const AValue: TVec2);
+    procedure SetBoundsY(const AValue: TVec2);
     procedure SetVAlign(const AValue: Single);
 
     function LinesCount: Integer;
@@ -332,8 +344,10 @@ type
     function TotalHeight() : Single;
 
     function AllGlyphs(): IGlyphVertices;
+    function BoundsXY(): TVec4;
 
     property BoundsX: TVec2 read GetBoundsX write SetBoundsX;
+    property BoundsY: TVec2 read GetBoundsY write SetBoundsY;
   public
     constructor Create(const AGlyphs: IGlyphVertices; const ALines: ILineInfoArr);
   end;
@@ -356,7 +370,7 @@ type
     FPos            : TVec2;
     FLineStart      : Integer;
     FLineInfo       : TLineInfo;
-    FLineYYYYMetrics  : IVec4Arr;
+    FLineYYYYMetrics: IVec4Arr;
 
     procedure WriteInternal(const AStr: UnicodeString);
     procedure WriteLnInternal;
@@ -407,7 +421,8 @@ begin
   inherited BeforeFree3D;
   FUniform_Atlas       := nil;
   FUniform_AtlasRegions:= nil;
-  FUniform_AtlasSize:= nil;
+  FUniform_AtlasSize   := nil;
+  FUniform_XBoundsYPos := nil;
 end;
 
 function TavFontProgram.DoBuild: Boolean;
@@ -418,6 +433,7 @@ begin
     FUniform_Atlas := GetUniformField('Atlas');
     FUniform_AtlasRegions := GetUniformField('AtlasRegions');
     FUniform_AtlasSize := GetUniformField('AtlasSize');
+    FUniform_XBoundsYPos := GetUniformField('XBoundsYPos');
   end;
 end;
 
@@ -427,6 +443,11 @@ begin
   SetUniform(FUniform_Atlas, FCommon.GlyphsAtlas, Sampler_Linear);
   SetUniform(FUniform_AtlasRegions, FCommon.GlyphsAtlas.RegionsVB);
   SetUniform(FUniform_AtlasSize, FCommon.GlyphsAtlas.Size);
+end;
+
+procedure TavFontProgram.SetXBoundsYPos(const XBoundsYPos: TVec3);
+begin
+  SetUniform(FUniform_XBoundsYPos, XBoundsYPos);
 end;
 
 { TavUIProgram }
@@ -650,6 +671,11 @@ begin
   Result := FBoundsX;
 end;
 
+function TTextLines.GetBoundsY: TVec2;
+begin
+  Result := FBoundsY;
+end;
+
 function TTextLines.GetVAlign: Single;
 begin
   Result := FVAlign;
@@ -658,6 +684,11 @@ end;
 procedure TTextLines.SetBoundsX(const AValue: TVec2);
 begin
   FBoundsX := AValue;
+end;
+
+procedure TTextLines.SetBoundsY(const AValue: TVec2);
+begin
+  FBoundsY := AValue;
 end;
 
 procedure TTextLines.SetVAlign(const AValue: Single);
@@ -693,6 +724,11 @@ begin
   Result := FGlyphs;
 end;
 
+function TTextLines.BoundsXY: TVec4;
+begin
+  Result := Vec(FBoundsX, FBoundsY);
+end;
+
 constructor TTextLines.Create(const AGlyphs: IGlyphVertices; const ALines: ILineInfoArr);
 var i: Integer;
     pl: PLineInfo;
@@ -708,8 +744,10 @@ begin
     FMaxLineWidth := Max(FMaxLineWidth, pl^.width);
     FTotalHeight := FTotalHeight + pl^.yymetrics.x + pl^.yymetrics.y;
   end;
-  FBoundsX.x := -0.5 * FMaxLineWidth;
-  FBoundsX.y :=  0.5 * FMaxLineWidth;
+  FBoundsX.x := 0;
+  FBoundsX.y := FMaxLineWidth;
+  FBoundsY.x := 0;
+  FBoundsY.y := FTotalHeight;
 end;
 
 { TFontStyle }
@@ -1074,11 +1112,15 @@ procedure TavCanvas.Draw(const ATransform: TMat4; const APixelToUnit: Single);
   end;
 
 var prog: TavUIProgram;
+    fontprog: TavFontProgram;
     batch: TGeometryBatch;
     gk: TGeometryKind;
     progInited: array [TGeometryKind] of Boolean;
     i, j: Integer;
     textRange: TVec2i;
+
+    BoundsY : TVec2;
+    VAlign, YPos: Single;
 begin
   SelectGeometryKind(gkUnknown);
 
@@ -1104,16 +1146,20 @@ begin
         begin
           if FVBGlyphs.Vertices.VerticesCount = 0 then Continue;
 
-          prog := CommonData.FontProg;
-          prog.Select;
-          prog.SetAttributes(nil, nil, FVBGlyphs);
+          fontprog := CommonData.FontProg;
+          fontprog.Select;
+          fontprog.SetAttributes(nil, nil, FVBGlyphs);
           if not progInited[batch.kind] then
-            progInited[batch.kind] := InitProg(prog);
+            progInited[batch.kind] := InitProg(fontprog);
 
           for j := batch.ranges.x to batch.ranges.x + batch.ranges.y - 1 do
           begin
+            VAlign := FTextLines[j].VAlign;
+            BoundsY := FTextLines[j].BoundsY;
+            YPos := Lerp(0, -FTextLines[j].TotalHeight(), VAlign) + Lerp(BoundsY.x, BoundsY.y, VAlign);
+            fontprog.SetXBoundsYPos(Vec(FTextLines[j].BoundsX, YPos));
             textRange := FTextLineRanges[j];
-            prog.Draw(ptTriangleStrip, cmNone, false, textRange.y, 0, 4, 0, textRange.x);
+            fontprog.Draw(ptTriangleStrip, cmNone, false, textRange.y, 0, 4, 0, textRange.x);
           end;
         end;
     end;
@@ -1130,7 +1176,7 @@ begin
 
   FFont:= TFontStyle.Create;
   FFont.Name := 'Segoe UI';
-  FFont.Size := 14;
+  FFont.Size := 18;
   FFont.Color := Vec(255, 255, 255, 255);
 
   FLineData := TLinePointVertices.Create;

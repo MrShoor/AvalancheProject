@@ -38,7 +38,6 @@ type
 
     FCnv  : TavCanvas;
     FCnv2 : TavCanvas;
-    FText : ITextLines;
   public
     {$IfDef FPC}
     procedure EraseBackground(DC: HDC); override;
@@ -68,20 +67,25 @@ procedure TfrmMain.FormCreate(Sender: TObject);
 
   procedure BuildCanvas(const cnv: TavCanvas);
   var s: String;
+      txt: ITextLines;
   begin
-    cnv.Font.Size := 180;
+    cnv.Font.Size := 100;
     cnv.Font.Style := [];
     cnv.Font.Name := 'Segoe UI';
 
     s := '0123456789 The quick brown fox jumps over the lazy dog';
     with cnv.TextBuilder do
     begin
+      Align := TLineAlign.laRight;
       while cnv.Font.Size > 8 do
       begin
         cnv.Font.Size := cnv.Font.Size * 0.85;
         WriteLn(s);
       end;
-      cnv.Text(Finish());
+      txt := Finish();
+      txt.BoundsY := Vec(0, 1100);
+      txt.VAlign := 0.5;
+      cnv.Text(txt);
     end;
   end;
 
