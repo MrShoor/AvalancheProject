@@ -823,8 +823,8 @@ end;
 
 procedure TavCanvasCommonData.ReloadShaders;
 const LOADFROMRES = False;
-      //DIR = 'D:\Projects\AvalancheProject\Canvas_Shaders\!Out\';
-      DIR = 'C:\MyProj\AvalancheProject\Canvas_Shaders\!Out\';
+      DIR = 'D:\Projects\AvalancheProject\Canvas_Shaders\!Out\';
+      //DIR = 'C:\MyProj\AvalancheProject\Canvas_Shaders\!Out\';
 begin
   FLineProg.Load('CanvasLine', LOADFROMRES, DIR);
   FFontProg.Load('CanvasFont', LOADFROMRES, DIR);
@@ -856,7 +856,7 @@ procedure TavCanvasCommonData.ExportGlyphs(const AFileName: string; const AFontN
       Assert(picture.Width = region.Rect.z - region.Rect.x);
       Assert(picture.Height = region.Rect.w - region.Rect.y);
       if picture.Width * picture.Height > 0 then
-        AStream.WriteBuffer(picture.Data, picture.Width*picture.Height*SizeOf(Single));
+        AStream.WriteBuffer(picture.Data^, picture.Width*picture.Height*SizeOf(Single));
     end;
 
 var fs    : TFileStream;
@@ -904,7 +904,6 @@ begin
 
   FGlyphs := TGlyphsMap.Create();
   FGlyphsAtlas := TavAtlasArrayReferenced.Create(Self);
-  FGlyphsAtlas.TargetSize := Vec(512,512);
   FGlyphsAtlas.TargetFormat := TTextureFormat.R32f;
 end;
 

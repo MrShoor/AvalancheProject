@@ -90,8 +90,8 @@ type
   public
     procedure SaveToFile(const AFileName: string);
 
-    constructor Create(const ABmp: TBitmap; const AInverted: Boolean);
-    constructor Create(const AGlyph: TGlyphMonochrome; const ABorder: Integer; const AInverted: Boolean);
+    constructor Create(const ABmp: TBitmap; const AInverted: Boolean); overload;
+    constructor Create(const AGlyph: TGlyphMonochrome; const ABorder: Integer; const AInverted: Boolean); overload;
   end;
 
   { TDField }
@@ -111,8 +111,8 @@ type
     function Pixel(const x,y: Integer): PByte;
   public
     procedure Downscale(NTimes: Integer);
-    constructor Create(const ACopyFrom: TDField);
-    constructor Create(const PositiveField, NegativeField: IVec2Field);
+    constructor Create(const ACopyFrom: TDField); overload;
+    constructor Create(const PositiveField, NegativeField: IVec2Field); overload;
   end;
 
 {$IfDef FPC}
@@ -141,7 +141,7 @@ var ch: Integer;
     textM: TTextMetricW;
     bufSize: Cardinal;
 begin
-  if not GetTextMetricsW(Canvas.Handle, @textM) then
+  if not GetTextMetricsW(Canvas.Handle, {$IfDef FPC}@{$EndIF}textM) then
     RaiseLastOSError;
   Result.YY.x := textM.tmAscent;
   Result.YY.y := textM.tmDescent;
@@ -368,7 +368,7 @@ end;
 
 procedure TDField.DownscaleOnce;
 
-  function GetPixel(const x, y: Integer): Single; inline;
+  function GetPixel(const x, y: Integer): Single; {$IfDef FPC}inline;{$EndIf}
   begin
     Result := FData[y * FWidth + x];
   end;
@@ -483,17 +483,17 @@ type
     IntPos   : Integer;
   end;
 
-  function GetPixelY(const data: TVec2Arr; const x, y: Integer): Single; inline;
+  function GetPixelY(const data: TVec2Arr; const x, y: Integer): Single; {$IfDef FPC}inline;{$EndIf}
   begin
     Result := data[y * FWidth + x].y;
   end;
 
-  procedure SetPixel(const data: TVec2Arr; const x, y: Integer; const v: TVec2); inline;
+  procedure SetPixel(const data: TVec2Arr; const x, y: Integer; const v: TVec2); {$IfDef FPC}inline;{$EndIf}
   begin
     data[y * FWidth + x] := v;
   end;
 
-  function GetPixelBordered(const data: TVec2Arr; const x, y: Integer): TVec2; inline;
+  function GetPixelBordered(const data: TVec2Arr; const x, y: Integer): TVec2; {$IfDef FPC}inline;{$EndIf}
   begin
     if (x < 0) or (y < 0) or (x >= FWidth) or (y >= FHeight) then
     begin

@@ -185,7 +185,7 @@ begin
     FMain.States.Blending[0] := True;
     FMain.States.SetBlendFunctions(bfSrcAlpha, bfInvSrcAlpha);
 
-    if GetTickCount64 mod 2000 < 1000 then
+    if GetTickCount mod 2000 < 1000 then
     begin
       FMain.Clear(Vec(0.0,0.0,0.0,1.0), True, FMain.Projection.DepthRange.y, True);
       FCnv.Draw(MatTranslate(Vec(10,10,0)), 1);
