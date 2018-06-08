@@ -90,11 +90,15 @@ type
     FColor: TVec4;
     FHinting: TPenHinting;
     FMinPixWidth: Integer;
+    FPattern: ITextureMip;
+    FPatternTransform: TMat3;
     FWidth: Single;
     procedure SetAlign(AValue: TPenAlign);
     procedure SetColor(const AValue: TVec4);
     procedure SetHinting(AValue: TPenHinting);
     procedure SetMinPixWidth(AValue: Integer);
+    procedure SetPattern(const AValue: ITextureMip);
+    procedure SetPatternTransform(const AValue: TMat3);
     procedure SetWidth(AValue: Single);
   protected
     procedure AssignTo(Dest: TPersistent); override;
@@ -105,6 +109,9 @@ type
     property Align: TPenAlign read FAlign write SetAlign;
 
     property MinPixWidth: Integer read FMinPixWidth write SetMinPixWidth;
+
+    property Pattern: ITextureMip read FPattern write SetPattern; //todo
+    property PatternTransform: TMat3 read FPatternTransform write SetPatternTransform; //todo
   end;
 
   {$SCOPEDENUMS ON}
@@ -118,13 +125,20 @@ type
   private
     FColor: TVec4;
     FHinting: TBrushHinting;
+    FPattern: ITextureMip;
+    FPatternTransform: TMat3;
     procedure SetColor(const AValue: TVec4);
     procedure SetHinting(const AValue: TBrushHinting);
+    procedure SetPattern(const AValue: ITextureMip);
+    procedure SetPatternTransform(const AValue: TMat3);
   protected
     procedure AssignTo(Dest: TPersistent); override;
   public
     property Color: TVec4 read FColor write SetColor;
     property Hinting: TBrushHinting read FHinting write SetHinting;
+
+    property Pattern: ITextureMip read FPattern write SetPattern; //todo
+    property PatternTransform: TMat3 read FPatternTransform write SetPatternTransform; //todo
   end;
 
   { TFontStyle }
@@ -350,6 +364,8 @@ type
 
     procedure SetValid(AValue: Boolean);
     procedure SelectGeometryKind(const AKind: TGeometryKind);
+
+    procedure AddQuad(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex);
   public
     property Pen  : TPenStyle   read FPen   write SetPen;
     property Brush: TBrushStyle read FBrush write SetBrush;
@@ -361,10 +377,13 @@ type
 
     //drawing functions
     procedure Clear;
+    procedure AddLine(const Start, Stop: TVec2); overload;
     procedure AddRectangle(Left, Top, Right, Bottom: Single); overload;
     procedure AddRectangle(LeftTop, RightBottom: TVec2); overload;
     procedure AddText(const AText: ITextLines);
-    procedure AddSprite(const v1, v2: TVec2; const AFileName: string); overload;
+    procedure AddFill(const LeftTop, RightBottom: TVec2); overload;
+    procedure AddTriangle(const V1,V2,V3: TVec2); overload;
+    procedure AddSprite(const LeftTop, RightBottom: TVec2; const AFileName: string); overload;
 
     procedure Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single);
 
@@ -526,12 +545,26 @@ begin
   FHinting := AValue;
 end;
 
+procedure TBrushStyle.SetPattern(const AValue: ITextureMip);
+begin
+  if FPattern = AValue then Exit;
+  FPattern := AValue;
+end;
+
+procedure TBrushStyle.SetPatternTransform(const AValue: TMat3);
+begin
+  if FPatternTransform = AValue then Exit;
+  FPatternTransform := AValue;
+end;
+
 procedure TBrushStyle.AssignTo(Dest: TPersistent);
 var BrushDest: TBrushStyle absolute Dest;
 begin
   Assert(Dest is TBrushStyle);
   BrushDest.FColor := FColor;
   BrushDest.FHinting := FHinting;
+  BrushDest.FPattern := FPattern;
+  BrushDest.FPatternTransform := FPatternTransform;
 end;
 
 { TCanvasTriangleVertex }
@@ -1203,6 +1236,41 @@ begin
   FCurrentBatch.ranges.y := 0;
 end;
 
+procedure TavCanvas.AddQuad(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex);
+var v: array [0..3] of TCanvasTriangleVertex;
+begin
+  SelectGeometryKind(gkTris);
+
+  FillVertexWithBrush(v[0]);
+  FillVertexWithBrush(v[1]);
+  FillVertexWithBrush(v[2]);
+  FillVertexWithBrush(v[3]);
+
+  v[0].Coords := LeftTop;
+  v[0].TexCoord := Vec(0,0);
+  v[0].Sprite := ASprite;
+
+  v[1].Coords := Vec(LeftTop.x, RightBottom.y);
+  v[1].TexCoord := Vec(0,1);
+  v[1].Sprite := ASprite;
+
+  v[2].Coords := Vec(RightBottom.x, LeftTop.y);
+  v[2].TexCoord := Vec(1,0);
+  v[2].Sprite := ASprite;
+
+  v[3].Coords := RightBottom;
+  v[3].TexCoord := Vec(1,1);
+  v[3].Sprite := ASprite;
+
+  FTrisData.Add(v[0]);
+  FTrisData.Add(v[1]);
+  FTrisData.Add(v[2]);
+
+  FTrisData.Add(v[2]);
+  FTrisData.Add(v[1]);
+  FTrisData.Add(v[3]);
+end;
+
 function TavCanvas.TextBuilder: ITextBuilder;
 begin
   Result := TTextBuilder.Create(FFont, CommonData);
@@ -1224,6 +1292,20 @@ begin
   FVBTris.Invalidate;
 
   FGeometryBatches.Clear();
+end;
+
+procedure TavCanvas.AddLine(const Start, Stop: TVec2);
+var Seg: TLinePointVertex;
+begin
+  SelectGeometryKind(gkLines);
+
+  FillSegmentByPen(Seg);
+
+  Seg.Coords.xy := Start;
+  Seg.Coords.zw := Stop;
+  Seg.Normals.xy := Rotate90(Stop - Start, False);
+  Seg.Normals.zw := Seg.Normals.xy;
+  FLineData.Add(Seg);
 end;
 
 procedure TavCanvas.AddRectangle(Left, Top, Right, Bottom: Single);
@@ -1277,39 +1359,31 @@ begin
   FTextLineRanges.Add(range);
 end;
 
-procedure TavCanvas.AddSprite(const v1, v2: TVec2; const AFileName: string);
-var v: array [0..3] of TCanvasTriangleVertex;
+procedure TavCanvas.AddFill(const LeftTop, RightBottom: TVec2);
+begin
+  AddQuad(LeftTop, RightBottom, nil);
+end;
+
+procedure TavCanvas.AddTriangle(const V1, V2, V3: TVec2);
+var v: TCanvasTriangleVertex;
 begin
   SelectGeometryKind(gkTris);
 
-  FillVertexWithBrush(v[0]);
-  FillVertexWithBrush(v[1]);
-  FillVertexWithBrush(v[2]);
-  FillVertexWithBrush(v[3]);
+  FillVertexWithBrush(v);
+  v.TexCoord := Vec(0,0);
+  v.Sprite := nil;
 
-  v[0].Coords := v1;
-  v[0].TexCoord := Vec(0,0);
-  v[0].Sprite := CommonData.GetImageSprite(AFileName);
+  v.Coords := V1;
+  FTrisData.Add(v);
+  v.Coords := V2;
+  FTrisData.Add(v);
+  v.Coords := V3;
+  FTrisData.Add(v);
+end;
 
-  v[1].Coords := Vec(v1.x, v2.y);
-  v[1].TexCoord := Vec(0,1);
-  v[1].Sprite := v[0].Sprite;
-
-  v[2].Coords := Vec(v2.x, v1.y);
-  v[2].TexCoord := Vec(1,0);
-  v[2].Sprite := v[0].Sprite;
-
-  v[3].Coords := v2;
-  v[3].TexCoord := Vec(1,1);
-  v[3].Sprite := v[0].Sprite;
-
-  FTrisData.Add(v[0]);
-  FTrisData.Add(v[1]);
-  FTrisData.Add(v[2]);
-
-  FTrisData.Add(v[2]);
-  FTrisData.Add(v[1]);
-  FTrisData.Add(v[3]);
+procedure TavCanvas.AddSprite(const LeftTop, RightBottom: TVec2; const AFileName: string);
+begin
+  AddQuad(LeftTop, RightBottom, CommonData.GetImageSprite(AFileName));
 end;
 
 procedure TavCanvas.Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single);
@@ -1444,6 +1518,8 @@ begin
   PenDest.FHinting := FHinting;
   PenDest.FMinPixWidth := FMinPixWidth;
   PenDest.FWidth := FWidth;
+  PenDest.FPattern := FPattern;
+  PenDest.FPatternTransform := FPatternTransform;
 end;
 
 procedure TPenStyle.SetHinting(AValue: TPenHinting);
@@ -1456,6 +1532,18 @@ procedure TPenStyle.SetMinPixWidth(AValue: Integer);
 begin
   if FMinPixWidth = AValue then Exit;
   FMinPixWidth := AValue;
+end;
+
+procedure TPenStyle.SetPattern(const AValue: ITextureMip);
+begin
+  if FPattern = AValue then Exit;
+  FPattern := AValue;
+end;
+
+procedure TPenStyle.SetPatternTransform(const AValue: TMat3);
+begin
+  if FPatternTransform = AValue then Exit;
+  FPatternTransform := AValue;
 end;
 
 procedure TPenStyle.SetAlign(AValue: TPenAlign);

@@ -199,7 +199,11 @@ procedure TfrmMain.RenderScene;
     if measureTime > FFPSMeasureTime then
     begin
       FCnv3.Clear;
+      FCnv3.Brush.Color := Vec(1,1,1,1);
       FCnv3.AddSprite(Vec(10 + offset, 10), Vec(266 + offset, 266), RoseFileName());
+
+      FCnv3.Brush.Color := Vec(0,0,1,1);
+      FCnv3.AddFill(Vec(10 + offset, 10+256), Vec(266 + offset, 10+256+10));
       with FCnv3.TextBuilder do
       begin
         WriteLn('FPS: ' + IntToStr(FFPSCounter*10 + Random(10)));
