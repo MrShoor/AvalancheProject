@@ -14,8 +14,7 @@ uses
   {$EndIf}
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
   ExtCtrls, avRes, avTypes, avTess, mutils,
-  avCanvas,
-  ContextSwitcher;
+  avCanvas;
 
 type
   { TfrmMain }
@@ -37,8 +36,6 @@ type
   private
     FMain: TavMainRender;
     FFrameBuffer: TavFrameBuffer;
-
-    FDummy: TavCanvas;
 
     FCnv  : TavCanvas;
     FCnv2 : TavCanvas;
@@ -113,25 +110,8 @@ begin
   FMain.Projection.FarPlane := 10.0;
   FMain.Projection.NearPlane := 0.1;
 
-  //TavContextSwitcher.Create(FMain);
-
   //FFrameBuffer := Create_FrameBufferMultiSampled(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], 8, [true, false]);
   FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], [true, false]);
-
-  {
-  FDummy := TavCanvas.Create(FMain);
-  FDummy.Font.Style := [];
-  FDummy.Font.Name := 'Segoe UI';
-  with FDummy.TextBuilder do
-  begin
-    for i := 0 to 255 do
-      Write(Char(i));
-    WriteLn('');
-    FDummy.AddText(Finish());
-  end;
-  }
-
-  //GetCanvasCommonData(FMain).ExportGlyphs('D:\font.glyphs', 'Segoe UI', [], Char(33), Char(255));
 
   FCnv := TavCanvas.Create(FMain);
   FCnv.Font.Color := Vec(1,1,1,1);
@@ -241,9 +221,8 @@ begin
     FMain.States.SetBlendFunctions(bfOne, bfInvSrcAlpha);
 
     a := FMain.Time * 0.25;
-    a := 0;
 
-    if GetTickCount mod 2000 < 1000 then
+    if FMain.Time64 mod 2000 < 1000 then
     begin
       FMain.Clear(Vec(0.0,0.0,0.0,1.0), True, FMain.Projection.DepthRange.y, True);
       FCnv.Draw(a, Vec(ClientWidth * 0.5, ClientHeight * 0.5), 1);
