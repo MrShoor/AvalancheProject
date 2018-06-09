@@ -183,6 +183,12 @@ begin
           else
             KeyMsg.Dead:=false;
           end;
+          case uMsg of
+            WM_KEYDOWN, WM_SYSKEYDOWN, WM_CHAR, WM_SYSCHAR: KeyMsg.Repeated := (lParam and $40000000) <> 0;
+          else
+            KeyMsg.Repeated := false;
+          end;
+          KeyMsg.RepeatCount:=lParam and $FFFF;
           KeyMsg.shifts:=KeyShifts(lParam);
           KeyMsg.Result:=false;
 

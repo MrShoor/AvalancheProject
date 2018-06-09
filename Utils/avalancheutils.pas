@@ -4,11 +4,12 @@
 
 unit AvalancheUtils;
 
+{$warn 5023 off : no warning about unused units}
 interface
 
 uses
   avContnrs, mutils, intfUtils, avContnrsDefaults, avPathFinder, avPolygon, 
-  superobject, LazarusPackageIntf;
+  superobject, avFileUtils, math_fx, LazarusPackageIntf;
 
 implementation
 

@@ -58,11 +58,13 @@ type
   TavMouseDblClick    = TavMouseBtnMessage;
 
   TavKeyMessage = packed record
-    msg      : Cardinal;
-    result   : boolean;
-    shifts   : TShifts;
-    Sys      : boolean;
-    Dead     : boolean;
+    msg        : Cardinal;
+    result     : boolean;
+    shifts     : TShifts;
+    Sys        : boolean;
+    Dead       : boolean;
+    Repeated   : boolean;
+    RepeatCount: Integer;
     case Cardinal of
       0: (Key : Cardinal);
       1: (Char: WideChar);

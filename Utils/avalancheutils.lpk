@@ -24,7 +24,7 @@
         </Debugging>
       </Linking>
     </CompilerOptions>
-    <Files Count="9">
+    <Files Count="11">
       <Item1>
         <Filename Value="avcontnrs.pas"/>
         <UnitName Value="avContnrs"/>
@@ -61,6 +61,14 @@
         <Filename Value="..\superobject.pas"/>
         <UnitName Value="superobject"/>
       </Item9>
+      <Item10>
+        <Filename Value="avfileutils.pas"/>
+        <UnitName Value="avFileUtils"/>
+      </Item10>
+      <Item11>
+        <Filename Value="math_fx.pas"/>
+        <UnitName Value="math_fx"/>
+      </Item11>
     </Files>
     <RequiredPkgs Count="1">
       <Item1>
