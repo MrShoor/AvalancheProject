@@ -373,6 +373,8 @@ function DistanceToBezier3(const APt: TVec2; const pt1, pt2, pt3, pt4: TVec2; ou
 
 function SetViewMatrix(var MatrixView: TMat4; const From, At, Worldup: TVec3; leftHanded: boolean = true): HResult;
 function GetUIMatrix(const AWidth, AHeight: Single; const ADepth: Single = 10000): TMat4;
+function GetUIMat3(const AWidth, AHeight: Single): TMat3; overload;
+function GetUIMat3(const ASize: TVec2i): TMat3; overload;
 
 function ToStr(const v: Single): string; overload;
 function ToStr(const v: TVec2): string; overload;
@@ -1827,6 +1829,19 @@ begin
   Result.OY := Vec(0, -2/AHeight, 0);
   Result.OZ := Vec(0, 0, 1/ADepth);
   Result.Pos := Vec(-1.0, 1.0, 0);
+end;
+
+function GetUIMat3(const AWidth, AHeight: Single): TMat3;
+begin
+  Result := IdentityMat3;
+  Result.OX := Vec(2/AWidth, 0);
+  Result.OY := Vec(0, -2/AHeight);
+  Result.Pos := Vec(-1.0, 1.0);
+end;
+
+function GetUIMat3(const ASize: TVec2i): TMat3;
+begin
+  Result := GetUIMat3(ASize.x, ASize.y);
 end;
 
 function ToStr(const v: Single): string;

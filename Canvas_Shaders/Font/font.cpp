@@ -38,7 +38,7 @@ VS_Output VS(VS_Input In) {
     crd.y += XBoundsYPos.z;
     crd.xy += In.Pos;
     
-    crd.xy = mul(float3(crd.xy,1), Mat(RotationOffset.x, RotationOffset.yz)).xy;
+    crd.xy = mul(float3(crd.xy,1), CanvasTransform()).xy;
     Out.Pos = mul(crd, UIMatrix);
     
     AtlasRegion region = AtlasRegions[In.GlyphID];

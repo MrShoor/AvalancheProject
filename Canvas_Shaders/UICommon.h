@@ -14,7 +14,11 @@ float4x4 UIMatrixInverse;
 float2 ViewPortSize;
 float PixelToUnit;
 
-float3 RotationOffset;
+float4x4 _CanvasTransform;
+
+float3x3 CanvasTransform() {
+    return (float3x3)_CanvasTransform;
+}
 
 float3x3 Mat(float Rotate, float2 Offset) {
     float3x3 Out;

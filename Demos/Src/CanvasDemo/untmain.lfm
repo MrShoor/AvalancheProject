@@ -9,10 +9,9 @@ object frmMain: TfrmMain
   OnMouseDown = FormMouseDown
   OnPaint = FormPaint
   LCLVersion = '1.8.0.3'
-  object Timer1: TTimer
-    Interval = 1
-    OnTimer = Timer1Timer
-    left = 96
+  object ApplicationProperties: TApplicationProperties
+    OnIdle = ApplicationPropertiesIdle
+    left = 176
     top = 16
   end
 end

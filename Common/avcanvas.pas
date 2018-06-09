@@ -217,7 +217,7 @@ type
     FUniform_UIMatrixInverse: TUniformField;
     FUniform_ViewportSize: TUniformField;
 
-    FUniform_RotationOffset: TUniformField;
+    FUniform_CanvasTransform: TUniformField;
     FUniform_PixelToUnit: TUniformField;
 
     FLastViewportSize: TVec2i;
@@ -227,7 +227,7 @@ type
 
     procedure UpdateUniforms; override;
   public
-    procedure SetRotationOffset(const ARotation: Single; const AOffset: TVec2);
+    procedure SetCanvasTransform(const ATransform: TMat3);
     procedure SetPixelToUnit(const AScale: single);
   end;
   TavFontProgram = class;
@@ -386,6 +386,7 @@ type
     procedure AddSprite(const LeftTop, RightBottom: TVec2; const AFileName: string); overload;
 
     procedure Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single);
+    procedure Draw(const ATransform: TMat3);
 
     constructor Create(AParent: TavObject); overload; override;
     destructor Destroy; override;
@@ -639,6 +640,7 @@ begin
   FUniform_UIMatrixInverse := nil;
   FUniform_ViewportSize := nil;
   FUniform_PixelToUnit := nil;
+  FUniform_CanvasTransform := nil;
 end;
 
 function TavUIProgram.DoBuild: Boolean;
@@ -650,7 +652,7 @@ begin
     FUniform_UIMatrixInverse := GetUniformField('UIMatrixInverse');
     FUniform_ViewportSize := GetUniformField('ViewPortSize');
     FUniform_PixelToUnit := GetUniformField('PixelToUnit');
-    FUniform_RotationOffset := GetUniformField('RotationOffset');
+    FUniform_CanvasTransform := GetUniformField('_CanvasTransform');
     FLastViewportSize := Vec(0,0);
   end;
 end;
@@ -670,9 +672,14 @@ begin
   end;
 end;
 
-procedure TavUIProgram.SetRotationOffset(const ARotation: Single; const AOffset: TVec2);
+procedure TavUIProgram.SetCanvasTransform(const ATransform: TMat3);
+var m: TMat4;
 begin
-  SetUniform(FUniform_RotationOffset, Vec(ARotation, AOffset));
+  m.Row[0] := Vec(ATransform.Row[0], 0);
+  m.Row[1] := Vec(ATransform.Row[1], 0);
+  m.Row[2] := Vec(ATransform.Row[2], 0);
+  m.Row[3] := Vec(0, 0, 0, 0);
+  SetUniform(FUniform_CanvasTransform, m);
 end;
 
 procedure TavUIProgram.SetPixelToUnit(const AScale: single);
@@ -1387,11 +1394,16 @@ begin
 end;
 
 procedure TavCanvas.Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single);
+begin
+  Draw( Mat3(Vec(APixelToUnit, APixelToUnit), ARotation, AOffset) );
+end;
+
+procedure TavCanvas.Draw(const ATransform: TMat3);
 
   function InitProg(const AProg: TavUIProgram): Boolean;
   begin
-    AProg.SetRotationOffset(ARotation, AOffset);
-    AProg.SetPixelToUnit(APixelToUnit);
+    AProg.SetCanvasTransform(ATransform);
+    AProg.SetPixelToUnit(Len(ATransform.OX));
     Result := True;
   end;
 

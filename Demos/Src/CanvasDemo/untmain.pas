@@ -7,10 +7,10 @@ uses
   {$IfDef FPC}
   LCLType,
   FileUtil,
-  {$EndIf}
-  {$IfDef DCC}
+  {$Else}
   Windows,
   Messages,
+  AppEvnts,
   {$EndIf}
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
   ExtCtrls, avRes, avTypes, avTess, mutils,
@@ -21,15 +21,19 @@ type
   { TfrmMain }
 
   TfrmMain = class(TForm)
-    Timer1: TTimer;
+    {$IfDef DCC}
+    ApplicationEvents: TApplicationEvents;
+    {$EndIf}
+    {$IfDef FPC}
+    ApplicationProperties: TApplicationProperties;
+    {$EndIf}
+    procedure ApplicationPropertiesIdle(Sender: TObject; var Done: Boolean);
     procedure cbDXChange(Sender: TObject);
     procedure cbOGLChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure FormMouseDown(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
+    procedure FormMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure FormPaint(Sender: TObject);
-    procedure Timer1Timer(Sender: TObject);
   private
     FMain: TavMainRender;
     FFrameBuffer: TavFrameBuffer;
@@ -155,6 +159,12 @@ begin
   Invalidate;
 end;
 
+procedure TfrmMain.ApplicationPropertiesIdle(Sender: TObject; var Done: Boolean);
+begin
+  if FMain <> nil then FMain.InvalidateWindow;
+  Done := False;
+end;
+
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
   FreeAndNil(FMain);
@@ -169,11 +179,6 @@ end;
 procedure TfrmMain.FormPaint(Sender: TObject);
 begin
   RenderScene;
-end;
-
-procedure TfrmMain.Timer1Timer(Sender: TObject);
-begin
-  if FMain <> nil then FMain.InvalidateWindow;
 end;
 
 {$IfDef FPC}
@@ -255,8 +260,6 @@ begin
   finally
     FMain.Unbind;
   end;
-
-  FMain.InvalidateWindow;
 end;
 
 end.

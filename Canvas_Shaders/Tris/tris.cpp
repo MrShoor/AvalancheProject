@@ -26,7 +26,7 @@ float2 AtlasSize;
 VS_Output VS(VS_Input In) {
     VS_Output Out;
     
-    float2 crd = mul(float3(In.Coords,1), Mat(RotationOffset.x, RotationOffset.yz)).xy;
+    float2 crd = mul(float3(In.Coords,1), CanvasTransform()).xy;
     
     Out.Pos = mul(float4(crd, 0.0, 1.0), UIMatrix);
     Out.Pos.z = 0.5;
