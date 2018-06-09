@@ -31,6 +31,8 @@ VS_Output VS(VS_Input In) {
     Out.Pos = mul(float4(crd, 0.0, 1.0), UIMatrix);
     Out.Pos.z = 0.5;
 
+    Out.Pos.xy += 0.00001;
+    
     Out.Pos = PostHintVertex(Out.Pos, In.Hinting.xy);
     
     Out.Color = In.Color;

@@ -82,6 +82,11 @@ type
   TPenHinting = set of TPenHintingStyle;
   {$SCOPEDENUMS OFF}
 
+const
+  cPenHintingAll = [TPenHintingStyle.Vertical, TPenHintingStyle.Horizontal, TPenHintingStyle.PostHinting];
+
+type
+
   { TPenStyle }
 
   TPenStyle = class (TPersistent)
@@ -112,12 +117,19 @@ type
 
     property Pattern: ITextureMip read FPattern write SetPattern; //todo
     property PatternTransform: TMat3 read FPatternTransform write SetPatternTransform; //todo
+
+    procedure AfterConstruction; override;
   end;
 
   {$SCOPEDENUMS ON}
   TBrushHintingStyle = (Vertical, Horizontal);
   TBrushHinting = set of TBrushHintingStyle;
   {$SCOPEDENUMS OFF}
+
+const
+  cBrushHintingAll = [TBrushHintingStyle.Vertical, TBrushHintingStyle.Horizontal];
+
+type
 
   { TBrushStyle }
 
@@ -139,6 +151,8 @@ type
 
     property Pattern: ITextureMip read FPattern write SetPattern; //todo
     property PatternTransform: TMat3 read FPatternTransform write SetPatternTransform; //todo
+
+    procedure AfterConstruction; override;
   end;
 
   { TFontStyle }
@@ -165,6 +179,8 @@ type
     property Color    : TVec4        read FColor     write SetColor;
     property Size     : Single       read FSize      write SetSize;
     property SDFOffset: Single       read FSDFOffset write SetSDFOffset;
+
+    procedure AfterConstruction; override;
   end;
 
   { ITextLines }
@@ -566,6 +582,13 @@ begin
   BrushDest.FHinting := FHinting;
   BrushDest.FPattern := FPattern;
   BrushDest.FPatternTransform := FPatternTransform;
+end;
+
+procedure TBrushStyle.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FColor := Vec(0.5,0.5,0.5,1.0);
+  FHinting := cBrushHintingAll;
 end;
 
 { TCanvasTriangleVertex }
@@ -978,6 +1001,14 @@ begin
   FontDest.FSDFOffset := FSDFOffset;
   FontDest.FSize := FSize;
   FontDest.FStyle := FStyle;
+end;
+
+procedure TFontStyle.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FName := 'Segoe UI';
+  FSize := 18;
+  FColor := Vec(1,1,1,1);
 end;
 
 { TLinePointVertex }
@@ -1477,15 +1508,8 @@ begin
   FGeometryBatches := TGeometry.Create;
 
   FPen := TPenStyle.Create;
-  FPen.Width := 0.1;
-
   FBrush := TBrushStyle.Create;
-  FBrush.Color := Vec(1,1,1,1);
-
   FFont:= TFontStyle.Create;
-  FFont.Name := 'Segoe UI';
-  FFont.Size := 18;
-  FFont.Color := Vec(1,1,1,1);
 
   FLineData := TLinePointVertices.Create;
   FVBLines := TavVB.Create(Self);
@@ -1532,6 +1556,14 @@ begin
   PenDest.FWidth := FWidth;
   PenDest.FPattern := FPattern;
   PenDest.FPatternTransform := FPatternTransform;
+end;
+
+procedure TPenStyle.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FWidth := 1;
+  FColor := Vec(0,0,0,1);
+  FHinting := cPenHintingAll;
 end;
 
 procedure TPenStyle.SetHinting(AValue: TPenHinting);

@@ -9,10 +9,11 @@ interface
 
 uses
   Classes, SysUtils,
-  avBase, avRes, avTypes, mutils;
+  intfUtils,
+  avBase, avRes, avTypes, mutils,
+  avCanvas;
 
 type
-
   TavmInputConnector = class;
 
   { TavmBaseControl }
@@ -27,7 +28,7 @@ type
     FValid: Boolean;
     FIteratorIdx: Integer;
 
-    FInputConnector: TavmInputConnector;
+    FInputConnector: IWeakRef;
 
     function GetAbsAngle: Single;
     function GetAbsPos: TVec2;
@@ -48,15 +49,22 @@ type
     procedure DrawControl(const AMat: TMat3); virtual;
     procedure DrawRecursive(const AMat: TMat3); virtual;
   protected
+    procedure Notify_MouseEnter; virtual;
+    procedure Notify_MouseLeave; virtual;
+    //procedure Notify_MouseMove; virtual;
+    //procedure Notify_MouseDown; virtual;
+    //procedure Notify_MouseUp; virtual;
+  protected
     procedure Validate;
     procedure DoValidate; virtual;
     procedure Invalidate;
   protected
     function  Space_LocalToOrigin(const APt: TVec2): TVec2;
+    function  Space_OriginToLocal(const APt: TVec2): TVec2;
     function  Space_ParentToLocal(const APt: TVec2): TVec2;
 
     procedure HitTestRecursive(const ALocalPt: TVec2; var AControl: TavmBaseControl);
-    procedure HitTest(const ALocalPt: TVec2; var AControl: TavmBaseControl); virtual;
+    procedure HitTestLocal(const ALocalPt: TVec2; var AControl: TavmBaseControl); virtual;
   public
     function LocalPtInArea(const Pt: TVec2): Boolean;
     function HitTest(const V: TVec2; ARecursive: Boolean): TavmBaseControl;
@@ -119,12 +127,77 @@ type
     property Moved   : TavmBaseControl read FMoved;
   end;
 
+  { TavmPanel }
+
   TavmPanel = class (TavmBaseControl)
   private
+    FCanvas: TavCanvas;
+  protected
+    procedure DoValidate; override;
+    procedure DrawControl(const AMat: TMat3); override;
+    procedure HitTestLocal(const ALocalPt: TVec2; var AControl: TavmBaseControl); override;
+  protected
+    FMoved: Boolean;
+    procedure Notify_MouseEnter; override;
+    procedure Notify_MouseLeave; override;
   public
+    procedure AfterConstruction; override;
   end;
 
 implementation
+
+{ TavmPanel }
+
+procedure TavmPanel.DoValidate;
+var leftTop: TVec2;
+begin
+  inherited DoValidate;
+  if (FCanvas = nil) then
+  begin
+    FCanvas := TavCanvas.Create(Self);
+  end;
+  FCanvas.Clear;
+  leftTop := Space_OriginToLocal(Vec(0, 0));
+
+  if FMoved then
+    FCanvas.Brush.Color := Vec(1,1,1,1)
+  else
+    FCanvas.Brush.Color := Vec(0.5,0.5,0.5,1);
+  FCanvas.AddFill(leftTop, leftTop + FSize);
+
+  FCanvas.AddRectangle(leftTop, leftTop + FSize);
+end;
+
+procedure TavmPanel.DrawControl(const AMat: TMat3);
+begin
+  inherited DrawControl(AMat);
+  FCanvas.Draw(AMat);
+end;
+
+procedure TavmPanel.HitTestLocal(const ALocalPt: TVec2; var AControl: TavmBaseControl);
+begin
+  AControl := Self;
+end;
+
+procedure TavmPanel.Notify_MouseEnter;
+begin
+  inherited Notify_MouseEnter;
+  FMoved := True;
+  Invalidate;
+end;
+
+procedure TavmPanel.Notify_MouseLeave;
+begin
+  inherited Notify_MouseLeave;
+  FMoved := False;
+  Invalidate;
+end;
+
+procedure TavmPanel.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  Size := Vec(100, 100);
+end;
 
 { TavmInputConnector }
 
@@ -156,8 +229,27 @@ begin
 end;
 
 procedure TavmInputConnector.EMMouseMove(var AMsg: TavMouseMessage);
+var target_control: TavmBaseControl;
 begin
+  if FRoot = nil then Exit;
+  if FCaptured <> nil then
+    target_control := FCaptured
+  else
+    target_control := FRoot.HitTest(Vec(AMsg.xPos, AMsg.yPos), true);
 
+  if FMoved <> target_control then
+  begin
+    if FMoved <> nil then
+      FMoved.Notify_MouseLeave;
+    FMoved := target_control;
+    if FMoved <> nil then
+      FMoved.Notify_MouseEnter;
+  end;
+
+  if target_control <> nil then
+  begin
+//todo
+  end;
 end;
 
 procedure TavmInputConnector.EMMouseWheel(var AMsg: TavMouseMessage);
@@ -202,17 +294,18 @@ begin
   ResetIterator;
   while NextChildControl(c) do
     c.Notify_ParentSizeChanged;
+  Invalidate;
 end;
 
 procedure TavmBaseControl.AfterRegister;
 begin
   inherited AfterRegister;
   if Parent is TavmBaseControl then
-    FInputConnector := TavmBaseControl(Parent).InputConnector
+    FInputConnector := TavmBaseControl(Parent).FInputConnector
   else
   begin
-    FInputConnector := TavmInputConnector.Create(Main);
-    FInputConnector.SetRootControl(Self);
+    FInputConnector := TavmInputConnector.Create(Main).WeakRef;
+    InputConnector.SetRootControl(Self);
   end;
 end;
 
@@ -252,6 +345,16 @@ begin
     c.DrawRecursive(m);
 end;
 
+procedure TavmBaseControl.Notify_MouseEnter;
+begin
+
+end;
+
+procedure TavmBaseControl.Notify_MouseLeave;
+begin
+
+end;
+
 procedure TavmBaseControl.Validate;
 begin
   if not FValid then
@@ -273,12 +376,26 @@ end;
 
 function TavmBaseControl.Space_LocalToOrigin(const APt: TVec2): TVec2;
 begin
+  Result := APt + FSize * FOrigin;
+end;
+
+function TavmBaseControl.Space_OriginToLocal(const APt: TVec2): TVec2;
+begin
   Result := APt - FSize * FOrigin;
 end;
 
 function TavmBaseControl.Space_ParentToLocal(const APt: TVec2): TVec2;
+var npt: TVec2;
 begin
-  Result := APt * TransformInv;
+  if Parent is TavmBaseControl then
+    Result := APt * TransformInv
+  else
+  begin
+    npt := (APt/Main.States.Viewport.Size) - Vec(0.5,0.5);
+    npt := npt * Vec(2.0,-2.0);
+    Result := npt * Inv(GetUIMat3(Main.States.Viewport.Size));
+    Result := Result * TransformInv;
+  end;
 end;
 
 procedure TavmBaseControl.HitTestRecursive(const ALocalPt: TVec2; var AControl: TavmBaseControl);
@@ -293,10 +410,10 @@ begin
     if AControl <> nil then Exit;
   end;
 
-  HitTest(ALocalPt, AControl);
+  HitTestLocal(ALocalPt, AControl);
 end;
 
-procedure TavmBaseControl.HitTest(const ALocalPt: TVec2; var AControl: TavmBaseControl);
+procedure TavmBaseControl.HitTestLocal(const ALocalPt: TVec2; var AControl: TavmBaseControl);
 begin
 
 end;
@@ -304,7 +421,7 @@ end;
 function TavmBaseControl.LocalPtInArea(const Pt: TVec2): Boolean;
 var os: TVec2;
 begin
-  os := Pt - FSize * FOrigin;
+  os := Space_LocalToOrigin(Pt);
   Result := (os.x >= 0) and (os.y >= 0) and (os.x < FSize.x) and (os.y < FSize.y);
 end;
 
@@ -316,12 +433,16 @@ begin
   if ARecursive then
     HitTestRecursive(vlocal, Result)
   else
-    HitTest(vlocal, Result);
+    HitTestLocal(vlocal, Result);
 end;
 
 function TavmBaseControl.InputConnector: TavmInputConnector;
 begin
-  Result := FInputConnector;
+  if FInputConnector = nil then
+    Exit(nil);
+  Result := TavmInputConnector(FInputConnector.Obj);
+  if Result = nil then
+    FInputConnector := nil;
 end;
 
 function TavmBaseControl.ChildControlsCount: Integer;
@@ -403,14 +524,22 @@ end;
 procedure TavmBaseControl.Draw();
 begin
   Validate;
+
+  Main.States.DepthTest := False;
+  Main.States.Blending[0] := True;
+  Main.States.SetBlendFunctions(bfOne, bfInvSrcAlpha);
+
   DrawRecursive(IdentityMat3);
 end;
 
 destructor TavmBaseControl.Destroy;
+var ic: TavmInputConnector;
 begin
   inherited Destroy;
-  if FInputConnector.RootControl = Self then
-    FInputConnector.Free;
+  ic := InputConnector;
+  if ic <> nil then
+    if ic.RootControl = Self then
+      ic.Free;
 end;
 
 procedure TavmBaseControl.SetOrigin(const AValue: TVec2);
@@ -422,6 +551,7 @@ begin
   ResetIterator;
   while NextChildControl(c) do
     c.Notify_ParentOriginChanged;
+  Invalidate;
 end;
 
 procedure TavmBaseControl.SetAngle(const AValue: Single);

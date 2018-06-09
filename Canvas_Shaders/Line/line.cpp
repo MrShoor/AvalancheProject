@@ -29,7 +29,7 @@ VS_Output VS(VS_Input In) {
     float2 Crd = lerp(In.Coords.xy, In.Coords.zw, In.quadCoord.x); 
     float2 Norm = lerp(In.Normals.xy, In.Normals.zw, In.quadCoord.x);
     float w = max(In.Width.x, In.Width.y*PixelToUnit)*0.5;
-    Crd += Norm*w*(In.quadCoord.y+In.HintingAlign.w);
+    Crd += Norm*w*(In.quadCoord.y+0.001*In.HintingAlign.z+In.HintingAlign.w);
     
     Crd.xy = mul(float3(Crd.xy,1), CanvasTransform()).xy;
     
