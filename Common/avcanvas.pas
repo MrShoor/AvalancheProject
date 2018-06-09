@@ -385,8 +385,8 @@ type
     procedure AddTriangle(const V1,V2,V3: TVec2); overload;
     procedure AddSprite(const LeftTop, RightBottom: TVec2; const AFileName: string); overload;
 
-    procedure Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single);
-    procedure Draw(const ATransform: TMat3);
+    procedure Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single); overload;
+    procedure Draw(const ATransform: TMat3); overload;
 
     constructor Create(AParent: TavObject); overload; override;
     destructor Destroy; override;
