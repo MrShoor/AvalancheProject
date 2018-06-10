@@ -1,6 +1,6 @@
 program MiniControls;
 
-{$AppType Console}
+//{$AppType Console}
 
 uses
   Forms,

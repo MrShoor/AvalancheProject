@@ -1,6 +1,6 @@
 program MiniControls;
 
-{$AppType Console}
+//{$AppType Console}
 {$mode objfpc}{$H+}
 
 uses
@@ -8,7 +8,7 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, untMain, contextswitcher;
+  Forms, untMain;
 
 {$R *.res}
 

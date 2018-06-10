@@ -60,9 +60,6 @@ type
     FMain: TavMainRender;
     FFrameBuffer: TavFrameBuffer;
 
-    FFPSCounter: Integer;
-    FFPSMeasureTime: Integer;
-
     FPanel: TMyPanel;
 
     FTiltTime: Single;
@@ -191,9 +188,6 @@ begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
   FMain.Init3D(apiDX11);
-  FMain.Camera.Eye := Vec(-1.6, 1.4,-2.0);
-  FMain.Projection.FarPlane := 10.0;
-  FMain.Projection.NearPlane := 0.1;
 
   FFrameBuffer := Create_FrameBufferMultiSampled(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], 8, [true, false]);
   //FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], [true, false]);
@@ -255,24 +249,9 @@ end;
 {$EndIf}
 
 procedure TfrmMain.RenderScene;
-  procedure UpdateFPS;
-  var measureTime: Int64;
-  begin
-    measureTime := FMain.Time64 div 100;
-    if measureTime > FFPSMeasureTime then
-    begin
-      FFPSMeasureTime := measureTime;
-      FFPSCounter := 0;
-    end
-    else
-      Inc(FFPSCounter);
-  end;
-
 var dt, tn: Single;
 begin
   if FMain = nil then Exit;
-
-  UpdateFPS;
 
   dt := FMain.Time - FTiltTime;
   tn := dt / 0.75;
@@ -280,6 +259,7 @@ begin
     FPanel.Angle := 0
   else
     FPanel.Angle := sin(sqrt(dt*1000+50)) * FallOff_Exp(tn) * 0.25;
+  FPanel.Pos := Vec(ClientWidth*0.5, ClientHeight*0.5);
 
   if FMain.Bind then
   try
