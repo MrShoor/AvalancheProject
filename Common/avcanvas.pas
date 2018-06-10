@@ -394,6 +394,7 @@ type
     //drawing functions
     procedure Clear;
     procedure AddLine(const Start, Stop: TVec2); overload;
+    procedure AddPolyline(const APts: array of TVec2; AClosed: Boolean = false); overload;
     procedure AddRectangle(Left, Top, Right, Bottom: Single); overload;
     procedure AddRectangle(LeftTop, RightBottom: TVec2); overload;
     procedure AddText(const AText: ITextLines);
@@ -848,6 +849,8 @@ end;
 
 function TTextBuilder.Finish: ITextLines;
 begin
+  if FLineInited then WriteLnInternal;
+
   Result := TTextLines.Create(FGlyphs, FLines);
 
   FGlyphs := TGlyphVertices.Create();
@@ -1344,6 +1347,12 @@ begin
   Seg.Normals.xy := Rotate90(Stop - Start, False);
   Seg.Normals.zw := Seg.Normals.xy;
   FLineData.Add(Seg);
+end;
+
+procedure TavCanvas.AddPolyline(const APts: array of TVec2; AClosed: Boolean);
+begin
+  //todo
+  Assert(False, 'not implemented yet');
 end;
 
 procedure TavCanvas.AddRectangle(Left, Top, Right, Bottom: Single);

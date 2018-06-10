@@ -24,6 +24,11 @@ type
     RepeatCount: Integer;
   end;
 
+  IUPSEvent = interface
+  ['{12101264-17AA-44AC-A7E3-C921F899A2BC}']
+    procedure UpdateStates();
+  end;
+
   { TavmBaseControl }
 
   TavmBaseControl = class (TavMainRenderChild)
@@ -39,6 +44,8 @@ type
     FInputConnector: IWeakRef;
     FVisible: Boolean;
     FAllowFocus: Boolean;
+
+    FUPSSubscriber: IUPSEvent;
 
     function GetAbsAngle: Single;
     function GetAbsPos: TVec2;
@@ -74,9 +81,12 @@ type
     procedure Notify_Char(AChar: WideChar; const Ex: TKeyEventEx); virtual;
     procedure Notify_KeyUp(AKey: Word; const Ex: TKeyEventEx); virtual;
   protected
+    procedure UPSSubscribe;
+    procedure UPSUnSubscribe;
     procedure Validate;
     procedure DoValidate; virtual;
     procedure Invalidate;
+    procedure OnUPS; virtual;
   protected
     function  Space_ParentToLocal(const APt: TVec2): TVec2;
 
@@ -125,6 +135,8 @@ type
     FFocused: IWeakRef; // TavmBaseControl;
     FMoved: IWeakRef; //TavmBaseControl;
 
+    FUPSPublisher: IUPSEvent;
+
     function GetCaptured: TavmBaseControl;
     function GetFocused: TavmBaseControl;
     function GetMoved: TavmBaseControl;
@@ -145,12 +157,16 @@ type
   private
     procedure EMUps (var AMsg: TavMessage); message EM_UPS;
   public
+    procedure SubscribeToUPS(const AEventHandler : IUPSEvent);
+
     procedure SetRootControl(const AControl: TavmBaseControl);
     property RootControl: TavmBaseControl read FRoot;
 
     property Captured: TavmBaseControl read GetCaptured write SetCaptured;
     property Focused : TavmBaseControl read GetFocused write SetFocused;
     property Moved   : TavmBaseControl read GetMoved;
+
+    procedure AfterConstruction; override;
   end;
 
   { TavmCustomControl }
@@ -179,13 +195,6 @@ type
     procedure AfterConstruction; override;
   end;
 
-  { TavmPanel }
-
-  TavmPanel = class (TavmCustomControl)
-  protected
-    procedure DoValidate; override;
-  end;
-
   { TavmCustomButton }
 
   TavmCustomButton = class (TavmCustomControl)
@@ -211,15 +220,26 @@ type
 
   TavmCustomEdit = class (TavmCustomControl)
   private
-    FOnChanged: TNotifyEvent;
-    FOnComplete: TNotifyEvent;
     FText: string;
     FMaxTextLength: Integer;
+
+    FCaretStartTime: Int64;
+    FCaretState: Integer;
+    FCaretInvalidateInterval: Integer;
+
+    FOnChanged: TNotifyEvent;
+    FOnComplete: TNotifyEvent;
     procedure SetText(const AValue: string);
   protected
+    function CanAddChar: Boolean; virtual;
+    procedure Notify_FocusSet; override;
     procedure Notify_FocusLost; override;
     procedure Notify_KeyDown(AKey: Word; const Ex: TKeyEventEx); override;
     procedure Notify_Char(AChar: WideChar; const Ex: TKeyEventEx); override;
+    procedure OnUPS; override;
+
+    function CaretVisible: Boolean;
+    property CaretInvalidateInterval: Integer read FCaretInvalidateInterval write FCaretInvalidateInterval;
   public
     property MaxTextLength: Integer read FMaxTextLength write FMaxTextLength;
     property Text: string read FText write SetText;
@@ -232,6 +252,53 @@ type
 
 implementation
 
+type
+  TEmptyMethod = procedure () of object;
+
+  { TUPSSubscriber }
+
+  TUPSSubscriber = class(TWeakedInterfacedObject, IUPSEvent)
+  private
+    FEvent: TEmptyMethod;
+    procedure UpdateStates();
+  public
+    constructor Create(const AEvent: TEmptyMethod);
+  end;
+
+  { TUPSPublisher }
+
+  TUPSPublisher = class(TPublisherBase, IUPSEvent)
+  private
+    procedure UpdateStates();
+  end;
+
+{ TUPSSubscriber }
+
+procedure TUPSSubscriber.UpdateStates;
+begin
+  FEvent();
+end;
+
+constructor TUPSSubscriber.Create(const AEvent: TEmptyMethod);
+begin
+  Assert(Assigned(AEvent));
+  FEvent := AEvent;
+end;
+
+{ TUPSPublisher }
+
+procedure TUPSPublisher.UpdateStates;
+var
+  subs: TSubsList;
+  i: Integer;
+  ev: IUPSEvent;
+begin
+  subs := GetSubsList;
+  for i := 0 to Length(subs) - 1 do
+    if Supports(subs[i], IUPSEvent, ev) then
+      ev.UpdateStates();
+end;
+
 { TavmCustomEdit }
 
 procedure TavmCustomEdit.SetText(const AValue: string);
@@ -242,10 +309,23 @@ begin
   if Assigned(FOnChanged) then FOnChanged(Self);
 end;
 
+function TavmCustomEdit.CanAddChar: Boolean;
+begin
+  Result := Length(UnicodeString(FText)) < FMaxTextLength;
+end;
+
+procedure TavmCustomEdit.Notify_FocusSet;
+begin
+  inherited Notify_FocusSet;
+  FCaretStartTime := Main.Time64;
+  UPSSubscribe;
+end;
+
 procedure TavmCustomEdit.Notify_FocusLost;
 begin
   inherited Notify_FocusLost;
   if Assigned(FOnComplete) then FOnComplete(Self);
+  UPSUnSubscribe;
 end;
 
 procedure TavmCustomEdit.Notify_KeyDown(AKey: Word; const Ex: TKeyEventEx);
@@ -269,16 +349,35 @@ begin
   inherited Notify_Char(AChar, Ex);
   if Ord(AChar) < 32 then Exit;
 
+  FCaretStartTime := Main.Time64;
+
   ustr := UnicodeString(Text);
-  if Length(ustr) >= FMaxTextLength then Exit;
+  if not CanAddChar then Exit;
   ustr := ustr + AChar;
   Text := string(ustr);
+end;
+
+procedure TavmCustomEdit.OnUPS;
+var newCaretState: Integer;
+begin
+  newCaretState := (Main.Time64 - FCaretStartTime) div FCaretInvalidateInterval;
+  if newCaretState <> FCaretState then
+  begin
+    FCaretState := newCaretState;
+    Invalidate;
+  end;
+end;
+
+function TavmCustomEdit.CaretVisible: Boolean;
+begin
+  Result := FCaretState mod 2 = 0;
 end;
 
 procedure TavmCustomEdit.AfterConstruction;
 begin
   inherited AfterConstruction;
   FMaxTextLength := 100;
+  FCaretInvalidateInterval := 500;
 end;
 
 { TavmCustomControl }
@@ -382,22 +481,6 @@ begin
       if Assigned(FOnClick) then
         FOnClick(Self);
   end;
-end;
-
-{ TavmPanel }
-
-procedure TavmPanel.DoValidate;
-begin
-  inherited DoValidate;
-  Canvas.Clear;
-
-  if FMoved then
-    Canvas.Brush.Color := Vec(1,1,1,1)
-  else
-    Canvas.Brush.Color := Vec(0.5,0.5,0.5,1);
-  Canvas.AddFill(Vec(0, 0), FSize);
-
-  Canvas.AddRectangle(Vec(0, 0), FSize);
 end;
 
 { TavmInputConnector }
@@ -579,13 +662,24 @@ end;
 
 procedure TavmInputConnector.EMUps(var AMsg: TavMessage);
 begin
+  FUPSPublisher.UpdateStates();
+end;
 
+procedure TavmInputConnector.SubscribeToUPS(const AEventHandler: IUPSEvent);
+begin
+  (FUPSPublisher as IPublisher).Subscribe(AEventHandler as IWeakedInterface);
 end;
 
 procedure TavmInputConnector.SetRootControl(const AControl: TavmBaseControl);
 begin
   Assert(FRoot = nil, 'Root Control can''t be changed');
   FRoot := AControl;
+end;
+
+procedure TavmInputConnector.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FUPSPublisher := TUPSPublisher.Create;
 end;
 
 { TavmBaseControl }
@@ -697,6 +791,17 @@ procedure TavmBaseControl.Notify_KeyUp(AKey: Word; const Ex: TKeyEventEx);
 begin
 end;
 
+procedure TavmBaseControl.UPSSubscribe;
+begin
+  FUPSSubscriber := TUPSSubscriber.Create({$IfDef FPC}@{$EndIf}OnUPS);
+  InputConnector.SubscribeToUPS(FUPSSubscriber);
+end;
+
+procedure TavmBaseControl.UPSUnSubscribe;
+begin
+  FUPSSubscriber := nil;
+end;
+
 procedure TavmBaseControl.Notify_MouseDown(ABtn: Integer; const APt: TVec2; AShifts: TShifts);
 begin
 end;
@@ -721,6 +826,11 @@ end;
 procedure TavmBaseControl.Invalidate;
 begin
   FValid := False;
+end;
+
+procedure TavmBaseControl.OnUPS;
+begin
+
 end;
 
 function TavmBaseControl.Space_ParentToLocal(const APt: TVec2): TVec2;

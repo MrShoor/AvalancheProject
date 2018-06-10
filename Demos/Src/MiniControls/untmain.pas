@@ -18,6 +18,14 @@ uses
 
 type
 
+  { TMyPanel }
+
+  TMyPanel = class (TavmCustomControl)
+  protected
+    procedure DoValidate; override;
+  end;
+
+
   { TMyButton }
 
   TMyButton = class(TavmCustomButton)
@@ -28,7 +36,10 @@ type
   { TMyEdit }
 
   TMyEdit = class(TavmCustomEdit)
+  private
+    FLastText: ITextLines;
   protected
+    function CanAddChar: Boolean; override;
     procedure DoValidate; override;
   end;
 
@@ -52,7 +63,7 @@ type
     FFPSCounter: Integer;
     FFPSMeasureTime: Integer;
 
-    FPanel: TavmPanel;
+    FPanel: TMyPanel;
 
     FTiltTime: Single;
     procedure TiltControl(ASender: TObject);
@@ -74,11 +85,27 @@ implementation
 uses
   math_fx;
 
+{ TMyPanel }
+
+procedure TMyPanel.DoValidate;
+begin
+  inherited DoValidate;
+  Canvas.Clear;
+  Canvas.Brush.Color := Vec(0.5,0.5,0.5,1);
+  Canvas.AddFill(Vec(0, 0), Size);
+  Canvas.AddRectangle(Vec(0, 0), Size);
+end;
+
 { TMyEdit }
 
+function TMyEdit.CanAddChar: Boolean;
+begin
+  if FLastText = nil then Exit(True);
+  if FLastText.LinesCount = 0 then Exit(True);
+  Result := FLastText.LineSize(0).x + 20 < Size.x;
+end;
+
 procedure TMyEdit.DoValidate;
-var
-  txt: ITextLines;
 begin
   inherited DoValidate;
   Canvas.Clear;
@@ -95,15 +122,19 @@ begin
     with Canvas.TextBuilder do
     begin
       Align := laCenter;
+      Write(Text);
       if Focused then
-        WriteLn(Text+'|')
-      else
-        WriteLn(Text);
-      txt := Finish();
-      txt.VAlign := 0.5;
-      txt.BoundsX := Vec(0, Size.x);
-      txt.BoundsY := Vec(0, Size.y);
-      Canvas.AddText(txt);
+      begin
+        if not CaretVisible then
+          Canvas.Font.Color := Vec(0,0,0,0);
+        WriteLn('|');
+      end;
+
+      FLastText := Finish();
+      FLastText.VAlign := 0.5;
+      FLastText.BoundsX := Vec(0, Size.x);
+      FLastText.BoundsY := Vec(0, Size.y);
+      Canvas.AddText(FLastText);
     end;
   end;
 end;
@@ -167,7 +198,7 @@ begin
   //FFrameBuffer := Create_FrameBufferMultiSampled(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], 8, [true, false]);
   FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], [true, false]);
 
-  FPanel := TavmPanel.Create(FMain);
+  FPanel := TMyPanel.Create(FMain);
   FPanel.Size := Vec(200, 300);
   FPanel.Pos := Vec(202, 252);
   FPanel.Origin := Vec(0.5, 0.5);
@@ -182,6 +213,7 @@ begin
 
   with TMyEdit.Create(FPanel) do
   begin
+    MaxTextLength := 12;
     Pos := Vec(20, 70);
     Size := Vec(161, 30);
     Text := 'Edit1';

@@ -21,9 +21,9 @@ type
   TFixtureLink = class (TWeakedObject)
   private
     FFixtureType: TFixtureType;
-    FFixType  : TFixtureType;
-    FBeginItem: IWeakRef;
-    FEndItem  : IWeakRef;
+    //FFixType  : TFixtureType;
+    //FBeginItem: IWeakRef;
+    //FEndItem  : IWeakRef;
     FSize: Single;
     function GetAtItem(index: Integer): TavControl;
     function GetFromItem(index: Integer): TavControl;
@@ -101,12 +101,16 @@ implementation
 
 function TFixtureLink.GetAtItem(index: Integer): TavControl;
 begin
-
+  //todo
+  Assert(False);
+  Result := nil;
 end;
 
 function TFixtureLink.GetFromItem(index: Integer): TavControl;
 begin
-
+  //todo
+  Assert(False);
+  Result := nil;
 end;
 
 procedure TFixtureLink.SetSize(AValue: Single);
@@ -116,12 +120,16 @@ end;
 
 function TFixtureLink.FromItemsCount: Integer;
 begin
-
+  //todo
+  Assert(False);
+  Result := 0;
 end;
 
 function TFixtureLink.AtItemsCount: Integer;
 begin
-
+  //todo
+  Assert(False);
+  Result := 0;
 end;
 
 { TavDebugControl }
@@ -255,15 +263,13 @@ begin
 end;
 
 procedure TavRootControl.Draw;
-var m: TMat4;
-    WorkSize: TVec2;
 begin
-  WorkSize := WorkAreaSize;
-  m := IdentityMat4;
-  m.f[0,0] := 2 / WorkSize.x;
-  m.f[1,1] := -2 / WorkSize.y;
-  m.f[0,3] := -1;
-  m.f[1,3] := 1;
+  //WorkSize := WorkAreaSize;
+  //m := IdentityMat4;
+  //m.f[0,0] := 2 / WorkSize.x;
+  //m.f[1,1] := -2 / WorkSize.y;
+  //m.f[0,3] := -1;
+  //m.f[1,3] := 1;
   inherited Draw;
 end;
 
