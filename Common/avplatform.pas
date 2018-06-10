@@ -103,6 +103,8 @@ var sc: TwndSubclassInfo;
     MouseMsg: TavMouseBtnMessage;
     KeyMsg  : TavKeyMessage;
     msgptr  : PDWord;
+
+    ch: AnsiChar;
 begin
   {$IFOPT R+}
     {$DEFINE RANGEON}
@@ -162,7 +164,16 @@ begin
         begin
           case uMsg of
             WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP: KeyMsg.Key:=wParam;
-            WM_CHAR, WM_SYSCHAR, WM_DEADCHAR, WM_SYSDEADCHAR: KeyMsg.Char:=WideChar(wParam);
+            WM_CHAR, WM_SYSCHAR, WM_DEADCHAR, WM_SYSDEADCHAR:
+              begin
+                if IsWindowUnicode(handle) then
+                  KeyMsg.Char:=WideChar(wParam)
+                else
+                begin
+                  ch := AnsiChar(wParam);
+                  MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, @ch, 1, @KeyMsg.Char, 1);
+                end;
+              end
           else
             KeyMsg.Key:=0;
           end;

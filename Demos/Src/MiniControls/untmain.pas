@@ -13,7 +13,7 @@ uses
   AppEvnts,
   {$EndIf}
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, avRes, avTypes, avTess, mutils,
+  ExtCtrls, StdCtrls, Menus, avRes, avTypes, avTess, mutils,
   avMiniControls, avCanvas;
 
 type
@@ -21,6 +21,13 @@ type
   { TMyButton }
 
   TMyButton = class(TavmCustomButton)
+  protected
+    procedure DoValidate; override;
+  end;
+
+  { TMyEdit }
+
+  TMyEdit = class(TavmCustomEdit)
   protected
     procedure DoValidate; override;
   end;
@@ -66,6 +73,40 @@ implementation
 
 uses
   math_fx;
+
+{ TMyEdit }
+
+procedure TMyEdit.DoValidate;
+var
+  txt: ITextLines;
+begin
+  inherited DoValidate;
+  Canvas.Clear;
+  Canvas.Brush.Color := Vec(1,1,1,1);
+  Canvas.AddFill(Vec(0,0), Size);
+
+  Canvas.Pen.Color := Vec(0,0,0,1);
+  if Focused then
+    Canvas.AddRectangle(Vec(0,0), Size);
+
+  if Length(Text) > 0 then
+  begin
+    Canvas.Font.Color := Vec(0,0,0,1);
+    with Canvas.TextBuilder do
+    begin
+      Align := laCenter;
+      if Focused then
+        WriteLn(Text+'|')
+      else
+        WriteLn(Text);
+      txt := Finish();
+      txt.VAlign := 0.5;
+      txt.BoundsX := Vec(0, Size.x);
+      txt.BoundsY := Vec(0, Size.y);
+      Canvas.AddText(txt);
+    end;
+  end;
+end;
 
 { TMyButton }
 
@@ -137,6 +178,13 @@ begin
     Pos := Vec(20,20);
     Size := Vec(161, 30);
     Text := 'Button1';
+  end;
+
+  with TMyEdit.Create(FPanel) do
+  begin
+    Pos := Vec(20, 70);
+    Size := Vec(161, 30);
+    Text := 'Edit1';
   end;
 end;
 

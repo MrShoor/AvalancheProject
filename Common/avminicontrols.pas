@@ -38,6 +38,7 @@ type
 
     FInputConnector: IWeakRef;
     FVisible: Boolean;
+    FAllowFocus: Boolean;
 
     function GetAbsAngle: Single;
     function GetAbsPos: TVec2;
@@ -101,6 +102,7 @@ type
     property AbsPos: TVec2 read GetAbsPos write SetAbsPos;
 
     property Visible: Boolean read FVisible write SetVisible;
+    property AllowFocus: Boolean read FAllowFocus write FAllowFocus;
 
     function Transform   : TMat3;
     function TransformInv: TMat3;
@@ -147,7 +149,7 @@ type
     property RootControl: TavmBaseControl read FRoot;
 
     property Captured: TavmBaseControl read GetCaptured write SetCaptured;
-    property Focused : TavmBaseControl read GetFocused  write SetFocused;
+    property Focused : TavmBaseControl read GetFocused write SetFocused;
     property Moved   : TavmBaseControl read GetMoved;
   end;
 
@@ -155,13 +157,26 @@ type
 
   TavmCustomControl = class (TavmBaseControl)
   private
-    FCanvas: TavCanvas;
+    FCanvas : TavCanvas;
+    FMoved  : Boolean;
+    FFocused: Boolean;
+  protected
+    FInvalidateOnMove : Boolean;
+    FInvalidateOnFocus: Boolean;
+    procedure Notify_MouseEnter; override;
+    procedure Notify_MouseLeave; override;
+    procedure Notify_FocusSet; override;
+    procedure Notify_FocusLost; override;
   protected
     procedure AfterRegister; override;
     procedure DrawControl(const AMat: TMat3); override;
     procedure HitTestLocal(const ALocalPt: TVec2; var AControl: TavmBaseControl); override;
   protected
-    property Canvas: TavCanvas read FCanvas;
+    property Canvas : TavCanvas read FCanvas;
+    property Moved  : Boolean   read FMoved;
+    property Focused: Boolean   read FFocused;
+  public
+    procedure AfterConstruction; override;
   end;
 
   { TavmPanel }
@@ -169,43 +184,132 @@ type
   TavmPanel = class (TavmCustomControl)
   protected
     procedure DoValidate; override;
-  protected
-    FMoved: Boolean;
-    procedure Notify_MouseEnter; override;
-    procedure Notify_MouseLeave; override;
-  public
-    procedure AfterConstruction; override;
   end;
 
   { TavmCustomButton }
 
   TavmCustomButton = class (TavmCustomControl)
   private
-    FDowned : Boolean;
     FDownedInternal: Boolean;
-    FMoved  : Boolean;
+    FDowned : Boolean;
     FText   : string;
     FOnClick: TNotifyEvent;
     procedure SetText(const AValue: string);
   protected
-    procedure Notify_MouseEnter; override;
-    procedure Notify_MouseLeave; override;
     procedure Notify_MouseDown(ABtn: Integer; const APt: TVec2; AShifts: TShifts); override;
     procedure Notify_MouseMove(const APt: TVec2; AShifts: TShifts); override;
     procedure Notify_MouseUp(ABtn: Integer; const APt: TVec2; AShifts: TShifts); override;
   protected
-    property Downed: Boolean   read FDowned;
-    property Moved : Boolean   read FMoved;
-    property Canvas: TavCanvas read FCanvas;
+    property Downed: Boolean read FDowned;
   public
     property Text: string read FText write SetText;
 
     property OnClick: TNotifyEvent read FOnClick write FOnClick;
   end;
 
+  { TavmCustomEdit }
+
+  TavmCustomEdit = class (TavmCustomControl)
+  private
+    FOnChanged: TNotifyEvent;
+    FOnComplete: TNotifyEvent;
+    FText: string;
+    FMaxTextLength: Integer;
+    procedure SetText(const AValue: string);
+  protected
+    procedure Notify_FocusLost; override;
+    procedure Notify_KeyDown(AKey: Word; const Ex: TKeyEventEx); override;
+    procedure Notify_Char(AChar: WideChar; const Ex: TKeyEventEx); override;
+  public
+    property MaxTextLength: Integer read FMaxTextLength write FMaxTextLength;
+    property Text: string read FText write SetText;
+
+    property OnChanged : TNotifyEvent read FOnChanged  write FOnChanged;
+    property OnComplete: TNotifyEvent read FOnComplete write FOnComplete;
+
+    procedure AfterConstruction; override;
+  end;
+
 implementation
 
+{ TavmCustomEdit }
+
+procedure TavmCustomEdit.SetText(const AValue: string);
+begin
+  if FText = AValue then Exit;
+  FText := AValue;
+  Invalidate;
+  if Assigned(FOnChanged) then FOnChanged(Self);
+end;
+
+procedure TavmCustomEdit.Notify_FocusLost;
+begin
+  inherited Notify_FocusLost;
+  if Assigned(FOnComplete) then FOnComplete(Self);
+end;
+
+procedure TavmCustomEdit.Notify_KeyDown(AKey: Word; const Ex: TKeyEventEx);
+var ustr: UnicodeString;
+begin
+  inherited Notify_KeyDown(AKey, Ex);
+  if AKey = 8 then //backspace
+  begin
+    ustr := UnicodeString(Text);
+    if Length(ustr) = 0 then Exit;
+    Delete(ustr, Length(ustr), 1);
+    Text := string(ustr);
+  end;
+  if AKey = 13 then //enter
+    InputConnector.Focused := nil;
+end;
+
+procedure TavmCustomEdit.Notify_Char(AChar: WideChar; const Ex: TKeyEventEx);
+var ustr: UnicodeString;
+begin
+  inherited Notify_Char(AChar, Ex);
+  if Ord(AChar) < 32 then Exit;
+
+  ustr := UnicodeString(Text);
+  if Length(ustr) >= FMaxTextLength then Exit;
+  ustr := ustr + AChar;
+  Text := string(ustr);
+end;
+
+procedure TavmCustomEdit.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FMaxTextLength := 100;
+end;
+
 { TavmCustomControl }
+
+procedure TavmCustomControl.Notify_MouseEnter;
+begin
+  inherited Notify_MouseEnter;
+  FMoved := True;
+  if FInvalidateOnMove then Invalidate;
+end;
+
+procedure TavmCustomControl.Notify_MouseLeave;
+begin
+  inherited Notify_MouseLeave;
+  FMoved := False;
+  if FInvalidateOnMove then Invalidate;
+end;
+
+procedure TavmCustomControl.Notify_FocusSet;
+begin
+  inherited Notify_FocusSet;
+  FFocused := True;
+  if FInvalidateOnFocus then Invalidate;
+end;
+
+procedure TavmCustomControl.Notify_FocusLost;
+begin
+  inherited Notify_FocusLost;
+  FFocused := False;
+  if FInvalidateOnFocus then Invalidate;
+end;
 
 procedure TavmCustomControl.AfterRegister;
 begin
@@ -224,26 +328,19 @@ begin
   AControl := Self;
 end;
 
+procedure TavmCustomControl.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FInvalidateOnMove := True;
+  FInvalidateOnFocus := True;
+end;
+
 { TavmCustomButton }
 
 procedure TavmCustomButton.SetText(const AValue: string);
 begin
   if FText = AValue then Exit;
   FText := AValue;
-  Invalidate;
-end;
-
-procedure TavmCustomButton.Notify_MouseEnter;
-begin
-  inherited Notify_MouseEnter;
-  FMoved := True;
-  Invalidate;
-end;
-
-procedure TavmCustomButton.Notify_MouseLeave;
-begin
-  inherited Notify_MouseLeave;
-  FMoved := False;
   Invalidate;
 end;
 
@@ -301,26 +398,6 @@ begin
   Canvas.AddFill(Vec(0, 0), FSize);
 
   Canvas.AddRectangle(Vec(0, 0), FSize);
-end;
-
-procedure TavmPanel.Notify_MouseEnter;
-begin
-  inherited Notify_MouseEnter;
-  FMoved := True;
-  Invalidate;
-end;
-
-procedure TavmPanel.Notify_MouseLeave;
-begin
-  inherited Notify_MouseLeave;
-  FMoved := False;
-  Invalidate;
-end;
-
-procedure TavmPanel.AfterConstruction;
-begin
-  inherited AfterConstruction;
-  Size := Vec(100, 100);
 end;
 
 { TavmInputConnector }
@@ -401,7 +478,14 @@ begin
   if FRoot = nil then Exit;
   v := Vec(AMsg.xPos, AMsg.yPos);
   m := UpdateMovedState(v);
-  if m <> nil then m.Notify_MouseDown(AMsg.button, v * m.AbsTransformInv, AMsg.shifts);
+  if m <> nil then
+  begin
+    m.Notify_MouseDown(AMsg.button, v * m.AbsTransformInv, AMsg.shifts);
+    if m.AllowFocus then
+      SetFocused(m);
+  end
+  else
+    SetFocused(nil);
 end;
 
 procedure TavmInputConnector.EMMouseUp(var AMsg: TavMouseUpMessage);
@@ -792,6 +876,7 @@ procedure TavmBaseControl.AfterConstruction;
 begin
   inherited AfterConstruction;
   FVisible := True;
+  FAllowFocus := True;
 end;
 
 destructor TavmBaseControl.Destroy;
