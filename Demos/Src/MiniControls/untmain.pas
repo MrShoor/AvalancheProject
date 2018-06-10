@@ -195,8 +195,8 @@ begin
   FMain.Projection.FarPlane := 10.0;
   FMain.Projection.NearPlane := 0.1;
 
-  //FFrameBuffer := Create_FrameBufferMultiSampled(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], 8, [true, false]);
-  FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], [true, false]);
+  FFrameBuffer := Create_FrameBufferMultiSampled(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], 8, [true, false]);
+  //FFrameBuffer := Create_FrameBuffer(FMain, [TTextureFormat.RGBA, TTextureFormat.D32f], [true, false]);
 
   FPanel := TMyPanel.Create(FMain);
   FPanel.Size := Vec(200, 300);

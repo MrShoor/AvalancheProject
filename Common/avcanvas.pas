@@ -414,6 +414,7 @@ function GetCanvasCommonData(const RenderMain: TavMainRender): TavCanvasCommonDa
 implementation
 
 //{$R '..\Canvas_Shaders\Canvas_Shaders.rc'}
+{$R '..\Canvas_Shaders\Canvas_Shaders.res'}
 
 uses Math, avTexLoader;
 
@@ -1081,9 +1082,8 @@ begin
 end;
 
 procedure TavCanvasCommonData.ReloadShaders;
-const LOADFROMRES = False;
+const LOADFROMRES = True;
       DIR = 'D:\Projects\AvalancheProject\Canvas_Shaders\!Out\';
-      //DIR = 'C:\MyProj\AvalancheProject\Canvas_Shaders\!Out\';
 begin
   FLineProg.Load('CanvasLine', LOADFROMRES, DIR);
   FFontProg.Load('CanvasFont', LOADFROMRES, DIR);
