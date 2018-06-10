@@ -38,7 +38,10 @@ type
   TMyEdit = class(TavmCustomEdit)
   private
     FLastText: ITextLines;
+    FMovedRow : Integer;
+    FMovedChar: Integer;
   protected
+    procedure Notify_MouseMove(const APt: TVec2; AShifts: TShifts); override;
     function CanAddChar: Boolean; override;
     procedure DoValidate; override;
   end;
@@ -95,6 +98,21 @@ end;
 
 { TMyEdit }
 
+procedure TMyEdit.Notify_MouseMove(const APt: TVec2; AShifts: TShifts);
+var
+  charidx, rowidx: Integer;
+begin
+  inherited Notify_MouseMove(APt, AShifts);
+  if FLastText = nil then Exit;
+  FLastText.SymbolAt(APt, rowidx, charidx);
+  if (rowidx <> FMovedRow) or (charidx <> FMovedChar) then
+  begin
+    FMovedRow := rowidx;
+    FMovedChar := charidx;
+    Invalidate;
+  end;
+end;
+
 function TMyEdit.CanAddChar: Boolean;
 begin
   if FLastText = nil then Exit(True);
@@ -103,8 +121,12 @@ begin
 end;
 
 procedure TMyEdit.DoValidate;
+var charBounds: TRectF;
+    x: Single;
 begin
   inherited DoValidate;
+
+  //draw background
   Canvas.Clear;
   Canvas.Brush.Color := Vec(1,1,1,1);
   Canvas.AddFill(Vec(0,0), Size);
@@ -113,26 +135,43 @@ begin
   if Focused then
     Canvas.AddRectangle(Vec(0,0), Size);
 
+  //draw text
   if Length(Text) > 0 then
   begin
     Canvas.Font.Color := Vec(0,0,0,1);
     with Canvas.TextBuilder do
     begin
       Align := laCenter;
-      Write(Text);
-      if Focused then
-      begin
-        if not CaretVisible then
-          Canvas.Font.Color := Vec(0,0,0,0);
-        WriteLn('|');
-      end;
-
+      Write(string(Text));
       FLastText := Finish();
       FLastText.VAlign := 0.5;
       FLastText.BoundsX := Vec(0, Size.x);
       FLastText.BoundsY := Vec(0, Size.y);
       Canvas.AddText(FLastText);
     end;
+  end;
+
+  //draw caret
+  if Focused and CaretVisible then
+  begin
+    if (FLastText = nil) or (FLastText.LinesCount = 0) then
+    begin
+      charBounds.min.x := Size.x * 0.5;
+      charBounds.max.x := Size.x * 0.5;
+      charBounds.min.y := Size.y * 0.5 - Canvas.Font.Size*0.5;
+      charBounds.max.y := Size.y * 0.5 + Canvas.Font.Size*0.5;
+    end
+    else
+      charBounds := FLastText.GetBounds(0, Length(Text), 0);
+    Canvas.AddRectangle(charBounds.min, charBounds.max);
+  end;
+
+  //draw moved character highlight
+  if (FLastText <> nil) and (FMovedRow >= 0) then
+  begin
+    charBounds := FLastText.GetBounds(FMovedRow, FMovedChar, 1);
+    Canvas.Pen.Color := Vec(1,0,0,1);
+    Canvas.AddRectangle(charBounds.min, charBounds.max);
   end;
 end;
 

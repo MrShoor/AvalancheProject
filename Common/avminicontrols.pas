@@ -220,7 +220,7 @@ type
 
   TavmCustomEdit = class (TavmCustomControl)
   private
-    FText: string;
+    FText: UnicodeString;
     FMaxTextLength: Integer;
 
     FCaretStartTime: Int64;
@@ -229,7 +229,7 @@ type
 
     FOnChanged: TNotifyEvent;
     FOnComplete: TNotifyEvent;
-    procedure SetText(const AValue: string);
+    procedure SetText(const AValue: UnicodeString);
   protected
     function CanAddChar: Boolean; virtual;
     procedure Notify_FocusSet; override;
@@ -242,7 +242,7 @@ type
     property CaretInvalidateInterval: Integer read FCaretInvalidateInterval write FCaretInvalidateInterval;
   public
     property MaxTextLength: Integer read FMaxTextLength write FMaxTextLength;
-    property Text: string read FText write SetText;
+    property Text: UnicodeString read FText write SetText;
 
     property OnChanged : TNotifyEvent read FOnChanged  write FOnChanged;
     property OnComplete: TNotifyEvent read FOnComplete write FOnComplete;
@@ -301,7 +301,7 @@ end;
 
 { TavmCustomEdit }
 
-procedure TavmCustomEdit.SetText(const AValue: string);
+procedure TavmCustomEdit.SetText(const AValue: UnicodeString);
 begin
   if FText = AValue then Exit;
   FText := AValue;
@@ -311,7 +311,7 @@ end;
 
 function TavmCustomEdit.CanAddChar: Boolean;
 begin
-  Result := Length(UnicodeString(FText)) < FMaxTextLength;
+  Result := Length(FText) < FMaxTextLength;
 end;
 
 procedure TavmCustomEdit.Notify_FocusSet;
@@ -334,27 +334,24 @@ begin
   inherited Notify_KeyDown(AKey, Ex);
   if AKey = 8 then //backspace
   begin
-    ustr := UnicodeString(Text);
+    ustr := Text;
     if Length(ustr) = 0 then Exit;
     Delete(ustr, Length(ustr), 1);
-    Text := string(ustr);
+    Text := ustr;
   end;
   if AKey = 13 then //enter
     InputConnector.Focused := nil;
 end;
 
 procedure TavmCustomEdit.Notify_Char(AChar: WideChar; const Ex: TKeyEventEx);
-var ustr: UnicodeString;
 begin
   inherited Notify_Char(AChar, Ex);
   if Ord(AChar) < 32 then Exit;
 
   FCaretStartTime := Main.Time64;
 
-  ustr := UnicodeString(Text);
   if not CanAddChar then Exit;
-  ustr := ustr + AChar;
-  Text := string(ustr);
+  Text := Text + AChar;
 end;
 
 procedure TavmCustomEdit.OnUPS;

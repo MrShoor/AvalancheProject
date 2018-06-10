@@ -137,6 +137,7 @@ type
   case Byte of
     0: (x, y, z, w: Single);
     1: (v: TVec3; a: Single);
+    2: (v4: TVec4);
   end;
 
   { TLine }
@@ -396,6 +397,8 @@ function GenerateHammersleyPts(const N: Integer): TVec4Arr;
 {$IfDef FPC}
 operator = (const v1, v2: TRectF): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 operator = (const v1, v2: TRectI): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
+operator = (const b1, b2: TAABB): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
+operator = (const q1, q2: TQuat): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 
 operator + (const r: TRectF; const v: TVec2): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
 operator + (const r1, r2: TRectF): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -1944,6 +1947,16 @@ end;
 operator = (const v1, v2: TRectI): Boolean;
 begin
   Result := (v1.LeftTop = v2.LeftTop) and (v1.RightBottom = v2.RightBottom);
+end;
+
+operator = (const b1, b2: TAABB): Boolean;
+begin
+  Result := (b1.min = b2.min) and (b1.max = b2.max);
+end;
+
+operator = (const q1, q2: TQuat): Boolean;
+begin
+  Result := q1.v4 = q2.v4;
 end;
 
 operator + (const r: TRectF; const v: TVec2): TRectF;

@@ -66,11 +66,15 @@ type
   TGlyphVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TGlyphVertex>;
   IGlyphVertices = {$IfDef FPC}specialize{$EndIf} IArray<TGlyphVertex>;
 
+  TXXXMetrics = {$IfDef FPC}specialize{$EndIf} TArray<TVec3>;
+  IXXXMetrics = {$IfDef FPC}specialize{$EndIf} IArray<TVec3>;
   TLineAlign = (laLeft, laCenter, laRight);
   TLineInfo = packed record
     align: TLineAlign;
     yymetrics: TVec2;
     width: Single;
+    glyphs: TVec2i;
+    XXXMetrics: IXXXMetrics;
   end;
   PLineInfo = ^TLineInfo;
   TLineInfoArr = {$IfDef FPC}specialize{$EndIf} TArray<TLineInfo>;
@@ -192,6 +196,9 @@ type
     procedure SetBoundsX(const AValue: TVec2);
     procedure SetBoundsY(const AValue: TVec2);
     procedure SetVAlign(const AValue: Single);
+
+    function  GetBounds(ARowIdx: Integer; FromChar: Integer; CharCounts: Integer): TRectF;
+    procedure SymbolAt(const ALocalCoord: TVec2; out ARowIdx, ACharIdx: Integer);
 
     function LinesCount: Integer;
     function LineSize(const i: Integer): TVec2;
@@ -444,6 +451,9 @@ type
     procedure SetBoundsX(const AValue: TVec2);
     procedure SetBoundsY(const AValue: TVec2);
     procedure SetVAlign(const AValue: Single);
+
+    function  GetBounds(ARowIdx: Integer; FromChar: Integer; CharCounts: Integer): TRectF;
+    procedure SymbolAt(const ALocalCoord: TVec2; out ARowIdx, ACharIdx: Integer);
 
     function LinesCount: Integer;
     function LineSize(const i: Integer): TVec2;
@@ -754,6 +764,9 @@ begin
     FLineInfo.align := FAlign;
     FLineInfo.yymetrics := Vec(0,0);
     FLineInfo.width := 0;
+    FLineInfo.glyphs.x := FGlyphs.Count;
+    FLineInfo.glyphs.y := FLineInfo.glyphs.x;
+    FLineInfo.XXXMetrics := TXXXMetrics.Create();
   end;
 
   for i := 1 to Length(AStr) do
@@ -765,6 +778,7 @@ begin
 
     FLineYYYYMetrics.Add(yyyy);
     FLineInfo.width := FLineInfo.width + xxx.x + xxx.y + xxx.z;
+    FLineInfo.XXXMetrics.Add(xxx);
 
     FPos.x := FPos.x + xxx.x + xxx.y*0.5;
     glyph^.Pos.x := FPos.x;
@@ -809,6 +823,7 @@ begin
       glyph^.Pos.y := FPos.y + FLineInfo.yymetrics.x - FLineYYYYMetrics[i].y + glyph^.Size.y * 0.5;
       Inc(glyph);
     end;
+    FLineInfo.glyphs.y := FGlyphs.Count;
     FLines.Add(FLineInfo);
     FLineYYYYMetrics.Clear();
   end;
@@ -908,6 +923,95 @@ end;
 procedure TTextLines.SetVAlign(const AValue: Single);
 begin
   FVAlign := AValue;
+end;
+
+function TTextLines.GetBounds(ARowIdx: Integer; FromChar: Integer; CharCounts: Integer): TRectF;
+var line: PLineInfo;
+    i, n: Integer;
+    HAlign: Single;
+    xxx: TVec3;
+    xlen: Single;
+begin
+  Assert(ARowIdx >= 0, 'ARowIdx out of range');
+  Assert(ARowIdx < FLines.Count, 'ARowIdx out of range');
+
+  Result.min.y := Lerp(0, -FTotalHeight, FVAlign) + Lerp(BoundsY.x, BoundsY.y, FVAlign);
+  for i := 0 to ARowIdx do
+  begin
+    line := FLines.PItem[i];
+    Result.max.y := Result.min.y + line^.yymetrics.x + line^.yymetrics.y;
+    if i <> ARowIdx then Result.min.y := Result.max.y;
+  end;
+
+  case line^.align of
+    laLeft : HAlign := 0;
+    laCenter : HAlign := 0.5;
+    laRight : HAlign := 1.0;
+  end;
+
+  Result.min.x := Lerp(0, -line^.width, HAlign) + Lerp(BoundsX.x, BoundsX.y, HAlign);
+  Result.max.x := Result.min.x;
+  n := 0;
+  for i := line^.glyphs.x to Clamp(line^.glyphs.x + FromChar + CharCounts, line^.glyphs.x, line^.glyphs.y) - 1 do
+  begin
+    xxx := line^.XXXMetrics[n];
+    xlen := xxx.x + xxx.y + xxx.z;
+    if n < FromChar then Result.min.x := Result.min.x + xlen;
+    Result.max.x := Result.max.x + xlen;
+    Inc(n);
+  end;
+end;
+
+procedure TTextLines.SymbolAt(const ALocalCoord: TVec2; out ARowIdx, ACharIdx: Integer);
+
+  function FindLineIdx(): Integer;
+  var ypos, ynext: Single;
+      i: Integer;
+      line: PLineInfo;
+  begin
+    ypos := Lerp(0, -FTotalHeight, FVAlign) + Lerp(BoundsY.x, BoundsY.y, FVAlign);
+    for i := 0 to FLines.Count - 1 do
+    begin
+      line := FLines.PItem[i];
+      ynext := ypos + line^.yymetrics.x + line^.yymetrics.y;
+      if (ALocalCoord.y > ypos) and (ALocalCoord.y <= ynext) then Exit(i);
+      ypos := ynext;
+    end;
+    Result := -1;
+  end;
+
+  function FindCharPos(const ALineIdx: Integer): Integer;
+  var xpos: Single;
+      i: Integer;
+      line: PLineInfo;
+      HAlign: Single;
+  begin
+    line := FLines.PItem[ALineIdx];
+
+    case line^.align of
+      laLeft : HAlign := 0;
+      laCenter : HAlign := 0.5;
+      laRight : HAlign := 1.0;
+    end;
+
+    Result := 0;
+    xpos := ALocalCoord.x - Lerp(BoundsX.x, BoundsX.y, HAlign);
+    for i := line^.glyphs.x to line^.glyphs.y - 1 do
+    begin
+      if FGlyphs[i].Pos.x > xpos then Exit;
+      Inc(Result);
+    end;
+  end;
+
+begin
+  ARowIdx := FindLineIdx();
+  if ARowIdx < 0 then
+  begin
+    ACharIdx := -1;
+    Exit;
+  end;
+
+  ACharIdx := FindCharPos(ARowIdx);
 end;
 
 function TTextLines.LinesCount: Integer;
@@ -1344,7 +1448,7 @@ begin
 
   Seg.Coords.xy := Start;
   Seg.Coords.zw := Stop;
-  Seg.Normals.xy := Rotate90(Stop - Start, False);
+  Seg.Normals.xy := Normalize(Rotate90(Stop - Start, False));
   Seg.Normals.zw := Seg.Normals.xy;
   FLineData.Add(Seg);
 end;
@@ -1542,6 +1646,7 @@ end;
 destructor TavCanvas.Destroy;
 begin
   FreeAndNil(FPen);
+  FreeAndNil(FBrush);
   FreeAndNil(FFont);
   inherited Destroy;
 end;
