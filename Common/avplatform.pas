@@ -345,7 +345,10 @@ begin
     sc := TwndSubclassInfo.Create;
     sc.handle := Wnd;
     {$HINTS OFF}
-    sc.PrevWndProc := TFNWndProc(SetWindowLongPtr(Wnd, GWLP_WNDPROC, LONG_PTR(@CommonWndProc)));
+    if IsWindowUnicode(Wnd) then
+      sc.PrevWndProc := TFNWndProc(SetWindowLongPtrW(Wnd, GWLP_WNDPROC, LONG_PTR(@CommonWndProc)))
+    else
+      sc.PrevWndProc := TFNWndProc(SetWindowLongPtrA(Wnd, GWLP_WNDPROC, LONG_PTR(@CommonWndProc)));
     {$HINTS ON}
     sc.mains := TList.Create;
     sc.mains.Add(obj);
@@ -376,7 +379,10 @@ begin
         begin
           sc.mains.Free;
           {$HINTS OFF}
-          SetWindowLongPtr(sc.handle, GWLP_WNDPROC, LONG_PTR(sc.PrevWndProc));
+          if IsWindowUnicode(sc.handle) then
+            SetWindowLongPtrW(sc.handle, GWLP_WNDPROC, LONG_PTR(sc.PrevWndProc))
+          else
+            SetWindowLongPtrA(sc.handle, GWLP_WNDPROC, LONG_PTR(sc.PrevWndProc));
           {$HINTS ON}
           sc.Free;
           lst.Delete(i);
