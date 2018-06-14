@@ -223,6 +223,7 @@ type
     procedure SetAlign(const AValue: TLineAlign);
     procedure SetFont(const AValue: TFontStyle);
 
+    procedure WriteSpace(ASpace: Single);
     procedure Write(const AStr: string);
     procedure WriteLn(const AStr: string);
 
@@ -489,6 +490,7 @@ type
     FLineInfo       : TLineInfo;
     FLineYYYYMetrics: IVec4Arr;
 
+    procedure InitLine;
     procedure WriteInternal(const AStr: UnicodeString);
     procedure WriteLnInternal;
   private
@@ -497,6 +499,7 @@ type
     procedure SetAlign(const AValue: TLineAlign);
     procedure SetFont(const AValue: TFontStyle);
 
+    procedure WriteSpace(ASpace: Single);
     procedure Write(const AStr: string);
     procedure WriteLn(const AStr: string);
 
@@ -744,6 +747,21 @@ end;
 
 { TTextBuilder }
 
+procedure TTextBuilder.InitLine;
+begin
+  if not FLineInited then
+  begin
+    FLineInited := True;
+    FLineStart := FGlyphs.Count;
+    FLineInfo.align := FAlign;
+    FLineInfo.yymetrics := Vec(0,0);
+    FLineInfo.width := 0;
+    FLineInfo.glyphs.x := FGlyphs.Count;
+    FLineInfo.glyphs.y := FLineInfo.glyphs.x;
+    FLineInfo.XXXMetrics := TXXXMetrics.Create();
+  end;
+end;
+
 procedure TTextBuilder.WriteInternal(const AStr: UnicodeString);
   procedure ScaleMetrics(var xxx: TVec3; var yyyy: TVec4);
   begin
@@ -757,17 +775,7 @@ var ch: WideChar;
     dummy: TGlyphVertex;
     i: Integer;
 begin
-  if not FLineInited then
-  begin
-    FLineInited := True;
-    FLineStart := FGlyphs.Count;
-    FLineInfo.align := FAlign;
-    FLineInfo.yymetrics := Vec(0,0);
-    FLineInfo.width := 0;
-    FLineInfo.glyphs.x := FGlyphs.Count;
-    FLineInfo.glyphs.y := FLineInfo.glyphs.x;
-    FLineInfo.XXXMetrics := TXXXMetrics.Create();
-  end;
+  InitLine;
 
   for i := 1 to Length(AStr) do
   begin
@@ -850,6 +858,13 @@ end;
 procedure TTextBuilder.SetFont(const AValue: TFontStyle);
 begin
   FFont.Assign(AValue);
+end;
+
+procedure TTextBuilder.WriteSpace(ASpace: Single);
+begin
+  InitLine;
+  FLineInfo.width := FLineInfo.width + ASpace;
+  FPos.x := FPos.x + ASpace;
 end;
 
 procedure TTextBuilder.Write(const AStr: string);
