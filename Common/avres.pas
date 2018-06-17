@@ -483,6 +483,49 @@ type
     destructor Destroy; override;
   end;
 
+  ISBManagedHandle = IManagedHandle;
+
+  { TavSBManaged }
+
+  TavSBManaged = class(TavStructuredBase)
+  private type
+    {$IfDef FPC}
+    TSBNode = class (TInterfacedObject, IManagedHandle)
+      Owner     : TavSBManaged;
+      Range     : IMemRange;
+      Vert      : IVerticesData;
+      DirtyIndex: Integer;
+      function HandleData: Pointer;
+      function Size: Integer; Inline;
+      function Offset: Integer;
+      destructor Destroy; override;
+    end;
+    {$EndIf}
+    {$IfDef DCC}
+    TSBNode = class (TDefaultNode, IManagedHandle)
+      Owner     : TavSBManaged;
+      Vert      : IVerticesData;
+      function HandleData: Pointer;
+      function Size: Integer; override;
+      function Offset: Integer;
+      destructor Destroy; override;
+    end;
+    {$EndIf}
+    TNodes = {$IfDef FPC}specialize{$EndIf} TNodeManager<TSBNode>;
+  private
+    FNodes : TNodes;
+  protected
+    function DoBuild: Boolean; override;
+    procedure SetName(const Value: string); override;
+  public
+    function HasData: Boolean;
+
+    function Add(const AVert: IVerticesData): ISBManagedHandle;
+
+    procedure AfterConstruction; override;
+    destructor Destroy; override;
+  end;
+
   { TavTextureBase }
 
   TavTextureBase = class(TavRes)
@@ -822,6 +865,7 @@ type
     procedure SetUniform (const Field: TUniformField; const values: TSingleArr); overload;
     procedure SetUniform (const Field: TUniformField; const v: TVec4arr);        overload;
     procedure SetUniform (const Field: TUniformField; const m: TMat4);           overload;
+    procedure SetUniform (const Field: TUniformField; const m: PMat4; const mCount: Integer); overload;
     procedure SetUniform (const Field: TUniformField; const tex: TavTextureBase;  const sampler: TSamplerInfo); overload;
     procedure SetUniform (const Field: TUniformField; const tex: TavTexture3D; const sampler: TSamplerInfo); overload;
     procedure SetUniform (const Field: TUniformField; const buf: TavStructuredBase); overload;
@@ -834,6 +878,7 @@ type
     procedure SetUniform (const AName: string; const values: TSingleArr); overload;
     procedure SetUniform (const AName: string; const v: TVec4arr);        overload;
     procedure SetUniform (const AName: string; const m: TMat4);           overload;
+    procedure SetUniform (const AName: string; const m: PMat4; const mCount: Integer); overload;
     procedure SetUniform (const AName: string; const tex: TavTextureBase; const sampler: TSamplerInfo); overload;
     procedure SetUniform (const AName: string; const tex: TavTexture3D; const sampler: TSamplerInfo); overload;
     procedure SetUniform (const AName: string; const buf: TavStructuredBase); overload;
@@ -1073,6 +1118,114 @@ begin
 
   AProg.Draw(PrimTopology, CullMode, Assigned(IndNode), InstCount, Start, Count, BaseVertex, BaseInst);
 end;
+
+{ TavSBManaged }
+
+function TavSBManaged.DoBuild: Boolean;
+  function GetFirstLayout: IDataLayout;
+  var node: TSBNode;
+  begin
+    Result := nil;
+    FNodes.Reset;
+    if FNodes.Next(node) then
+      Result := node.Vert.Layout;
+  end;
+  procedure SetNodeData(const node: TSBNode; const StrideSize: Integer);
+  begin
+    Assert(node.Vert.Layout.Size = StrideSize);
+    Assert(node.Vert.Data.data <> nil);
+    Assert(node.Vert.Data.size = node.Range.Size*StrideSize);
+    FbufH.SetSubData(node.Range.Offset*StrideSize, node.Range.Size*StrideSize, node.Vert.Data.data);
+  end;
+var node  : TSBNode;
+    StrideSize: Integer;
+begin
+  Result := True;
+  if Assigned(FbufH) and (FNodes.DirtyCount = 0) then Exit;
+
+  if FbufH = nil then
+  begin
+    FbufH := Main.Context.CreateStructBuffer;
+    FbufH.ElementSize := GetFirstLayout.Size;
+  end;
+  StrideSize := FbufH.ElementSize;
+  if FbufH.Size <> FNodes.RangeManSize*StrideSize then
+  begin
+    FNodes.InvalidateAll;
+    FbufH.AllocMem(FNodes.RangeManSize*StrideSize, nil);
+  end;
+
+  FNodes.Reset;
+  while FNodes.NextDirty(node) do
+    SetNodeData(node, StrideSize);
+  FNodes.ValidateAll;
+end;
+
+procedure TavSBManaged.SetName(const Value: string);
+begin
+  inherited SetName(Value);
+  if FNodes <> nil then
+    FNodes.Name := Value;
+end;
+
+function TavSBManaged.HasData: Boolean;
+begin
+  Result := FNodes.RangeManSize > 0;
+end;
+
+function TavSBManaged.Add(const AVert: IVerticesData): ISBManagedHandle;
+var node: TSBNode;
+begin
+  Result := nil;
+  if AVert = nil then Exit;
+  if AVert.VerticesCount = 0 then Exit;
+  if AVert.Layout = nil then Exit;
+
+  node := TSBNode.Create;
+  node.Owner := Self;
+  node.Vert := AVert;
+  FNodes.Add(node);
+  if FNodes.DirtyCount > 0 then
+    Invalidate;
+
+  Result := node;
+end;
+
+procedure TavSBManaged.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FNodes := TNodes.Create;
+end;
+
+destructor TavSBManaged.Destroy;
+begin
+  FreeAndNil(FNodes);
+  inherited Destroy;
+end;
+
+{ TavSBManaged.TSBNode }
+
+function TavSBManaged.TSBNode.HandleData: Pointer;
+begin
+  Result := Self;
+end;
+
+function TavSBManaged.TSBNode.Size: Integer;
+begin
+  Result := Vert.VerticesCount;
+end;
+
+function TavSBManaged.TSBNode.Offset: Integer;
+begin
+  Result := Range.Offset;
+end;
+
+destructor TavSBManaged.TSBNode.Destroy;
+begin
+  inherited Destroy;
+  Owner.FNodes.Del(Self);
+end;
+
 
 { TavTexture3D }
 
@@ -1669,6 +1822,7 @@ var initData: TByteArr;
     i: Integer;
 begin
   Result := inherited DoBuild;
+
   if FVert = nil then
   begin
     initDataPtr := nil;
@@ -2395,6 +2549,9 @@ function TavFrameBuffer.DoBuild: Boolean;
       SimpleTex: TavTexture absolute tex;
       MultiTex : TavMultiSampleTexture absolute tex;
   begin
+    tex.Build;
+    if (tex.Width = FrameSize.x) and (tex.Height = FrameSize.y) then Exit();
+
     if tex is TavTexture then
     begin
       if ForcedPOT then
@@ -3657,6 +3814,11 @@ begin
   FProgram.SetUniform(Field, m);
 end;
 
+procedure TavProgram.SetUniform(const Field: TUniformField; const m: PMat4; const mCount: Integer);
+begin
+  FProgram.SetUniform(Field, m, mCount);
+end;
+
 procedure TavProgram.SetUniform(const Field: TUniformField; const tex: TavTextureBase; const sampler: TSamplerInfo);
 begin
   if tex = nil then Exit;
@@ -3716,6 +3878,11 @@ end;
 procedure TavProgram.SetUniform(const AName: string; const m: TMat4);
 begin
   FProgram.SetUniform(GetUniformField(AName), m);
+end;
+
+procedure TavProgram.SetUniform(const AName: string; const m: PMat4; const mCount: Integer);
+begin
+  FProgram.SetUniform(GetUniformField(AName), m, mCount);
 end;
 
 procedure TavProgram.SetUniform(const AName: string; const tex: TavTextureBase; const sampler: TSamplerInfo);

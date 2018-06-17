@@ -133,6 +133,7 @@ type
   public
     class operator Multiply(const a, b: TQuat): TQuat;
     class operator Multiply(const a: TQuat; const b: TVec3): TVec3;
+    class operator Equal(const a, b: TQuat): Boolean;
   {$EndIf}
   case Byte of
     0: (x, y, z, w: Single);
@@ -220,6 +221,7 @@ type
     class operator Add (const AABB: TAABB; const v: TVec3): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
     class operator Add (const Box1, Box2: TAABB): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
     class operator Multiply(const AABB: TAABB; const m: TMat4): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
+    class operator Equal (const Box1, Box2: TAABB): boolean; {$IFNDEF NoInline} inline; {$ENDIF}
     {$EndIf}
   case Byte of
     0: (min, max: TVec3);
@@ -791,6 +793,11 @@ begin
   for i := 0 to 7 do
     Result := Result + AABB.Point(i) * m;
 end;
+
+class operator TAABB.Equal(const Box1, Box2: TAABB): boolean;
+begin
+  Result := (Box1.min = Box2.min) and (Box1.max = Box2.max);
+end;
 {$EndIf}
 
   { TRectI }
@@ -1139,6 +1146,11 @@ begin
   Result.x:=b.x-2*b.x*(sqr(a.y)+sqr(a.z))+2*b.y*(a.x*a.y+a.z*a.w)+2*b.z*(a.x*a.z-a.y*a.w);
   Result.y:=2*b.x*(a.x*a.y-a.z*a.w)+b.y-2*b.y*(sqr(a.x)+sqr(a.z))+2*b.z*(a.y*a.z+a.x*a.w);
   Result.z:=2*b.x*(a.x*a.z+a.y*a.w)+2*b.y*(a.y*a.z-a.x*a.w)+b.z-2*b.z*(sqr(a.x)+sqr(a.y));
+end;
+
+class operator TQuat.Equal(const a, b: TQuat): Boolean;
+begin
+  Result := a.v4 = b.v4;
 end;
 {$EndIf}
 

@@ -157,6 +157,7 @@ Type
     Wrap_Y     : TTextureWrap;
     Wrap_Z     : TTextureWrap;
     Border     : TVec4;
+    Comparison : TCompareFunc;
   end;
 
   TComponentType = (ctBool, ctByte, ctUByte, ctShort, ctUShort, ctInt, ctUInt, ctFloat, ctDouble);
@@ -351,6 +352,7 @@ const
       Wrap_Y     : twRepeat;
       Wrap_Z     : twRepeat;
       Border     : (x: 0; y: 0; z: 0; w: 0);
+      Comparison : cfNever;
     );
     Sampler_NoFilterClamped : TSamplerInfo = (
       MinFilter  : tfNearest;
@@ -361,6 +363,7 @@ const
       Wrap_Y     : twClamp;
       Wrap_Z     : twClamp;
       Border     : (x: 0; y: 0; z: 0; w: 0);
+      Comparison : cfNever;
     );
     Sampler_LinearNoMips : TSamplerInfo = (
       MinFilter  : tfLinear;
@@ -371,6 +374,7 @@ const
       Wrap_Y     : twRepeat;
       Wrap_Z     : twRepeat;
       Border     : (x: 0; y: 0; z: 0; w: 0);
+      Comparison : cfNever;
     );
     Sampler_Linear : TSamplerInfo = (
       MinFilter  : tfLinear;
@@ -381,6 +385,7 @@ const
       Wrap_Y     : twRepeat;
       Wrap_Z     : twRepeat;
       Border     : (x: 0; y: 0; z: 0; w: 0);
+      Comparison : cfNever;
     );
     Sampler_Linear_NoAnisotropy : TSamplerInfo = (
       MinFilter  : tfLinear;
@@ -391,6 +396,7 @@ const
       Wrap_Y     : twRepeat;
       Wrap_Z     : twRepeat;
       Border     : (x: 0; y: 0; z: 0; w: 0);
+      Comparison : cfNever;
     );
 
     Sampler_LinearClamped : TSamplerInfo = (
@@ -402,6 +408,7 @@ const
       Wrap_Y     : twClamp;
       Wrap_Z     : twClamp;
       Border     : (x: 0; y: 0; z: 0; w: 0);
+      Comparison : cfNever;
     );
 
 type

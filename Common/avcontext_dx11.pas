@@ -195,6 +195,17 @@ const
                                                                           {ptTriangleStrip_Adj} D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ,
                                                                           {ptPatches}           D3D11_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST);
 
+  DXCompareFunc : array [TCompareFunc] of TD3D11_ComparisonFunc = (
+    D3D11_COMPARISON_NEVER,         // cfNever
+    D3D11_COMPARISON_LESS,          // cfLess
+    D3D11_COMPARISON_EQUAL,         // cfEqual
+    D3D11_COMPARISON_NOT_EQUAL,     // cfNotEqual
+    D3D11_COMPARISON_LESS_EQUAL,    // cfLessEqual
+    D3D11_COMPARISON_GREATER,       // cfGreater
+    D3D11_COMPARISON_GREATER_EQUAL, // cfGreaterEqual
+    D3D11_COMPARISON_ALWAYS         // cfAlways
+  );
+
 function Add_sRGB(const AFormat: TDXGI_Format): TDXGI_Format;
 begin
   case AFormat of
@@ -210,6 +221,11 @@ end;
 procedure Check3DError(hr: HRESULT);
 var s: string;
 begin
+  if hr <> 0 then
+  begin
+    s := IntToStr(hr);
+    MessageBox(0, PChar(s), 'Error', MB_OK);
+  end;
     if hr = 0 then Exit;
     case hr of
 //      D3D10_ERROR_FILE_NOT_FOUND                : s := 'D3D10_ERROR_FILE_NOT_FOUND';
@@ -374,17 +390,6 @@ type
     const DXDepthMask : array [Boolean] of D3D11_DEPTH_WRITE_MASK = (
       D3D11_DEPTH_WRITE_MASK_ZERO,
       D3D11_DEPTH_WRITE_MASK_ALL
-    );
-
-    const DXCompareFunc : array [TCompareFunc] of TD3D11_ComparisonFunc = (
-      D3D11_COMPARISON_NEVER,         // cfNever
-      D3D11_COMPARISON_LESS,          // cfLess
-      D3D11_COMPARISON_EQUAL,         // cfEqual
-      D3D11_COMPARISON_NOT_EQUAL,     // cfNotEqual
-      D3D11_COMPARISON_LESS_EQUAL,    // cfLessEqual
-      D3D11_COMPARISON_GREATER,       // cfGreater
-      D3D11_COMPARISON_GREATER_EQUAL, // cfGreaterEqual
-      D3D11_COMPARISON_ALWAYS         // cfAlways
     );
 
     const AVDepthFunc : array [TD3D11_ComparisonFunc] of TCompareFunc = (
@@ -930,8 +935,8 @@ type
 
     procedure SetIL(const AKey: TILKey);
 
-    procedure SetUniform(const DXField: TUniformField_DX; const data; const datasize: Integer); overload; //inline;
-    procedure SetUniform(const DXField: TUniformField_DX; const tex: ID3D11ShaderResourceView; const Sampler: TSamplerInfo); overload;
+    procedure SetUniform_internal(const DXField: TUniformField_DX; const data; const datasize: Integer); overload; //inline;
+    procedure SetUniform_internal(const DXField: TUniformField_DX; const tex: ID3D11ShaderResourceView; const Sampler: TSamplerInfo); overload;
   public
     procedure AfterConstruction; override;
     destructor Destroy; override;
@@ -951,6 +956,7 @@ type
     procedure SetUniform(const Field: TUniformField; const values: TSingleArr); overload;
     procedure SetUniform(const Field: TUniformField; const v: TVec4arr); overload;
     procedure SetUniform(const Field: TUniformField; const m: TMat4); overload;
+    procedure SetUniform(const Field: TUniformField; const m: PMat4; const mCount: Integer); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture3D; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
@@ -1469,7 +1475,7 @@ begin
   FContext.FDeviceContext.IASetInputLayout(Info.IL);
 end;
 
-procedure TProgram.SetUniform(const DXField: TUniformField_DX; const data; const datasize: Integer);
+procedure TProgram.SetUniform_internal(const DXField: TUniformField_DX; const data; const datasize: Integer);
 var st: TShaderType;
 begin
   if DXField = nil then Exit;
@@ -1484,7 +1490,7 @@ begin
   end;
 end;
 
-procedure TProgram.SetUniform(const DXField: TUniformField_DX; const tex: ID3D11ShaderResourceView; const Sampler: TSamplerInfo);
+procedure TProgram.SetUniform_internal(const DXField: TUniformField_DX; const tex: ID3D11ShaderResourceView; const Sampler: TSamplerInfo);
 var SamplerState: ID3D11SamplerState;
 begin
   SamplerState := FContext.ObtainSamplerState(Sampler);
@@ -1846,31 +1852,31 @@ end;
 procedure TProgram.SetUniform(const Field: TUniformField; const Value: integer);
 var DXField: TUniformField_DX absolute Field;
 begin
-  SetUniform(DXField, Value, SizeOf(Value));
+  SetUniform_internal(DXField, Value, SizeOf(Value));
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const Value: single);
 var DXField: TUniformField_DX absolute Field;
 begin
-  SetUniform(DXField, Value, SizeOf(Value));
+  SetUniform_internal(DXField, Value, SizeOf(Value));
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const v: TVec2);
 var DXField: TUniformField_DX absolute Field;
 begin
-  SetUniform(DXField, v, SizeOf(v));
+  SetUniform_internal(DXField, v, SizeOf(v));
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const v: TVec3);
 var DXField: TUniformField_DX absolute Field;
 begin
-  SetUniform(DXField, v, SizeOf(v));
+  SetUniform_internal(DXField, v, SizeOf(v));
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const v: TVec4);
 var DXField: TUniformField_DX absolute Field;
 begin
-  SetUniform(DXField, v, SizeOf(v));
+  SetUniform_internal(DXField, v, SizeOf(v));
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const values: TSingleArr);
@@ -1912,13 +1918,19 @@ end;
 procedure TProgram.SetUniform(const Field: TUniformField; const v: TVec4arr);
 var DXField: TUniformField_DX absolute Field;
 begin
-  SetUniform(DXField, v[0], SizeOf(v[0]) * Length(v));
+  SetUniform_internal(DXField, v[0], SizeOf(v[0]) * Length(v));
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const m: TMat4);
 var DXField: TUniformField_DX absolute Field;
 begin
-  SetUniform(DXField, m, SizeOf(m));
+  SetUniform_internal(DXField, m, SizeOf(m));
+end;
+
+procedure TProgram.SetUniform(const Field: TUniformField; const m: PMat4; const mCount: Integer);
+var DXField: TUniformField_DX absolute Field;
+begin
+  SetUniform_internal(DXField, m^, SizeOf(TMat4)*mCount);
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo);
@@ -1932,7 +1944,7 @@ begin
     resview := dxtex.GetResCubeView
   else
     resview := dxtex.GetResView;
-  SetUniform(DXField, resview, Sampler);
+  SetUniform_internal(DXField, resview, Sampler);
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const tex: IctxTexture3D; const Sampler: TSamplerInfo);
@@ -1941,7 +1953,7 @@ var DXField: TUniformField_DX absolute Field;
 begin
   if Field = nil then Exit;
   if not Supports(tex, IctxTexture3D_DX11, dxtex) then Exit;
-  SetUniform(DXField, dxtex.GetResView, Sampler);
+  SetUniform_internal(DXField, dxtex.GetResView, Sampler);
 end;
 
 procedure TProgram.SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer);
@@ -1990,6 +2002,7 @@ begin
     FUAVList[Index] := uav as IctxUAV_DX11;
     view := FUAVList[Index].GetView;
   end;
+
   FContext.FDeviceContext.CSSetUnorderedAccessViews(Index, 1, @view, @initial);
 end;
 
@@ -3603,6 +3616,25 @@ function TContext_DX11.ObtainSamplerState(const ASampler: TSamplerInfo): ID3D11S
          (D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT      , D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT      , D3D11_FILTER_MIN_MAG_MIP_LINEAR)
        )
     );
+  const DX_CmpFilter: array [TTextureFilter, TTextureFilter, TTextureFilter] of TD3D11_Filter =
+    (
+       //min
+       ( //mag
+         (D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT             , D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT             , D3D11_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR),
+         (D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT             , D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT             , D3D11_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR),
+         (D3D11_FILTER_COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT, D3D11_FILTER_COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT, D3D11_FILTER_COMPARISON_MIN_POINT_MAG_MIP_LINEAR)
+       ),
+       ( //mag
+         (D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT             , D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT             , D3D11_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR),
+         (D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT             , D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT             , D3D11_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR),
+         (D3D11_FILTER_COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT, D3D11_FILTER_COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT, D3D11_FILTER_COMPARISON_MIN_POINT_MAG_MIP_LINEAR)
+       ),
+       ( //mag
+         (D3D11_FILTER_COMPARISON_MIN_LINEAR_MAG_MIP_POINT      , D3D11_FILTER_COMPARISON_MIN_LINEAR_MAG_MIP_POINT      , D3D11_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR),
+         (D3D11_FILTER_COMPARISON_MIN_LINEAR_MAG_MIP_POINT      , D3D11_FILTER_COMPARISON_MIN_LINEAR_MAG_MIP_POINT      , D3D11_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR),
+         (D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT      , D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT      , D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR)
+       )
+    );
   const D3D11_Wrap: array [TTextureWrap] of TD3D11_TextureAddressMode = (D3D11_TEXTURE_ADDRESS_WRAP,   //twRepeat
                                                                          D3D11_TEXTURE_ADDRESS_MIRROR, //twMirror
                                                                          D3D11_TEXTURE_ADDRESS_CLAMP,  //twClamp
@@ -3611,22 +3643,27 @@ var Desc: TD3D11_SamplerDesc;
 begin
   if not FSamplerMap.TryGetValue(ASampler, Result) then
   begin
-    if ASampler.Anisotropy > 0 then
-      Desc.Filter := D3D11_FILTER_ANISOTROPIC
+    if ASampler.Comparison <> cfNever then
+      Desc.Filter := DX_CmpFilter[ASampler.MinFilter, ASampler.MagFilter, ASampler.MipFilter]
     else
-      Desc.Filter := DX_Filter[ASampler.MinFilter, ASampler.MagFilter, ASampler.MipFilter];
+    begin
+      if ASampler.Anisotropy > 0 then
+        Desc.Filter := D3D11_FILTER_ANISOTROPIC
+      else
+        Desc.Filter := DX_Filter[ASampler.MinFilter, ASampler.MagFilter, ASampler.MipFilter];
+    end;
     Desc.AddressU := D3D11_Wrap[ASampler.Wrap_X];
     Desc.AddressV := D3D11_Wrap[ASampler.Wrap_Y];
     Desc.AddressW := D3D11_Wrap[ASampler.Wrap_Z];
     Desc.MipLODBias := 0;
     Desc.MaxAnisotropy := Min(16, Max(1, ASampler.Anisotropy));
-    Desc.ComparisonFunc := D3D11_COMPARISON_ALWAYS;
     Desc.MinLOD := 0;
     Desc.MaxLOD := D3D11_FLOAT32_MAX;
     Desc.BorderColor[0] := ASampler.Border.x;
     Desc.BorderColor[1] := ASampler.Border.y;
     Desc.BorderColor[2] := ASampler.Border.z;
     Desc.BorderColor[3] := ASampler.Border.w;
+    Desc.ComparisonFunc := DXCompareFunc[ASampler.Comparison];
     Result := nil;
     Check3DError(FDevice.CreateSamplerState(Desc, Result));
     FSamplerMap.Add(ASampler, Result);
@@ -3835,8 +3872,14 @@ begin
   bufdesc.CPUAccessFlags := 0;
   bufdesc.MiscFlags := Cardinal(D3D11_RESOURCE_MISC_BUFFER_STRUCTURED);
   bufdesc.StructureByteStride := AStrideSize;
+
   if AInitialData = nil then
+  begin
+    initData.pSysMem := nil;
+    initData.SysMemPitch := 0;
+    initData.SysMemSlicePitch := 0;
     Check3DError( FContext.GetDevice.CreateBuffer(bufdesc, nil, FBuffer) )
+  end
   else
   begin
     initData.pSysMem := AInitialData;

@@ -169,6 +169,7 @@ type
     procedure SetUniform(const Field: TUniformField; const values: TSingleArr); overload;
     procedure SetUniform(const Field: TUniformField; const v: TVec4arr); overload;
     procedure SetUniform(const Field: TUniformField; const m: TMat4); overload;
+    procedure SetUniform(const Field: TUniformField; const m: PMat4; const mCount: Integer); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture3D; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;

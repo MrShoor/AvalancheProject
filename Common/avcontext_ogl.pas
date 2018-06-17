@@ -977,6 +977,7 @@ type
     procedure SetUniform(const Field: TUniformField; const values: TSingleArr); overload;
     procedure SetUniform(const Field: TUniformField; const v: TVec4arr); overload;
     procedure SetUniform(const Field: TUniformField; const m: TMat4); overload;
+    procedure SetUniform(const Field: TUniformField; const m: PMat4; const mCount: Integer); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture3D; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
@@ -2526,6 +2527,18 @@ begin
   begin
     Move(m, Field.Data^, SizeOf(m));
     glUniformMatrix4fv(TUniformField_OGL(Field).ID, 1, false, @m);
+  end;
+end;
+
+procedure TProgram.SetUniform(const Field: TUniformField; const m: PMat4; const mCount: Integer);
+begin
+  if Field = nil then Exit;
+  if Field.DataClass = dcSampler then Exit;
+  if Field.DataClass = dcCubeSampler then Exit;
+  if not CompareMem(@m, Field.Data, SizeOf(m)) then
+  begin
+    Move(m, Field.Data^, SizeOf(m));
+    glUniformMatrix4fv(TUniformField_OGL(Field).ID, mCount, false, PGLFloat(m));
   end;
 end;
 

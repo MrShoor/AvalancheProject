@@ -91,7 +91,7 @@ PS_Output PS(VS_Output In) {
     
     if (m.mapSpecular_Hardness_mapGeometry_Normal.w > 0.001) {
         float3x3 tbn = CalcTBN(In.vCoord, In.vNorm, In.vTex);
-        float3 norm = UnpackNormal(m.Geometry_Normal(In.vTex, float4(0.5,0.5,1,0)));
+        norm = UnpackNormal(m.Geometry_Normal(In.vTex, float4(0.5,0.5,1,0)));
         norm = mul(norm, tbn);
     }    
     
