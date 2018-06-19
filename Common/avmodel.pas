@@ -727,6 +727,10 @@ begin
   if SortByMaterial then
     Intances.Sort;
 
+  for i := 0 to Intances.Count - 1 do
+    TavModelInstance(Intances[i]).UpdateBoneTransform;
+  Main.ActiveProgram.SetUniform('BoneTransform', FBoneTransform, Sampler_NoFilter);
+
   lastDiffuse := nil;
   for i := 0 to Intances.Count - 1 do
   begin
@@ -774,7 +778,6 @@ begin
   if not FInstVB.HasData then Exit;
   Main.ActiveProgram.SetAttributes(FVB, FIB, FInstVB);
   Main.ActiveProgram.SetUniform('Materials', FMaterials, Sampler_NoFilter);
-  Main.ActiveProgram.SetUniform('BoneTransform', FBoneTransform, Sampler_NoFilter);
 end;
 
 procedure TavModelCollection.Draw(const Instances: array of IavModelInstance; SortByMaterial: Boolean);
