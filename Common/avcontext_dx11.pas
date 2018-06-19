@@ -221,11 +221,6 @@ end;
 procedure Check3DError(hr: HRESULT);
 var s: string;
 begin
-  if hr <> 0 then
-  begin
-    s := IntToStr(hr);
-    MessageBox(0, PChar(s), 'Error', MB_OK);
-  end;
     if hr = 0 then Exit;
     case hr of
 //      D3D10_ERROR_FILE_NOT_FOUND                : s := 'D3D10_ERROR_FILE_NOT_FOUND';
@@ -3802,6 +3797,7 @@ constructor TContext_DX11.Create(const Wnd: TWindow; const WARP: Boolean);
 var SwapChainDesc: TDXGI_SwapChainDesc;
     DriverType : TD3D_DriverType;
     dxgidev: IDXGIDevice1;
+    featureLevel: TD3D_FeatureLevel;
 begin
   FStates := TStates.Create(Self);
   FStatesIntf := TStates(FStates);
@@ -3827,18 +3823,27 @@ begin
   else
     DriverType := D3D_DRIVER_TYPE_HARDWARE;
 
-  Check3DError(
-    D3D11CreateDeviceAndSwapChain(nil,
-                                  DriverType, 0, 0{LongWord(D3D11_CREATE_DEVICE_SINGLETHREADED)} {Or LongWord(D3D11_CREATE_DEVICE_DEBUG)}, nil, 0, D3D11_SDK_VERSION,
-                                  @SwapChainDesc, FSwapChain, FDevice, nil, FDeviceContext)
-  );
-  if Supports(FDevice, IDXGIDevice1, dxgidev) then
+  featureLevel := D3D_FEATURE_LEVEL_11_0;
+  try
+    Check3DError(
+      D3D11CreateDeviceAndSwapChain(nil,
+                                    DriverType, 0, 0{LongWord(D3D11_CREATE_DEVICE_SINGLETHREADED)} {Or LongWord(D3D11_CREATE_DEVICE_DEBUG)}, @featureLevel, 1, D3D11_SDK_VERSION,
+                                    @SwapChainDesc, FSwapChain, FDevice, nil, FDeviceContext)
+    );
+	except
+    on E: E3DError do
+    begin
+      raise ECreateContextFailed.Create('Can''t create D3D11 context');
+  	end;
+	end;
+	if Supports(FDevice, IDXGIDevice1, dxgidev) then
     dxgidev.SetMaximumFrameLatency(1);
 end;
 
 destructor TContext_DX11.Destroy;
 begin
-  FDeviceContext.ClearState;
+  if FDeviceContext <> nil then
+    FDeviceContext.ClearState;
   FRenderTarget := nil;
   FBackBuffer := nil;
   FSwapChain := nil;

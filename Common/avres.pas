@@ -3373,42 +3373,37 @@ end;
 
 procedure TavMainRender.Init3D(api: T3DAPI);
 begin
-  try
-      if not Inited3D then
-      begin
-        case api of
-            apiOGL :
-              begin
-                FContext := TContext_OGL.Create(FWindow);
-                FProjection.DepthRange := Vec(-1.0, 1.0);
-              end;
-            apiDX11, apiDX11_WARP:
-              begin
-                FContext := TContext_DX11.Create(FWindow, api = apiDX11_WARP);
-                FProjection.DepthRange := Vec(0, 1.0);
-              end;
-        end;
-        FActiveApi := api;
+	if not Inited3D then
+	begin
+	  case api of
+	      apiOGL :
+	        begin
+	          FContext := TContext_OGL.Create(FWindow);
+	          FProjection.DepthRange := Vec(-1.0, 1.0);
+	        end;
+	      apiDX11, apiDX11_WARP:
+	        begin
+	          FContext := TContext_DX11.Create(FWindow, api = apiDX11_WARP);
+	          FProjection.DepthRange := Vec(0, 1.0);
+	        end;
+	  end;
+	  FActiveApi := api;
 
-        if assigned(FContext) then
-        begin
-          if Bind then
-          begin
-//            States.Viewport := Rect(0, 0, FWidth, FHeight);
-            AfterInit3D_Broadcast;
-            Unbind;
-          end;
-          LogLn('Render context created');
-        end
-        else
-        begin
-          LogLn('Creating render context failed');
-        end;
-      end;
-  except
-      on e: ECreateContextFailed do
-        raise EavError.Create('ECreateContextFailed with message: ' + e.Message);
-  end;
+	  if assigned(FContext) then
+	  begin
+	    if Bind then
+	    begin
+//          States.Viewport := Rect(0, 0, FWidth, FHeight);
+	      AfterInit3D_Broadcast;
+	      Unbind;
+	    end;
+	    LogLn('Render context created');
+	  end
+	  else
+	  begin
+	    LogLn('Creating render context failed');
+	  end;
+	end;
 end;
 
 procedure TavMainRender.Free3D;
