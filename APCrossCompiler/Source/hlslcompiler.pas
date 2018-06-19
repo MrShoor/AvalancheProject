@@ -11,8 +11,9 @@ interface
 
 uses
   Windows, Classes, SysUtils, CompileTask, D3DCompiler_JSB, D3DCommon_JSB, D3D11_JSB, DXGI_JSB,
+  avContnrs,
   {$IfDef fpc}
-    avTypes, avContnrs, avContext;
+    avTypes, avContext;
   {$Else}
     davTypes, Generics.Collections;
   {$EndIf}
@@ -38,13 +39,8 @@ type
   TIncludeAdapter = class(ID3DInclude)
   {$EndIf}
   private type
-    {$IfDef fpc}
-    TIncludes = specialize THashMap<string, AnsiString>;
-    IIncludes = specialize IHashMap<string, AnsiString>;
-    {$Else}
-    TIncludes = TDictionary<string, AnsiString>;
-    IIncludes = TDictionary<string, AnsiString>;
-    {$EndIf}
+    TIncludes = {$IfDef fpc}specialize{$EndIf} THashMap<string, AnsiString>;
+    IIncludes = {$IfDef fpc}specialize{$EndIf} IHashMap<string, AnsiString>;
   private const
     NullData: AnsiString = ' ';
   private
@@ -57,7 +53,6 @@ type
     function FileNameByPointer(const ptr: Pointer): string;
 
     constructor Create(const prog: TProgramInfo);
-    destructor Destroy; override;
   end;
 
   { TChunkWriter }
@@ -152,6 +147,15 @@ begin
 end;
 
 function ReparseOutput(const str: ID3DBlob; const incl: TIncludeAdapter): string;
+
+  function TryStrToNativeInt(const s: string; Out i : NativeInt) : boolean;
+  var
+    Error : Integer;
+  begin
+    Val(s, i, Error);
+    Result:=Error=0;
+  end;
+
   function ReparseLine(const ALine: string; const incl: TIncludeAdapter): string;
   var addrS: string;
       addrPos: Integer;
@@ -175,7 +179,7 @@ function ReparseOutput(const str: ID3DBlob; const incl: TIncludeAdapter): string
           not supproted platform
         {$EndIf}
       {$EndIf}
-      if not TryStrToInt64(addrS, NativeInt(addr)) then Exit;
+      if not TryStrToNativeInt(addrS, NativeInt(addr)) then Exit;
       OffsetIndex := addrPos + 3 + 8;
 
       fname := incl.FileNameByPointer(addr);
@@ -607,17 +611,7 @@ end;
 constructor TIncludeAdapter.Create(const prog: TProgramInfo);
 begin
   FProg := prog;
-  {$IfDef fpc}
   FIncludes := TIncludes.Create;
-  {$Else}
-  FIncludes := TIncludes.Create;
-  {$EndIf}
-end;
-
-destructor TIncludeAdapter.Destroy;
-begin
-  {$IfNDef fpc} FreeAndNil(FIncludes); {$EndIf}
-  inherited Destroy;
 end;
 
 { TUniform }

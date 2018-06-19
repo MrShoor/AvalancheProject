@@ -276,7 +276,7 @@ end;
 
 function  IsKeyPressed(const VKey: Integer): Boolean;
 begin
-  Result := GetKeyState(VKey) < 1;
+  Result := GetKeyState(VKey) < 0;
 end;
 
 function IsFocusedWindow(Window: TWindow): Boolean;

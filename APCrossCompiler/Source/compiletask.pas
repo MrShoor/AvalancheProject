@@ -81,6 +81,9 @@ type
 
     TFLAGS_HLSLcc = TDictionary<string, Cardinal>;
     IFLAGS_HLSLcc = TDictionary<string, Cardinal>;
+
+    TFLAGS_HLSL = TDictionary<string, Cardinal>;
+    IFLAGS_HLSL = TDictionary<string, Cardinal>;
   {$endif}
 var
   FLAGS_HLSLcc : IFLAGS_HLSLcc;
