@@ -2239,7 +2239,7 @@ begin
     2: Result := max;
     3: Result := Vec(max.x, min.y);
   else
-    Exit;
+    Result := Vec(0,0);
   end;
 end;
 

@@ -11,7 +11,7 @@ object frmMain: TfrmMain
   OnDestroy = FormDestroy
   OnMouseDown = FormMouseDown
   OnPaint = FormPaint
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.8.0.3'
   object cbSorted: TCheckBox
     Left = 8
     Height = 19

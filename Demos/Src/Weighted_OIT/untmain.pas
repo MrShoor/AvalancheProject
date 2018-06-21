@@ -83,12 +83,6 @@ type
     function GenCubeInstances(ZSorted: Boolean = False): IVerticesData; overload;
     function GenCubeInstances(const RangeMin, RangeMax: TVec3I; ZSorted: Boolean = False): IVerticesData; overload;
   public
-    {$IfDef FPC}
-    procedure EraseBackground(DC: HDC); override;
-    {$EndIf}
-    {$IfDef DCC}
-    procedure WMEraseBkgnd(var Message: TWmEraseBkgnd); message WM_ERASEBKGND;
-    {$EndIf}
     procedure RenderScene;
   end;
 
@@ -350,19 +344,6 @@ begin
 
   Result := inst as IVerticesData;
 end;
-
-{$IfDef FPC}
-procedure TfrmMain.EraseBackground(DC: HDC);
-begin
-  //inherited EraseBackground(DC);
-end;
-{$EndIf}
-{$IfDef DCC}
-procedure TfrmMain.WMEraseBkgnd(var Message: TWmEraseBkgnd);
-begin
-  Message.Result := 1;
-end;
-{$EndIf}
 
 procedure TfrmMain.RenderScene;
 begin

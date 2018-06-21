@@ -49,8 +49,6 @@ const
   WM_XBUTTONUP     = $020C;
   WM_XBUTTONDBLCLK = $020D;
   WM_MOUSELAST     = $020D;
-  XBUTTON1 = $0001;
-  XBUTTON2 = $0002;
 
 var StartTime64, Freq: Int64;
     SubClassingList: TThreadList;
@@ -218,11 +216,11 @@ begin
       if msgptr^ <> 0 then
         for i := sc.mains.Count - 1 downto 0 do
           TObject(sc.mains.Items[i]).Dispatch(msgptr^);
-    {$IfDef FPC}
-    Result := CallWindowProc(WNDPROC(proc), handle, uMsg, wParam, lParam);
-    {$Else}
-    Result := CallWindowProc(TFNWndProc(proc), handle, uMsg, wParam, lParam);
-    {$EndIf}
+
+    if uMsg <> WM_ERASEBKGND then
+      Result := CallWindowProc({$IfDef FPC}WNDPROC{$Else}TFNWndProc{$EndIf}(proc), handle, uMsg, wParam, lParam)
+    else
+      Result := 1;
   end
   else
     Result := DefWindowProc(handle, uMsg, wParam, lParam);

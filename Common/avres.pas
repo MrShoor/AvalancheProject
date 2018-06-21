@@ -919,7 +919,7 @@ type
       offset: Integer;
     end;
   private const
-    EmptyAttachInfo: TAttachInfo = (tex : nil; mipLevel : 0);
+    EmptyAttachInfo: TAttachInfo = (tex : nil; mipLevel : 0; sliceStart : -1; sliceCount : 0);
   private type
     TColorsList = {$IfDef FPC}specialize{$EndIf} TArray<TAttachInfo>;
     IColorsList = {$IfDef FPC}specialize{$EndIf} IArray<TAttachInfo>;

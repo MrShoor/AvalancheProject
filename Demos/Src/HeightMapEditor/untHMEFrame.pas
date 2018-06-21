@@ -46,9 +46,6 @@ type
   private
     FOnPaint: TNotifyEvent;
   protected
-    {$IfDef FPC}
-    procedure WMEraseBkgnd(var Message: TLMEraseBkgnd); message LM_ERASEBKGND;
-    {$EndIf}
     procedure PaintWindow(DC: HDC); override;
     property OnPaint: TNotifyEvent read FOnPaint write FOnPaint;
   end;
@@ -396,16 +393,6 @@ begin
 end;
 
 { TPanel }
-
-{$IfDef FPC}
-procedure TPanel.WMEraseBkgnd(var Message: TLMEraseBkgnd);
-begin
-  if Assigned(FOnPaint) then
-    Message.Result := 1
-  else
-    inherited;
-end;
-{$EndIf}
 
 procedure TPanel.PaintWindow(DC: HDC);
 begin

@@ -72,13 +72,6 @@ type
 
     procedure Sync3DAPI;
     procedure RenderScene;
-  public
-    {$IfDef FPC}
-    procedure EraseBackground(DC: HDC); override;
-    {$EndIf}
-    {$IfDef DCC}
-    procedure WMEraseBkgnd(var Message: TWmEraseBkgnd); message WM_ERASEBKGND;
-    {$EndIf}
   end;
 
 var
@@ -294,19 +287,6 @@ begin
     FMain.Unbind;
   end;
 end;
-
-{$IfDef FPC}
-procedure TfrmMain.EraseBackground(DC: HDC);
-begin
-  //inherited EraseBackground(DC);
-end;
-{$EndIf}
-{$IfDef DCC}
-procedure TfrmMain.WMEraseBkgnd(var Message: TWmEraseBkgnd);
-begin
-  Message.Result := 1;
-end;
-{$EndIf}
 
 end.
 

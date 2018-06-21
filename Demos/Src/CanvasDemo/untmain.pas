@@ -44,12 +44,6 @@ type
     FFPSCounter: Integer;
     FFPSMeasureTime: Integer;
   public
-    {$IfDef FPC}
-    procedure EraseBackground(DC: HDC); override;
-    {$EndIf}
-    {$IfDef DCC}
-    procedure WMEraseBkgnd(var Message: TWmEraseBkgnd); message WM_ERASEBKGND;
-    {$EndIf}
     procedure RenderScene;
   end;
 
@@ -160,19 +154,6 @@ procedure TfrmMain.FormPaint(Sender: TObject);
 begin
   RenderScene;
 end;
-
-{$IfDef FPC}
-procedure TfrmMain.EraseBackground(DC: HDC);
-begin
-  //inherited EraseBackground(DC);
-end;
-{$EndIf}
-{$IfDef DCC}
-procedure TfrmMain.WMEraseBkgnd(var Message: TWmEraseBkgnd);
-begin
-  Message.Result := 1;
-end;
-{$EndIf}
 
 procedure TfrmMain.RenderScene;
   procedure UpdateFPS;

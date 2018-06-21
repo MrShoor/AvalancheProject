@@ -3937,6 +3937,7 @@ end;
 
 function TUAV.Map(usage: TMapingUsage): PByte;
 begin
+  Result := nil;
   Assert(False, 'not available for UAV');
 end;
 
@@ -4024,6 +4025,7 @@ end;
 
 function TUAV.Unmap: Boolean;
 begin
+  Result := False;
   Assert(False, 'not available for UAV');
 end;
 

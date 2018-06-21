@@ -47,12 +47,6 @@ type
 
     FFrameBuffer: TavFrameBuffer;
   public
-    {$IfDef FPC}
-    procedure EraseBackground(DC: HDC); override;
-    {$EndIf}
-    {$IfDef DCC}
-    procedure WMEraseBkgnd(var Message: TWmEraseBkgnd); message WM_ERASEBKGND;
-    {$EndIf}
     procedure RenderScene;
   end;
 
@@ -152,7 +146,7 @@ var vert: IVerticesData;
 begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
-  FMain.Init3D();
+  FMain.Init3D(apiDX11);
   FMain.Camera.Eye := Vec(-1.6, 1.4,-2.0);
   FMain.Projection.FarPlane := 10.0;
   FMain.Projection.NearPlane := 0.1;
@@ -201,19 +195,6 @@ procedure TfrmMain.FormPaint(Sender: TObject);
 begin
   RenderScene;
 end;
-
-{$IfDef FPC}
-procedure TfrmMain.EraseBackground(DC: HDC);
-begin
-  //inherited EraseBackground(DC);
-end;
-{$EndIf}
-{$IfDef DCC}
-procedure TfrmMain.WMEraseBkgnd(var Message: TWmEraseBkgnd);
-begin
-  Message.Result := 1;
-end;
-{$EndIf}
 
 procedure TfrmMain.RenderScene;
 begin

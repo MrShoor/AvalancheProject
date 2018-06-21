@@ -34,13 +34,6 @@ type
 
     FMesh: TavVB;
     procedure RenderScene;
-  public
-    {$IfDef FPC}
-    procedure EraseBackground(DC: HDC); override;
-    {$EndIf}
-    {$IfDef DCC}
-    procedure WMEraseBkgnd(var Message: TWmEraseBkgnd); message WM_ERASEBKGND;
-    {$EndIf}
   end;
 
 var
@@ -141,11 +134,6 @@ begin
   finally
     FMain.Unbind;
   end;
-end;
-
-procedure TfrmMain.EraseBackground(DC: HDC);
-begin
-  //inherited EraseBackground(DC);
 end;
 
 end.

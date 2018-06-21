@@ -9,7 +9,7 @@ object frmMain: TfrmMain
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnPaint = FormPaint
-  LCLVersion = '1.6.2.0'
+  LCLVersion = '1.8.0.3'
   object Panel1: TPanel
     Left = 0
     Height = 24

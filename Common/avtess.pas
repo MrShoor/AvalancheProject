@@ -1316,6 +1316,7 @@ begin
       ptLineStrip: Result := Vec(Ind[index], Ind[index + 1]);
   else
       Assert(False, 'wrong primitive type');
+      Result := Vec(0,0);
   end;
 end;
 
@@ -1331,6 +1332,7 @@ begin
       ptTriangleStrip: Result := Vec(Ind[index], Ind[index + 1], Ind[index + 2]);
   else
       Assert(False, 'wrong primitive type');
+      Result := Vec(0,0,0);
   end;
 end;
 

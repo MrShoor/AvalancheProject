@@ -1155,7 +1155,7 @@ var ActiveObject: GLuint;
     GLAttType: GLuint;
     TexH: GLuint;
 begin
-  Assert(sliceStart=-1, 'not implemeted yet for slices');
+  Assert((sliceStart=-1) or ((sliceStart = 0) and (sliceCount = 1)) or (tex = nil), 'not implemeted yet for slices');
   if Assigned(tex) then
   begin
     TexH := (tex as IHandle).Handle;

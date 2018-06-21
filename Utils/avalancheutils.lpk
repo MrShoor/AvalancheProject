@@ -23,6 +23,9 @@
           <UseExternalDbgSyms Value="True"/>
         </Debugging>
       </Linking>
+      <Other>
+        <CustomOptions Value="-Oodfa"/>
+      </Other>
     </CompilerOptions>
     <Files Count="11">
       <Item1>

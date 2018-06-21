@@ -28,12 +28,6 @@ type
   private
     FOnRepaint: TNotifyEvent;
   protected
-    {$IfDef FPC}
-    procedure WMEraseBkgnd(var Message: TLMEraseBkgnd); message LM_ERASEBKGND;
-    {$EndIf}
-    {$IfDef DCC}
-    procedure WMEraseBkgnd(var Message: TWMEraseBkgnd); message WM_ERASEBKGND;
-    {$EndIf}
     procedure Paint; override;
   public
     property OnRepaint: TNotifyEvent read FOnRepaint write FOnRepaint;
@@ -117,25 +111,6 @@ uses
 {$EndIf}
 
 { TPanel }
-
-{$IfDef FPC}
-procedure TPanel.WMEraseBkgnd(var Message: TLMEraseBkgnd);
-begin
-  if Assigned(FOnRepaint) then
-    Message.Result := 1
-  else
-    inherited;
-end;
-{$EndIf}
-{$IfDef DCC}
-procedure TPanel.WMEraseBkgnd(var Message: TWMEraseBkgnd);
-begin
-  if Assigned(FOnRepaint) then
-    Message.Result := 1
-  else
-    inherited;
-end;
-{$EndIf}
 
 procedure TPanel.Paint;
 begin
