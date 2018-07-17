@@ -283,6 +283,7 @@ Operator * (const a: TLine; const b: TMat4): TLine; {$IFNDEF NoInline} inline; {
 {$EndIf}
 
 function Quat(const Dir: TVec3; Angle: Single): TQuat; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Quat(x,y,z,w: Single): TQuat; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 
 function Mat2(const Angle: Single): TMat2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Mat3(const Angle: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -340,9 +341,11 @@ function Intersect(const Line1, Line2: TLine2D): TVec2; overload;{$IFNDEF NoInli
 function Intersect(const Seg: TSegment2D; const Line: TLine2D; out IntPoint: TVec2): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const Plane: TPlane; Line: TLine; out IntPt: TVec3): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const R1: TRectF; R2: TRectF): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Intersect(const B1, B2: TAABB): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Distance(const Pt: TVec2; const Seg: TSegment2D): Single; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Distance(const Pt: TVec2; const Seg: TSegment2D; out AClosestPt: TVec2): Single; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Projection(const Pt: TVec2; const Line: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Projection(const Cast: TVec3; const Recieve: TVec3): TVec3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat2): TMat2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat3): TMat3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat4): TMat4; overload;{$IFNDEF NoInline} inline; {$ENDIF}
@@ -1158,6 +1161,14 @@ function Quat(const Dir: TVec3; Angle: Single): TQuat; overload; {$IFNDEF NoInli
 begin
   Result.v := Dir * sin(0.5 * angle);
   Result.a := cos(0.5 * angle);
+end;
+
+function Quat(x,y,z,w: Single): TQuat; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.x := x;
+  Result.y := y;
+  Result.z := z;
+  Result.w := w;
 end;
 
 function Mat2(const Angle: Single): TMat2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -2089,6 +2100,13 @@ begin
             (R1.max.y >= R2.min.y) And (R1.min.y <= R2.max.y);
 end;
 
+function Intersect(const B1, B2: TAABB): Boolean;
+begin
+  Result := (B1.max.x >= B2.min.x) And (B1.min.x <= B2.max.x) And
+            (B1.max.y >= B2.min.y) And (B1.min.y <= B2.max.y) And
+            (B1.max.z >= B2.min.z) And (B1.min.z <= B2.max.z);
+end;
+
 function Distance(const Pt: TVec2; const Seg: TSegment2D): Single;
 var dir, v1, v2: TVec2;
     segline: TLine2D;
@@ -2145,6 +2163,16 @@ var C: Single;
 begin
   C := Dot(Pt, Line.Norm) + Line.Offset;
   Result := Pt + Line.Norm*C/LenSqr(Line.Norm);
+end;
+
+function Projection(const Cast: TVec3; const Recieve: TVec3): TVec3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+var Recieve_LenSqr : Single;
+begin
+  Recieve_LenSqr := LenSqr(Recieve);
+  if Recieve_LenSqr = 0 then
+    Result := Vec(0,0,0)
+  else
+    Result := Recieve * (Dot(Cast, Recieve) / Recieve_LenSqr);
 end;
 
 function Inv(const m: TMat2): TMat2; overload;{$IFNDEF NoInline} inline; {$ENDIF}

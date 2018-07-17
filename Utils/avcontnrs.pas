@@ -1475,6 +1475,7 @@ begin
     FRoot := nil;
     Exit;
   end;
+  if FRoot.ItemsCount > 0 then Exit;
 
   while True do
   begin
