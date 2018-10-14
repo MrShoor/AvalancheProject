@@ -197,14 +197,21 @@ type
     function Center  : TVec2;
     function Size    : TVec2i;
     function IsEmpty : Boolean;
+    function PtInRect(const v: TVec2) : Boolean;
+    function Expand(const ASize: Integer) : TRectI; overload;
+    function Expand(const ASize: TVec2i) : TRectI; overload;
+    function Point(AIndex: Integer): TVec2i;
     {$IfDef DCC}
+    class operator Add(const r: TRectI; const v: TVec2): TRectI; overload;
+    class operator Add(const r1, r2: TRectI): TRectI; overload;
     class operator Equal(const v1, v2: TRectI): Boolean;
     {$EndIf}
   case Byte of
     0: (Left, Top, Right, Bottom: Integer);
     1: (LeftTop, RightBottom: TVec2i);
-    2: (f: array [0..4] of Integer);
-    3: (v: TVec4i);
+    2: (min, max: TVec2i);
+    3: (f: array [0..4] of Integer);
+    4: (v: TVec4i);
   end;
 
   { TAABB }
@@ -229,6 +236,7 @@ type
 
 const
   EmptyAABB: TAABB = (min: (x: HUGE; y: HUGE; z: HUGE); max: (x: -HUGE; y: -HUGE; z: -HUGE));
+  EmptyRectI: TRectI = (min: (x: HUGE; y: HUGE); max: (x: -HUGE; y: -HUGE));
 
 type
   { TPlane }
@@ -340,7 +348,8 @@ function Rotate90(const v: TVec2; const CW: Boolean): TVec2; overload; {$IFNDEF 
 function Intersect(const Line1, Line2: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const Seg: TSegment2D; const Line: TLine2D; out IntPoint: TVec2): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const Plane: TPlane; Line: TLine; out IntPt: TVec3): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
-function Intersect(const R1: TRectF; R2: TRectF): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Intersect(const R1: TRectF; const R2: TRectF): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Intersect(const R1: TRectI; const R2: TRectI): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const B1, B2: TAABB): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Distance(const Pt: TVec2; const Seg: TSegment2D): Single; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Distance(const Pt: TVec2; const Seg: TSegment2D; out AClosestPt: TVec2): Single; overload;{$IFNDEF NoInline} inline; {$ENDIF}
@@ -408,6 +417,9 @@ operator = (const q1, q2: TQuat): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 operator + (const r: TRectF; const v: TVec2): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
 operator + (const r1, r2: TRectF): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
 operator * (const r: TRectF; const m: TMat3): TRectF; {$IFNDEF NoInline} inline; {$ENDIF}
+
+operator + (const b: TRectI; v: TVec2i): TRectI; {$IFNDEF NoInline} inline; {$ENDIF}
+operator + (const b1, b2: TRectI): TRectI; {$IFNDEF NoInline} inline; {$ENDIF}
 
 operator + (const AABB: TAABB; v: TVec3): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
 operator + (const Box1, Box2: TAABB): TAABB; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -820,7 +832,53 @@ begin
   Result := (Right<=Left) or (Bottom<=Top);
 end;
 
+function TRectI.PtInRect(const v: TVec2): Boolean;
+begin
+  Result := (v.x >= min.x) and (v.y >= min.y) and
+            (v.x < max.x) and (v.y < max.y);
+end;
+
+function TRectI.Expand(const ASize: Integer): TRectI;
+begin
+  Result.min.x := min.x - ASize;
+  Result.min.y := min.y - ASize;
+  Result.max.x := max.x + ASize;
+  Result.max.y := max.y + ASize;
+end;
+
+function TRectI.Expand(const ASize: TVec2i): TRectI;
+begin
+  Result.min.x := min.x - ASize.x;
+  Result.min.y := min.y - ASize.y;
+  Result.max.x := max.x + ASize.x;
+  Result.max.y := max.y + ASize.y;
+end;
+
+function TRectI.Point(AIndex: Integer): TVec2i;
+begin
+  case AIndex mod 4 of
+    0: Result := min;
+    1: Result := Vec(min.x, max.y);
+    2: Result := max;
+    3: Result := Vec(max.x, min.y);
+  else
+    Result := Vec(0,0);
+  end;
+end;
+
 {$IfDef DCC}
+class operator TRectI.Add(const r: TRectI; const v: TVec2): TRectF;
+begin
+  Result.min := mutils.Min(r.min, v);
+  Result.max := mutils.Max(r.max, v);
+end;
+
+class operator TRectI.Add(const r1, r2: TRectI): TRectI;
+begin
+  Result.min := mutils.Min(r1.min, r2.min);
+  Result.max := mutils.Max(r1.max, r2.max);
+end;
+
 class operator TRectI.Equal(const v1, v2: TRectI): Boolean;
 begin
   Result := (v1.Left = v2.Left) and (v1.Top = v2.Top) and (v1.Right = v2.Right) and (v1.Bottom = v2.Bottom);
@@ -2003,6 +2061,18 @@ begin
     Result := Result + r.Point(i)*m;
 end;
 
+operator + (const b: TRectI; v: TVec2i): TRectI;
+begin
+  Result.min := min(b.min, v);
+  Result.max := max(b.max, v);
+end;
+
+operator + (const b1, b2: TRectI): TRectI;
+begin
+  Result.min := min(b1.min, b2.min);
+  Result.max := max(b1.max, b2.max);
+end;
+
 operator + (const AABB: TAABB; v: TVec3): TAABB;
 begin
   Result.min := min(AABB.min, v);
@@ -2094,10 +2164,16 @@ begin
   Result := True;
 end;
 
-function Intersect(const R1: TRectF; R2: TRectF): Boolean;
+function Intersect(const R1: TRectF; const R2: TRectF): Boolean;
 begin
   Result := (R1.max.x >= R2.min.x) And (R1.min.x <= R2.max.x) And
             (R1.max.y >= R2.min.y) And (R1.min.y <= R2.max.y);
+end;
+
+function Intersect(const R1: TRectI; const R2: TRectI): Boolean;
+begin
+  Result := (R1.max.x > R2.min.x) And (R1.min.x < R2.max.x) And
+            (R1.max.y > R2.min.y) And (R1.min.y < R2.max.y);
 end;
 
 function Intersect(const B1, B2: TAABB): Boolean;

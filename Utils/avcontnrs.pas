@@ -281,6 +281,7 @@ type
     function SymetricDiff(const ASet: IHashSet{$IfDef DCC}<TKey>{$EndIf}): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
 
     function ToIArray(): {$IfDef FPC}specialize{$EndIf}IArray<TKey>;
+    function Clone(): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
 
     procedure Reset;
     function Next(out AKey: TKey): Boolean;
@@ -401,6 +402,7 @@ type
     function  SymetricDiff (const ASet: IHSet): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
 
     function ToIArray(): {$IfDef FPC}specialize{$EndIf}IArray<TKey>;
+    function Clone(): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
 
     procedure Reset;
     function Next(out AKey: TKey): Boolean;
@@ -1309,6 +1311,7 @@ var KMin, KMax: TVec3i;
     size1, size2: Single;
 begin
   Delete(AItem);
+
   Place := ABox.Center * FMinNodeSizeInv * 2;
   SetRoundMode(rmUp);
   KMax := mutils.Ceil( (ABox.max - ABox.min) * FMinNodeSizeInv )*2;
@@ -1380,6 +1383,7 @@ function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.Delete(const AItem: TItem): Bo
 var node, parent, nextParent: INode;
 begin
   Result := False;
+
   if FItemToNode.TryGetValue(AItem, node) then
   begin
     parent := node.Parent;
@@ -1786,6 +1790,15 @@ var k: TKey;
 begin
   Result := TArr.Create();
   Result.Capacity := Count;
+  Reset;
+  while Next(k) do
+    Result.Add(k);
+end;
+
+function THashSet{$IfDef DCC}<TKey>{$EndIf}.Clone(): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
+var k: TKey;
+begin
+  Result := THSet.Create(FComparer);
   Reset;
   while Next(k) do
     Result.Add(k);

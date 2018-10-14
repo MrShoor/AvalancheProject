@@ -34,7 +34,7 @@ VS_Output VS(VS_Input In) {
     Crd.xy = mul(float3(Crd.xy,1), CanvasTransform()).xy;
     
     Out.Pos = mul(float4(Crd, 0.0, 1.0), UIMatrix);
-    Out.Pos.z = 0.5;
+    Out.Pos.z = ZValue * Out.Pos.w;
 
     if (PostHinting) {
         Out.Pos = PostHintVertex(Out.Pos, In.HintingAlign.xy);

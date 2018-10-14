@@ -244,6 +244,8 @@ type
     FUniform_CanvasTransform: TUniformField;
     FUniform_PixelToUnit: TUniformField;
 
+    FUniform_ZValue: TUniformField;
+
     FLastViewportSize: TVec2i;
   protected
     procedure BeforeFree3D; override;
@@ -253,6 +255,7 @@ type
   public
     procedure SetCanvasTransform(const ATransform: TMat3);
     procedure SetPixelToUnit(const AScale: single);
+    procedure SetZValue(const AZVal: single);
   end;
   TavFontProgram = class;
 
@@ -360,9 +363,10 @@ type
     function GetCommonData: TavCanvasCommonData;
     property CommonData: TavCanvasCommonData read GetCommonData;
   private
-    FPen  : TPenStyle;
-    FBrush: TBrushStyle;
-    FFont : TFontStyle;
+    FZValue: Single;
+    FPen   : TPenStyle;
+    FBrush : TBrushStyle;
+    FFont  : TFontStyle;
 
     FLineData: ILinePointVertices;
     FValid   : Boolean;
@@ -391,9 +395,10 @@ type
 
     procedure AddQuad(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex);
   public
-    property Pen  : TPenStyle   read FPen   write SetPen;
-    property Brush: TBrushStyle read FBrush write SetBrush;
-    property Font : TFontStyle  read FFont  write SetFont;
+    property ZValue: Single      read FZValue write FZValue;
+    property Pen   : TPenStyle   read FPen    write SetPen;
+    property Brush : TBrushStyle read FBrush  write SetBrush;
+    property Font  : TFontStyle  read FFont   write SetFont;
 
     property Valid: Boolean    read FValid write SetValid;
 
@@ -679,6 +684,7 @@ begin
   FUniform_ViewportSize := nil;
   FUniform_PixelToUnit := nil;
   FUniform_CanvasTransform := nil;
+  FUniform_ZValue := nil;
 end;
 
 function TavUIProgram.DoBuild: Boolean;
@@ -691,6 +697,7 @@ begin
     FUniform_ViewportSize := GetUniformField('ViewPortSize');
     FUniform_PixelToUnit := GetUniformField('PixelToUnit');
     FUniform_CanvasTransform := GetUniformField('_CanvasTransform');
+    FUniform_ZValue := GetUniformField('ZValue');
     FLastViewportSize := Vec(0,0);
   end;
 end;
@@ -723,6 +730,11 @@ end;
 procedure TavUIProgram.SetPixelToUnit(const AScale: single);
 begin
   SetUniform(FUniform_PixelToUnit, AScale);
+end;
+
+procedure TavUIProgram.SetZValue(const AZVal: single);
+begin
+  SetUniform(FUniform_ZValue, AZVal);
 end;
 
 { TGlyphVertexGPU }
@@ -1633,6 +1645,7 @@ end;
 constructor TavCanvas.Create(AParent: TavObject);
 begin
   inherited Create(AParent);
+  FZValue := 0.5;
   FGeometryBatches := TGeometry.Create;
 
   FPen := TPenStyle.Create;

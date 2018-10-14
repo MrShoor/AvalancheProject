@@ -40,6 +40,7 @@ VS_Output VS(VS_Input In) {
     
     crd.xy = mul(float3(crd.xy,1), CanvasTransform()).xy;
     Out.Pos = mul(crd, UIMatrix);
+    Out.Pos.z = ZValue * Out.Pos.w;
     
     AtlasRegion region = AtlasRegions[In.GlyphID];
     region.rect /= AtlasSize.xyxy;

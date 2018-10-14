@@ -29,7 +29,7 @@ VS_Output VS(VS_Input In) {
     float2 crd = mul(float3(In.Coords,1), CanvasTransform()).xy;
     
     Out.Pos = mul(float4(crd, 0.0, 1.0), UIMatrix);
-    Out.Pos.z = 0.5;
+    Out.Pos.z = ZValue * Out.Pos.w;
 
     Out.Pos.xy += 0.00001;
     

@@ -14,6 +14,8 @@ float4x4 UIMatrixInverse;
 float2 ViewPortSize;
 float PixelToUnit;
 
+float ZValue = 0.5f;
+
 float4x4 _CanvasTransform;
 
 float3x3 CanvasTransform() {
