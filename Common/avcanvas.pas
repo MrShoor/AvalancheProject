@@ -1575,6 +1575,7 @@ procedure TavCanvas.Draw(const ATransform: TMat3);
   begin
     AProg.SetCanvasTransform(ATransform);
     AProg.SetPixelToUnit(Len(ATransform.OX));
+    AProg.SetZValue(FZValue);
     Result := True;
   end;
 
