@@ -275,6 +275,8 @@ type
     procedure AnimationStart(const AAnimationName: string; GrowSpeed: Single = Default_GrowSpeed);
     procedure AnimationStop (const AAnimationName: string; FadeSpeed: Single = Default_FadeSpeed);
     procedure AnimationStartAndStopOther(const AAnimationNames: array of string; GrowFadeSpeed: Single = Default_FadeSpeed);
+
+    procedure AnimationSequence_StartAndStopOther(const AAnimationSequence: array of string; ALoopedLast: Boolean; GrowFadeSpeed: Single = Default_FadeSpeed);
   end;
 
   IavArmatures = {$IfDef FPC}specialize{$EndIf} IHashMap<string, IavArmature>;
@@ -664,6 +666,8 @@ type
     procedure AnimationStart(const AAnimationName: string; GrowSpeed: Single = Default_GrowSpeed);
     procedure AnimationStop (const AAnimationName: string; FadeSpeed: Single = Default_FadeSpeed);
     procedure AnimationStartAndStopOther(const AAnimationNames: array of string; GrowFadeSpeed: Single = Default_FadeSpeed);
+
+    procedure AnimationSequence_StartAndStopOther(const AAnimationSequence: array of string; ALoopedLast: Boolean; GrowFadeSpeed: Single = Default_FadeSpeed);
   end;
 
   { TPNWVertex }
@@ -1187,7 +1191,7 @@ begin
     Exit;
   end;
 
-  AFrame := (ATime - StartTime) * KeyFramePerMSec;
+  AFrame := (ATime - StartTime) / 1000 / KeyFramePerMSec;
   AWeight := Min(1, (ATime - StartTime) / GrowSpeed);
 
   if StopTime > 0 then
@@ -1264,7 +1268,8 @@ begin
   if FTime = ATime then Exit;
   FTime := ATime;
   UpdateAnimationState;
-  FPose.SetAnimationState(FAnimationStates);
+  if FAnimationStates <> nil then
+    FPose.SetAnimationState(FAnimationStates);
 end;
 
 procedure TavAnimationController.AnimationStartStop(const AAnimationName: string; DoStart: Boolean; GrowSpeed: Single);
@@ -1351,6 +1356,57 @@ begin
 
   for i := 0 to Length(AAnimationNames) - 1 do
     AnimationStart(AAnimationNames[i], GrowFadeSpeed);
+end;
+
+procedure TavAnimationController.AnimationSequence_StartAndStopOther(const AAnimationSequence: array of string; ALoopedLast: Boolean; GrowFadeSpeed: Single);
+var arm : IavArmature;
+    anim: IavAnimation;
+    animIndex: Integer;
+    time: Int64;
+    j, n, i: Integer;
+    s: String;
+begin
+  arm := Pose.Armature;
+  if arm = nil then Exit;
+
+  for i := 0 to Length(FAnimationPlayState) - 1 do
+  begin
+    FAnimationPlayState[i].StopTime := FTime + Math.Ceil(GrowFadeSpeed);
+    FAnimationPlayState[i].FadeSpeed := GrowFadeSpeed;
+  end;
+
+  time := FTime;
+  j := Length(FAnimationStates);
+  SetLength(FAnimationStates, Length(FAnimationStates) + Length(AAnimationSequence));
+  SetLength(FAnimationPlayState, Length(FAnimationPlayState) + Length(AAnimationSequence));
+  for i := 0 to Length(AAnimationSequence) - 1 do
+  begin
+    anim := arm.FindAnim(AAnimationSequence[i]);
+    if anim = nil then Continue;
+    animIndex := anim.Index;
+    FAnimationStates[j].Frame := 0;
+    FAnimationStates[j].Index := animIndex;
+    FAnimationStates[j].Weight := 0;
+
+    FAnimationPlayState[j].StartTime := time;
+    FAnimationPlayState[j].GrowSpeed := GrowFadeSpeed;
+    if (i = Length(AAnimationSequence) - 1) and ALoopedLast then
+      FAnimationPlayState[j].StopTime := -1
+    else
+    begin
+      FAnimationPlayState[j].StopTime := FAnimationPlayState[j].StartTime + trunc(1000 * (anim.FrameCount-1) * KeyFramePerMSec);
+    end;
+    FAnimationPlayState[j].FadeSpeed := GrowFadeSpeed;
+
+    time := FAnimationPlayState[j].StopTime - round(GrowFadeSpeed);
+    Inc(j);
+  end;
+
+  if Length(FAnimationStates) <> j then
+  begin
+    SetLength(FAnimationStates, j);
+    SetLength(FAnimationPlayState, j);
+  end;
 end;
 
 { TavMeshInstance }
