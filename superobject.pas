@@ -1304,7 +1304,7 @@ begin
         if TVarRec(Args[j]).VInterface = nil then
           Add(nil) else
           if IInterface(TVarRec(Args[j]).VInterface).QueryInterface(ISuperObject, intf) = 0 then
-            Add(ISuperObject(intf)) else
+            Add(intf as ISuperObject) else
             Add(nil);
       vtPointer :
         if TVarRec(Args[j]).VPointer = nil then
@@ -5635,10 +5635,12 @@ var
   i: Integer;
 begin
   h := 0;
+{$R-}
 {$Q-}
   for i := 1 to Length(k) do
     h := h*129 + ord(k[i]) + $9e370001;
 {$Q+}
+{$R+}
   Result := h;
 end;
 

@@ -2548,7 +2548,7 @@ var TexH: GLuint;
     MipFilter: TTextureFilter;
 begin
   if Field = nil then Exit;
-  if (Field.DataClass <> dcSampler) or (Field.DataClass <> dcCubeSampler) then Exit;
+  if (Field.DataClass <> dcSampler) and (Field.DataClass <> dcCubeSampler) then Exit;
   if tex = nil then Exit;
 
   TexH := (tex as IHandle).Handle;

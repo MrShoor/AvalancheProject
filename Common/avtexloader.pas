@@ -425,7 +425,8 @@ end;
 {$Else}
 function LoadTexture(const data                      : TByteArr;
                      const targetWidth, targetHeight : Integer;
-                     const targetFormat              : TImageFormat): ITextureData;
+                     const targetFormat              : TImageFormat;
+                     const premultAlpha              : Boolean): ITextureData; overload;
 begin
   Assert(False, 'Not implemented');
   Result := Nil;
@@ -447,7 +448,7 @@ begin
 end;
 {$Else}
 function LoadTexture(const FileName: string; const targetWidth: Integer;
-  const targetHeight: Integer; const targetFormat: TImageFormat): ITextureData;
+  const targetHeight: Integer; const targetFormat: TImageFormat; const premultAlpha : Boolean): ITextureData; overload;
 begin
   Assert(False, 'Not implemented');
   Result := Nil;
@@ -472,7 +473,7 @@ begin
 end;
 {$Else}
 function LoadTextures(const Files: array of string; const targetWidth: Integer;
-  const targetHeight: Integer; const targetFormat: TImageFormat): ITextureData;
+  const targetHeight: Integer; const targetFormat: TImageFormat; const premultAlpha : Boolean): ITextureData; overload;
 begin
   Assert(False, 'Not implemented');
   Result := Nil;
