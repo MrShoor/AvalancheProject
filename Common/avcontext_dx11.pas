@@ -3197,6 +3197,8 @@ var texdesc: TD3D11_Texture2DDesc;
     mapdata: TD3D11_MappedSubresource;
     cputex : ID3D11Texture2D;
     mip: ITextureMip;
+    pSrc, pDst: PByte;
+    j, w: Integer;
 begin
   mip := ATexData.MipData(0, AMipLevel);
 
@@ -3224,7 +3226,15 @@ begin
                                                   FTexture, D3D11CalcSubresource(0, 0, 1), @copybox);
 
   Check3DError( FContext.GetDeviceContext.Map(cputex, D3D11CalcSubresource(0, 0, 1), D3D11_MAP_READ, 0, mapdata) );
-  Move(mapdata.pData^, ATexData.MipData(0, AMipLevel).Data^, mip.Width*mip.Height*ImagePixelSize[ATexData.Format]);
+  w := mip.Width * ImagePixelSize[ATexData.Format];
+  for j := 0 to mip.Height - 1 do
+  begin
+    pSrc := mapdata.pData;
+    Inc(pSrc, mapdata.RowPitch * j);
+    pDst := ATexData.MipData(0, AMipLevel).Data;
+    Inc(pDst, j * w);
+    Move(pSrc^, pDst^, w);
+  end;
   FContext.GetDeviceContext.Unmap(cputex, D3D11CalcSubresource(0, 0, 1));
 end;
 
