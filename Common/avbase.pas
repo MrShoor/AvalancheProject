@@ -168,7 +168,7 @@ function TavObject.ChildCount(aClass: TavObjectClass): integer;
 var i: integer;
 begin
   Result:=0;
-  for i := 0 to ChildCount - 1 do
+  for i := 0 to ChildCount() - 1 do
     if Child[i] is aClass then inc(Result);
 end;
 

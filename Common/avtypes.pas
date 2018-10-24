@@ -429,6 +429,7 @@ function ComponentTypeSize(const AType: TComponentType): Integer;
 function MakeFourCC(ch0,ch1,ch2,ch3: AnsiChar): TFOURCC;
 procedure StreamWriteString(stream: TStream; const str: AnsiString);
 procedure StreamReadString(stream: TStream; out str: AnsiString);
+function ExeRelativeFileName(const AFileName: string): string;
 
 procedure ZeroClear(out data; const DataSize: Integer);
 
@@ -465,6 +466,9 @@ type
 
     constructor Create(const AFields: TFieldInfoArr; AStrideSize: Integer = 0);
   end;
+
+var
+  gvExeDir: string;
 
 function Create_DataLayout(const AFields: TFieldInfoArr; AStrideSize: Integer = 0): IDataLayout;
 var i: Integer;
@@ -539,6 +543,17 @@ begin
   SetLength(str, n);
   if n > 0 then
       stream.ReadBuffer(str[1], n);
+end;
+
+function ExeRelativeFileName(const AFileName: string): string;
+var oldDir: string;
+begin
+  if gvExeDir = '' then
+      ExtractFileDir(ParamStr(0));
+  oldDir := GetCurrentDir;
+  SetCurrentDir(gvExeDir);
+  Result := ExpandFileName(AFileName);
+  SetCurrentDir(oldDir);
 end;
 
 procedure ZeroClear(out data; const DataSize: Integer);
