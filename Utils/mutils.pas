@@ -1,7 +1,7 @@
 unit mutils;
 {$I avConfig.inc}
 
-//{$define NoInline}
+{$define NoInline}
 
 interface {$define INTF}
 
@@ -355,6 +355,7 @@ function Distance(const Pt: TVec2; const Seg: TSegment2D): Single; overload;{$IF
 function Distance(const Pt: TVec2; const Seg: TSegment2D; out AClosestPt: TVec2): Single; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Projection(const Pt: TVec2; const Line: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Projection(const Cast: TVec3; const Recieve: TVec3): TVec3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Projection(const Pt: TVec3; const Line: TLine): TVec3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat2): TMat2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat3): TMat3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat4): TMat4; overload;{$IFNDEF NoInline} inline; {$ENDIF}
@@ -2249,6 +2250,13 @@ begin
     Result := Vec(0,0,0)
   else
     Result := Recieve * (Dot(Cast, Recieve) / Recieve_LenSqr);
+end;
+
+function Projection(const Pt: TVec3; const Line: TLine): TVec3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+var ppt: TVec3;
+begin
+  ppt := Projection(Pt - Line.Pnt, Line.Dir);
+  Result := Line.Pnt + ppt;
 end;
 
 function Inv(const m: TMat2): TMat2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
