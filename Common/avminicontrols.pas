@@ -47,6 +47,11 @@ type
 
     FUPSSubscriber: IUPSEvent;
 
+    FDragThreshold: Single;
+    FDragDowned: array [0..2] of Boolean;
+    FDragStarted: array [0..2] of Boolean;
+    FDragDownedCoord: array[0..2] of TVec2;
+
     function GetAbsAngle: Single;
     function GetAbsPos: TVec2;
     procedure SetAbsAngle(const AValue: Single);
@@ -70,10 +75,14 @@ type
     procedure Notify_MouseEnter; virtual;
     procedure Notify_MouseLeave; virtual;
     procedure Notify_MouseMove(const APt: TVec2; AShifts: TShifts); virtual;
-    procedure Notify_MouseWheel(const APt: TVec2; AShifts: TShifts); virtual;
+    procedure Notify_MouseWheel(const APt: TVec2; AWheelShift: Integer; AShifts: TShifts); virtual;
     procedure Notify_MouseDown(ABtn: Integer; const APt: TVec2; AShifts: TShifts); virtual;
     procedure Notify_MouseUp(ABtn: Integer; const APt: TVec2; AShifts: TShifts); virtual;
     procedure Notify_MouseDblClick(ABtn: Integer; const APt: TVec2; AShifts: TShifts); virtual;
+
+    procedure Notify_DragStart(ABtn: Integer; const APt: TVec2; AShifts: TShifts); virtual;
+    procedure Notify_DragMove (ABtn: Integer; const APt: TVec2; AShifts: TShifts); virtual;
+    procedure Notify_DragStop (ABtn: Integer; const APt: TVec2; AShifts: TShifts); virtual;
 
     procedure Notify_FocusSet; virtual;
     procedure Notify_FocusLost; virtual;
@@ -89,12 +98,15 @@ type
     procedure OnUPS; virtual;
   protected
     function  Space_ParentToLocal(const APt: TVec2): TVec2;
+    function  Space_LocalToRootControl(const APt: TVec2): TVec2;
 
     procedure HitTestRecursive(const ALocalPt: TVec2; var AControl: TavmBaseControl);
     procedure HitTestLocal(const ALocalPt: TVec2; var AControl: TavmBaseControl); virtual;
   public
+    procedure BringToFront;
     function LocalPtInArea(const Pt: TVec2): Boolean;
     function HitTest(const V: TVec2; ARecursive: Boolean): TavmBaseControl;
+    function RootControl: TavmBaseControl;
 
     function  ChildControlsCount: Integer;
     procedure ResetIterator(ToLast: Boolean = false);
@@ -107,6 +119,8 @@ type
     property Origin: TVec2  read FOrigin write SetOrigin;
     property Angle : Single read FAngle  write SetAngle;
     property Pos   : TVec2  read FPos    write SetPos;
+
+    property DragThreshold : Single read FDragThreshold write FDragThreshold;
 
     property AbsAngle: Single read GetAbsAngle write SetAbsAngle;
     property AbsPos: TVec2 read GetAbsPos write SetAbsPos;
@@ -216,6 +230,37 @@ type
     property OnClick: TNotifyEvent read FOnClick write FOnClick;
   end;
 
+  { TavmCustomScrollBar }
+
+  TavmCustomScrollBar = class (TavmCustomControl)
+  private
+    FIsVertical: Boolean;
+    FOnScroll: TNotifyEvent;
+    FRange: Integer;
+    FViewportPos: Integer;
+    FViewportWidth: Integer;
+    procedure SetIsVertical(AValue: Boolean);
+    procedure SetRange(AValue: Integer);
+    procedure SetViewportPos(AValue: Integer);
+    procedure SetViewportWidth(AValue: Integer);
+  protected
+    procedure Notify_MouseDown(ABtn: Integer; const APt: TVec2; AShifts: TShifts); override;
+    procedure Notify_MouseMove(const APt: TVec2; AShifts: TShifts); override;
+    procedure Notify_MouseUp(ABtn: Integer; const APt: TVec2; AShifts: TShifts); override;
+    procedure Notify_MouseWheel(const APt: TVec2; AWheelShift: Integer; AShifts: TShifts); override;
+  protected
+    function BarRect(): TRectF;
+  public
+    property Range: Integer read FRange write SetRange;
+    property ViewportWidth: Integer read FViewportWidth write SetViewportWidth;
+    property ViewportPos: Integer read FViewportPos write SetViewportPos;
+    property IsVertical: Boolean read FIsVertical write SetIsVertical;
+
+    procedure Scroll(AOffset: Integer);
+
+    property OnScroll: TNotifyEvent read FOnScroll write FOnScroll;
+  end;
+
   { TavmCustomEdit }
 
   TavmCustomEdit = class (TavmCustomControl)
@@ -252,6 +297,9 @@ type
 
 implementation
 
+uses
+  Math;
+
 type
   TEmptyMethod = procedure () of object;
 
@@ -271,6 +319,99 @@ type
   private
     procedure UpdateStates();
   end;
+
+{ TavmCustomScrollBar }
+
+procedure TavmCustomScrollBar.SetRange(AValue: Integer);
+begin
+  AValue := Max(AValue, 1);
+  if FRange = AValue then Exit;
+  FRange := AValue;
+  if FViewportWidth > Range then
+    FViewportWidth := Range;
+  if FViewportPos + FViewportWidth > Range then
+    FViewportPos := Range - FViewportWidth;
+  if Assigned(FOnScroll) then FOnScroll(Self);
+  Invalidate;
+end;
+
+procedure TavmCustomScrollBar.SetIsVertical(AValue: Boolean);
+begin
+  if FIsVertical = AValue then Exit;
+  FIsVertical := AValue;
+  Invalidate;
+end;
+
+procedure TavmCustomScrollBar.SetViewportPos(AValue: Integer);
+begin
+  AValue := clamp(AValue, 0, Range - FViewportWidth);
+  if FViewportPos = AValue then Exit;
+  FViewportPos := AValue;
+  if Assigned(FOnScroll) then FOnScroll(Self);
+  Invalidate;
+end;
+
+procedure TavmCustomScrollBar.SetViewportWidth(AValue: Integer);
+begin
+  AValue := Clamp(AValue, 1, Range);
+  if FViewportWidth = AValue then Exit;
+  FViewportWidth := AValue;
+  if (FViewportPos + FViewportWidth) > Range then
+    FViewportPos := Range - FViewportWidth;
+  if Assigned(FOnScroll) then FOnScroll(Self);
+  Invalidate;
+end;
+
+procedure TavmCustomScrollBar.Notify_MouseDown(ABtn: Integer; const APt: TVec2; AShifts: TShifts);
+begin
+  inherited Notify_MouseDown(ABtn, APt, AShifts);
+end;
+
+procedure TavmCustomScrollBar.Notify_MouseMove(const APt: TVec2; AShifts: TShifts);
+begin
+  inherited Notify_MouseMove(APt, AShifts);
+end;
+
+procedure TavmCustomScrollBar.Notify_MouseUp(ABtn: Integer; const APt: TVec2; AShifts: TShifts);
+begin
+  inherited Notify_MouseUp(ABtn, APt, AShifts);
+end;
+
+procedure TavmCustomScrollBar.Notify_MouseWheel(const APt: TVec2;
+  AWheelShift: Integer; AShifts: TShifts);
+begin
+  //inherited Notify_MouseWheel(APt, AShifts);
+end;
+
+function TavmCustomScrollBar.BarRect: TRectF;
+var control_size: Single;
+    bounds: TVec2;
+    kWidth, kPos: Single;
+begin
+  if IsVertical then
+    control_size := Size.y
+  else
+    control_size := Size.x;
+
+  kWidth := clamp(ViewportWidth / Range, 0.0, 1.0);
+  kPos   := clamp(ViewportPos / Range, 0.0, 1.0);
+
+  bounds.x := Lerp(0, control_size, kPos);
+  bounds.y := bounds.x + kWidth*control_size;
+
+  bounds.x := clamp(bounds.x, 0, control_size);
+  bounds.y := clamp(bounds.y, 0, control_size);
+
+  if IsVertical then
+    Result := RectF(0, bounds.x, Size.x, bounds.y)
+  else
+    Result := RectF(bounds.x, 0, bounds.y, Size.y);
+end;
+
+procedure TavmCustomScrollBar.Scroll(AOffset: Integer);
+begin
+  ViewportPos := ViewportPos + AOffset;
+end;
 
 { TUPSSubscriber }
 
@@ -607,7 +748,7 @@ begin
   if FRoot = nil then Exit;
   v := Vec(AMsg.xPos, AMsg.yPos);
   m := UpdateMovedState(v);
-  if m <> nil then m.Notify_MouseWheel(v * m.AbsTransformInv, AMsg.shifts);
+  if m <> nil then m.Notify_MouseWheel(v * m.AbsTransformInv, AMsg.wheelShift, AMsg.shifts);
 end;
 
 procedure TavmInputConnector.EMKeyDown(var AMsg: TavKeyDownMessage);
@@ -757,15 +898,48 @@ begin
 end;
 
 procedure TavmBaseControl.Notify_MouseMove(const APt: TVec2; AShifts: TShifts);
+var
+  i: Integer;
 begin
+  for i := 0 to 2 do
+  begin
+    if FDragDowned[i] then
+      if LenSqr(FDragDownedCoord[i] - APt) >= (FDragThreshold * FDragThreshold) then
+      begin
+        Notify_DragStart(i+1, FDragDownedCoord[i], AShifts);
+        FDragStarted[i] := True;
+      end;
+
+    if FDragStarted[i] then
+      Notify_DragMove(i+1, APt, AShifts);
+  end;
 end;
 
-procedure TavmBaseControl.Notify_MouseWheel(const APt: TVec2; AShifts: TShifts);
+procedure TavmBaseControl.Notify_MouseWheel(const APt: TVec2;
+  AWheelShift: Integer; AShifts: TShifts);
 begin
 end;
 
 procedure TavmBaseControl.Notify_MouseDblClick(ABtn: Integer; const APt: TVec2; AShifts: TShifts);
 begin
+end;
+
+procedure TavmBaseControl.Notify_DragStart(ABtn: Integer; const APt: TVec2; AShifts: TShifts);
+begin
+  InputConnector.Captured := Self;
+end;
+
+procedure TavmBaseControl.Notify_DragMove(ABtn: Integer; const APt: TVec2; AShifts: TShifts);
+begin
+
+end;
+
+procedure TavmBaseControl.Notify_DragStop(ABtn: Integer; const APt: TVec2; AShifts: TShifts);
+var i: Integer;
+begin
+  for i := 0 to 2 do
+    if FDragStarted[i] then Exit;
+  InputConnector.Captured := nil;
 end;
 
 procedure TavmBaseControl.Notify_FocusSet;
@@ -801,10 +975,22 @@ end;
 
 procedure TavmBaseControl.Notify_MouseDown(ABtn: Integer; const APt: TVec2; AShifts: TShifts);
 begin
+  if (ABtn >= 1) and (ABtn <= 3) then
+  begin
+    FDragDowned[ABtn-1] := True;
+    FDragDownedCoord[ABtn-1] := APt;
+  end;
 end;
 
 procedure TavmBaseControl.Notify_MouseUp(ABtn: Integer; const APt: TVec2; AShifts: TShifts);
 begin
+  if (ABtn >= 1) and (ABtn <= 3) then
+  begin
+    if FDragStarted[ABtn-1] then
+      Notify_DragStop(ABtn, APt, AShifts);
+    FDragStarted[ABtn-1] := False;
+    FDragDowned[ABtn-1] := False;
+  end;
 end;
 
 procedure TavmBaseControl.Validate;
@@ -844,6 +1030,14 @@ begin
   end;
 end;
 
+function TavmBaseControl.Space_LocalToRootControl(const APt: TVec2): TVec2;
+begin
+  if Parent is TavmBaseControl then
+    Result := TavmBaseControl(Parent).Space_LocalToRootControl(APt * Transform)
+  else
+    Result := APt;
+end;
+
 procedure TavmBaseControl.HitTestRecursive(const ALocalPt: TVec2; var AControl: TavmBaseControl);
 var chld: TavmBaseControl;
 begin
@@ -865,6 +1059,17 @@ begin
 
 end;
 
+procedure TavmBaseControl.BringToFront;
+var n: Integer;
+begin
+  if Parent is TavmBaseControl then
+  begin
+    n := Parent.ChildIndex(Self);
+    Assert(n >= 0);
+    Parent.ChildMove(n, Parent.ChildCount-1);
+  end;
+end;
+
 function TavmBaseControl.LocalPtInArea(const Pt: TVec2): Boolean;
 begin
   Result := (Pt.x >= 0) and (Pt.y >= 0) and (Pt.x < FSize.x) and (Pt.y < FSize.y);
@@ -881,6 +1086,14 @@ begin
     HitTestRecursive(vlocal, Result)
   else
     HitTestLocal(vlocal, Result);
+end;
+
+function TavmBaseControl.RootControl: TavmBaseControl;
+begin
+  if Parent is TavmBaseControl then
+    Result := TavmBaseControl(Parent).RootControl
+  else
+    Result := Self;
 end;
 
 function TavmBaseControl.InputConnector: TavmInputConnector;
@@ -984,6 +1197,7 @@ begin
   inherited AfterConstruction;
   FVisible := True;
   FAllowFocus := True;
+  FDragThreshold := 5;
 end;
 
 destructor TavmBaseControl.Destroy;
