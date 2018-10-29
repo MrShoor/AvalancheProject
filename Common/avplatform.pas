@@ -102,6 +102,8 @@ var sc: TwndSubclassInfo;
     KeyMsg  : TavKeyMessage;
     msgptr  : PDWord;
 
+    pt: TPoint;
+
     ch: AnsiChar;
 begin
   {$IFOPT R+}
@@ -150,6 +152,14 @@ begin
           if uMsg = WM_MOUSEWHEEL then MouseMsg.wheelShift:=SmallInt(HiWord(wParam)) div WHEEL_DELTA else MouseMsg.wheelShift:=0;
           MouseMsg.xPos:=SmallInt(LoWord(lParam));
           MouseMsg.yPos:=SmallInt(HiWord(lParam));
+          if uMsg = WM_MOUSEWHEEL then
+          begin
+            pt.x := MouseMsg.xPos;
+            pt.y := MouseMsg.yPos;
+            ScreenToClient(handle, pt);
+            MouseMsg.xPos := pt.x;
+            MouseMsg.yPos := pt.y;
+          end;
           MouseMsg.shifts:=MouseShifts(wParam);
           MouseMsg.result:=false;
 
