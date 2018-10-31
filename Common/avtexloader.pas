@@ -45,6 +45,7 @@ type
   end;
 
 function EmptyTexData(Width, Height: Integer; Format: TTextureFormat; withMips: Boolean = False; AllocateTextureMemory: Boolean = False): ITextureData; overload;
+function EmptyTexData(Width, Height, Slices: Integer; Format: TTextureFormat; withMips: Boolean = False; AllocateTextureMemory: Boolean = False): ITextureData; overload;
 function EmptyTexData(Width, Height: Integer; Format: TImageFormat; withMips: Boolean = False; AllocateTextureMemory: Boolean = False): ITextureData; overload;
 function EmptyTexData: ITextureData; overload;
 
@@ -235,7 +236,8 @@ type
                        targetFormat              : TImageFormat;
                        premultAlpha              : Boolean); overload;
     {$EndIf}
-    constructor CreateEmpty(AWidth, AHeight: Integer; AFormat: TImageFormat; withMips: Boolean = False; AllocateTextureMemory: Boolean = False);
+    constructor CreateEmpty(AWidth, AHeight: Integer; AFormat: TImageFormat; withMips: Boolean = False; AllocateTextureMemory: Boolean = False); overload;
+    constructor CreateEmpty(AWidth, AHeight, ASlices: Integer; AFormat: TImageFormat; withMips: Boolean = False; AllocateTextureMemory: Boolean = False); overload;
     destructor Destroy; override;
   end;
 
@@ -248,6 +250,11 @@ end;
 function EmptyTexData(Width, Height: Integer; Format: TTextureFormat; withMips: Boolean; AllocateTextureMemory: Boolean): ITextureData;
 begin
   Result := TTextureData.CreateEmpty(Width, Height, BestImageFormat[Format], withMips, AllocateTextureMemory);
+end;
+
+function EmptyTexData(Width, Height, Slices: Integer; Format: TTextureFormat; withMips: Boolean; AllocateTextureMemory: Boolean): ITextureData;
+begin
+  Result := TTextureData.CreateEmpty(Width, Height, Slices, BestImageFormat[Format], withMips, AllocateTextureMemory);
 end;
 
 function EmptyTexData(Width, Height: Integer; Format: TImageFormat; withMips: Boolean; AllocateTextureMemory: Boolean): ITextureData;
@@ -1065,7 +1072,12 @@ end;
 {$EndIf}
 
 constructor TTextureData.CreateEmpty(AWidth, AHeight: Integer; AFormat: TImageFormat; withMips: Boolean; AllocateTextureMemory: Boolean);
-var i: Integer;
+begin
+  CreateEmpty(AWidth, AHeight, 1, AFormat, withMips, AllocateTextureMemory);
+end;
+
+constructor TTextureData.CreateEmpty(AWidth, AHeight, ASlices: Integer; AFormat: TImageFormat; withMips: Boolean; AllocateTextureMemory: Boolean);
+var i, j: Integer;
     AllocSize: Integer;
 begin
   FWidth := AWidth;
@@ -1077,17 +1089,18 @@ begin
     FMipsCount := Log2Int(Min(AWidth, AHeight))+1
   else
     FMipsCount := 1;
-  SetLength(FMips, 1, FMipsCount);
-  for i := 0 to FMipsCount - 1 do
-  begin
-    if AllocateTextureMemory then
-      AllocSize := AWidth * AHeight * ImagePixelSize[FFormat]
-    else
-      AllocSize := 0;
-    FMips[0][i] := TMipImage.Create(AWidth, AHeight, Nil, AllocSize, FFormat);
-    AWidth := AWidth shr 1;
-    AHeight := AHeight shr 1;
-  end;
+  SetLength(FMips, ASlices, FMipsCount);
+  for j := 0 to ASlices - 1 do
+    for i := 0 to FMipsCount - 1 do
+    begin
+      if AllocateTextureMemory then
+        AllocSize := AWidth * AHeight * ImagePixelSize[FFormat]
+      else
+        AllocSize := 0;
+      FMips[j][i] := TMipImage.Create(AWidth, AHeight, Nil, AllocSize, FFormat);
+      AWidth := AWidth shr 1;
+      AHeight := AHeight shr 1;
+    end;
 end;
 
 destructor TTextureData.Destroy;

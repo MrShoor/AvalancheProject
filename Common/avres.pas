@@ -537,6 +537,8 @@ type
   public
     function Width: Integer;
     function Height: Integer;
+    function Deep: Integer;
+    function MipsCount: Integer;
     function Size: TVec2;
 
     procedure CopyFrom(const ASrc: TavTextureBase; SrcMipLevel: Integer; const ASrcRect: TRectI);
@@ -825,6 +827,8 @@ type
                         V_InverseMatrix,
                         P_Matrix,
                         P_InverseMatrix,
+                        FrameSize,
+                        FOV,
                         FBOFlip);
   private
     FSrc: string;
@@ -1944,6 +1948,22 @@ begin
     Result := 0;
 end;
 
+function TavTextureBase.Deep: Integer;
+begin
+  if Assigned(FTexH) then
+    Result := FTexH.Deep
+  else
+    Result := 0;
+end;
+
+function TavTextureBase.MipsCount: Integer;
+begin
+  if Assigned(FTexH) then
+    Result := FTexH.MipsCount
+  else
+    Result := 0;
+end;
+
 function TavTextureBase.Size: TVec2;
 begin
   if Assigned(FTexH) then
@@ -2544,13 +2564,13 @@ function TavFrameBuffer.DoBuild: Boolean;
       Result := nil;
   end;
 
-  procedure ResizeTex(tex: TavTextureBase; FrameSize: TVec2i; mipLevel: Integer); //inline;
+  procedure ResizeTex(tex: TavTextureBase; FrameSize: TVec2i; AMinSliceCount: Integer; mipLevel: Integer); //inline;
   var NewTexSize: TVec2i;
       SimpleTex: TavTexture absolute tex;
       MultiTex : TavMultiSampleTexture absolute tex;
   begin
     tex.Build;
-    if (tex.Width = FrameSize.x) and (tex.Height = FrameSize.y) then Exit();
+    if (tex.Width = FrameSize.x) and (tex.Height = FrameSize.y) and (tex.Deep >= AMinSliceCount) then Exit();
 
     if tex is TavTexture then
     begin
@@ -2560,7 +2580,7 @@ function TavFrameBuffer.DoBuild: Boolean;
         NewTexSize := FrameSize * (1 shl mipLevel);
 
       if (SimpleTex.Size.x <> NewTexSize.x) or (SimpleTex.Size.y <> NewTexSize.y) then
-        SimpleTex.TexData := EmptyTexData(NewTexSize.x, NewTexSize.y, SimpleTex.TargetFormat, mipLevel > 0);
+        SimpleTex.TexData := EmptyTexData(NewTexSize.x, NewTexSize.y, AMinSliceCount, SimpleTex.TargetFormat, mipLevel > 0);
       SimpleTex.Build;
       Exit;
     end;
@@ -2598,7 +2618,7 @@ begin
     tex := GetTex(ainfo);
     if Assigned(tex) then
     begin
-      ResizeTex(tex, FrameSize, ainfo.mipLevel);
+      ResizeTex(tex, FrameSize, max(0, ainfo.sliceStart) + max(1, ainfo.sliceCount), ainfo.mipLevel);
       FFrameBuf.SetColor(i, tex.FTexH, ainfo.mipLevel, ainfo.sliceStart, ainfo.sliceCount);
     end
     else
@@ -2652,7 +2672,7 @@ begin
   tex := GetTex(FDepth);
   if Assigned(tex) then
   begin
-    ResizeTex(tex, FrameSize, FDepth.mipLevel);
+    ResizeTex(tex, FrameSize, max(0, FDepth.sliceStart) + max(1, FDepth.sliceCount), FDepth.mipLevel);
     FFrameBuf.SetDepthStencil(tex.FTexH, FDepth.mipLevel, FDepth.sliceStart, FDepth.sliceCount);
   end
   else
@@ -3685,7 +3705,15 @@ end;
 procedure TavProgram.UpdateUniforms;
 var i: TUniformMatrices;
     MValid: array [TUniformMatrices] of Boolean;
+    activeFBO: TavFrameBuffer;
 begin
+  activeFBO := Main.ActiveFrameBuffer;
+  if activeFBO = nil then
+    SetUniform(FUniformsMatrices[TUniformMatrices.FrameSize], Main.WindowSize*1.0)
+  else
+    SetUniform(FUniformsMatrices[TUniformMatrices.FrameSize], Main.ActiveFrameBuffer.FrameRect.RightBottom*1.0);
+  SetUniform(FUniformsMatrices[TUniformMatrices.FOV], Main.Projection.Fov);
+
   MValid[V_Matrix]         := FCameraUpdateID = Main.Camera.UpdateID;
   MValid[V_InverseMatrix]  := MValid[V_Matrix];
   MValid[P_Matrix]         := FProjectionUpdateID = Main.Projection.UpdateID;
