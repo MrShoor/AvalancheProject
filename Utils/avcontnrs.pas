@@ -61,6 +61,8 @@ type
     procedure Swap(const I1, I2: Integer);
     procedure Move(AFrom, ATo: Integer);
 
+    function Clone(): {$IfDef FPC}specialize{$EndIf}IArray<TValue>;
+
     procedure Clear(const TrimCapacity: Boolean = False);
 
     procedure Sort(const comparator: IComparer = nil); overload;
@@ -160,6 +162,8 @@ type
 
     procedure Swap(const I1, I2: Integer);
     procedure Move(AFrom, ATo: Integer);
+
+    function Clone(): {$IfDef FPC}specialize{$EndIf}IArray<TValue>;
 
     procedure Clear(const TrimCapacity: Boolean = False);
 
@@ -2334,6 +2338,16 @@ begin
       FData[i] := FData[i-1];
   end;
   FData[ATo] := tmp;
+end;
+
+function TArray{$IfDef DCC}<TValue>{$EndIf}.Clone(): {$IfDef FPC}specialize{$EndIf}IArray<TValue>;
+var
+  i: Integer;
+begin
+  Result := TArr.Create(FComparator);
+  Result.Capacity := Count;
+  for i := 0 to Count - 1 do
+    Result.Add(FData[i]);
 end;
 
 procedure TArray{$IfDef DCC}<TValue>{$EndIf}.Clear(const TrimCapacity: Boolean);
