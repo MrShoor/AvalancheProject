@@ -4,7 +4,7 @@ unit avTypes;
 interface
 
 uses
-  Classes, SysUtils, mutils;
+  Classes, SysUtils, Math, mutils;
 
 const
   EM_NONE              = $0000;
@@ -422,6 +422,37 @@ type
     function _Release : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
   end;
 
+  { ICustomProps }
+
+  ICustomProps = interface
+    function GetVBool(index: Integer): Boolean;
+    function GetVInt(index: Integer): Integer;
+    function GetVString(index: Integer): string;
+    procedure SetVBool(index: Integer; const AValue: Boolean);
+    procedure SetVInt(index: Integer; const AValue: Integer);
+    procedure SetVString(index: Integer; const AValue: string);
+
+    property VBool  [index: Integer]: Boolean read GetVBool   write SetVBool;
+    property VInt   [index: Integer]: Integer read GetVInt    write SetVInt;
+    property VString[index: Integer]: string  read GetVString write SetVString;
+  end;
+
+  { TCustomProps }
+
+  TCustomProps = class(TInterfacedObject, ICustomProps)
+  private
+    FBools: array of Boolean;
+    FInts : array of Integer;
+    FStrs : array of String;
+    function GetVBool(index: Integer): Boolean;
+    function GetVInt(index: Integer): Integer;
+    function GetVString(index: Integer): string;
+    procedure SetVBool(index: Integer; const AValue: Boolean);
+    procedure SetVInt(index: Integer; const AValue: Integer);
+    procedure SetVString(index: Integer; const AValue: string);
+  public
+  end;
+
 function Create_DataLayout(const AFields: TFieldInfoArr; AStrideSize: Integer = 0): IDataLayout;
 function CalcPrimCount(const ItemsCount: Integer; const PrimType: TPrimitiveType): Integer;
 function ComponentTypeSize(const AType: TComponentType): Integer;
@@ -561,6 +592,64 @@ begin
   {$Hints OFF}
   FillChar(data, DataSize, 0);
   {$Hints ON}
+end;
+
+{ TCustomProps }
+
+function TCustomProps.GetVBool(index: Integer): Boolean;
+begin
+  if (index < 0) or (index >= Length(FBools)) then Exit(False);
+  Result := FBools[index];
+end;
+
+function TCustomProps.GetVInt(index: Integer): Integer;
+begin
+  if (index < 0) or (index >= Length(FInts)) then Exit(0);
+  Result := FInts[index];
+end;
+
+function TCustomProps.GetVString(index: Integer): string;
+begin
+  if (index < 0) or (index >= Length(FStrs)) then Exit('');
+  Result := FStrs[index];
+end;
+
+procedure TCustomProps.SetVBool(index: Integer; const AValue: Boolean);
+var oldSize, i: Integer;
+begin
+  if (index < 0) then Exit;
+  oldSize := Length(FBools);
+  if (index >= oldSize) then
+  begin
+    SetLength(FBools, NextPow2(max(index, Length(FBools)+1)));
+    for i := oldSize to Length(FBools) - 1 do
+      FBools[i] := False;
+  end;
+  FBools[index] := AValue;
+end;
+
+procedure TCustomProps.SetVInt(index: Integer; const AValue: Integer);
+var oldSize, i: Integer;
+begin
+  if (index < 0) then Exit;
+  oldSize := Length(FInts);
+  if (index >= oldSize) then
+  begin
+    SetLength(FInts, NextPow2(max(index, Length(FInts)+1)));
+    for i := oldSize to Length(FInts) - 1 do
+      FInts[i] := 0;
+  end;
+  FInts[index] := AValue;
+end;
+
+procedure TCustomProps.SetVString(index: Integer; const AValue: string);
+var oldSize, i: Integer;
+begin
+  if (index < 0) then Exit;
+  oldSize := Length(FStrs);
+  if (index >= oldSize) then
+    SetLength(FStrs, NextPow2(max(index, Length(FStrs)+1)));
+  FStrs[index] := AValue;
 end;
 
 { TDataLayoutItem }

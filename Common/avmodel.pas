@@ -42,6 +42,7 @@ type
 
   IavModelInstance = interface
     function Mesh: IavMeshInstance;
+    function CustomProps: ICustomProps;
     function Collection: TavModelCollection;
     function ModelName: String;
     function Name: String;
@@ -248,6 +249,7 @@ type
       function GetObj: TavModelInstance;
 
       function Mesh: IavMeshInstance;
+      function CustomProps: ICustomProps;
       function Collection: TavModelCollection;
       function ModelName: String;
       function Name: String;
@@ -611,6 +613,11 @@ end;
 function TavModelCollection.TavModelInstance.Mesh: IavMeshInstance;
 begin
   Result := FMeshInst;
+end;
+
+function TavModelCollection.TavModelInstance.CustomProps: ICustomProps;
+begin
+  Result := FMeshInst.CustomProps;
 end;
 
 function TavModelCollection.TavModelInstance.Collection: TavModelCollection;

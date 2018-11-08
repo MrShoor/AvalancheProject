@@ -408,6 +408,7 @@ function FromToMat(AFrom, ATo: TVec3): TMat4;
 function RandomSphereUniformRay(): TVec3;
 function HammersleyPoint(const I, N: Integer): TVec2;
 function GenerateHammersleyPts(const N: Integer): TVec4Arr;
+function WeightedRandom(weights: array of Integer): Integer;
 
 {$IfDef FPC}
 operator = (const v1, v2: TRectF): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -481,6 +482,21 @@ begin
     Result[i].xy := E;
     Result[i].z := 0;
     Result[i].w := 0;
+  end;
+end;
+
+function WeightedRandom(weights: array of Integer): Integer;
+var i, n: Integer;
+    summ: Integer;
+begin
+  summ := 0;
+  for i := 0 to Length(weights) - 1 do Inc(summ, weights[i]);
+  n := Random(summ);
+  Result := 0;
+  while n >= weights[Result] do
+  begin
+    n := n - weights[Result];
+    Inc(Result);
   end;
 end;
 

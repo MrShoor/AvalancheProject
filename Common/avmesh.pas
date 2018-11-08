@@ -135,6 +135,7 @@ type
 
   IavMeshInstance = interface (IWeakedInterface)
     function GetChild(const AIndex: Integer): IavMeshInstance;
+    function GetCustomProps: ICustomProps;
     function GetMesh: IavMesh;
     function GetName: String;
     function GetParent: IavMeshInstance;
@@ -144,10 +145,11 @@ type
     procedure SetPose(const AValue: IavPose);
     procedure SetTransform(const AValue: TMat4);
     //--------------------------
-    property Name     : string      read GetName;
-    property Transform: TMat4       read GetTransform write SetTransform;
-    property Mesh     : IavMesh     read GetMesh;
-    property BindPoseTransform: TMat4 read GetBindPoseTransform;
+    property Name       : string       read GetName;
+    property Transform  : TMat4        read GetTransform write SetTransform;
+    property CustomProps: ICustomProps read GetCustomProps;
+    property Mesh       : IavMesh      read GetMesh;
+    property BindPoseTransform: TMat4  read GetBindPoseTransform;
 
     property Parent: IavMeshInstance read GetParent;
 
@@ -521,6 +523,7 @@ type
     FMesh: IavMesh;
     FChilds: IChildList;
     FName: string;
+    FCustomProps: ICustomProps;
 
     FTransform: TMat4;
     FPoseArray: TMat4Arr;
@@ -537,6 +540,7 @@ type
     function GetBindPoseTransform: TMat4;
   public
     function GetChild(const AIndex: Integer): IavMeshInstance;
+    function GetCustomProps: ICustomProps;
     function GetMesh: IavMesh;
     function GetName: String;
     function GetParent: IavMeshInstance;
@@ -1465,6 +1469,11 @@ begin
   Result := FChilds[AIndex];
 end;
 
+function TavMeshInstance.GetCustomProps: ICustomProps;
+begin
+  Result := FCustomProps;
+end;
+
 function TavMeshInstance.GetMesh: IavMesh;
 begin
   Result := FMesh;
@@ -1584,6 +1593,7 @@ begin
   FChilds := TChildList.Create;
   FTransform := IdentityMat4;
   FBoneBindTransform := IdentityMat4;
+  FCustomProps := TCustomProps.Create;
 end;
 
 { TavAnimation }
