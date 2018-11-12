@@ -60,7 +60,7 @@ type
   {$define TM4Arr := TMat4iArr}
   {$Include mutils_v.inc}
 
-  {$define TCompType := ShortInt}
+  {$define TCompType := UInt16}
   {$define TV2 := TVec2s}
   {$define TV3 := TVec3s}
   {$define TV4 := TVec4s}
@@ -933,7 +933,7 @@ end;
   {$define TM4 := TMat4i}
   {$Include mutils_v.inc}
 
-  {$define TCompType := ShortInt}
+  {$define TCompType := UInt16}
   {$define TV2 := TVec2s}
   {$define TV3 := TVec3s}
   {$define TV4 := TVec4s}

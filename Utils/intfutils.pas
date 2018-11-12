@@ -60,6 +60,7 @@ type
     function _AddRef : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
     function _Release : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
   public
+    procedure AfterConstruction; override;
     function WeakRef: IWeakRefIntf;
     class function NewInstance : TObject; override;
     destructor Destroy; override;
@@ -296,16 +297,23 @@ begin
   end;
 end;
 
+procedure TWeakedInterfacedObject.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  Dec( TWeakRefIntf(FWeakRef).FInstanceRefCount );
+end;
+
 function TWeakedInterfacedObject.WeakRef: IWeakRefIntf;
 begin
   Result := TWeakRefIntf(FWeakRef);
 end;
 
-class function TWeakedInterfacedObject.NewInstance: Tobject;
+class function TWeakedInterfacedObject.NewInstance: TObject;
 begin
   Result := inherited newinstance;
   TWeakedInterfacedObject(Result).FWeakRef := TWeakRefIntf.Create(TWeakedInterfacedObject(Result));
   TWeakRefIntf(TWeakedInterfacedObject(Result).FWeakRef)._AddRef;
+  TWeakRefIntf(TWeakedInterfacedObject(Result).FWeakRef).FInstanceRefCount := 1;
 end;
 
 destructor TWeakedInterfacedObject.Destroy;
