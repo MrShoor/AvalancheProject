@@ -47,11 +47,6 @@ type
 
     FUPSSubscriber: IUPSEvent;
 
-    FDragThreshold: Single;
-    FDragDowned: array [0..2] of Boolean;
-    FDragStarted: array [0..2] of Boolean;
-    FDragDownedCoord: array[0..2] of TVec2;
-
     function GetAbsAngle: Single;
     function GetAbsPos: TVec2;
     procedure SetAbsAngle(const AValue: Single);
@@ -62,6 +57,10 @@ type
     procedure SetSize(const AValue: TVec2);
     procedure SetVisible(const AValue: Boolean);
   protected
+    FDragThreshold: Single;
+    FDragDowned: array [0..2] of Boolean;
+    FDragStarted: array [0..2] of Boolean;
+    FDragDownedCoord: array[0..2] of TVec2;
     procedure AfterRegister; override;
   protected
     procedure Notify_ParentSizeChanged; virtual;

@@ -11,37 +11,20 @@ uses
 type
   TavModelCollection = class;
 
-  { TModelInstanceGPUData_Base }
-
-  TModelInstanceGPUData_Base = class (TInterfacedObjectEx, IVerticesData)
-  protected
-    dummy: Boolean;
-    function GetBasicPtr: Pointer;
-    function GetOffset(const FieldPtr: Pointer): Integer;
-
-    function AddLayoutFields(const LBuilder: ILayoutBuilder): ILayoutBuilder; virtual; abstract;
-  public
-    function VerticesCount: Integer;
-    function Layout: IDataLayout; virtual; abstract;
-    function Data: TPointerData;
-  end;
-
   { TModelInstanceGPUData }
 
-  TModelInstanceGPUData = class (TModelInstanceGPUData_Base)
-  protected
-    class var Layout_ModelInstanceGPUData: IDataLayout;
-    function AddLayoutFields(const LBuilder: ILayoutBuilder): ILayoutBuilder; override;
-  public
+  TModelInstanceGPUData = record
     aiBoneMatOffset: TVec2;
-    function Layout: IDataLayout; override;
+    class function Layout: IDataLayout; static;
   end;
-
+  TModelInstanceGPUDataArr = {$IfDef FPC}specialize{$EndIf}TVerticesRec<TModelInstanceGPUData>;
+  IModelInstanceGPUDataArr = {$IfDef FPC}specialize{$EndIf}IArray<TModelInstanceGPUData>;
 
   { IavModelInstance }
 
   IavModelInstance = interface
     function Mesh: IavMeshInstance;
+    function MultiMesh: IavMeshInstanceArray;
     function CustomProps: ICustomProps;
     function Collection: TavModelCollection;
     function ModelName: String;
@@ -229,19 +212,20 @@ type
 
       FModel: TModel;
       FInstanceIndex: Integer;
+
       FInstGPUData: IVBManagedHandle;
 
-      FBoneTransformHandle: IBoneTransformHandle;
-      FBoneTransformID: Int64;
+      FBoneTransformHandles: array of IBoneTransformHandle;
+      FBoneTransformID:array of Int64;
 
       FMeshInst: IavMeshInstance;
+      FMultiMesh: IavMeshInstanceArray;
 
       FName: string;
 
       procedure OnUnlink;
       procedure OnLink;
 
-      function GetPoseArr: TMat4Arr;
       procedure UpdateBoneTransform;
     public
       function GetTexMap: TavMultiTexture;
@@ -249,6 +233,7 @@ type
       function GetObj: TavModelInstance;
 
       function Mesh: IavMeshInstance;
+      function MultiMesh: IavMeshInstanceArray;
       function CustomProps: ICustomProps;
       function Collection: TavModelCollection;
       function ModelName: String;
@@ -294,6 +279,9 @@ type
     function ObtainMap(const Key: TTextureKey): TavMultiTexture;
 
     procedure Draw(const Intances: IObjArr; SortByMaterial: Boolean); overload;
+
+    function BuildModelMaterial(const AMaps: TavMultiTexture; const AMesh: IavMesh; const AMaterialIndex: Integer): TModelMaterial;
+    function ObtainTModel(const AMesh: IavMesh): TModel;
   public
     function ModelsCount: Integer;
     procedure Reset;
@@ -303,6 +291,8 @@ type
     procedure Select;
     procedure Draw(const Instances: array of IavModelInstance; SortByMaterial: Boolean = True); overload;
     procedure Draw(const Instances: array of IavModelInstanceArr; SortByMaterial: Boolean = True); overload;
+
+    function  AddFromMesh(const AMesh: IavMesh; const AMeshCount: Integer): IavModelInstance;
 
     function  AddFromMeshInstance(const AMeshInstance: IavMeshInstance): IavModelInstance;
     function  AddFromMeshInstances(const AMeshInstances: IavMeshInstances): IavModelInstanceArr; overload;
@@ -320,6 +310,13 @@ implementation
 
 uses
   Math;
+
+{ TModelInstanceGPUData }
+
+class function TModelInstanceGPUData.Layout: IDataLayout;
+begin
+  Result := LB.Add('aiBoneMatOffset', ctFloat, 2).Finish();
+end;
 
 { TavModelCollection.TavMaterialMap.TMaterialNode }
 
@@ -529,47 +526,6 @@ begin
   inherited Destroy;
 end;
 
-{ TModelInstanceGPUData_Base }
-
-function TModelInstanceGPUData_Base.GetBasicPtr: Pointer;
-begin
-  Result := @dummy;
-end;
-
-function TModelInstanceGPUData_Base.GetOffset(const FieldPtr: Pointer): Integer;
-begin
-  {$Hints Off}
-  {$Warnings Off}
-  Result := NativeInt(FieldPtr) - NativeInt(GetBasicPtr);
-  {$Warnings On}
-  {$Hints On}
-end;
-
-function TModelInstanceGPUData_Base.VerticesCount: Integer;
-begin
-  Result := 1;
-end;
-
-function TModelInstanceGPUData_Base.Data: TPointerData;
-begin
-  Result.data := GetBasicPtr;
-  Result.size := Layout.Size;
-end;
-
-function TModelInstanceGPUData.AddLayoutFields(const LBuilder: ILayoutBuilder): ILayoutBuilder;
-var offset: Integer;
-begin
-  offset := GetOffset(@aiBoneMatOffset);
-  Result := LBuilder.Add('aiBoneMatOffset', ctFloat, 2, False, offset);
-end;
-
-function TModelInstanceGPUData.Layout: IDataLayout;
-begin
-  if not Assigned(Layout_ModelInstanceGPUData) then
-    Layout_ModelInstanceGPUData := AddLayoutFields(LB).Finish();
-  Result := Layout_ModelInstanceGPUData;
-end;
-
 { TavModelCollection.TavModelInstance }
 
 procedure TavModelCollection.TavModelInstance.OnUnlink;
@@ -582,19 +538,31 @@ begin
 
 end;
 
-function TavModelCollection.TavModelInstance.GetPoseArr: TMat4Arr;
-begin
-  Result := FBoneTransformHandle.Matrices;
-end;
-
 procedure TavModelCollection.TavModelInstance.UpdateBoneTransform;
 var newID: Int64;
+    i: Integer;
 begin
-  newID := FMeshInst.PoseStateID;
-  if FBoneTransformID <> newID then
+  if FMeshInst <> nil then
   begin
-    FBoneTransformID := newID;
-    FBoneTransformHandle.Invalidate;
+    newID := FMeshInst.PoseStateID;
+    if FBoneTransformID[0] <> newID then
+    begin
+      FBoneTransformID[0] := newID;
+      FBoneTransformHandles[0].Invalidate;
+    end;
+  end;
+
+  if FMultiMesh <> nil then
+  begin
+    for i := 0 to FMultiMesh.Count - 1 do
+    begin
+      newID := FMultiMesh[i].PoseStateID;
+      if FBoneTransformID[i] <> newID then
+      begin
+        FBoneTransformID[i] := newID;
+        FBoneTransformHandles[i].Invalidate;
+      end;
+    end;
   end;
 end;
 
@@ -613,6 +581,11 @@ end;
 function TavModelCollection.TavModelInstance.Mesh: IavMeshInstance;
 begin
   Result := FMeshInst;
+end;
+
+function TavModelCollection.TavModelInstance.MultiMesh: IavMeshInstanceArray;
+begin
+  Result := FMultiMesh;
 end;
 
 function TavModelCollection.TavModelInstance.CustomProps: ICustomProps;
@@ -646,7 +619,7 @@ end;
 
 destructor TavModelCollection.TavModelInstance.Destroy;
 begin
-  if FOwner <> nil then
+  if (FOwner <> nil) and (FMeshInst <> nil) then
     FOwner.FModelInstances.Delete(FMeshInst);
   if Assigned(FModel) then
     FModel.UnlinkInstance(Self);
@@ -668,7 +641,7 @@ begin
     FInstances[inst.FInstanceIndex] := FInstances[n];
     TavModelInstance(FInstances[inst.FInstanceIndex]).FInstanceIndex := inst.FInstanceIndex;
   end;
-  inst.FBoneTransformHandle := nil;
+  inst.FBoneTransformHandles := nil;
   inst.FInstGPUData := nil;
   inst.OnUnlink;
   inst.FInstanceIndex := -1;
@@ -749,6 +722,94 @@ begin
       prog.SetUniform('Maps', lastDiffuse, Sampler_Linear);
     end;
     DrawManaged(prog, mInst.FModel.VBHandle, mInst.FModel.IBHandle, mInst.FInstGPUData, ptTriangles, Main.States.CullMode);
+  end;
+end;
+
+function TavModelCollection.BuildModelMaterial(const AMaps: TavMultiTexture; const AMesh: IavMesh; const AMaterialIndex: Integer): TModelMaterial;
+  function GetTexPair(const ATexData: ITextureData; const AFactor: Single;
+                      out AHandle: IMTManagedHandle): TVec2;
+  var NewAdded: Boolean;
+  begin
+    if ATexData = nil then
+    begin
+      AHandle := nil;
+      Result := Vec(-1, 0);
+      Exit;
+    end;
+    AHandle := AMaps.Add(ATexData, NewAdded);
+    if NewAdded then FMaterials.Invalidate;
+    Result.x := AHandle.Offset;
+    Result.y := AFactor;
+  end;
+
+var meshMat: TMeshMaterial;
+    meshMap: TMeshMaterialMaps;
+begin
+  meshMat := AMesh.Material[AMaterialIndex];
+  meshMap := AMesh.MaterialMaps[AMaterialIndex];
+
+  Result.Material.matDiff        := meshMat.matDiff;
+  Result.Material.matSpec        := meshMat.matSpec;
+  Result.Material.matSpecHardness:= meshMat.matSpecHardness;
+  Result.Material.matSpecIOR     := meshMat.matSpecIOR;
+  Result.Material.matEmitFactor  := meshMat.matEmitFactor;
+
+  Result.Material.mapDiffuse_Alpha_Translucency.xy := GetTexPair(meshMap.mapDiffuse_Alpha, meshMap.mapDiffuse_AlphaFactor, Result.mapDiffuse_Alpha);
+  Result.Material.mapDiffuse_Alpha_Translucency.zw := GetTexPair(meshMap.mapDiffuse_Translucency, meshMap.mapDiffuse_TranslucencyFactor, Result.mapDiffuse_Translucency);
+  Result.Material.mapDiffuse_Intensity_Color.xy := GetTexPair(meshMap.mapDiffuse_Intensity, meshMap.mapDiffuse_IntensityFactor, Result.mapDiffuse_Intensity);
+  Result.Material.mapDiffuse_Intensity_Color.zw := GetTexPair(meshMap.mapDiffuse_Color, meshMap.mapDiffuse_ColorFactor, Result.mapDiffuse_Color);
+  Result.Material.mapShading_Ambient_Emit.xy := GetTexPair(meshMap.mapShading_Ambient, meshMap.mapShading_AmbientFactor, Result.mapShading_Ambient);
+  Result.Material.mapShading_Ambient_Emit.zw := GetTexPair(meshMap.mapShading_Emit, meshMap.mapShading_EmitFactor, Result.mapShading_Emit);
+  Result.Material.mapShading_Mirror_RayMirror.xy := GetTexPair(meshMap.mapShading_Mirror, meshMap.mapShading_MirrorFactor, Result.mapShading_Mirror);
+  Result.Material.mapShading_Mirror_RayMirror.zw := GetTexPair(meshMap.mapShading_RayMirror, meshMap.mapShading_RayMirrorFactor, Result.mapShading_RayMirror);
+  Result.Material.mapSpecular_Intensity_Color.xy := GetTexPair(meshMap.mapSpecular_Intensity, meshMap.mapSpecular_IntensityFactor, Result.mapSpecular_Intensity);
+  Result.Material.mapSpecular_Intensity_Color.zw := GetTexPair(meshMap.mapSpecular_Color, meshMap.mapSpecular_ColorFactor, Result.mapSpecular_Color);
+  Result.Material.mapSpecular_Hardness_mapGeometry_Normal.xy := GetTexPair(meshMap.mapSpecular_Hardness, meshMap.mapSpecular_HardnessFactor, Result.mapSpecular_Hardness);
+  Result.Material.mapSpecular_Hardness_mapGeometry_Normal.zw := GetTexPair(meshMap.mapGeometry_Normal, meshMap.mapGeometry_NormalFactor, Result.mapGeometry_Normal);
+  Result.Material.mapGeometry_Warp_Displace.xy := GetTexPair(meshMap.mapGeometry_Warp, meshMap.mapGeometry_WarpFactor, Result.mapGeometry_Warp);
+  Result.Material.mapGeometry_Warp_Displace.zw := GetTexPair(meshMap.mapGeometry_Displace, meshMap.mapGeometry_DisplaceFactor, Result.mapGeometry_Displace);
+end;
+
+function TavModelCollection.ObtainTModel(const AMesh: IavMesh): TModel;
+var tKey: TTextureKey;
+    mapTex: TavMultiTexture;
+    materials: IMaterialArr;
+    j: Integer;
+begin
+  if not FModels.TryGetValue(AMesh, Result) then
+  begin
+    Result := TModel.Create;
+    Result.Owner := Self;
+    Result.Mesh := AMesh;
+    Result.VBHandle := FVB.Add(Result.Mesh.Vert as IVerticesData);
+    Result.IBHandle := FIB.Add(Result.Mesh.Ind as IIndicesData);
+
+    //prepare map size
+    tKey.Width := -1;
+    tKey.Height := -1;
+    tKey.Mips := -1;
+    for j := 0 to Result.Mesh.MaterialsCount-1 do
+    begin
+      tKey.Width := Result.Mesh.MaterialMaps[j].Width;
+      tKey.Height := Result.Mesh.MaterialMaps[j].Height;
+      tKey.Mips := Result.Mesh.MaterialMaps[j].MipCount;
+      if tKey.Width > 0 then Break;
+    end;
+    if tKey.Width < 0 then
+    begin
+      tKey.Width := 1;
+      tKey.Height := 1;
+      tKey.Mips := 1;
+    end;
+
+    mapTex := ObtainMap(tKey);
+    materials := TMaterialArr.Create;
+    materials.Capacity := Result.Mesh.MaterialsCount;
+    for j := 0 to Result.Mesh.MaterialsCount - 1 do
+      materials.Add(BuildModelMaterial(mapTex, Result.Mesh, j));
+    Result.MaterialHandle := FMaterials.AddMaterials(materials);
+    Result.FMapTex := mapTex;
+    FModels.AddOrSet(Result.Mesh, Result);
   end;
 end;
 
@@ -834,6 +895,44 @@ begin
   Draw(inst, SortByMaterial);
 end;
 
+function TavModelCollection.AddFromMesh(const AMesh: IavMesh; const AMeshCount: Integer): IavModelInstance;
+var instances: IavMeshInstanceArray;
+    i: Integer;
+    modelInst: TavModelInstance;
+    model: TModel;
+    instGPU: IModelInstanceGPUDataArr;
+    instGPU_one: TModelInstanceGPUData;
+begin
+  instances := TavMeshInstanceArray.Create();
+  instances.Capacity := AMeshCount;
+  for i := 0 to AMeshCount - 1 do
+    instances.Add(AMesh.CreateInstance(''));
+
+  model := ObtainTModel(AMesh);
+
+  modelInst := TavModelInstance.Create(Self);
+  modelInst.FMeshInst := nil;
+  modelInst.FMultiMesh := instances;
+
+  instGPU := TModelInstanceGPUDataArr.Create;
+  SetLength(modelInst.FBoneTransformHandles, instances.Count);
+  SetLength(modelInst.FBoneTransformID, instances.Count);
+  for i := 0 to instances.Count - 1 do
+  begin
+    modelInst.FBoneTransformHandles[i] := FBoneTransform.AddPose(instances[i]);
+    instGPU_one.aiBoneMatOffset := Vec(modelInst.FBoneTransformHandles[i].Offset, model.MaterialHandle.Offset);
+    instGPU.Add(instGPU_one);
+  end;
+  modelInst.FModel := model;
+  modelInst.FInstGPUData := FInstVB.Add(instGPU as IVerticesData);
+  modelInst.FInstanceIndex := model.FInstances.Count;
+  modelInst.FName := '';
+  model.FInstances.Add(modelInst);
+  modelInst.OnLink;
+
+  Result := modelInst;
+end;
+
 function TavModelCollection.AddFromMeshInstance(const AMeshInstance: IavMeshInstance): IavModelInstance;
 {
   procedure AddTexData(const TexKey: TTextureKey; TexData: ITextureData);
@@ -855,106 +954,28 @@ function TavModelCollection.AddFromMeshInstance(const AMeshInstance: IavMeshInst
       Result := Tex.TexData.ItemCount;
   end;
 }
-  function BuildModelMaterial(const AMaps: TavMultiTexture; const AMesh: IavMesh; const AMaterialIndex: Integer): TModelMaterial;
-    function GetTexPair(const ATexData: ITextureData; const AFactor: Single;
-                        out AHandle: IMTManagedHandle): TVec2;
-    var NewAdded: Boolean;
-    begin
-      if ATexData = nil then
-      begin
-        AHandle := nil;
-        Result := Vec(-1, 0);
-        Exit;
-      end;
-      AHandle := AMaps.Add(ATexData, NewAdded);
-      if NewAdded then FMaterials.Invalidate;
-      Result.x := AHandle.Offset;
-      Result.y := AFactor;
-    end;
-
-  var meshMat: TMeshMaterial;
-      meshMap: TMeshMaterialMaps;
-  begin
-    meshMat := AMesh.Material[AMaterialIndex];
-    meshMap := AMesh.MaterialMaps[AMaterialIndex];
-
-    Result.Material.matDiff        := meshMat.matDiff;
-    Result.Material.matSpec        := meshMat.matSpec;
-    Result.Material.matSpecHardness:= meshMat.matSpecHardness;
-    Result.Material.matSpecIOR     := meshMat.matSpecIOR;
-    Result.Material.matEmitFactor  := meshMat.matEmitFactor;
-
-    Result.Material.mapDiffuse_Alpha_Translucency.xy := GetTexPair(meshMap.mapDiffuse_Alpha, meshMap.mapDiffuse_AlphaFactor, Result.mapDiffuse_Alpha);
-    Result.Material.mapDiffuse_Alpha_Translucency.zw := GetTexPair(meshMap.mapDiffuse_Translucency, meshMap.mapDiffuse_TranslucencyFactor, Result.mapDiffuse_Translucency);
-    Result.Material.mapDiffuse_Intensity_Color.xy := GetTexPair(meshMap.mapDiffuse_Intensity, meshMap.mapDiffuse_IntensityFactor, Result.mapDiffuse_Intensity);
-    Result.Material.mapDiffuse_Intensity_Color.zw := GetTexPair(meshMap.mapDiffuse_Color, meshMap.mapDiffuse_ColorFactor, Result.mapDiffuse_Color);
-    Result.Material.mapShading_Ambient_Emit.xy := GetTexPair(meshMap.mapShading_Ambient, meshMap.mapShading_AmbientFactor, Result.mapShading_Ambient);
-    Result.Material.mapShading_Ambient_Emit.zw := GetTexPair(meshMap.mapShading_Emit, meshMap.mapShading_EmitFactor, Result.mapShading_Emit);
-    Result.Material.mapShading_Mirror_RayMirror.xy := GetTexPair(meshMap.mapShading_Mirror, meshMap.mapShading_MirrorFactor, Result.mapShading_Mirror);
-    Result.Material.mapShading_Mirror_RayMirror.zw := GetTexPair(meshMap.mapShading_RayMirror, meshMap.mapShading_RayMirrorFactor, Result.mapShading_RayMirror);
-    Result.Material.mapSpecular_Intensity_Color.xy := GetTexPair(meshMap.mapSpecular_Intensity, meshMap.mapSpecular_IntensityFactor, Result.mapSpecular_Intensity);
-    Result.Material.mapSpecular_Intensity_Color.zw := GetTexPair(meshMap.mapSpecular_Color, meshMap.mapSpecular_ColorFactor, Result.mapSpecular_Color);
-    Result.Material.mapSpecular_Hardness_mapGeometry_Normal.xy := GetTexPair(meshMap.mapSpecular_Hardness, meshMap.mapSpecular_HardnessFactor, Result.mapSpecular_Hardness);
-    Result.Material.mapSpecular_Hardness_mapGeometry_Normal.zw := GetTexPair(meshMap.mapGeometry_Normal, meshMap.mapGeometry_NormalFactor, Result.mapGeometry_Normal);
-    Result.Material.mapGeometry_Warp_Displace.xy := GetTexPair(meshMap.mapGeometry_Warp, meshMap.mapGeometry_WarpFactor, Result.mapGeometry_Warp);
-    Result.Material.mapGeometry_Warp_Displace.zw := GetTexPair(meshMap.mapGeometry_Displace, meshMap.mapGeometry_DisplaceFactor, Result.mapGeometry_Displace);
-  end;
-
 var
   model: TModel;
-  j: Integer;
-  tKey: TTextureKey;
-  mapTex: TavMultiTexture;
 
   modelInst: TavModelInstance;
-  materials: IMaterialArr;
-  instGPU : TModelInstanceGPUData;
+  instGPU : IModelInstanceGPUDataArr;
+  instGPU_one: TModelInstanceGPUData;
 begin
   Assert(not FModelInstances.Contains(AMeshInstance), 'Instance "'+AMeshInstance.Name+'" already in set');
 
-  if not FModels.TryGetValue(AMeshInstance.Mesh, model) then
-  begin
-    model := TModel.Create;
-    model.Owner := Self;
-    model.Mesh := AMeshInstance.Mesh;
-    model.VBHandle := FVB.Add(model.Mesh.Vert as IVerticesData);
-    model.IBHandle := FIB.Add(model.Mesh.Ind as IIndicesData);
-
-    //prepare map size
-    tKey.Width := -1;
-    tKey.Height := -1;
-    tKey.Mips := -1;
-    for j := 0 to model.Mesh.MaterialsCount-1 do
-    begin
-      tKey.Width := model.Mesh.MaterialMaps[j].Width;
-      tKey.Height := model.Mesh.MaterialMaps[j].Height;
-      tKey.Mips := model.Mesh.MaterialMaps[j].MipCount;
-      if tKey.Width > 0 then Break;
-    end;
-    if tKey.Width < 0 then
-    begin
-      tKey.Width := 1;
-      tKey.Height := 1;
-      tKey.Mips := 1;
-    end;
-
-    mapTex := ObtainMap(tKey);
-    materials := TMaterialArr.Create;
-    materials.Capacity := model.Mesh.MaterialsCount;
-    for j := 0 to model.Mesh.MaterialsCount - 1 do
-      materials.Add(BuildModelMaterial(mapTex, model.Mesh, j));
-    model.MaterialHandle := FMaterials.AddMaterials(materials);
-    model.FMapTex := mapTex;
-    FModels.AddOrSet(model.Mesh, model);
-  end;
+  model := ObtainTModel(AMeshInstance.Mesh);
 
   modelInst := TavModelInstance.Create(Self);
   modelInst.FMeshInst := AMeshInstance;
   if modelInst.FMeshInst.Pose <> nil then
     modelInst.FMeshInst.Pose.SetAnimationState([]);
-  modelInst.FBoneTransformHandle := FBoneTransform.AddPose(modelInst.FMeshInst);
-  instGPU := TModelInstanceGPUData.Create;
-  instGPU.aiBoneMatOffset := Vec(modelInst.FBoneTransformHandle.Offset, model.MaterialHandle.Offset);
+  SetLength(modelInst.FBoneTransformHandles, 1);
+  SetLength(modelInst.FBoneTransformID, 1);
+  modelInst.FBoneTransformHandles[0] := FBoneTransform.AddPose(modelInst.FMeshInst);
+
+  instGPU := TModelInstanceGPUDataArr.Create;
+  instGPU_one.aiBoneMatOffset := Vec(modelInst.FBoneTransformHandles[0].Offset, model.MaterialHandle.Offset);
+  instGPU.Add(instGPU_one);
   modelInst.FModel := model;
   modelInst.FInstGPUData := FInstVB.Add(instGPU as IVerticesData);
   modelInst.FInstanceIndex := model.FInstances.Count;

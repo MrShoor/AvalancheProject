@@ -403,6 +403,7 @@ type
     property Valid: Boolean    read FValid write SetValid;
 
     function TextBuilder: ITextBuilder;
+    function GetSprite(const AFileName: string): ISpriteIndex;
 
     //drawing functions
     procedure Clear;
@@ -414,6 +415,7 @@ type
     procedure AddFill(const LeftTop, RightBottom: TVec2); overload;
     procedure AddTriangle(const V1,V2,V3: TVec2); overload;
     procedure AddSprite(const LeftTop, RightBottom: TVec2; const AFileName: string); overload;
+    procedure AddSprite(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex); overload;
 
     procedure Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single); overload;
     procedure Draw(const ATransform: TMat3); overload;
@@ -1408,7 +1410,8 @@ begin
   FCurrentBatch.ranges.y := 0;
 end;
 
-procedure TavCanvas.AddQuad(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex);
+procedure TavCanvas.AddQuad(const LeftTop, RightBottom: TVec2;
+  const ASprite: ISpriteIndex);
 var v: array [0..3] of TCanvasTriangleVertex;
 begin
   SelectGeometryKind(gkTris);
@@ -1446,6 +1449,11 @@ end;
 function TavCanvas.TextBuilder: ITextBuilder;
 begin
   Result := TTextBuilder.Create(FFont, CommonData);
+end;
+
+function TavCanvas.GetSprite(const AFileName: string): ISpriteIndex;
+begin
+  Result := CommonData.GetImageSprite(AFileName);
 end;
 
 procedure TavCanvas.Clear;
@@ -1562,6 +1570,11 @@ end;
 procedure TavCanvas.AddSprite(const LeftTop, RightBottom: TVec2; const AFileName: string);
 begin
   AddQuad(LeftTop, RightBottom, CommonData.GetImageSprite(AFileName));
+end;
+
+procedure TavCanvas.AddSprite(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex);
+begin
+  AddQuad(LeftTop, RightBottom, ASprite);
 end;
 
 procedure TavCanvas.Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single);
