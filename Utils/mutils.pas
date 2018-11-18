@@ -335,8 +335,11 @@ function SetLen(const v: TVec3; newLen: Single): TVec3; overload; {$IFNDEF NoInl
 function SetLen(const v: TVec4; newLen: Single): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Lerp(const v1, v2: Single; s: Single): Single; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Lerp(const v1, v2: TVec2; s: Single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Lerp(const v1, v2: TVec2; s: TVec2): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Lerp(const v1, v2: TVec3; s: Single): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Lerp(const v1, v2: TVec3; s: TVec3): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Lerp(const v1, v2: TVec4; s: Single): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function Lerp(const v1, v2: TVec4; s: TVec4): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Lerp(const m1, m2: TMat2; s: Single): TMat2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Lerp(const m1, m2: TMat3; s: Single): TMat3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Lerp(const m1, m2: TMat4; s: Single): TMat4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -1551,11 +1554,24 @@ begin
   Result.y := v1.y + s * (v2.y-v1.y);
 end;
 
+function Lerp(const v1, v2: TVec2; s: TVec2): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.x := v1.x + s.x * (v2.x-v1.x);
+  Result.y := v1.y + s.y * (v2.y-v1.y);
+end;
+
 function Lerp(const v1, v2: TVec3; s: Single): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 begin
   Result.x := v1.x + s * (v2.x-v1.x);
   Result.y := v1.y + s * (v2.y-v1.y);
   Result.z := v1.z + s * (v2.z-v1.z);
+end;
+
+function Lerp(const v1, v2: TVec3; s: TVec3): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.x := v1.x + s.x * (v2.x-v1.x);
+  Result.y := v1.y + s.y * (v2.y-v1.y);
+  Result.z := v1.z + s.z * (v2.z-v1.z);
 end;
 
 function Lerp(const v1, v2: TVec4; s: Single): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -1564,6 +1580,14 @@ begin
   Result.y := v1.y + s * (v2.y-v1.y);
   Result.z := v1.z + s * (v2.z-v1.z);
   Result.w := v1.w + s * (v2.w-v1.w);
+end;
+
+function Lerp(const v1, v2: TVec4; s: TVec4): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.x := v1.x + s.x * (v2.x-v1.x);
+  Result.y := v1.y + s.y * (v2.y-v1.y);
+  Result.z := v1.z + s.z * (v2.z-v1.z);
+  Result.w := v1.w + s.w * (v2.w-v1.w);
 end;
 
 function Lerp(const m1, m2: TMat2; s: Single): TMat2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
