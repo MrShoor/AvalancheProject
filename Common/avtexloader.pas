@@ -106,6 +106,7 @@ BestImageFormat : array [TTextureFormat] of TImageFormat = (
     { D24     } TImageFormat.D24,
     { D32     } TImageFormat.D32,
     { D32f    } TImageFormat.D32f);
+(*
 BestTextureFormat : array [TImageFormat] of TTextureFormat = (
     { Unknown       } TTextureFormat.RGBA,
     { Gray8         } TTextureFormat.R,
@@ -148,7 +149,7 @@ BestTextureFormat : array [TImageFormat] of TTextureFormat = (
     { R32G32B32     } TTextureFormat.RGB32,
     { A32R32G32B32  } TTextureFormat.RGBA32,
     { A32B32G32R32  } TTextureFormat.RGBA32);
-
+*)
 type
 
   { TTextureManager }

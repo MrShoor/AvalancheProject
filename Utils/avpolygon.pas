@@ -277,9 +277,9 @@ function SOGetEdgeType_Def(const ASO: ISuperObject; const AName: string; const A
 var o: ISuperObject;
     s: string;
 begin
-  o := ASO.O[AName];
+  o := ASO.O[SOString(AName)];
   if o = nil then Exit(ADefValue);
-  s := o.AsString;
+  s := string(o.AsString);
   for Result := Low(TPathEdgeType) to High(TPathEdgeType) do
     if cPolyEdgeTypeNames[Result] = s then Exit;
   Result := ADefValue;
@@ -663,7 +663,7 @@ end;
 function TPath.TPolyEdge.SaveJSON: ISuperObject;
 begin
   Result := SO('{}');
-  Result.S['EType'] := cPolyEdgeTypeNames[EdgeType];
+  Result.S['EType'] := SOString(cPolyEdgeTypeNames[EdgeType]);
   Result.O['Start'] := Vec2ToSO(FVStart.Coord);
   Result.O['End'] := Vec2ToSO(FVEnd.Coord);
 end;

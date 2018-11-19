@@ -103,10 +103,6 @@ const
   DEFAULT_BackBuffer: Boolean = False;
 
 const
-  GLPoolType: array [TBufferPoolType] of Cardinal = ( {StaticDraw }  GL_STATIC_DRAW,
-                                                      {DynamicDraw}  GL_DYNAMIC_DRAW,
-                                                      {StreamDraw }  GL_STREAM_DRAW
-                                                    );
   GLPrimitiveType: array [TPrimitiveType] of Cardinal = ( {ptPoints}            GL_POINTS,
                                                           {ptLines}             GL_LINES,
                                                           {ptLineStrip}         GL_LINE_STRIP,

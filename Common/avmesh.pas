@@ -1367,8 +1367,7 @@ var arm : IavArmature;
     anim: IavAnimation;
     animIndex: Integer;
     time: Int64;
-    j, n, i: Integer;
-    s: String;
+    j, i: Integer;
 begin
   arm := Pose.Armature;
   if arm = nil then Exit;

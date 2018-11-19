@@ -1599,6 +1599,9 @@ procedure TProgram.Load(const AProgram: string; FromResource: Boolean; const ASt
     procedure ReadCodeData(stream: TStream; var Data: TByteArr);
     var n: Integer;
     begin
+      {$IfDef FPC}
+      n := 0;
+      {$EndIf}
       stream.ReadBuffer(n, SizeOf(n));
       SetLength(Data, n);
       stream.ReadBuffer(Data[0], n);
@@ -1614,6 +1617,14 @@ procedure TProgram.Load(const AProgram: string; FromResource: Boolean; const ASt
         b: Byte;
         Offset: Integer;
     begin
+      {$IfDef FPC}
+      n2 := 0;
+      Offset := 0;
+      b := 0;
+      n := 0;
+      blockSize := 0;
+      {$EndIf}
+
       Result := Nil;
       StreamReadString(Stream, blockName);
       Stream.ReadBuffer(blockSize, SizeOf(blockSize));
@@ -2647,7 +2658,7 @@ type
   begin
       Name := GetEnumName(TypeInfo(TImageFormat), Ord(Format));
 
-      FillChar(Result, SizeOf(Result), 0);
+      ZeroClear(Result, SizeOf(Result));
       Result.RGBA[0].CompType := ctBool;
       Result.RGBA[1].CompType := ctBool;
       Result.RGBA[2].CompType := ctBool;
@@ -2689,7 +2700,7 @@ type
   begin
       Name := GetEnumName(TypeInfo(TTextureFormat), Ord(Format));
 
-      FillChar(Result, SizeOf(Result), 0);
+      ZeroClear(Result, SizeOf(Result));
       Result.RGBA[0].CompType := ctBool;
       Result.RGBA[1].CompType := ctBool;
       Result.RGBA[2].CompType := ctBool;
@@ -3266,7 +3277,7 @@ begin
         FViews[i] := nil;
         Continue;
       end;
-      FillChar(RTDesc, SizeOf(RTDesc), 0);
+      ZeroClear(RTDesc, SizeOf(RTDesc));
       RTDesc.Format := D3D11ViewFormat[FTex[i].Tex.Format];
       if FTex[i].Tex.sRGB then RTDesc.Format := Add_sRGB(RTDesc.Format);
       if FTex[i].Tex.SampleCount > 1 then
@@ -3303,7 +3314,7 @@ begin
 
     if Assigned(FDepthTex) then
     begin
-      FillChar(DSDesc, SizeOf(DSDesc), 0);
+      ZeroClear(DSDesc, SizeOf(DSDesc));
       DSDesc.Format := D3D11ViewFormat[FDepthTex.Format];
       if FDepthTex.SampleCount > 1 then
       begin

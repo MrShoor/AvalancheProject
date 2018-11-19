@@ -214,7 +214,6 @@ type
 
     FCameraUpdateID    : Integer;
     FProjectionUpdateID: Integer;
-    FFrameID           : Int64;
 
     FWindowCur: TVec2;
     FFrom, FAt: TVec3;

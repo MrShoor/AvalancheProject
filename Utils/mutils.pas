@@ -592,7 +592,7 @@ const XEPS: Double = 0.0001;
   end;
 
   function FindOtherRange(const deriv: TDoubleArr; const x1, f1, startOffset: Double; out x2, f2: Double): Boolean;
-  var Fd: Double;
+  //var Fd: Double;
   begin
     //todo use derivative for find exact interval
     x2 := x1 + startOffset;
@@ -615,7 +615,7 @@ var deriv: TDoubleArr;
     derivRoots: TDoubleArr;
     i, j: Integer;
 
-    X, Fx, Fd: Double;
+    //X, Fx, Fd: Double;
     RangeX: array [0..1] of Double;
     RangeF: array [0..1] of Double;
     NewX, NewF: Double;
@@ -1794,10 +1794,10 @@ function BitsCount(x: UInt64): Integer;
     const m1  : UInt64 = $5555555555555555; //binary: 0101...
     const m2  : UInt64 = $3333333333333333; //binary: 00110011..
     const m4  : UInt64 = $0f0f0f0f0f0f0f0f; //binary:  4 zeros,  4 ones ...
-    const m8  : UInt64 = $00ff00ff00ff00ff; //binary:  8 zeros,  8 ones ...
-    const m16 : UInt64 = $0000ffff0000ffff; //binary: 16 zeros, 16 ones ...
-    const m32 : UInt64 = $00000000ffffffff; //binary: 32 zeros, 32 ones
-    const hff : UInt64 = $ffffffffffffffff; //binary: all ones
+    //const m8  : UInt64 = $00ff00ff00ff00ff; //binary:  8 zeros,  8 ones ...
+    //const m16 : UInt64 = $0000ffff0000ffff; //binary: 16 zeros, 16 ones ...
+    //const m32 : UInt64 = $00000000ffffffff; //binary: 32 zeros, 32 ones
+    //const hff : UInt64 = $ffffffffffffffff; //binary: all ones
     const h01 : UInt64 = $0101010101010101; //the sum of 256 to the power of 0,1,2,3...
 begin
   Dec(x, (x shr 1) and m1);             //put count of each 2 bits into those 2 bits

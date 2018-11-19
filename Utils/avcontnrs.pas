@@ -382,7 +382,7 @@ type
     THSet = {$IfDef FPC}specialize{$EndIf} THashSet<TKey>;
 
     TArr = {$IfDef FPC}specialize{$EndIf} TArray<TKey>;
-    IArr = {$IfDef FPC}specialize{$EndIf} IArray<TKey>;
+    //IArr = {$IfDef FPC}specialize{$EndIf} IArray<TKey>;
   strict private
     FHash : IMap;
     FComparer : IEqualityComparer;
@@ -644,6 +644,7 @@ procedure StreamRawAutoWrite(const AStream: TStream; const AData; AType: PTypeIn
   var td: PTypeData;
       i, n, offset, size : Integer;
       mf: PManagedField;
+      pb: PByte;
   begin
      td := GetTypeData(AType);
      n := td^.ManagedFldCount;
@@ -656,14 +657,18 @@ procedure StreamRawAutoWrite(const AStream: TStream; const AData; AType: PTypeIn
        size := mf^.FldOffset - offset;
        if size > 0 then
        begin
-         AStream.WriteBuffer(Pointer(NativeInt(@AData)+offset)^, size);
+         pb := PByte(@AData);
+         Inc(pb, offset);
+         AStream.WriteBuffer(pb^, size);
          Inc(offset, size);
        end;
+       pb := PByte(@AData);
+       Inc(pb, mf^.FldOffset);
        {$IfDef FPC}
-       StreamRawAutoWrite(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef);
+       StreamRawAutoWrite(AStream, pb^, mf^.TypeRef);
        {$EndIf}
        {$IfDef DCC}
-       StreamRawAutoWrite(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef^);
+       StreamRawAutoWrite(AStream, pb^, mf^.TypeRef^);
        {$EndIf}
        Inc(offset, SizeOf(Pointer));
        Inc(mf);
@@ -788,6 +793,7 @@ procedure StreamRawAutoRead(const AStream: TStream; var AData; AType: PTypeInfo)
   var td: PTypeData;
       i, n, offset, size : Integer;
       mf: PManagedField;
+      pb: PByte;
   begin
      td := GetTypeData(AType);
      n := td^.ManagedFldCount;
@@ -800,14 +806,18 @@ procedure StreamRawAutoRead(const AStream: TStream; var AData; AType: PTypeInfo)
        size := mf^.FldOffset - offset;
        if size > 0 then
        begin
-         AStream.ReadBuffer(Pointer(NativeInt(@AData)+offset)^, size);
+         pb := @AData;
+         Inc(pb, offset);
+         AStream.ReadBuffer(pb^, size);
          Inc(offset, size);
        end;
+       pb := @AData;
+       Inc(pb, mf^.FldOffset);
        {$IfDef FPC}
-       StreamRawAutoRead(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef);
+       StreamRawAutoRead(AStream, pb^, mf^.TypeRef);
        {$EndIf}
        {$IfDef DCC}
-       StreamRawAutoRead(AStream, Pointer(NativeInt(@AData)+mf^.FldOffset)^, mf^.TypeRef^);
+       StreamRawAutoRead(AStream, pb^, mf^.TypeRef^);
        {$EndIf}
        Inc(offset, SizeOf(Pointer));
        Inc(mf);
@@ -1061,8 +1071,6 @@ end;
 
 procedure THashMapWithBuckets{$IfDef DCC}<TKey, TValue>{$EndIf}.MoveWithAddingGap(var bIndex, curInd: Integer);
 var oldInd: Integer;
-    oldKey: TKey;
-    oldVal: TValue;
 begin
   oldInd := bIndex;
   inherited MoveWithAddingGap(bIndex, curInd);
@@ -1306,13 +1314,15 @@ end;
 function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.Add(const AItem: TItem; const ABox: TAABB): Boolean;
 //{$Define TreeCheck}
 var KMin, KMax: TVec3i;
-    Level, LevelSize: Integer;
+    Level: Integer;
     Place: TVec3;
     node: INode;
+    {$IfDef TreeCheck}
     nodeBox: TAABB;
     k: Single;
     v: TVec3;
     size1, size2: Single;
+    {$EndIf}
 begin
   Delete(AItem);
 

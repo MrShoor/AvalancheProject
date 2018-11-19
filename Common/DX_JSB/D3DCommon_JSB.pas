@@ -68,7 +68,9 @@ unit D3DCommon_JSB;
 //
 // JSB
 ///////////////////////////////////////////////////////////////////////////////
-
+{$IfDef FPC}
+  {$WARN 3031 off : Values in enumeration types have to be ascending}
+{$EndIf}
 interface
 
 {$Z4}

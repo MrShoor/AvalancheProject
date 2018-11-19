@@ -587,12 +587,16 @@ begin
   SetCurrentDir(oldDir);
 end;
 
+{$IfDef FPC}
+  {$WARN 5058 off : Variable "$1" does not seem to be initialized}
+{$EndIf}
 procedure ZeroClear(out data; const DataSize: Integer);
 begin
-  {$Hints OFF}
   FillChar(data, DataSize, 0);
-  {$Hints ON}
 end;
+{$IfDef FPC}
+  {$WARN 5058 on : Variable "$1" does not seem to be initialized}
+{$EndIf}
 
 { TCustomProps }
 
@@ -643,7 +647,7 @@ begin
 end;
 
 procedure TCustomProps.SetVString(index: Integer; const AValue: string);
-var oldSize, i: Integer;
+var oldSize: Integer;
 begin
   if (index < 0) then Exit;
   oldSize := Length(FStrs);
