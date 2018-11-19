@@ -2008,6 +2008,7 @@ function TProgram.CreateShader(ACode: AnsiString; AType: TShaderType): Cardinal;
   var Log: AnsiString;
       n, tmplen: GLint;
   begin
+      Result := '';
       glGetShaderiv(Shader, GL_INFO_LOG_LENGTH, @n);
       if n>1 then
       begin
@@ -2265,6 +2266,9 @@ begin
           Result := nil;
 end;
 
+{$IfDef FPC}
+  {$WARN 4056 off : Conversion between ordinals and pointers is not portable}
+{$EndIf}
 procedure TProgram.SetAttribute(AttrField: TAttributeField_OGL;
   componentsCount, componentsType: integer; stride, offset: integer;
   divisor: Integer; normalized: Boolean);
@@ -2274,6 +2278,9 @@ begin
   glVertexAttribPointer(AttrField.ID, componentsCount, componentsType, normalized, stride, Pointer(offset));
   glVertexAttribDivisor(AttrField.ID, divisor);
 end;
+{$IfDef FPC}
+  {$WARN 4056 on : Conversion between ordinals and pointers is not portable}
+{$EndIf}
 
 procedure TProgram.SetAttributes(const ALayout: IDataLayout; divisor: Integer);
 var I: Integer;
@@ -2382,7 +2389,7 @@ begin
     FreeAndNil(stream);
   end;
 
-  obj := SO(s);
+  obj := SO(SOString(s));
   DetachAllShaders;
   ClearUniformList;
   ClearAttrList;
@@ -2390,7 +2397,7 @@ begin
 
   for st := Low(TShaderType) to High(TShaderType) do
   begin
-    GLShader := CreateShader(AnsiString(obj.S[ShaderType_Name[st]]), st);
+    GLShader := CreateShader(AnsiString(obj.S[SOString(ShaderType_Name[st])]), st);
     if GLShader <> 0 then
       glAttachShader(FHandle, GLShader);
   end;
@@ -2591,6 +2598,9 @@ begin
   Assert(False, 'Not implemented yet');
 end;
 
+{$IfDef FPC}
+  {$WARN 4056 off : Conversion between ordinals and pointers is not portable}
+{$EndIf}
 procedure TProgram.Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode;
   IndexedGeometry: Boolean; InstanceCount: Integer; Start: integer;
   Count: integer; BaseVertex: integer; BaseInstance: Integer);
@@ -2654,6 +2664,9 @@ begin
         glDrawArraysInstanced(GLPrimitiveType[PrimTopology], Start, Count, InstanceCount);
   end;
 end;
+{$IfDef FPC}
+  {$WARN 4056 on : Conversion between ordinals and pointers is not portable}
+{$EndIf}
 
 procedure TProgram.DispatchDraw(GroupDims: TVec3i);
 begin

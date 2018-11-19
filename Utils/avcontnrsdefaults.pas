@@ -1,5 +1,5 @@
 unit avContnrsDefaults;
-{$I avConfig.inc}
+{$I avUtilsConfig.inc}
 
 interface
 

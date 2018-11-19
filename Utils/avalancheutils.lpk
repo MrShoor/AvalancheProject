@@ -9,7 +9,7 @@
       <PathDelim Value="\"/>
       <SearchPaths>
         <IncludeFiles Value="."/>
-        <OtherUnitFiles Value=".;.."/>
+        <OtherUnitFiles Value="."/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
       <CodeGeneration>
@@ -30,7 +30,7 @@
         <CustomOptions Value="-Oodfa"/>
       </Other>
     </CompilerOptions>
-    <Files Count="11">
+    <Files Count="10">
       <Item1>
         <Filename Value="avcontnrs.pas"/>
         <UnitName Value="avContnrs"/>
@@ -56,25 +56,21 @@
         <UnitName Value="avPathFinder"/>
       </Item6>
       <Item7>
-        <Filename Value="avConfig.inc"/>
-        <Type Value="Include"/>
-      </Item7>
-      <Item8>
         <Filename Value="avpolygon.pas"/>
         <UnitName Value="avPolygon"/>
-      </Item8>
-      <Item9>
-        <Filename Value="..\superobject.pas"/>
-        <UnitName Value="superobject"/>
-      </Item9>
-      <Item10>
+      </Item7>
+      <Item8>
         <Filename Value="avfileutils.pas"/>
         <UnitName Value="avFileUtils"/>
-      </Item10>
-      <Item11>
+      </Item8>
+      <Item9>
         <Filename Value="math_fx.pas"/>
         <UnitName Value="math_fx"/>
-      </Item11>
+      </Item9>
+      <Item10>
+        <Filename Value="superobject.pas"/>
+        <UnitName Value="superobject"/>
+      </Item10>
     </Files>
     <RequiredPkgs Count="1">
       <Item1>

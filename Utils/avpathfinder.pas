@@ -1,5 +1,5 @@
 unit avPathFinder;
-{$I avConfig.inc}
+{$I avUtilsConfig.inc}
 
 //{$Define DebugOut}
 

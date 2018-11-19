@@ -863,6 +863,11 @@ var
   i: Integer;
   posx: Single;
 begin
+  {$IfDef FPC}
+  ZeroClear(dummyglyph, SizeOf(dummyglyph));
+  ZeroClear(dummyword, SizeOf(dummyword));
+  {$EndIf}
+
   if FWrappedWords = nil then FWrappedWords := TWordsArr.Create();
   pword := PWordInfo( FWrappedWords.PItem[FWrappedWords.Add(dummyword)] );
   pword^.Glyphs := TGlyphVertices.Create();
@@ -908,6 +913,10 @@ var ch: WideChar;
     dummy: TGlyphVertex;
     i: Integer;
 begin
+  {$IfDef FPC}
+  ZeroClear(dummy, SizeOf(dummy));
+  {$EndIf}
+
   InitLine;
 
   for i := 1 to Length(AStr) do
@@ -1223,6 +1232,8 @@ var line: PLineInfo;
     xxx: TVec3;
     xlen: Single;
 begin
+  line := nil;
+
   Assert(ARowIdx >= 0, 'ARowIdx out of range');
   Assert(ARowIdx < FLines.Count, 'ARowIdx out of range');
 

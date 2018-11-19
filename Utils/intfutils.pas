@@ -1,5 +1,5 @@
 unit intfUtils;
-{$I avConfig.inc}
+{$I avUtilsConfig.inc}
 
 interface
 

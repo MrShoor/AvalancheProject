@@ -1,5 +1,5 @@
 unit mutils;
-{$I avConfig.inc}
+{$I avUtilsConfig.inc}
 
 {$define NoInline}
 

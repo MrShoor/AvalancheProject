@@ -9,7 +9,7 @@
       <PathDelim Value="\"/>
       <SearchPaths>
         <IncludeFiles Value="Common;Canvas_Shaders;Utils"/>
-        <OtherUnitFiles Value="Common;Common\DX_JSB;.;Utils;Spine"/>
+        <OtherUnitFiles Value="Common;Common\DX_JSB;.;Spine"/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
       <Parsing>
@@ -115,20 +115,20 @@
         <UnitName Value="avModel"/>
       </Item21>
       <Item22>
-        <Filename Value="Utils\avConfig.inc"/>
-        <Type Value="Include"/>
-      </Item22>
-      <Item23>
         <Filename Value="Common\avglyphgenerator.pas"/>
         <UnitName Value="avGlyphGenerator"/>
+      </Item22>
+      <Item23>
+        <Filename Value="Common\avminicontrols.pas"/>
+        <UnitName Value="avMiniControls"/>
       </Item23>
       <Item24>
-        <Filename Value="Utils\avutils.pas"/>
+        <Filename Value="Common\avutils.pas"/>
         <UnitName Value="avUtils"/>
       </Item24>
       <Item25>
-        <Filename Value="Common\avminicontrols.pas"/>
-        <UnitName Value="avMiniControls"/>
+        <Filename Value="Common\avConfig.inc"/>
+        <Type Value="Include"/>
       </Item25>
     </Files>
     <RequiredPkgs Count="3">

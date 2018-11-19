@@ -174,6 +174,9 @@ begin
     RaiseLastOSError;
 end;
 
+{$IfDef FPC}
+  {$WARN 5044 off : Symbol "$1" is not portable}
+{$EndIf}
 function GenerateGlyphImage(const AFontName: string; const AChar: WideChar;
   const ASize: Integer; const AItalic: Boolean; const ABold: Boolean;
   const AUnderLine: Boolean; out ABCMetrics: TVec3I): ITextureMip;
@@ -214,7 +217,7 @@ begin
     bmp.Width := w;
     bmp.Height := h;
 
-    bmp.Canvas.TextOut(0, 0, AChar);
+    bmp.Canvas.TextOut(0, 0, string(AChar));
 
     SetLength(dstData, w*h);
     dstPix := @dstData[0];
@@ -243,6 +246,9 @@ begin
     FreeAndNil(bmp);
   end;
 end;
+{$IfDef FPC}
+  {$WARN 5044 on : Symbol "$1" is not portable}
+{$EndIf}
 
 function GenerateGlyphSDF(const AFontName: string; const AChar: WideChar; const ASize: Integer; const ABorder: Integer; const AItalic: Boolean;
   const ABold: Boolean; const AUnderLine: Boolean; out XXX: TVec3; out YYYY: TVec4): ITextureMip;
@@ -314,6 +320,9 @@ end;
 
 { TGlyphMonochrome }
 
+{$IfDef FPC}
+  {$WARN 5044 off : Symbol "$1" is not portable}
+{$EndIf}
 procedure TGlyphMonochrome.SaveToFile(const AFileName: string);
 
   procedure SetPix(bmp: TBitmap; x, y: Integer; b: Byte);
@@ -361,6 +370,9 @@ begin
     FreeAndNil(bmp);
   end;
 end;
+{$IfDef FPC}
+  {$WARN 5044 on: Symbol "$1" is not portable}
+{$EndIf}
 
 { TDField }
 
@@ -600,6 +612,9 @@ begin
   Result := FData;
 end;
 
+{$IfDef FPC}
+  {$WARN 5044 off : Symbol "$1" is not portable}
+{$EndIf}
 procedure TVec2Field.SaveToFile(const AFileName: string);
 var bmp: TBitmap;
     j, i: Integer;
@@ -659,6 +674,9 @@ begin
 
   ReBuild(AInverted);
 end;
+{$IfDef FPC}
+  {$WARN 5044 on : Symbol "$1" is not portable}
+{$EndIf}
 
 constructor TVec2Field.Create(const AGlyph: TGlyphMonochrome; const ABorder: Integer; const AInverted: Boolean);
 var i, j: Integer;

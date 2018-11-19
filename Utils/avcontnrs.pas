@@ -1,5 +1,5 @@
 unit avContnrs;
-{$I avConfig.inc}
+{$I avUtilsConfig.inc}
 
 interface
 

@@ -1409,6 +1409,8 @@ var page: PPageInfo;
     w,h,slice,px: Integer;
     pf: TImageFormat;
 begin
+  col := nil;
+
   Result := True;
   if FPages.Count = 0 then Exit;
 
