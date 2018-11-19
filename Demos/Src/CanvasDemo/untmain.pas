@@ -98,6 +98,7 @@ procedure TfrmMain.FormCreate(Sender: TObject);
   procedure BuildCanvas2(const cnv: TavCanvas);
   var s: String;
       txt: ITextLines;
+      xbounds, ybounds: TVec2;
   begin
     cnv.Font.Size := 64;
     cnv.Font.Style := [];
@@ -105,16 +106,22 @@ procedure TfrmMain.FormCreate(Sender: TObject);
     s := 'j01234567890 The quick brown fox jumps over the lazy dog';
     with cnv.TextBuilder do
     begin
-      WriteWrapped(s);
-      WriteWrappedEnd(504, True, 100, 50);
-      txt := Finish();
-      txt.BoundsY := Vec(0, 500);
-      txt.BoundsX := Vec(0, 500);
-      txt.VAlign := 0.0;
-      cnv.AddText(txt);
+      xbounds := Vec(0, 500);
+      ybounds := Vec(0, 100);
 
       cnv.Pen.Color := Vec(1,1,1,1);
-      cnv.AddRectangle(Vec(0,0), Vec(504,500));
+      cnv.Brush.Color := Vec(0,0,0,1);
+      cnv.AddFill(Vec(xbounds.x, ybounds.x), Vec(xbounds.y, ybounds.y));
+      cnv.AddRectangle(Vec(xbounds.x, ybounds.x), Vec(xbounds.y, ybounds.y));
+
+      WriteWrapped(s);
+      WriteWrappedEnd(xbounds.y-xbounds.x, True, 0, 0);
+      txt := Finish();
+      txt.BoundsY := ybounds;
+      txt.BoundsX := xbounds;
+      txt.VAlign := 0.0;
+      txt.ClipWithBounds := True;
+      cnv.AddText(txt);
     end;
   end;
 
@@ -242,7 +249,7 @@ begin
     end;
     FCnv3.Draw(0, Vec(0,0), 1);
 
-    FCnv4.Draw(0, Vec(300,50), 1);
+    FCnv4.Draw(0, Vec(200,50), 1);
 
     FFrameBuffer.BlitToWindow;
     FMain.Present;

@@ -192,10 +192,14 @@ type
   ITextLines = interface
     function GetBoundsX: TVec2;
     function GetBoundsY: TVec2;
+    function GetClipWithBounds: Boolean;
     function GetVAlign: Single;
+    function GetVScroll: Single;
     procedure SetBoundsX(const AValue: TVec2);
     procedure SetBoundsY(const AValue: TVec2);
+    procedure SetClipWithBounds(AValue: Boolean);
     procedure SetVAlign(const AValue: Single);
+    procedure SetVScroll(AValue: Single);
 
     function  GetBounds(ARowIdx: Integer; FromChar: Integer; CharCounts: Integer): TRectF;
     procedure SymbolAt(const ALocalCoord: TVec2; out ARowIdx, ACharIdx: Integer);
@@ -211,6 +215,8 @@ type
     property BoundsX: TVec2  read GetBoundsX write SetBoundsX;
     property BoundsY: TVec2  read GetBoundsY write SetBoundsY;
     property VAlign : Single read GetVAlign  write SetVAlign;
+    property VScroll: Single read GetVScroll write SetVScroll;
+    property ClipWithBounds: Boolean read GetClipWithBounds write SetClipWithBounds;
   end;
   TTextLinesArr = {$IfDef FPC}specialize{$EndIf} TArray<ITextLines>;
   ITextLinesArr = {$IfDef FPC}specialize{$EndIf} IArray<ITextLines>;
@@ -319,7 +325,8 @@ type
     FUniform_AtlasSize   : TUniformField;
     FCommon              : TavCanvasCommonData;
 
-    FUniform_XBoundsYPos : TUniformField;
+    FUniform_BoundsXY : TUniformField;
+    FUniform_YPos_ClipWithBounds : TUniformField;
   protected
     procedure AfterInit3D; override;
     procedure BeforeFree3D; override;
@@ -327,7 +334,8 @@ type
 
     procedure UpdateUniforms; override;
   public
-    procedure SetXBoundsYPos(const XBoundsYPos: TVec3);
+    procedure SetBoundsXY(const BoundsX, BoundsY: TVec2);
+    procedure SetYPos_ClipWithBounds(YPos: Single; Clip: Boolean);
   end;
 
   { TavTrisProgram }
@@ -447,20 +455,26 @@ type
 
   TTextLines = class(TInterfacedObject, ITextLines)
   private
-    FBoundsX     : TVec2;
-    FBoundsY     : TVec2;
-    FGlyphs      : IGlyphVertices;
-    FLines       : ILineInfoArr;
-    FMaxLineWidth: Single;
-    FTotalHeight : Single;
-    FVAlign      : Single;
+    FBoundsX       : TVec2;
+    FBoundsY       : TVec2;
+    FGlyphs        : IGlyphVertices;
+    FLines         : ILineInfoArr;
+    FMaxLineWidth  : Single;
+    FTotalHeight   : Single;
+    FVAlign        : Single;
+    FVScroll       : Single;
+    FClipWithBounds: Boolean;
   public
     function GetBoundsX: TVec2;
     function GetBoundsY: TVec2;
+    function GetClipWithBounds: Boolean;
     function GetVAlign: Single;
+    function GetVScroll: Single;
     procedure SetBoundsX(const AValue: TVec2);
     procedure SetBoundsY(const AValue: TVec2);
+    procedure SetClipWithBounds(AValue: Boolean);
     procedure SetVAlign(const AValue: Single);
+    procedure SetVScroll(AValue: Single);
 
     function  GetBounds(ARowIdx: Integer; FromChar: Integer; CharCounts: Integer): TRectF;
     procedure SymbolAt(const ALocalCoord: TVec2; out ARowIdx, ACharIdx: Integer);
@@ -672,7 +686,8 @@ begin
   FUniform_Atlas       := nil;
   FUniform_AtlasRegions:= nil;
   FUniform_AtlasSize   := nil;
-  FUniform_XBoundsYPos := nil;
+  FUniform_BoundsXY := nil;
+  FUniform_YPos_ClipWithBounds := nil;
 end;
 
 function TavFontProgram.DoBuild: Boolean;
@@ -683,7 +698,8 @@ begin
     FUniform_Atlas := GetUniformField('Atlas');
     FUniform_AtlasRegions := GetUniformField('AtlasRegions');
     FUniform_AtlasSize := GetUniformField('AtlasSize');
-    FUniform_XBoundsYPos := GetUniformField('XBoundsYPos');
+    FUniform_BoundsXY := GetUniformField('BoundsXY');
+    FUniform_YPos_ClipWithBounds := GetUniformField('YPos_ClipWithBounds');
   end;
 end;
 
@@ -695,9 +711,16 @@ begin
   SetUniform(FUniform_AtlasSize, FCommon.GlyphsAtlas.Size);
 end;
 
-procedure TavFontProgram.SetXBoundsYPos(const XBoundsYPos: TVec3);
+procedure TavFontProgram.SetBoundsXY(const BoundsX, BoundsY: TVec2);
 begin
-  SetUniform(FUniform_XBoundsYPos, XBoundsYPos);
+  SetUniform(FUniform_BoundsXY, Vec(BoundsX, BoundsY));
+end;
+
+procedure TavFontProgram.SetYPos_ClipWithBounds(YPos: Single; Clip: Boolean);
+var clipF: Single;
+begin
+  if Clip then clipF := 1 else clipF := 0;
+  SetUniform(FUniform_YPos_ClipWithBounds, Vec(YPos, clipF));
 end;
 
 { TavUIProgram }
@@ -1153,9 +1176,19 @@ begin
   Result := FBoundsY;
 end;
 
+function TTextLines.GetClipWithBounds: Boolean;
+begin
+  Result := FClipWithBounds;
+end;
+
 function TTextLines.GetVAlign: Single;
 begin
   Result := FVAlign;
+end;
+
+function TTextLines.GetVScroll: Single;
+begin
+  Result := FVScroll;
 end;
 
 procedure TTextLines.SetBoundsX(const AValue: TVec2);
@@ -1168,9 +1201,19 @@ begin
   FBoundsY := AValue;
 end;
 
+procedure TTextLines.SetClipWithBounds(AValue: Boolean);
+begin
+  FClipWithBounds := AValue;
+end;
+
 procedure TTextLines.SetVAlign(const AValue: Single);
 begin
   FVAlign := AValue;
+end;
+
+procedure TTextLines.SetVScroll(AValue: Single);
+begin
+  FVScroll := AValue;
 end;
 
 function TTextLines.GetBounds(ARowIdx: Integer; FromChar: Integer; CharCounts: Integer): TRectF;
@@ -1195,6 +1238,8 @@ begin
     laLeft : HAlign := 0;
     laCenter : HAlign := 0.5;
     laRight : HAlign := 1.0;
+  else
+    HAlign := 0;
   end;
 
   Result.min.x := Lerp(0, -line^.width, HAlign) + Lerp(BoundsX.x, BoundsX.y, HAlign);
@@ -1240,6 +1285,8 @@ procedure TTextLines.SymbolAt(const ALocalCoord: TVec2; out ARowIdx, ACharIdx: I
       laLeft : HAlign := 0;
       laCenter : HAlign := 0.5;
       laRight : HAlign := 1.0;
+    else
+      HAlign := 0;
     end;
 
     Result := 0;
@@ -1275,22 +1322,22 @@ begin
   Result.y := pl^.yymetrics.x + pl^.yymetrics.y;
 end;
 
-function TTextLines.MaxLineWidth: Single;
+function TTextLines.MaxLineWidth(): Single;
 begin
   Result := FMaxLineWidth;
 end;
 
-function TTextLines.TotalHeight: Single;
+function TTextLines.TotalHeight(): Single;
 begin
   Result := FTotalHeight;
 end;
 
-function TTextLines.AllGlyphs: IGlyphVertices;
+function TTextLines.AllGlyphs(): IGlyphVertices;
 begin
   Result := FGlyphs;
 end;
 
-function TTextLines.BoundsXY: TVec4;
+function TTextLines.BoundsXY(): TVec4;
 begin
   Result := Vec(FBoundsX, FBoundsY);
 end;
@@ -1856,8 +1903,9 @@ begin
           begin
             VAlign := FTextLines[j].VAlign;
             BoundsY := FTextLines[j].BoundsY;
-            YPos := Lerp(0, -FTextLines[j].TotalHeight(), VAlign) + Lerp(BoundsY.x, BoundsY.y, VAlign);
-            fontprog.SetXBoundsYPos(Vec(FTextLines[j].BoundsX, YPos));
+            YPos := Lerp(0, -FTextLines[j].TotalHeight(), VAlign) + Lerp(BoundsY.x, BoundsY.y, VAlign) + FTextLines[j].VScroll;
+            fontprog.SetBoundsXY(FTextLines[j].BoundsX, FTextLines[j].BoundsY);
+            fontprog.SetYPos_ClipWithBounds(YPos, FTextLines[j].ClipWithBounds);
             textRange := FTextLineRanges[j];
             fontprog.Draw(ptTriangleStrip, cmNone, false, textRange.y, 0, 4, 0, textRange.x);
           end;

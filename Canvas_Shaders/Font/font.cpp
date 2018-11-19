@@ -1,7 +1,8 @@
 #include "hlsl.h"
 #include "UICommon.h"
 
-float3 XBoundsYPos;
+float4 BoundsXY;
+float2 YPos_ClipWithBounds;
 
 struct VS_Input {
     float2 Pos       : Pos;
@@ -16,6 +17,7 @@ struct VS_Input {
 
 struct VS_Output {
     float4 Pos      : SV_Position;
+    float2 BoundsPos: BoundsPos;
     float4 Color    : Color;
     float3 TexCoord : TexCoord;
 };
@@ -34,9 +36,10 @@ VS_Output VS(VS_Input In) {
     
     float4 crd = float4(QuadVertices[In.VertexID], 0.0, 1.0);
     crd.xy *= In.Size;
-    crd.x += lerp(XBoundsYPos.x, XBoundsYPos.y, In.Align);
-    crd.y += XBoundsYPos.z;
+    crd.x += lerp(BoundsXY.x, BoundsXY.y, In.Align);
+    crd.y += YPos_ClipWithBounds.x;
     crd.xy += In.Pos;
+    Out.BoundsPos = crd.xy;
     
     crd.xy = mul(float3(crd.xy,1), CanvasTransform()).xy;
     Out.Pos = mul(crd, UIMatrix);
@@ -63,6 +66,12 @@ PS_Output PS(VS_Output In) {
     
     float tex_per_pixel = length(ddy(In.TexCoord));// + ddy(In.TexCoord));
     tex_per_pixel *= AtlasSize.x;
+    
+    if (YPos_ClipWithBounds.y) {
+        if ( (In.BoundsPos.x < BoundsXY.x) || (In.BoundsPos.x > BoundsXY.y) ||
+             (In.BoundsPos.y < BoundsXY.z) || (In.BoundsPos.y > BoundsXY.w) )
+            discard;
+    }
     
     float4 c = In.Color;
     float Y = dot(c.xyz, float3(0.212656, 0.715158, 0.072186));
