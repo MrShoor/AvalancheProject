@@ -3563,6 +3563,10 @@ procedure TContext_DX11.SetFrameBuffer(const AObject: TObject);
       dummy: ID3D11RenderTargetView;
       dummyNull: PID3D11Buffer;
       dummyOffset: Integer;
+
+      pViews: PID3D11RenderTargetView;
+      pUAV  : PID3D11UnorderedAccessView;
+      pUAVInit: PLongWord;
   begin
       dummy := nil;
       dummyNull := nil;
@@ -3576,15 +3580,28 @@ procedure TContext_DX11.SetFrameBuffer(const AObject: TObject);
       begin
         if Length(FBO.FUAVViews) = 0 then
         begin
-            FDeviceContext.OMSetRenderTargets(Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView);
+            if Length(FBO.FViews) = 0 then
+              FDeviceContext.OMSetRenderTargets(0, nil, FBO.FDepthView)
+            else
+              FDeviceContext.OMSetRenderTargets(Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView);
             FDeviceContext.SOSetTargets(1, @dummyNull, @dummyOffset);
         end
         else
         begin
+            pViews := nil;
+            pUAV := nil;
+            pUAVInit := nil;
+            if Length(FBO.FViews) > 0 then pViews := @FBO.FViews[0];
+            if Length(FBO.FUAVViews) > 0 then
+            begin
+              pUAV := @FBO.FUAVViews[0];
+              pUAVInit := @FBO.FUAVInitials[0];
+            end;
+
         //FDeviceContext.OMSetRenderTargetsAndUnorderedAccessViews(Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView);
             FDeviceContext.OMSetRenderTargetsAndUnorderedAccessViews(
-              Length(FBO.FViews), @FBO.FViews[0], FBO.FDepthView,
-              Length(FBO.FViews), Length(FBO.FUAVViews), @FBO.FUAVViews[0], @FBO.FUAVInitials[0]
+              Length(FBO.FViews), pViews, FBO.FDepthView,
+              Length(FBO.FViews), Length(FBO.FUAVViews), pUAV, pUAVInit
             );
             FDeviceContext.SOSetTargets(1, @dummyNull, @dummyOffset);
         end;

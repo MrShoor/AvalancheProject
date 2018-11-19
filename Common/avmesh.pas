@@ -788,7 +788,8 @@ type
 
       stream.ReadBuffer(wCount, SizeOf(wCount));
       SetLength(w, wCount);
-      stream.ReadBuffer(w[0], wCount*SizeOf(TWeightInfo));
+      if wCount > 0 then
+        stream.ReadBuffer(w[0], wCount*SizeOf(TWeightInfo));
       v.vsWIndex := Vec(0,-1,-1,-1);
       v.vsWeight := Vec(1,0,0,0);
       Assert(Length(w)<=4);

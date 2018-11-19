@@ -249,6 +249,9 @@ type
     IModelInstHash = {$IfDef FPC}specialize{$EndIf} IHashMap<IavMeshInstance, TavModelInstance>;
     TModelInstHash = {$IfDef FPC}specialize{$EndIf} THashMap<IavMeshInstance, TavModelInstance>;
 
+    IModelInstSet = {$IfDef FPC}specialize{$EndIf} IHashSet<TavModelInstance>;
+    TModelInstSet = {$IfDef FPC}specialize{$EndIf} THashSet<TavModelInstance>;
+
     TTextureKey = packed record
       Width : Integer;
       Height: Integer;
@@ -274,6 +277,7 @@ type
 
     FModels: IModelHash;
     FModelInstances: IModelInstHash;
+    FModelMultiInstances: IModelInstSet;
 
     function ObtainDummyTextureData(const Key: TTextureKey): ITextureData;
     function ObtainMap(const Key: TTextureKey): TavMultiTexture;
@@ -619,8 +623,12 @@ end;
 
 destructor TavModelCollection.TavModelInstance.Destroy;
 begin
-  if (FOwner <> nil) and (FMeshInst <> nil) then
-    FOwner.FModelInstances.Delete(FMeshInst);
+  if (FOwner <> nil) then
+  begin
+    if (FMeshInst <> nil) then
+      FOwner.FModelInstances.Delete(FMeshInst);
+    FOwner.FModelMultiInstances.Delete(Self);
+  end;
   if Assigned(FModel) then
     FModel.UnlinkInstance(Self);
   inherited Destroy;
@@ -648,6 +656,8 @@ begin
   inst.FModel := nil;
   inst.FInstGPUData := nil;
   inst.FMeshInst := nil;
+  if inst.FMultiMesh <> nil then
+    inst.FMultiMesh.Clear(True);
   FInstances.Delete(n);
 
   if (not FInDestroy) and (FInstances.Count = 0) then
@@ -929,6 +939,7 @@ begin
   modelInst.FName := '';
   model.FInstances.Add(modelInst);
   modelInst.OnLink;
+  FModelMultiInstances.Add(modelInst);
 
   Result := modelInst;
 end;
@@ -1035,6 +1046,7 @@ begin
   inherited;
   FModels := TModelHash.Create;
   FModelInstances := TModelInstHash.Create;
+  FModelMultiInstances := TModelInstSet.Create;
 
   FVB := TavVBManaged.Create(Self);
   FVB.CullMode := cmBack;
@@ -1063,6 +1075,16 @@ begin
       inst.FModel.UnlinkInstance(inst);
   end;
   FModelInstances.Clear;
+
+  FModelMultiInstances.Reset;
+  while FModelMultiInstances.Next(inst) do
+  begin
+    inst.FOwner := nil;
+    if Assigned(inst.FModel) then
+      inst.FModel.UnlinkInstance(inst);
+  end;
+  FModelMultiInstances.Clear;
+
   FModels.Reset;
   while FModels.Next(mesh, m) do
     m.Free;

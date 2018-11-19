@@ -88,9 +88,9 @@ type
   end;
 
   {$IfDef FPC}generic{$EndIf} IBFS_Iterator<TNode> = interface
-      procedure Reset(const ANode: TNode);
-      procedure Reset(const ANodes: array of TNode);
-      procedure Reset(const ANodes: {$IfDef FPC}specialize{$EndIf} IArray<TNode>);
+      procedure Reset(const ANode: TNode); overload;
+      procedure Reset(const ANodes: array of TNode); overload;
+      procedure Reset(const ANodes: {$IfDef FPC}specialize{$EndIf} IArray<TNode>); overload;
       function Next(out ANode: TNode): Boolean; overload;
       function Next(out ANode: TNode; out ADepth: Integer): Boolean; overload;
   end;
@@ -114,9 +114,9 @@ type
     FVisited: IVisitedHash;
     FComparer: IEqualityComparer;
   public
-    procedure Reset(const ANode: TNode);
-    procedure Reset(const ANodes: array of TNode);
-    procedure Reset(const ANodes: {$IfDef FPC}specialize{$EndIf} IArray<TNode>);
+    procedure Reset(const ANode: TNode); overload;
+    procedure Reset(const ANodes: array of TNode); overload;
+    procedure Reset(const ANodes: {$IfDef FPC}specialize{$EndIf} IArray<TNode>); overload;
     function Next(out ANode: TNode): Boolean; overload;
     function Next(out ANode: TNode; out ADepth: Integer): Boolean; overload;
     constructor Create(const AGraph: IGraph);

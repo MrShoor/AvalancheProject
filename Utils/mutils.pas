@@ -179,6 +179,7 @@ type
     function Point(AIndex: Integer): TVec2;
   {$IfDef DCC}
   public
+    class operator Equal(const r1, r2: TRectF): Boolean; overload;
     class operator Add(const r: TRectF; const v: TVec2): TRectF; overload;
     class operator Add(const r1, r2: TRectF): TRectF; overload;
     class operator Multiply(const r: TRectF; const m: TMat3): TRectF;
@@ -202,7 +203,7 @@ type
     function Expand(const ASize: TVec2i) : TRectI; overload;
     function Point(AIndex: Integer): TVec2i;
     {$IfDef DCC}
-    class operator Add(const r: TRectI; const v: TVec2): TRectI; overload;
+    class operator Add(const r: TRectI; const v: TVec2i): TRectI; overload;
     class operator Add(const r1, r2: TRectI): TRectI; overload;
     class operator Equal(const v1, v2: TRectI): Boolean;
     {$EndIf}
@@ -887,7 +888,7 @@ begin
 end;
 
 {$IfDef DCC}
-class operator TRectI.Add(const r: TRectI; const v: TVec2): TRectF;
+class operator TRectI.Add(const r: TRectI; const v: TVec2i): TRectI;
 begin
   Result.min := mutils.Min(r.min, v);
   Result.max := mutils.Max(r.max, v);
@@ -2396,6 +2397,11 @@ begin
 end;
 
 {$IfDef DCC}
+class operator TRectF.Equal(const r1, r2: TRectF): Boolean;
+begin
+  Result := (r1.min = r2.min) and (r1.max = r2.max);
+end;
+
 class operator TRectF.Add(const r: TRectF; const v: TVec2): TRectF;
 begin
   Result.min := mutils.Min(r.min, v);

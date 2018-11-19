@@ -1442,7 +1442,8 @@ begin
   Result.IsDWord := IsDWord;
   Result.PrimitiveType := PrimitiveType;
   Result.Count := Count;
-  Move(FData[0], obj.FData[0], Min(Length(FData), Length(obj.FData)));
+  if Length(FData) > 0 then
+    Move(FData[0], obj.FData[0], Min(Length(FData), Length(obj.FData)));
 end;
 
 procedure TIndices.Clear;
