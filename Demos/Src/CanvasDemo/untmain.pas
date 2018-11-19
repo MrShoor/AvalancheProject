@@ -40,6 +40,7 @@ type
     FCnv  : TavCanvas;
     FCnv2 : TavCanvas;
     FCnv3 : TavCanvas;
+    FCnv4 : TavCanvas;
 
     FFPSCounter: Integer;
     FFPSMeasureTime: Integer;
@@ -94,8 +95,29 @@ procedure TfrmMain.FormCreate(Sender: TObject);
     end;
   end;
 
-var
-  i: Integer;
+  procedure BuildCanvas2(const cnv: TavCanvas);
+  var s: String;
+      txt: ITextLines;
+  begin
+    cnv.Font.Size := 64;
+    cnv.Font.Style := [];
+    cnv.Font.Name := 'Segoe UI';
+    s := 'j01234567890 The quick brown fox jumps over the lazy dog';
+    with cnv.TextBuilder do
+    begin
+      WriteWrapped(s);
+      WriteWrappedEnd(504, True, 100, 50);
+      txt := Finish();
+      txt.BoundsY := Vec(0, 500);
+      txt.BoundsX := Vec(0, 500);
+      txt.VAlign := 0.0;
+      cnv.AddText(txt);
+
+      cnv.Pen.Color := Vec(1,1,1,1);
+      cnv.AddRectangle(Vec(0,0), Vec(504,500));
+    end;
+  end;
+
 begin
   FMain := TavMainRender.Create(Nil);
   FMain.Window := Handle;
@@ -121,6 +143,11 @@ begin
   FCnv3.Font.Size := 35;
   FCnv3.Font.Color := Vec(1,0,0,1);
   FCnv3.Brush.Hinting := [TBrushHintingStyle.Horizontal, TBrushHintingStyle.Vertical];
+
+  FCnv4 := TavCanvas.Create(FMain);
+  FCnv4.Font.Size := 42;
+  FCnv4.Font.Color := Vec(0,1,0,1);
+  BuildCanvas2(FCnv4);
 end;
 
 procedure TfrmMain.cbOGLChange(Sender: TObject);
@@ -214,6 +241,8 @@ begin
       FCnv2.Draw(a, Vec(ClientWidth * 0.5, ClientHeight * 0.5), 1);
     end;
     FCnv3.Draw(0, Vec(0,0), 1);
+
+    FCnv4.Draw(0, Vec(300,50), 1);
 
     FFrameBuffer.BlitToWindow;
     FMain.Present;

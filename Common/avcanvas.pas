@@ -226,6 +226,8 @@ type
     procedure WriteSpace(ASpace: Single);
     procedure Write(const AStr: string);
     procedure WriteLn(const AStr: string);
+    procedure WriteWrapped(const AStr: string);
+    procedure WriteWrappedEnd(const AMaxWidth: Single; AJustifyAlign: Boolean = False; AFirstRowOffset: Single = 0; ANextRowsOffset: Single = 0);
 
     function Finish(): ITextLines;
 
@@ -483,6 +485,20 @@ type
   private type
     TVec4Arr = {$IfDef FPC}specialize{$EndIf} TArray<TVec4>;
     IVec4Arr = {$IfDef FPC}specialize{$EndIf} IArray<TVec4>;
+
+    TWordInfo = record
+      Glyphs     : IGlyphVertices;
+      XXXMetrics : IXXXMetrics;
+      YYYYMetrics: IVec4Arr;
+      XXXSpace   : TVec3;
+
+      Width      : Single;
+      YYMetrics  : TVec2;
+    end;
+    PWordInfo = ^TWordInfo;
+
+    IWordsArr = {$IfDef FPC}specialize{$EndIf} IArray<TWordInfo>;
+    TWordsArr = {$IfDef FPC}specialize{$EndIf} TArray<TWordInfo>;
   private
     FCommon: TavCanvasCommonData;
     FFont  : TFontStyle;
@@ -497,7 +513,13 @@ type
     FLineInfo       : TLineInfo;
     FLineYYYYMetrics: IVec4Arr;
 
+    FWrappedWords: IWordsArr;
+
+    procedure ScaleMetrics(var xxx: TVec3; var yyyy: TVec4);
+
     procedure InitLine;
+    function  CalcBounds(const AStr: UnicodeString): TVec2;
+    procedure WriteWordInternal(const AStr: UnicodeString);
     procedure WriteInternal(const AStr: UnicodeString);
     procedure WriteLnInternal;
   private
@@ -509,6 +531,8 @@ type
     procedure WriteSpace(ASpace: Single);
     procedure Write(const AStr: string);
     procedure WriteLn(const AStr: string);
+    procedure WriteWrapped(const AStr: string);
+    procedure WriteWrappedEnd(const AMaxWidth: Single; AJustifyAlign: Boolean = False; AFirstRowOffset: Single = 0; ANextRowsOffset: Single = 0);
 
     function Finish(): ITextLines;
   public
@@ -761,6 +785,12 @@ end;
 
 { TTextBuilder }
 
+procedure TTextBuilder.ScaleMetrics(var xxx: TVec3; var yyyy: TVec4);
+begin
+  xxx := xxx * GLYPH_DFSizeInv * FFont.Size;
+  yyyy := yyyy * GLYPH_DFSizeInv * FFont.Size;
+end;
+
 procedure TTextBuilder.InitLine;
 begin
   if not FLineInited then
@@ -776,12 +806,78 @@ begin
   end;
 end;
 
-procedure TTextBuilder.WriteInternal(const AStr: UnicodeString);
-  procedure ScaleMetrics(var xxx: TVec3; var yyyy: TVec4);
+function TTextBuilder.CalcBounds(const AStr: UnicodeString): TVec2;
+var
+  i: Integer;
+  glyph: TGlyphVertex;
+  yy: TVec2;
+  ch: WideChar;
+  xxx: TVec3;
+  yyyy: TVec4;
+begin
+  Result := Vec(0,0);
+  yy := Vec(0,0);
+  for i := 1 to Length(AStr) do
   begin
-    xxx := xxx * GLYPH_DFSizeInv * FFont.Size;
-    yyyy := yyyy * GLYPH_DFSizeInv * FFont.Size;
+    ch := AStr[i];
+    glyph.Glyph := FCommon.GetGlyphSprite(FFont.Name, ch, FFont.Style, xxx, yyyy);
+    ScaleMetrics(xxx, yyyy);
+    yy := Max(yy, Vec(yyyy.x + yyyy.y, yyyy.z + yyyy.w));
+    Result.x := Result.x + xxx.x + xxx.y + xxx.z;
   end;
+  Result.y := yy.x + yy.y;
+end;
+
+procedure TTextBuilder.WriteWordInternal(const AStr: UnicodeString);
+var
+  pword: PWordInfo;
+  dummyword: TWordInfo;
+  ch: WideChar;
+  xxx: TVec3;
+  yyyy: TVec4;
+  glyph: PGlyphVertex;
+  dummyglyph: TGlyphVertex;
+  i: Integer;
+  posx: Single;
+begin
+  if FWrappedWords = nil then FWrappedWords := TWordsArr.Create();
+  pword := PWordInfo( FWrappedWords.PItem[FWrappedWords.Add(dummyword)] );
+  pword^.Glyphs := TGlyphVertices.Create();
+  pword^.XXXMetrics := TXXXMetrics.Create();
+  pword^.YYYYMetrics := TVec4Arr.Create();
+  pword^.YYMetrics := Vec(0, 0);
+
+  FCommon.GetGlyphSprite(FFont.Name, ' ', FFont.Style, xxx, yyyy);
+  ScaleMetrics(xxx, yyyy);
+  pword^.XXXSpace := xxx;
+
+  posx := 0;
+  for i := 1 to Length(AStr) do
+  begin
+    ch := AStr[i];
+    glyph := PGlyphVertex( pword^.Glyphs.PItem[pword^.Glyphs.Add(dummyglyph)] );
+    glyph^.Glyph := FCommon.GetGlyphSprite(FFont.Name, ch, FFont.Style, xxx, yyyy);
+    ScaleMetrics(xxx, yyyy);
+
+    pword^.YYYYMetrics.Add(yyyy);
+    pword^.Width := pword^.Width + xxx.x + xxx.y + xxx.z;
+    pword^.XXXMetrics.Add(xxx);
+
+    posx := posx + xxx.x + xxx.y*0.5;
+    glyph^.Pos.x := posx;
+    posx := posx + xxx.y*0.5 + xxx.z;
+
+    glyph^.Size.x := xxx.y;
+    glyph^.Size.y := yyyy.y + yyyy.z;
+
+    glyph^.SDFOffset := 0;
+    glyph^.Color := FFont.Color;
+
+    pword^.YYMetrics := Max(pword^.YYMetrics, Vec(yyyy.x + yyyy.y, yyyy.z + yyyy.w));
+  end;
+end;
+
+procedure TTextBuilder.WriteInternal(const AStr: UnicodeString);
 var ch: WideChar;
     xxx: TVec3;
     yyyy: TVec4;
@@ -892,7 +988,130 @@ begin
   WriteLnInternal;
 end;
 
-function TTextBuilder.Finish: ITextLines;
+procedure TTextBuilder.WriteWrapped(const AStr: string);
+var sl: TStringList;
+    i: Integer;
+begin
+  if FWrappedWords = nil then FWrappedWords := TWordsArr.Create();
+  sl := TStringList.Create;
+  try
+    sl.Delimiter := ' ';
+    sl.DelimitedText := AStr;
+    for i := 0 to sl.Count - 1 do
+      WriteWordInternal(UnicodeString(sl.Strings[i]));
+  finally
+    FreeAndNil(sl);
+  end;
+end;
+
+procedure TTextBuilder.WriteWrappedEnd(const AMaxWidth: Single;
+  AJustifyAlign: Boolean; AFirstRowOffset: Single; ANextRowsOffset: Single);
+
+type
+  IVec2iArr = {$IfDef FPC}specialize{$EndIf} IArray<TVec2i>;
+  TVec2iArr = {$IfDef FPC}specialize{$EndIf} TArray<TVec2i>;
+
+var i, j, k: Integer;
+    remainWidth, offset, JustifySpace, CurrLineWidth: Single;
+    pw: PWordInfo;
+    lines: IVec2iArr;
+    yyyy: TVec4;
+    xxx: TVec3;
+    xOffset: Single;
+    glyph: PGlyphVertex;
+    isNewLine: Boolean;
+begin
+  if FLineInited then
+    WriteLnInternal;
+
+  if FAlign <> laLeft then
+  begin
+    AFirstRowOffset := 0;
+    ANextRowsOffset := 0;
+  end;
+
+  lines := TVec2iArr.Create();
+  remainWidth := 0;
+  for i := 0 to FWrappedWords.Count - 1 do
+  begin
+    isNewLine := False;
+    pw := PWordInfo(FWrappedWords.PItem[i]);
+    if remainWidth < (pw^.Width + pw^.XXXSpace.x + pw^.XXXSpace.y*0.5) then //make new line
+    begin
+      if i = 0 then
+        remainWidth := AMaxWidth - AFirstRowOffset
+      else
+        remainWidth := AMaxWidth - ANextRowsOffset;
+      lines.Add(Vec(i, 0));
+      isNewLine := True;
+    end;
+    if isNewLine then
+      remainWidth := remainWidth - (pw^.Width + pw^.XXXSpace.y*0.5 + pw^.XXXSpace.z)
+    else
+      remainWidth := remainWidth - (pw^.Width + pw^.XXXSpace.x + pw^.XXXSpace.y + pw^.XXXSpace.z);
+    lines.Last := lines.Last + Vec(0, 1);
+  end;
+
+  for i := 0 to lines.Count - 1 do
+  begin
+    if i = 0 then
+      offset := AFirstRowOffset
+    else
+      offset := ANextRowsOffset;
+
+    if i = lines.Count - 1 then AJustifyAlign := False;
+
+    JustifySpace := 0;
+    if AJustifyAlign then
+    begin
+      CurrLineWidth := 0;
+      for j := 0 to lines[i].y - 1 do
+        CurrLineWidth := CurrLineWidth + FWrappedWords[lines[i].x + j].Width;
+      JustifySpace := (AMaxWidth - offset - CurrLineWidth) / (lines[i].y - 1) * 0.5;
+    end;
+
+    pw := nil;
+    WriteSpace(offset);
+    for j := 0 to lines[i].y - 1 do
+    begin
+      if pw <> nil then
+      begin
+        if AJustifyAlign then
+          WriteSpace(JustifySpace)
+        else
+          WriteSpace(pw^.XXXSpace.x + pw^.XXXSpace.y*0.5);
+      end;
+
+      pw := PWordInfo(FWrappedWords.PItem[lines[i].x + j]);
+      xOffset := FPos.x;
+      for k := 0 to pw^.Glyphs.Count - 1 do
+      begin
+        glyph := PGlyphVertex( FGlyphs.PItem[FGlyphs.Add(pw^.Glyphs[k])] );
+        glyph^.Pos.x := glyph^.Pos.x + xOffset;
+        //FGlyphs.Add(pw^.Glyphs[k]);
+        yyyy := pw^.YYYYMetrics[k];
+        xxx := pw^.XXXMetrics[k];
+
+        FLineYYYYMetrics.Add(yyyy);
+        FLineInfo.width := FLineInfo.width + xxx.x + xxx.y + xxx.z;
+        FLineInfo.XXXMetrics.Add(xxx);
+        FPos.x := FPos.x + xxx.x + xxx.y + xxx.z;
+        FLineInfo.yymetrics := Max(FLineInfo.yymetrics, Vec(yyyy.x + yyyy.y, yyyy.z + yyyy.w));
+      end;
+
+      if j <> lines[i].y - 1 then
+      begin
+        if AJustifyAlign then
+          WriteSpace(JustifySpace)
+        else
+          WriteSpace(pw^.XXXSpace.y*0.5 + pw^.XXXSpace.z);
+      end;
+    end;
+    WriteLnInternal;
+  end;
+end;
+
+function TTextBuilder.Finish(): ITextLines;
 begin
   if FLineInited then WriteLnInternal;
 
