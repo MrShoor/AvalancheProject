@@ -1623,6 +1623,7 @@ begin
   while FNodes.NextDirty(node) do
     for i := 0 to node.TexData.ItemCount - 1 do
       FTexH.SetMipImage(0, 0, FInitSize.x, FInitSize.y, 0, node.Offset+i, node.TexData.Format, node.TexData.MipData(i, 0).Data);
+  FNodes.ValidateAll;
 
   if FAutoGenerateMips then
     FTexH.GenerateMips;
@@ -2182,7 +2183,7 @@ begin
   ANode.DirtyIndex := -1;
   if ANode.Range = nil then
   begin
-      FRangeMan.AddSpace( Max(ANode.Size, Ceil(FRangeMan.Size*1.5)) );
+      FRangeMan.AddSpace( Max(ANode.Size, Ceil(FRangeMan.Size*0.5)) );
       FRangeMan.Defrag;
       ANode.Range := FRangeMan.Alloc(ANode.Size);
       FDirtyAll := True;
