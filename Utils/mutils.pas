@@ -133,6 +133,7 @@ type
   public
     class operator Multiply(const a, b: TQuat): TQuat;
     class operator Multiply(const a: TQuat; const b: TVec3): TVec3;
+    class operator Multiply(const b: TVec3; const a: TQuat): TVec3;
     class operator Equal(const a, b: TQuat): Boolean;
   {$EndIf}
   case Byte of
@@ -285,7 +286,8 @@ Operator / (const v: TVec3; const f: Single): TVec3; {$IFNDEF NoInline} inline; 
 Operator / (const v: TVec4; const f: Single): TVec4; {$IFNDEF NoInline} inline; {$ENDIF}
 
 Operator * (const a, b: TQuat): TQuat; {$IFNDEF NoInline} inline; {$ENDIF}
-Operator * (const a: TQuat; b: TVec3): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+Operator * (const a: TQuat; const b: TVec3): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+Operator * (const b: TVec3; const a: TQuat): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator * (const a: TVec3I; s: Single): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator * (const a: TVec2b; s: Single): TVec2; {$IFNDEF NoInline} inline; {$ENDIF}
 Operator * (const a: TLine; const b: TMat4): TLine; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -363,6 +365,7 @@ function Projection(const Pt: TVec3; const Line: TLine): TVec3; overload;{$IFNDE
 function Inv(const m: TMat2): TMat2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat3): TMat3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat4): TMat4; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Inv(const q: TQuat): TQuat; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 
 function Trunc(const V: TVec2): TVec2i; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Trunc(const V: TVec3): TVec3i; overload;{$IFNDEF NoInline} inline; {$ENDIF}
@@ -1187,11 +1190,18 @@ begin
   Result.z:=a.w*b.z+a.z*b.w+a.x*b.y-a.y*b.x;
 end;
 
-Operator * (const a: TQuat; b: TVec3): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+Operator * (const a: TQuat; const b: TVec3): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
 begin
   Result.x:=b.x-2*b.x*(sqr(a.y)+sqr(a.z))+2*b.y*(a.x*a.y+a.z*a.w)+2*b.z*(a.x*a.z-a.y*a.w);
   Result.y:=2*b.x*(a.x*a.y-a.z*a.w)+b.y-2*b.y*(sqr(a.x)+sqr(a.z))+2*b.z*(a.y*a.z+a.x*a.w);
   Result.z:=2*b.x*(a.x*a.z+a.y*a.w)+2*b.y*(a.y*a.z-a.x*a.w)+b.z-2*b.z*(sqr(a.x)+sqr(a.y));
+end;
+
+Operator * (const b: TVec3; const a: TQuat): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result.x:=b.x-2*b.x*(sqr(a.y)+sqr(a.z))+2*b.y*(a.x*a.y-a.z*a.w)+2*b.z*(a.x*a.z+a.y*a.w);
+  Result.y:=2*b.x*(a.x*a.y+a.z*a.w)+b.y-2*b.y*(sqr(a.x)+sqr(a.z))+2*b.z*(a.y*a.z-a.x*a.w);
+  Result.z:=2*b.x*(a.x*a.z-a.y*a.w)+2*b.y*(a.y*a.z+a.x*a.w)+b.z-2*b.z*(sqr(a.x)+sqr(a.y));
 end;
 
 Operator * (const a: TVec3I; s: Single): TVec3; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -1228,6 +1238,13 @@ begin
   Result.x:=b.x-2*b.x*(sqr(a.y)+sqr(a.z))+2*b.y*(a.x*a.y+a.z*a.w)+2*b.z*(a.x*a.z-a.y*a.w);
   Result.y:=2*b.x*(a.x*a.y-a.z*a.w)+b.y-2*b.y*(sqr(a.x)+sqr(a.z))+2*b.z*(a.y*a.z+a.x*a.w);
   Result.z:=2*b.x*(a.x*a.z+a.y*a.w)+2*b.y*(a.y*a.z-a.x*a.w)+b.z-2*b.z*(sqr(a.x)+sqr(a.y));
+end;
+
+class operator TQuat.Multiply(const b: TVec3; const a: TQuat): TVec3;
+begin
+  Result.x:=b.x-2*b.x*(sqr(a.y)+sqr(a.z))+2*b.y*(a.x*a.y-a.z*a.w)+2*b.z*(a.x*a.z+a.y*a.w);
+  Result.y:=2*b.x*(a.x*a.y+a.z*a.w)+b.y-2*b.y*(sqr(a.x)+sqr(a.z))+2*b.z*(a.y*a.z-a.x*a.w);
+  Result.z:=2*b.x*(a.x*a.z-a.y*a.w)+2*b.y*(a.y*a.z+a.x*a.w)+b.z-2*b.z*(sqr(a.x)+sqr(a.y));
 end;
 
 class operator TQuat.Equal(const a, b: TQuat): Boolean;
@@ -2348,6 +2365,12 @@ begin
   Result.f[1, 3] :=  (m.f[0, 0] * (m.f[1, 2] * m.f[2, 3] - m.f[1, 3] * m.f[2, 2]) - m.f[0, 2] * (m.f[1, 0] * m.f[2, 3] - m.f[1, 3] * m.f[2, 0]) + m.f[0, 3] * (m.f[1, 0] * m.f[2, 2] - m.f[1, 2] * m.f[2, 0])) * D;
   Result.f[2, 3] := -(m.f[0, 0] * (m.f[1, 1] * m.f[2, 3] - m.f[1, 3] * m.f[2, 1]) - m.f[0, 1] * (m.f[1, 0] * m.f[2, 3] - m.f[1, 3] * m.f[2, 0]) + m.f[0, 3] * (m.f[1, 0] * m.f[2, 1] - m.f[1, 1] * m.f[2, 0])) * D;
   Result.f[3, 3] :=  (m.f[0, 0] * (m.f[1, 1] * m.f[2, 2] - m.f[1, 2] * m.f[2, 1]) - m.f[0, 1] * (m.f[1, 0] * m.f[2, 2] - m.f[1, 2] * m.f[2, 0]) + m.f[0, 2] * (m.f[1, 0] * m.f[2, 1] - m.f[1, 1] * m.f[2, 0])) * D;
+end;
+
+function Inv(const q: TQuat): TQuat; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+begin
+  Result := q;
+  Result.w := -Result.w;
 end;
 
 { TRectF }
