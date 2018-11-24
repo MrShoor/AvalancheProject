@@ -1710,6 +1710,10 @@ var stream: TStream;
     NewPos, NewPos2 : Int64;
     i: Integer;
 begin
+  ChunkID := 0;
+  ChunkSize := 0;
+  OutDeclNames := nil;
+
   stream := nil;
   ClearUniformList;
   for st := Low(TShaderType) to High(TShaderType) do

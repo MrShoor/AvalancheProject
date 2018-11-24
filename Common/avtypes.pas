@@ -729,6 +729,7 @@ end;
 initialization
 
 finalization
+  gvExeDir := '';
   gvDataLayouts := nil;
 
 end.
