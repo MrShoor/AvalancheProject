@@ -1918,6 +1918,7 @@ begin
             fontprog.SetBoundsXY(FTextLines[j].BoundsX, FTextLines[j].BoundsY);
             fontprog.SetYPos_ClipWithBounds(YPos, FTextLines[j].ClipWithBounds);
             textRange := FTextLineRanges[j];
+            if textRange.y = 0 then Continue;
             fontprog.Draw(ptTriangleStrip, cmNone, false, textRange.y, 0, 4, 0, textRange.x);
           end;
         end;
