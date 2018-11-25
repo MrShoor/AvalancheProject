@@ -275,6 +275,8 @@ type
   TavArmatures = {$IfDef FPC}specialize{$EndIf} THashMap<string, IavArmature>;
 
   IMeshLoaderCallback = interface
+    function Hook_TextureFilename(const ATextureFilename: string): string;
+
     procedure OnLoadingMesh(const AMesh: string);
     procedure OnLoadingMaterial(const AMaterial: TMeshMaterial);
     procedure OnLoadingTexture(const AKind: TMeshMaterialTextureKind; const AFileName: string; const ASize: TVec2i; const AFactor: Single);
@@ -2095,13 +2097,18 @@ procedure TMeshMaterialMaps.ReadFromStream(const AStream: TStream;
 
   procedure ReadTexture(tk: TMeshMaterialTextureKind; var ATex: ITextureData; var ATexFactor: Single);
   var s : AnsiString;
+      texfile: string;
   begin
     StreamReadString(AStream, s);
     if s = '' then
       ATex := nil
     else
     begin
-      ATex := ATexMan.LoadTexture(String(s), Width, Height, TImageFormat.A8R8G8B8);
+      if ACallBack <> nil then
+        texfile := ACallBack.Hook_TextureFilename(string(s))
+      else
+        texfile := string(s);
+      ATex := ATexMan.LoadTexture(texfile, Width, Height, TImageFormat.A8R8G8B8);
       Width := ATex.Width;
       Height := ATex.Height;
       MipCount := Max(MipCount, ATex.MipsCount);
