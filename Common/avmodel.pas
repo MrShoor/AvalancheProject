@@ -764,20 +764,20 @@ begin
   Result.Material.matSpecIOR     := meshMat.matSpecIOR;
   Result.Material.matEmitFactor  := meshMat.matEmitFactor;
 
-  Result.Material.mapDiffuse_Alpha_Translucency.xy := GetTexPair(meshMap.mapDiffuse_Alpha, meshMap.mapDiffuse_AlphaFactor, Result.mapDiffuse_Alpha);
-  Result.Material.mapDiffuse_Alpha_Translucency.zw := GetTexPair(meshMap.mapDiffuse_Translucency, meshMap.mapDiffuse_TranslucencyFactor, Result.mapDiffuse_Translucency);
-  Result.Material.mapDiffuse_Intensity_Color.xy := GetTexPair(meshMap.mapDiffuse_Intensity, meshMap.mapDiffuse_IntensityFactor, Result.mapDiffuse_Intensity);
-  Result.Material.mapDiffuse_Intensity_Color.zw := GetTexPair(meshMap.mapDiffuse_Color, meshMap.mapDiffuse_ColorFactor, Result.mapDiffuse_Color);
-  Result.Material.mapShading_Ambient_Emit.xy := GetTexPair(meshMap.mapShading_Ambient, meshMap.mapShading_AmbientFactor, Result.mapShading_Ambient);
-  Result.Material.mapShading_Ambient_Emit.zw := GetTexPair(meshMap.mapShading_Emit, meshMap.mapShading_EmitFactor, Result.mapShading_Emit);
-  Result.Material.mapShading_Mirror_RayMirror.xy := GetTexPair(meshMap.mapShading_Mirror, meshMap.mapShading_MirrorFactor, Result.mapShading_Mirror);
-  Result.Material.mapShading_Mirror_RayMirror.zw := GetTexPair(meshMap.mapShading_RayMirror, meshMap.mapShading_RayMirrorFactor, Result.mapShading_RayMirror);
-  Result.Material.mapSpecular_Intensity_Color.xy := GetTexPair(meshMap.mapSpecular_Intensity, meshMap.mapSpecular_IntensityFactor, Result.mapSpecular_Intensity);
-  Result.Material.mapSpecular_Intensity_Color.zw := GetTexPair(meshMap.mapSpecular_Color, meshMap.mapSpecular_ColorFactor, Result.mapSpecular_Color);
-  Result.Material.mapSpecular_Hardness_mapGeometry_Normal.xy := GetTexPair(meshMap.mapSpecular_Hardness, meshMap.mapSpecular_HardnessFactor, Result.mapSpecular_Hardness);
-  Result.Material.mapSpecular_Hardness_mapGeometry_Normal.zw := GetTexPair(meshMap.mapGeometry_Normal, meshMap.mapGeometry_NormalFactor, Result.mapGeometry_Normal);
-  Result.Material.mapGeometry_Warp_Displace.xy := GetTexPair(meshMap.mapGeometry_Warp, meshMap.mapGeometry_WarpFactor, Result.mapGeometry_Warp);
-  Result.Material.mapGeometry_Warp_Displace.zw := GetTexPair(meshMap.mapGeometry_Displace, meshMap.mapGeometry_DisplaceFactor, Result.mapGeometry_Displace);
+  Result.Material.mapDiffuse_Alpha_Translucency.xy := GetTexPair(meshMap.Textures[texkDiffuse_Alpha].map, meshMap.Textures[texkDiffuse_Alpha].factor, Result.mapDiffuse_Alpha);
+  Result.Material.mapDiffuse_Alpha_Translucency.zw := GetTexPair(meshMap.Textures[texkDiffuse_Translucency].map, meshMap.Textures[texkDiffuse_Translucency].factor, Result.mapDiffuse_Translucency);
+  Result.Material.mapDiffuse_Intensity_Color.xy := GetTexPair(meshMap.Textures[texkDiffuse_Intensity].map, meshMap.Textures[texkDiffuse_Intensity].factor, Result.mapDiffuse_Intensity);
+  Result.Material.mapDiffuse_Intensity_Color.zw := GetTexPair(meshMap.Textures[texkDiffuse_Color].map, meshMap.Textures[texkDiffuse_Color].factor, Result.mapDiffuse_Color);
+  Result.Material.mapShading_Ambient_Emit.xy := GetTexPair(meshMap.Textures[texkShading_Ambient].map, meshMap.Textures[texkShading_Ambient].factor, Result.mapShading_Ambient);
+  Result.Material.mapShading_Ambient_Emit.zw := GetTexPair(meshMap.Textures[texkShading_Emit].map, meshMap.Textures[texkShading_Emit].factor, Result.mapShading_Emit);
+  Result.Material.mapShading_Mirror_RayMirror.xy := GetTexPair(meshMap.Textures[texkShading_Mirror].map, meshMap.Textures[texkShading_Mirror].factor, Result.mapShading_Mirror);
+  Result.Material.mapShading_Mirror_RayMirror.zw := GetTexPair(meshMap.Textures[texkShading_RayMirror].map, meshMap.Textures[texkShading_RayMirror].factor, Result.mapShading_RayMirror);
+  Result.Material.mapSpecular_Intensity_Color.xy := GetTexPair(meshMap.Textures[texkSpecular_Intensity].map, meshMap.Textures[texkSpecular_Intensity].factor, Result.mapSpecular_Intensity);
+  Result.Material.mapSpecular_Intensity_Color.zw := GetTexPair(meshMap.Textures[texkSpecular_Color].map, meshMap.Textures[texkSpecular_Color].factor, Result.mapSpecular_Color);
+  Result.Material.mapSpecular_Hardness_mapGeometry_Normal.xy := GetTexPair(meshMap.Textures[texkSpecular_Hardness].map, meshMap.Textures[texkSpecular_Hardness].factor, Result.mapSpecular_Hardness);
+  Result.Material.mapSpecular_Hardness_mapGeometry_Normal.zw := GetTexPair(meshMap.Textures[texkGeometry_Normal].map, meshMap.Textures[texkGeometry_Normal].factor, Result.mapGeometry_Normal);
+  Result.Material.mapGeometry_Warp_Displace.xy := GetTexPair(meshMap.Textures[texkGeometry_Warp].map, meshMap.Textures[texkGeometry_Warp].factor, Result.mapGeometry_Warp);
+  Result.Material.mapGeometry_Warp_Displace.zw := GetTexPair(meshMap.Textures[texkGeometry_Displace].map, meshMap.Textures[texkGeometry_Displace].factor, Result.mapGeometry_Displace);
 end;
 
 function TavModelCollection.ObtainTModel(const AMesh: IavMesh): TModel;

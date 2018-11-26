@@ -15,6 +15,7 @@ const
 type
   IavArmature = interface;
   IavMeshInstance = interface;
+  IMeshLoaderCallback = interface;
 
   { TMeshVertex }
 
@@ -41,45 +42,34 @@ type
     matEmitFactor  : Single;
   end;
 
+  TMeshMaterialTextureKind = (texkDiffuse_Intensity,
+                              texkDiffuse_Color,
+                              texkDiffuse_Alpha,
+                              texkDiffuse_Translucency,
+                              texkShading_Ambient,
+                              texkShading_Emit,
+                              texkShading_Mirror,
+                              texkShading_RayMirror,
+                              texkSpecular_Intensity,
+                              texkSpecular_Color,
+                              texkSpecular_Hardness,
+                              texkGeometry_Normal,
+                              texkGeometry_Warp,
+                              texkGeometry_Displace);
+
+  TMeshMaterialTexture = record
+    map   : ITextureData;
+    factor: Single;
+  end;
+
   { TMeshMaterialMaps }
 
   TMeshMaterialMaps = packed record
     Width   : Integer;
     Height  : Integer;
     MipCount: Integer;
-
-    mapDiffuse_Intensity          : ITextureData;
-    mapDiffuse_IntensityFactor    : Single;
-    mapDiffuse_Color              : ITextureData;
-    mapDiffuse_ColorFactor        : Single;
-    mapDiffuse_Alpha              : ITextureData;
-    mapDiffuse_AlphaFactor        : Single;
-    mapDiffuse_Translucency       : ITextureData;
-    mapDiffuse_TranslucencyFactor : Single;
-
-    mapShading_Ambient            : ITextureData;
-    mapShading_AmbientFactor      : Single;
-    mapShading_Emit               : ITextureData;
-    mapShading_EmitFactor         : Single;
-    mapShading_Mirror             : ITextureData;
-    mapShading_MirrorFactor       : Single;
-    mapShading_RayMirror          : ITextureData;
-    mapShading_RayMirrorFactor    : Single;
-
-    mapSpecular_Intensity        : ITextureData;
-    mapSpecular_IntensityFactor  : Single;
-    mapSpecular_Color            : ITextureData;
-    mapSpecular_ColorFactor      : Single;
-    mapSpecular_Hardness         : ITextureData;
-    mapSpecular_HardnessFactor   : Single;
-
-    mapGeometry_Normal           : ITextureData;
-    mapGeometry_NormalFactor     : Single;
-    mapGeometry_Warp             : ITextureData;
-    mapGeometry_WarpFactor       : Single;
-    mapGeometry_Displace         : ITextureData;
-    mapGeometry_DisplaceFactor   : Single;
-    procedure ReadFromStream(const AStream : TStream; const ATexMan : ITextureManager);
+    Textures: array [TMeshMaterialTextureKind] of TMeshMaterialTexture;
+    procedure ReadFromStream(const AStream : TStream; const ATexMan : ITextureManager; const ACallBack : IMeshLoaderCallback = nil);
   end;
 
   { TMeshAnimationState }
@@ -284,16 +274,26 @@ type
   IavArmatures = {$IfDef FPC}specialize{$EndIf} IHashMap<string, IavArmature>;
   TavArmatures = {$IfDef FPC}specialize{$EndIf} THashMap<string, IavArmature>;
 
-procedure LoadFromStream(const stream: TStream; out meshes: IavMeshes; out meshInst: IavMeshInstances; TexManager: ITextureManager = Nil);
-procedure LoadFromFile(const FileName: string; out meshes: IavMeshes; out meshInst: IavMeshInstances; const TexManager: ITextureManager = Nil);
-function  LoadInstancesFromFile(const FileName: string; const TexManager: ITextureManager = Nil) : IavMeshInstances;
+  IMeshLoaderCallback = interface
+    function Hook_TextureFilename(const ATextureFilename: string): string;
+
+    procedure OnLoadingMesh(const AMesh: string);
+    procedure OnLoadingMaterial(const AMaterial: TMeshMaterial);
+    procedure OnLoadingTexture(const AKind: TMeshMaterialTextureKind; const AFileName: string; const ASize: TVec2i; const AFactor: Single);
+  end;
+
+procedure LoadFromStream(const stream: TStream; out meshes: IavMeshes; out meshInst: IavMeshInstances; TexManager: ITextureManager = Nil; const ACallBack: IMeshLoaderCallback = nil);
+procedure LoadFromFile(const FileName: string; out meshes: IavMeshes; out meshInst: IavMeshInstances; const TexManager: ITextureManager = Nil; const ACallBack: IMeshLoaderCallback = nil);
+function  LoadInstancesFromFile(const FileName: string; const TexManager: ITextureManager = Nil; const ACallBack: IMeshLoaderCallback = nil) : IavMeshInstances;
 
 function Create_IavAnimationController(const APose: IavPose; const ATime: Int64): IavAnimationController;
+
+function GetMaterialTextureKindName(const AKind: TMeshMaterialTextureKind): string;
 
 implementation
 
 uses
-  Math;
+  TypInfo, Math;
 
 type
   { IavBoneInternal }
@@ -698,7 +698,9 @@ const
     vsWeight: (x: 0; y: 0; z: 0; w: 0)
   );
 
-procedure LoadFromStream(const stream: TStream; out meshes: IavMeshes; out meshInst: IavMeshInstances; TexManager: ITextureManager);
+procedure LoadFromStream(const stream: TStream; out meshes: IavMeshes; out
+  meshInst: IavMeshInstances; TexManager: ITextureManager;
+  const ACallBack: IMeshLoaderCallback);
 type
   IavPoses = {$IfDef FPC}specialize{$EndIf} IHashMap<string, IavPose>; //armatureName -> pose
   TavPoses = {$IfDef FPC}specialize{$EndIf} THashMap<string, IavPose>; //armatureName -> pose
@@ -756,6 +758,9 @@ type
     StreamReadString(stream, s);
     mesh.Name := String(s);
 
+    if ACallBack <> nil then
+      ACallBack.OnLoadingMesh(mesh.Name);
+
     stream.ReadBuffer(n, SizeOf(n));
 
     matMap.Width := SIZE_DEFAULT;
@@ -769,7 +774,10 @@ type
       stream.ReadBuffer(mat.matSpecIOR, SizeOf(mat.matSpecIOR));
       stream.ReadBuffer(mat.matEmitFactor, SizeOf(mat.matEmitFactor));
 
-      matMap.ReadFromStream(stream, TexManager);
+      if ACallBack <> nil then
+        ACallBack.OnLoadingMaterial(mat);
+
+      matMap.ReadFromStream(stream, TexManager, ACallBack);
       mesh.AddMaterial(mat, matMap);
     end;
 
@@ -1031,7 +1039,8 @@ begin
 end;
 
 procedure LoadFromFile(const FileName: string; out meshes: IavMeshes; out
-  meshInst: IavMeshInstances; const TexManager: ITextureManager);
+  meshInst: IavMeshInstances; const TexManager: ITextureManager;
+  const ACallBack: IMeshLoaderCallback);
 var fs: TFileStream;
     oldDir: string;
 begin
@@ -1039,17 +1048,19 @@ begin
   oldDir := GetCurrentDir;
   try
     SetCurrentDir(ExtractFilePath(FileName));
-    LoadFromStream(fs, meshes, meshInst, TexManager);
+    LoadFromStream(fs, meshes, meshInst, TexManager, ACallBack);
   finally
     SetCurrentDir(oldDir);
     FreeAndNil(fs);
   end;
 end;
 
-function LoadInstancesFromFile(const FileName: string; const TexManager: ITextureManager): IavMeshInstances;
+function LoadInstancesFromFile(const FileName: string;
+  const TexManager: ITextureManager; const ACallBack: IMeshLoaderCallback
+  ): IavMeshInstances;
 var dummy: IavMeshes;
 begin
-  LoadFromFile(FileName, dummy, Result);
+  LoadFromFile(FileName, dummy, Result, TexManager, ACallBack);
 end;
 
 function Create_IavAnimationController(const APose: IavPose; const ATime: Int64
@@ -1058,6 +1069,13 @@ begin
   Result := TavAnimationController.Create;
   Result.Pose := APose;
   Result.SetTime(ATime);
+end;
+
+function GetMaterialTextureKindName(const AKind: TMeshMaterialTextureKind): string;
+var pInfo: PTypeInfo;
+begin
+  pInfo := TypeInfo(TMeshMaterialTextureKind);
+  Result := GetEnumName(pInfo, Integer(AKind))
 end;
 
 { TavSingleBoneAnimation }
@@ -2074,42 +2092,36 @@ end;
 
 { TMeshMaterialMaps }
 
-procedure TMeshMaterialMaps.ReadFromStream(const AStream: TStream; const ATexMan: ITextureManager);
+procedure TMeshMaterialMaps.ReadFromStream(const AStream: TStream;
+  const ATexMan: ITextureManager; const ACallBack: IMeshLoaderCallback);
 
-  procedure ReadTexture(var ATex: ITextureData; var ATexFactor: Single);
+  procedure ReadTexture(tk: TMeshMaterialTextureKind; var ATex: ITextureData; var ATexFactor: Single);
   var s : AnsiString;
+      texfile: string;
   begin
     StreamReadString(AStream, s);
     if s = '' then
       ATex := nil
     else
     begin
-      ATex := ATexMan.LoadTexture(String(s), Width, Height, TImageFormat.A8R8G8B8);
+      if ACallBack <> nil then
+        texfile := ACallBack.Hook_TextureFilename(string(s))
+      else
+        texfile := string(s);
+      ATex := ATexMan.LoadTexture(texfile, Width, Height, TImageFormat.A8R8G8B8);
       Width := ATex.Width;
       Height := ATex.Height;
       MipCount := Max(MipCount, ATex.MipsCount);
     end;
     AStream.ReadBuffer(ATexFactor, SizeOf(ATexFactor));
+    if ACallBack <> nil then
+      ACallBack.OnLoadingTexture(tk, s, Vec(Width, Height), ATexFactor);
   end;
 
+var tk: TMeshMaterialTextureKind;
 begin
-  ReadTexture(mapDiffuse_Intensity,    mapDiffuse_IntensityFactor);
-  ReadTexture(mapDiffuse_Color,        mapDiffuse_ColorFactor);
-  ReadTexture(mapDiffuse_Alpha,        mapDiffuse_AlphaFactor);
-  ReadTexture(mapDiffuse_Translucency, mapDiffuse_TranslucencyFactor);
-
-  ReadTexture(mapShading_Ambient,      mapShading_AmbientFactor);
-  ReadTexture(mapShading_Emit,         mapShading_EmitFactor);
-  ReadTexture(mapShading_Mirror,       mapShading_MirrorFactor);
-  ReadTexture(mapShading_RayMirror,    mapShading_RayMirrorFactor);
-
-  ReadTexture(mapSpecular_Intensity,   mapSpecular_IntensityFactor);
-  ReadTexture(mapSpecular_Color,       mapSpecular_ColorFactor);
-  ReadTexture(mapSpecular_Hardness,    mapSpecular_HardnessFactor);
-
-  ReadTexture(mapGeometry_Normal,      mapGeometry_NormalFactor);
-  ReadTexture(mapGeometry_Warp,        mapGeometry_WarpFactor);
-  ReadTexture(mapGeometry_Displace,    mapGeometry_DisplaceFactor);
+  for tk := Low(TMeshMaterialTextureKind) to High(TMeshMaterialTextureKind) do
+    ReadTexture(tk, Textures[tk].map, Textures[tk].factor);
 end;
 
 end.

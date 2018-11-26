@@ -70,9 +70,6 @@ unit D3D11_JSB;
 //
 // JSB
 ///////////////////////////////////////////////////////////////////////////////
-{$IfDef FPC}
-  {$WARN 3031 off : Values in enumeration types have to be ascending}
-{$EndIf}
 interface
 
 {$Z4}
@@ -1841,6 +1838,9 @@ type
     ); stdcall;
   end;
 
+  {$IfDef FPC}
+    {$WARN 3031 off : Values in enumeration types have to be ascending}
+  {$EndIf}
   TD3D11_StandardMultisampleQualityLevels=
   (
     D3D11_STANDARD_MULTISAMPLE_PATTERN=Integer($ffffffff),

@@ -13,6 +13,7 @@ uses SysUtils,
      {$EndIf}
      avTypes,
      avContnrs,
+     avContnrsDefaults,
      mutils;
 
 const
@@ -156,12 +157,31 @@ type
 
   TTextureManager = class (TInterfacedObject, ITextureManager)
   private type
-    ITexHash = {$IfDef FPC}specialize{$EndIf} IHashMap<TByteArr, ITextureData>;
-    TTexHash = {$IfDef FPC}specialize{$EndIf} THashMap<TByteArr, ITextureData>;
+    TTextureKey = packed record
+      MethodID    : Integer;
+      targetWidth : Integer;
+      targetHeight: Integer;
+      targetFormat: TImageFormat;
+      premultAlpha: Boolean;
+      FileData    : TByteArr;
+    end;
+    TTextureKeyHasher = class(TInterfacedObject, IEqualityComparer)
+    private
+      function Hash(const Value): Cardinal;
+      function IsEqual(const Left, Right): Boolean;
+    end;
+
+  private type
+    ITexHash = {$IfDef FPC}specialize{$EndIf} IHashMap<TTextureKey, ITextureData>;
+    TTexHash = {$IfDef FPC}specialize{$EndIf} THashMap<TTextureKey, ITextureData>;
   private
     FTexHash: ITexHash;
 
+    function ToByteArr(const AStr: string): TByteArr; overload;
+    function ToByteArr(const AStrs: array of string): TByteArr; overload;
+
     function StreamToKey(const AStream: TStream): TByteArr;
+    function TryGetTexture(const AKey: TTextureKey; out ATexData: ITextureData): Boolean;
   public
     procedure DropCache;
     function LoadTexture(const FileData    : TByteArr;
@@ -534,6 +554,28 @@ begin
   Result := GV_TexMan;
 end;
 
+{ TTextureManager.TTextureKeyHasher }
+
+function TTextureManager.TTextureKeyHasher.Hash(const Value): Cardinal;
+var v: TTextureKey absolute Value;
+begin
+  Result := Murmur2DefSeed(v, SizeOf(v) - SizeOf(v.FileData));
+  if Length(v.FileData) > 0 then
+    Result := Result xor Murmur2DefSeed(v.FileData[0], Length(v.FileData));
+end;
+
+function TTextureManager.TTextureKeyHasher.IsEqual(const Left, Right): Boolean;
+var l: TTextureKey absolute Left;
+    r: TTextureKey absolute Right;
+begin
+  if not CompareMem(@l, @r, SizeOf(l) - SizeOf(l.FileData)) then Exit(False);
+  if (l.FileData = r.FileData) then Exit(True);
+  if Length(l.FileData) <> Length(r.FileData) then Exit(False);
+  if Length(l.FileData) > 0 then
+    if not CompareMem(@l.FileData[0], @r.FileData[0], Length(l.FileData)) then Exit(False);
+  Result := True;
+end;
+
 { TMipImage }
 
 function TMipImage.Width: Integer;
@@ -579,11 +621,84 @@ end;
 
 { TTextureManager }
 
+function TTextureManager.ToByteArr(const AStr: string): TByteArr;
+var ms: TMemoryStream;
+    n: Integer;
+begin
+  ms := TMemoryStream.Create;
+  try
+    n := Length(AStr);
+    ms.WriteBuffer(n, SizeOf(n));
+    if n > 0 then
+      ms.WriteBuffer(AStr[1], Length(AStr));
+
+    SetLength(Result, ms.Size);
+    ms.Position := 0;
+    ms.ReadBuffer(Result[0], ms.Size);
+  finally
+    FreeAndNil(ms);
+  end;
+end;
+
+function TTextureManager.ToByteArr(const AStrs: array of string): TByteArr;
+var ms: TMemoryStream;
+    i, n, m: Integer;
+begin
+  ms := TMemoryStream.Create;
+  try
+    n := Length(AStrs);
+    ms.WriteBuffer(n, SizeOf(n));
+    for i := 0 to Length(AStrs) - 1 do
+    begin
+      m := Length(AStrs[i]);
+      ms.WriteBuffer(m, SizeOf(m));
+      if m > 0 then
+        ms.WriteBuffer(AStrs[i][1], Length(AStrs[i]));
+    end;
+
+    SetLength(Result, ms.Size);
+    ms.Position := 0;
+    ms.ReadBuffer(Result[0], ms.Size);
+  finally
+    FreeAndNil(ms);
+  end;
+end;
+
 function TTextureManager.StreamToKey(const AStream: TStream): TByteArr;
 begin
   SetLength(Result, AStream.Size);
   AStream.Position := 0;
   AStream.ReadBuffer(Result[0], Length(Result));
+end;
+
+function TTextureManager.TryGetTexture(const AKey: TTextureKey; out ATexData: ITextureData): Boolean;
+var key: TTextureKey;
+begin
+  Result := False;
+  ATexData := nil;
+  if FTexHash.TryGetValue(AKey, ATexData) then Exit(True);
+  if (AKey.targetWidth = SIZE_DEFAULT) and (AKey.targetHeight = SIZE_DEFAULT) and (AKey.targetFormat = FORMAT_DEFAULT) then Exit;
+
+  key := AKey;
+  key.targetWidth := SIZE_DEFAULT;
+  key.targetHeight := SIZE_DEFAULT;
+  if FTexHash.TryGetValue(key, ATexData) then
+  begin
+    Result := ((AKey.targetWidth = SIZE_DEFAULT) or (ATexData.Width = AKey.targetWidth)) and
+              ((AKey.targetHeight = SIZE_DEFAULT) or (ATexData.Height = AKey.targetHeight)) and
+              ((AKey.targetFormat = FORMAT_DEFAULT) or (ATexData.Format = AKey.targetFormat));
+    if Result then Exit;
+  end;
+
+  key.targetFormat := FORMAT_DEFAULT;
+  if FTexHash.TryGetValue(key, ATexData) then
+  begin
+    Result := ((AKey.targetWidth = SIZE_DEFAULT) or (ATexData.Width = AKey.targetWidth)) and
+              ((AKey.targetHeight = SIZE_DEFAULT) or (ATexData.Height = AKey.targetHeight)) and
+              ((AKey.targetFormat = FORMAT_DEFAULT) or (ATexData.Format = AKey.targetFormat));
+    if Result then Exit;
+  end;
+  Result := False;
 end;
 
 procedure TTextureManager.DropCache;
@@ -596,25 +711,18 @@ function TTextureManager.LoadTexture(const FileData: TByteArr;
   const targetFormat: TImageFormat; const premultAlpha: Boolean): ITextureData;
 const
   MethodID: Integer = 0;
-var ms: TMemoryStream;
-    key: TByteArr;
+var key: TTextureKey;
 begin
-  ms := TMemoryStream.Create;
-  try
-    ms.WriteBuffer(MethodID, SizeOf(MethodID));
-    ms.WriteBuffer(Pointer(FileData), SizeOf(Pointer));
-    ms.WriteBuffer(targetWidth, SizeOf(targetWidth));
-    ms.WriteBuffer(targetHeight, SizeOf(targetHeight));
-    ms.WriteBuffer(targetFormat, SizeOf(targetFormat));
-    ms.WriteBuffer(premultAlpha, SizeOf(premultAlpha));
-    key := StreamToKey(ms);
-    if not FTexHash.TryGetValue(key, Result) then
-    begin
-      Result := avTexLoader.LoadTexture(FileData, targetWidth, targetHeight, targetFormat, premultAlpha);
-      FTexHash.Add(key, Result);
-    end;
-  finally
-    FreeAndNil(ms);
+  key.MethodID := MethodID;
+  key.targetWidth := targetWidth;
+  key.targetHeight := targetHeight;
+  key.targetFormat := targetFormat;
+  key.premultAlpha := premultAlpha;
+  key.FileData := FileData;
+  if not TryGetTexture(key, Result) then
+  begin
+    Result := avTexLoader.LoadTexture(FileData, targetWidth, targetHeight, targetFormat, premultAlpha);
+    FTexHash.Add(key, Result);
   end;
 end;
 
@@ -623,29 +731,22 @@ function TTextureManager.LoadTexture(const FileName: string;
   const targetFormat: TImageFormat; const premultAlpha: Boolean): ITextureData;
 const
   MethodID: Integer = 1;
-var ms: TMemoryStream;
-    key: TByteArr;
+var key: TTextureKey;
     fullName: string;
 begin
-  ms := TMemoryStream.Create;
-  try
-    fullName := ExpandFileName(FileName);
+  fullName := ExpandFileName(FileName);
 
-    ms.WriteBuffer(MethodID, SizeOf(MethodID));
-    StreamWriteString(ms, fullName);
-    ms.WriteBuffer(targetWidth, SizeOf(targetWidth));
-    ms.WriteBuffer(targetHeight, SizeOf(targetHeight));
-    ms.WriteBuffer(targetFormat, SizeOf(targetFormat));
-    ms.WriteBuffer(premultAlpha, SizeOf(premultAlpha));
-    key := StreamToKey(ms);
-    if not FTexHash.TryGetValue(key, Result) then
-    begin
-      if not FileExists(fullName) then Exit(nil);
-      Result := avTexLoader.LoadTexture(fullName, targetWidth, targetHeight, targetFormat, premultAlpha);
-      FTexHash.Add(key, Result);
-    end;
-  finally
-    FreeAndNil(ms);
+  key.MethodID := MethodID;
+  key.targetWidth := targetWidth;
+  key.targetHeight := targetHeight;
+  key.targetFormat := targetFormat;
+  key.premultAlpha := premultAlpha;
+  key.FileData := ToByteArr(fullName);
+  if not TryGetTexture(key, Result) then
+  begin
+    if not FileExists(fullName) then Exit(nil);
+    Result := avTexLoader.LoadTexture(fullName, targetWidth, targetHeight, targetFormat, premultAlpha);
+    FTexHash.Add(key, Result);
   end;
 end;
 
@@ -654,37 +755,26 @@ function TTextureManager.LoadTexture(const Files: array of string;
   const targetFormat: TImageFormat; const premultAlpha: Boolean): ITextureData;
 const
   MethodID: Integer = 2;
-var ms: TMemoryStream;
-    key: TByteArr;
-    n: Integer;
-    i: Integer;
+var key: TTextureKey;
 begin
-  ms := TMemoryStream.Create;
-  try
-    ms.WriteBuffer(MethodID, SizeOf(MethodID));
-    n := Length(Files);
-    ms.WriteBuffer(n, SizeOf(n));
-    for i := 0 to n - 1 do
-      StreamWriteString(ms, Files[i]);
-    ms.WriteBuffer(targetWidth, SizeOf(targetWidth));
-    ms.WriteBuffer(targetHeight, SizeOf(targetHeight));
-    ms.WriteBuffer(targetFormat, SizeOf(targetFormat));
-    ms.WriteBuffer(premultAlpha, SizeOf(premultAlpha));
-    key := StreamToKey(ms);
-    if not FTexHash.TryGetValue(key, Result) then
-    begin
-      Result := avTexLoader.LoadTextures(Files, targetWidth, targetHeight, targetFormat, premultAlpha);
-      FTexHash.Add(key, Result);
-    end;
-  finally
-    FreeAndNil(ms);
+  key.MethodID := MethodID;
+  key.targetWidth := targetWidth;
+  key.targetHeight := targetHeight;
+  key.targetFormat := targetFormat;
+  key.premultAlpha := premultAlpha;
+  key.FileData := ToByteArr(Files);
+
+  if not FTexHash.TryGetValue(key, Result) then
+  begin
+    Result := avTexLoader.LoadTextures(Files, targetWidth, targetHeight, targetFormat, premultAlpha);
+    FTexHash.Add(key, Result);
   end;
 end;
 
 procedure TTextureManager.AfterConstruction;
 begin
   inherited AfterConstruction;
-  FTexHash := TTexHash.Create;
+  FTexHash := TTexHash.Create(TTextureKeyHasher.Create);
 end;
 
 { TTextureData }
