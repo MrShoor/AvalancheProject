@@ -69,10 +69,16 @@ def Export(WFloat, WInt, WStr, WBool, pack_pbr = False):
         return tmpname
         
     imgToSave = {}
+    imgProcessed = {}
     def AddImageToSave(material, image, map_type = MapType.Unknown):
         if image is None:
             return ''
         
+        procKey = (material, image, map_type)
+        procResult = imgProcessed.get(procKey, '')
+        if (procResult != ''):
+            return procResult
+
         def_size = (material.get("NewSizeX", image.size[0]), material.get("NewSizeY", image.size[1]))
         
         adapter = ImageAdapter(image)
@@ -117,6 +123,7 @@ def Export(WFloat, WInt, WStr, WBool, pack_pbr = False):
                 adapter.TargetName = image.name
         
         imgToSave[adapter.TargetName] = adapter
+        imgProcessed[procKey] = adapter.TargetName        
         return adapter.TargetName
     
     def SaveAllImages():
@@ -525,5 +532,5 @@ def ExportToConsole():
     print('---------')
     Export(WFloat, WInt, WStr, WBool)
             
-#ExportToFile(outfilename)
+#ExportToFile(outfilename, True)
 #ExportToConsole()
