@@ -13,7 +13,10 @@ bl_info = {
     "category": "Import-Export"}
 
 import bpy
-from bpy.props import StringProperty
+from bpy.props import (
+        StringProperty,
+        BoolProperty,
+        )
 
 from . import avm_export_impl
 
@@ -23,6 +26,12 @@ class Export_avModel(bpy.types.Operator):
     bl_label = "Export avModel"
     
     filepath = StringProperty(subtype='FILE_PATH')
+	
+    do_pbr_pack = BoolProperty(
+            name="Pack Metallic, AO, Roghness",
+            description="Pack Specular.Intensity, Shading.Ambient, Specular.Hardness in single texture to RGB channels accordingly",
+            default=True,
+            )
     
     def Export(self):
         File = open(self.filepath, 'w')
@@ -34,7 +43,7 @@ class Export_avModel(bpy.types.Operator):
     
     def execute(self, context):
         self.filepath = bpy.path.ensure_ext(self.filepath, ".avm")
-        avm_export_impl.ExportToFile(self.filepath)
+        avm_export_impl.ExportToFile(self.filepath, self.do_pbr_pack)
         #from . import export_avm_impl
         #Exporter = export_avm_impl.avModelExporter(self, context)
         #self.Export()

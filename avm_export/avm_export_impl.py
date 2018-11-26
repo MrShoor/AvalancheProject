@@ -3,6 +3,7 @@ import os
 import numpy as np
 import bmesh
 import shutil as sh
+from enum import Enum
 
 OX = 0
 OY = 2
@@ -15,8 +16,29 @@ MaxWeightsCount = 4;
 #outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Media\\NewI\\mesh.avm'
 outfilename = 'D:\\Projects\\AvalancheProject\\Demos\\Media\\Char\char.avm'
 #outfilename = 'C:\\MyProj\\AvalancheProject\\Demos\\Src\\avm_Import\\test.txt'
+
+class MapType(Enum):
+    Unknown = 0
+    Hardness = 1
+    AO = 2
+    Metallic = 3
+    
+class ImageAdapter:
+    def __init__(self, Image):
+        self.Image = Image
+        if (not Image is None):
+            self.TargetName = Image.name
+            self.TargetSize = Image.size
+        else:
+            self.TargetName = ''
+            self.TargetSize = [0, 0]
+        self.Pixels = []
+    
+pack_pbr_types = ([MapType.Hardness, MapType.Metallic, MapType.AO])
         
-def Export(WFloat, WInt, WStr, WBool):
+imgToRemove = {}
+        
+def Export(WFloat, WInt, WStr, WBool, pack_pbr = False):
     poseBoneIndices = {}
     imgToCopy = {}
     meshToVertexGroup = {}
@@ -45,6 +67,83 @@ def Export(WFloat, WInt, WStr, WBool):
         imgToCopy[path] = tmpname
         
         return tmpname
+        
+    imgToSave = {}
+    def AddImageToSave(material, image, map_type = MapType.Unknown):
+        if image is None:
+            return ''
+        
+        def_size = (material.get("NewSizeX", image.size[0]), material.get("NewSizeY", image.size[1]))
+        
+        adapter = ImageAdapter(image)
+        
+        if (pack_pbr and (map_type in pack_pbr_types)):
+            packed_image_name = material.name + '_pbrpack_mtl_ao_rg.png'
+            adapter = imgToSave.get(packed_image_name)
+            if (adapter is None):
+                adapter = ImageAdapter(None)
+                adapter.TargetName = packed_image_name
+                adapter.TargetSize = def_size;
+                adapter.Pixels = [material.specular_color[0], 1.0, material.specular_hardness/512.0, 0.0]*adapter.TargetSize[0]*adapter.TargetSize[1]
+                imgToSave[adapter.TargetName] = adapter
+            
+            doremove = False
+            srcimg = image
+            try:
+                if (adapter.TargetSize != image.size):
+                    srcimg = image.copy()
+                    doremove = True
+                    srcimg.scale(adapter.TargetSize[0], adapter.TargetSize[1])
+                    
+                channel = 2
+                if (map_type == MapType.AO):
+                  channel = 1
+                elif(map_type == MapType.Metallic):
+                  channel = 0
+                
+                src_pixels = srcimg.pixels[:]
+                for i in range(channel, len(adapter.Pixels), 4):
+                    adapter.Pixels[i] = src_pixels[i]
+            finally:
+                if (doremove):
+                    bpy.data.images.remove(srcimg)
+        else:
+            if (def_size != image.size):
+                img = image.copy()
+                imgToRemove[img.name] = True
+                img.scale(def_size[0], def_size[1])
+                adapter.Image = img
+                adapter.TargetSize = def_size
+                adapter.TargetName = image.name
+        
+        imgToSave[adapter.TargetName] = adapter
+        return adapter.TargetName
+    
+    def SaveAllImages():
+        fname = outfilename
+        outdir = os.path.dirname(fname)
+        
+        for name, adapter in imgToSave.items():
+            new_path = os.path.join(outdir, adapter.TargetName)
+            #print('new_path: '+new_path);
+            if (not adapter.Image is None):
+                img = adapter.Image
+                old_path = img.filepath_raw
+                old_format = img.file_format
+                img.filepath_raw = new_path
+                img.file_format = 'PNG'
+                img.save()
+                img.filepath_raw = old_path
+                img.file_format = old_format
+            else:
+                img = bpy.data.images.new('', adapter.TargetSize[0], adapter.TargetSize[1])
+                try:
+                    img.filepath_raw = new_path
+                    img.file_format = 'PNG'
+                    img.pixels = adapter.Pixels
+                    img.save()
+                finally:
+                    bpy.data.images.remove(img)
                     
     def WriteMatrix(m):
         WFloat(m[OX][OX])
@@ -137,55 +236,48 @@ def Export(WFloat, WInt, WStr, WBool):
                 
                 for ts in mat.texture_slots:
                     if (not ts is None) and (ts.use) and (not ts.texture is None) and (ts.texture.type == 'IMAGE') and (not ts.texture.image is None):
-                        fpath = ts.texture.image.filepath
-                        if fpath.find(r'\\') == 0:
-                            fpath = '//'+fpath[2:]
-                        absTexPath = bpy.path.abspath(fpath)
-                        if os.path.isfile(absTexPath):                            
-                            if ts.use_map_diffuse:
-                                diffuseMap_Intensity = AddImageToCopy(absTexPath, ts.texture.image.name)
-                                diffuseMap_IntensityFactor = ts.diffuse_factor
-                            elif ts.use_map_color_diffuse:
-                                diffuseMap_Color = AddImageToCopy(absTexPath, ts.texture.image.name)
-                                diffuseMap_ColorFactor = ts.diffuse_color_factor
-                            elif ts.use_map_alpha:
-                                diffuseMap_Alpha = AddImageToCopy(absTexPath, ts.texture.image.name)
-                                diffuseMap_AlphaFactor = ts.alpha_factor
-                            elif ts.use_map_translucency:
-                                diffuseMap_Translucency = AddImageToCopy(absTexPath, ts.texture.image.name)
-                                diffuseMap_TranslucencyFactor = ts.alpha_factor
-                            elif ts.use_map_ambient:
-                                shadingMap_Ambient = AddImageToCopy(absTexPath, ts.texture.image.name)
-                                shadingMap_AmbientFactor = ts.ambient_factor
-                            elif ts.use_map_emit:
-                                shadingMap_Emit = AddImageToCopy(absTexPath, ts.texture.image.name)
-                                shadingMap_EmitFactor = ts.emit_factor
-                            elif ts.use_map_mirror:
-                                shadingMap_MirrorFactor = AddImageToCopy(absTexPath, ts.texture.image.name)
-                                shadingMap_MirrorFactor = ts.mirror_factor
-                            elif ts.use_map_raymir:
-                                shadingMap_RayMirrorFactor = AddImageToCopy(absTexPath, ts.texture.image.name)
-                                shadingMap_RayMirrorFactor = ts.raymir_factor
-                            elif ts.use_map_reflect:
-                                specularMap_Intensity = AddImageToCopy(absTexPath, ts.texture.image.name)
-                                specularMap_IntensityFactor = ts.specular_factor
-                            elif ts.use_map_color_spec:
-                                specularMap_Color = AddImageToCopy(absTexPath, ts.texture.image.name)
-                                specularMap_ColorFactor = ts.specular_color_factor
-                            elif ts.use_map_hardness:
-                                specularMap_Hardness = AddImageToCopy(absTexPath, ts.texture.image.name)
-                                specularMap_HardnessFactor = ts.hardness_factor
-                            elif ts.use_map_normal:
-                                geometryMap_Normal = AddImageToCopy(absTexPath, ts.texture.image.name)
-                                geometryMap_NormalFactor = ts.normal_factor                                
-                            elif ts.use_map_warp:
-                                geometryMap_Warp = AddImageToCopy(absTexPath, ts.texture.image.name)
-                                geometryMap_WarpFactor = ts.warp_factor
-                            elif ts.use_map_displacement:
-                                geometryMap_Displace = AddImageToCopy(absTexPath, ts.texture.image.name)
-                                geometryMap_DisplaceFactor = ts.displacement_factor
-                        else:
-                            print('Warning! Texture "' + absTexPath + '" not found')                     
+                        if ts.use_map_diffuse:
+                            diffuseMap_Intensity = AddImageToSave(mat, ts.texture.image)
+                            diffuseMap_IntensityFactor = ts.diffuse_factor
+                        elif ts.use_map_color_diffuse:
+                            diffuseMap_Color = AddImageToSave(mat, ts.texture.image)
+                            diffuseMap_ColorFactor = ts.diffuse_color_factor
+                        elif ts.use_map_alpha:
+                            diffuseMap_Alpha = AddImageToSave(mat, ts.texture.image)
+                            diffuseMap_AlphaFactor = ts.alpha_factor
+                        elif ts.use_map_translucency:
+                            diffuseMap_Translucency = AddImageToSave(mat, ts.texture.image)
+                            diffuseMap_TranslucencyFactor = ts.alpha_factor
+                        elif ts.use_map_ambient:
+                            shadingMap_Ambient = AddImageToSave(mat, ts.texture.image, MapType.AO)
+                            shadingMap_AmbientFactor = ts.ambient_factor
+                        elif ts.use_map_emit:
+                            shadingMap_Emit = AddImageToSave(mat, ts.texture.image)
+                            shadingMap_EmitFactor = ts.emit_factor
+                        elif ts.use_map_mirror:
+                            shadingMap_MirrorFactor = AddImageToSave(mat, ts.texture.image)
+                            shadingMap_MirrorFactor = ts.mirror_factor
+                        elif ts.use_map_raymir:
+                            shadingMap_RayMirrorFactor = AddImageToSave(mat, ts.texture.image)
+                            shadingMap_RayMirrorFactor = ts.raymir_factor
+                        elif ts.use_map_reflect:
+                            specularMap_Intensity = AddImageToSave(mat, ts.texture.image, MapType.Metallic)
+                            specularMap_IntensityFactor = ts.specular_factor
+                        elif ts.use_map_color_spec:
+                            specularMap_Color = AddImageToSave(mat, ts.texture.image)
+                            specularMap_ColorFactor = ts.specular_color_factor
+                        elif ts.use_map_hardness:
+                            specularMap_Hardness = AddImageToSave(mat, ts.texture.image, MapType.Hardness)
+                            specularMap_HardnessFactor = ts.hardness_factor
+                        elif ts.use_map_normal:
+                            geometryMap_Normal = AddImageToSave(mat, ts.texture.image)
+                            geometryMap_NormalFactor = ts.normal_factor                                
+                        elif ts.use_map_warp:
+                            geometryMap_Warp = AddImageToSave(mat, ts.texture.image)
+                            geometryMap_WarpFactor = ts.warp_factor
+                        elif ts.use_map_displacement:
+                            geometryMap_Displace = AddImageToSave(mat, ts.texture.image)
+                            geometryMap_DisplaceFactor = ts.displacement_factor                  
                             
             WriteColor(m_diffuseColor)
             WriteColor(m_specularColor)
@@ -379,10 +471,12 @@ def Export(WFloat, WInt, WStr, WBool):
     WInt(len(inst))
     for obj in inst:
         WriteMeshInstance(obj)
+    
+    SaveAllImages()
            
     return imgToCopy
 
-def ExportToFile(fname):
+def ExportToFile(fname, pack_pbr = False):
     if os.path.isfile(fname):
         os.remove(fname)
     outfile = open(fname, 'wb')
@@ -402,13 +496,13 @@ def ExportToFile(fname):
             else:
                 outfile.write(np.ubyte(0))
             
-        images = Export(WFloat, WInt, WStr, WBool)
-        outdir = os.path.dirname(fname)
-        for path, outname in images.items():
-            if path != os.path.join(outdir, outname):
-                sh.copyfile(path, os.path.join(outdir, outname))
+        Export(WFloat, WInt, WStr, WBool, pack_pbr)
         ExportDone = True
     finally:
+        for name, toremove in imgToRemove.items():
+            if name in bpy.data.images:
+                bpy.data.images.remove(bpy.data.images[name])
+                    
         outfile.close()
         if not ExportDone:
             print('Failed!')
