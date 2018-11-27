@@ -14,8 +14,8 @@ MaxWeightsCount = 4;
 #outfilename = 'E:\\Projects\\AvalancheProject\\avm_export\\test.txt'
 #outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Media\\WhipperNude\\WhipperNude.avm'
 #outfilename = 'E:\\Projects\\AvalancheProject\\Demos\\Media\\NewI\\mesh.avm'
-outfilename = 'D:\\Projects\\AvalancheProject\\Demos\\Media\\Char\char.avm'
-#outfilename = 'C:\\MyProj\\AvalancheProject\\Demos\\Src\\avm_Import\\test.txt'
+#outfilename = 'D:\\Projects\\AvalancheProject\\Demos\\Media\\Char\\char.avm'
+#outfilename = 'C:\\MyProj\\CourageTrial\\bin\\models\\scene.avm'
 
 class MapType(Enum):
     Unknown = 0
@@ -38,7 +38,7 @@ pack_pbr_types = ([MapType.Hardness, MapType.Metallic, MapType.AO])
         
 imgToRemove = {}
         
-def Export(WFloat, WInt, WStr, WBool, pack_pbr = False):
+def Export(WFloat, WInt, WStr, WBool, outfilename, pack_pbr = False):
     poseBoneIndices = {}
     imgToCopy = {}
     meshToVertexGroup = {}
@@ -78,8 +78,10 @@ def Export(WFloat, WInt, WStr, WBool, pack_pbr = False):
         procResult = imgProcessed.get(procKey, '')
         if (procResult != ''):
             return procResult
-
-        def_size = (material.get("NewSizeX", image.size[0]), material.get("NewSizeY", image.size[1]))
+        if ("NewSize" in material):
+            def_size = (material["NewSize"], material["NewSize"])
+        else:
+            def_size = (material.get("NewSizeX", image.size[0]), material.get("NewSizeY", image.size[1]))
         
         adapter = ImageAdapter(image)
         
@@ -126,7 +128,7 @@ def Export(WFloat, WInt, WStr, WBool, pack_pbr = False):
         imgProcessed[procKey] = adapter.TargetName        
         return adapter.TargetName
     
-    def SaveAllImages():
+    def SaveAllImages(outfilename):
         fname = outfilename
         outdir = os.path.dirname(fname)
         
@@ -190,6 +192,8 @@ def Export(WFloat, WInt, WStr, WBool, pack_pbr = False):
 
     def WriteMesh(mesh):
         WStr(mesh.name)
+        
+        print(mesh.name)
         
         #write materials
         materials = mesh.materials;
@@ -479,7 +483,7 @@ def Export(WFloat, WInt, WStr, WBool, pack_pbr = False):
     for obj in inst:
         WriteMeshInstance(obj)
     
-    SaveAllImages()
+    SaveAllImages(outfilename)
            
     return imgToCopy
 
@@ -503,7 +507,7 @@ def ExportToFile(fname, pack_pbr = False):
             else:
                 outfile.write(np.ubyte(0))
             
-        Export(WFloat, WInt, WStr, WBool, pack_pbr)
+        Export(WFloat, WInt, WStr, WBool, fname, pack_pbr)
         ExportDone = True
     finally:
         for name, toremove in imgToRemove.items():
