@@ -249,6 +249,14 @@ type
     1: (Norm: TVec3);
   end;
 
+  { TFrustum }
+
+  TFrustum = record
+    planes: array [0..5] of TPlane;
+    pts   : array [0..7] of TVec3;
+    procedure Init(const AViewProjInv: TMat4; const AProjBox: TAABB);
+  end;
+
 const
   Black: TVec4 = (x: 0; y: 0; z: 0; w: 0);
   Green: TVec4 = (x: 0; y: 0.5; z: 0; w: 1.0);
@@ -686,6 +694,42 @@ begin
   end;
 end;
 
+{ TFrustum }
+
+procedure TFrustum.Init(const AViewProjInv: TMat4; const AProjBox: TAABB);
+
+  function Unproject(const v: TVec3): TVec3;
+  var tmp: TVec4;
+  begin
+    tmp := Vec(v, 1.0) * AViewProjInv;
+    Result := tmp.xyz / tmp.w;
+  end;
+
+begin
+  pts[0] := Unproject(AProjBox.min);
+  pts[1] := Unproject(Vec(AProjBox.min.x, AProjBox.max.y, AProjBox.min.z));
+  pts[2] := Unproject(Vec(AProjBox.max.x, AProjBox.min.y, AProjBox.min.z));
+  pts[3] := Unproject(Vec(AProjBox.min.x, AProjBox.max.y, AProjBox.max.z));
+  pts[4] := Unproject(Vec(AProjBox.max.x, AProjBox.min.y, AProjBox.max.z));
+  pts[5] := Unproject(AProjBox.max);
+  pts[6] := Unproject(Vec(AProjBox.max.x, AProjBox.max.y, AProjBox.min.z));
+  pts[7] := Unproject(Vec(AProjBox.min.x, AProjBox.min.y, AProjBox.max.z));
+
+  planes[0].Norm := -normalize(cross(pts[2]-pts[0], pts[1]-pts[0])); //near
+  planes[1].Norm := -normalize(cross(pts[4]-pts[5], pts[3]-pts[5])); //far
+  planes[2].Norm := -normalize(cross(pts[5]-pts[4], pts[2]-pts[4])); //right
+  planes[3].Norm := -normalize(cross(pts[3]-pts[1], pts[0]-pts[1])); //left
+  planes[4].Norm := -normalize(cross(pts[1]-pts[3], pts[5]-pts[3])); //top
+  planes[5].Norm := -normalize(cross(pts[0]-pts[2], pts[4]-pts[2])); //bottom
+
+  planes[0].D := -dot(planes[0].Norm, pts[0]); //near
+  planes[1].D := -dot(planes[1].Norm, pts[5]); //far
+  planes[2].D := -dot(planes[2].Norm, pts[4]); //right
+  planes[3].D := -dot(planes[3].Norm, pts[1]); //left
+  planes[4].D := -dot(planes[4].Norm, pts[3]); //top
+  planes[5].D := -dot(planes[5].Norm, pts[2]); //bottom
+end;
+
 function TAABB.Center: TVec3;
 begin
   Result := min*0.5 + max*0.5;
@@ -801,13 +845,26 @@ begin
   while (i < 8) and (pts[i].y >  pts[i].w) do inc(i);
   if i = 8 then exit;
 
-  i := 0;
-  while (i < 8) and (pts[i].z < pts[i].w*ADepthRange.x) do inc(i);
-  if i = 8 then exit;
+  if ADepthRange.y < ADepthRange.x then
+  begin
+    i := 0;
+    while (i < 8) and (pts[i].z > pts[i].w*ADepthRange.x) do inc(i);
+    if i = 8 then exit;
 
-  i := 0;
-  while (i < 8) and (pts[i].z > pts[i].w*ADepthRange.y) do inc(i);
-  if i = 8 then exit;
+    i := 0;
+    while (i < 8) and (pts[i].z < pts[i].w*ADepthRange.y) do inc(i);
+    if i = 8 then exit;
+  end
+  else
+  begin
+    i := 0;
+    while (i < 8) and (pts[i].z < pts[i].w*ADepthRange.x) do inc(i);
+    if i = 8 then exit;
+
+    i := 0;
+    while (i < 8) and (pts[i].z > pts[i].w*ADepthRange.y) do inc(i);
+    if i = 8 then exit;
+  end;
 
   Result := True;
 end;
