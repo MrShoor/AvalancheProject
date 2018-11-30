@@ -30,7 +30,7 @@
         <CustomOptions Value="-Oodfa"/>
       </Other>
     </CompilerOptions>
-    <Files Count="10">
+    <Files Count="11">
       <Item1>
         <Filename Value="avcontnrs.pas"/>
         <UnitName Value="avContnrs"/>
@@ -71,6 +71,10 @@
         <Filename Value="superobject.pas"/>
         <UnitName Value="superobject"/>
       </Item10>
+      <Item11>
+        <Filename Value="prof.pas"/>
+        <UnitName Value="prof"/>
+      </Item11>
     </Files>
     <RequiredPkgs Count="1">
       <Item1>

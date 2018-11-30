@@ -23,12 +23,20 @@ type
   { IavModelInstance }
 
   IavModelInstance = interface
+    function GetStatic: Boolean;
+    function GetTransform: TMat4;
+    procedure SetStatic(const AValue: Boolean);
+    procedure SetTransform(const AValue: TMat4);
+
     function Mesh: IavMeshInstance;
     function MultiMesh: IavMeshInstanceArray;
     function CustomProps: ICustomProps;
     function Collection: TavModelCollection;
     function ModelName: String;
     function Name: String;
+
+    property Static   : Boolean read GetStatic    write SetStatic;
+    property Transform: TMat4   read GetTransform write SetTransform;
   end;
 
   IavModelInstanceArr = {$IfDef FPC}specialize{$EndIf} IArray<IavModelInstance>;
@@ -220,8 +228,11 @@ type
 
       FMeshInst: IavMeshInstance;
       FMultiMesh: IavMeshInstanceArray;
+      FMultiMeshPoseValid: Boolean;
 
       FName: string;
+
+      FStatic: Boolean;
 
       procedure OnUnlink;
       procedure OnLink;
@@ -232,12 +243,19 @@ type
 
       function GetObj: TavModelInstance;
 
+      function GetStatic: Boolean;
+      function GetTransform: TMat4;
+      procedure SetStatic(const AValue: Boolean);
+      procedure SetTransform(const AValue: TMat4);
+
       function Mesh: IavMeshInstance;
       function MultiMesh: IavMeshInstanceArray;
       function CustomProps: ICustomProps;
       function Collection: TavModelCollection;
       function ModelName: String;
       function Name: String;
+
+      property Static: Boolean read GetStatic write SetStatic;
 
       constructor Create(const AOwner: TavModelCollection);
       destructor Destroy; override;
@@ -278,6 +296,8 @@ type
     FModels: IModelHash;
     FModelInstances: IModelInstHash;
     FModelMultiInstances: IModelInstSet;
+
+    FStaticForUpdateSet: IModelInstSet;
 
     function ObtainDummyTextureData(const Key: TTextureKey): ITextureData;
     function ObtainMap(const Key: TTextureKey): TavMultiTexture;
@@ -558,15 +578,17 @@ begin
 
   if FMultiMesh <> nil then
   begin
-    for i := 0 to FMultiMesh.Count - 1 do
-    begin
-      newID := FMultiMesh[i].PoseStateID;
-      if FBoneTransformID[i] <> newID then
+    if not FMultiMeshPoseValid then
+      for i := 0 to FMultiMesh.Count - 1 do
       begin
-        FBoneTransformID[i] := newID;
-        FBoneTransformHandles[i].Invalidate;
+        newID := FMultiMesh[i].PoseStateID;
+        if FBoneTransformID[i] <> newID then
+        begin
+          FBoneTransformID[i] := newID;
+          FBoneTransformHandles[i].Invalidate;
+        end;
+        FMultiMeshPoseValid := True;
       end;
-    end;
   end;
 end;
 
@@ -580,6 +602,37 @@ end;
 function TavModelCollection.TavModelInstance.GetObj: TavModelInstance;
 begin
   Result := Self;
+end;
+
+function TavModelCollection.TavModelInstance.GetStatic: Boolean;
+begin
+  Result := FStatic;
+end;
+
+function TavModelCollection.TavModelInstance.GetTransform: TMat4;
+begin
+  if FMeshInst = nil then
+    Exit(IdentityMat4)
+  else
+    Result := FMeshInst.Transform;
+end;
+
+procedure TavModelCollection.TavModelInstance.SetStatic(const AValue: Boolean);
+begin
+  if FStatic = AValue then Exit;
+  FStatic := AValue;
+  if FStatic then
+    FOwner.FStaticForUpdateSet.AddOrSet(Self)
+  else
+    FOwner.FStaticForUpdateSet.Delete(Self);
+end;
+
+procedure TavModelCollection.TavModelInstance.SetTransform(const AValue: TMat4);
+begin
+  if FMeshInst = nil then Exit;
+  FMeshInst.Transform := AValue;
+  if FStatic then
+    FOwner.FStaticForUpdateSet.AddOrSet(Self);
 end;
 
 function TavModelCollection.TavModelInstance.Mesh: IavMeshInstance;
@@ -628,6 +681,7 @@ begin
     if (FMeshInst <> nil) then
       FOwner.FModelInstances.Delete(FMeshInst);
     FOwner.FModelMultiInstances.Delete(Self);
+    FOwner.FStaticForUpdateSet.Delete(Self);
   end;
   if Assigned(FModel) then
     FModel.UnlinkInstance(Self);
@@ -718,14 +772,21 @@ begin
     Intances.Sort;
 
   for i := 0 to Intances.Count - 1 do
-    TavModelInstance(Intances[i]).UpdateBoneTransform;
+    if not TavModelInstance(Intances[i]).Static then
+      TavModelInstance(Intances[i]).UpdateBoneTransform;
+  FStaticForUpdateSet.Reset;
+  while FStaticForUpdateSet.Next(mInst) do
+    mInst.UpdateBoneTransform;
+  FStaticForUpdateSet.Clear;
+
+  //for i := 0 to Intances.Count - 1 do
+  //  TavModelInstance(Intances[i]).UpdateBoneTransform;
   Main.ActiveProgram.SetUniform('BoneTransform', FBoneTransform, Sampler_NoFilter);
 
   lastDiffuse := nil;
   for i := 0 to Intances.Count - 1 do
   begin
     mInst := TavModelInstance(Intances[i]);
-    mInst.UpdateBoneTransform;
     if lastDiffuse <> mInst.GetTexMap then
     begin
       lastDiffuse := mInst.GetTexMap;
@@ -940,6 +1001,7 @@ begin
   model.FInstances.Add(modelInst);
   modelInst.OnLink;
   FModelMultiInstances.Add(modelInst);
+  modelInst.Static := True;
 
   Result := modelInst;
 end;
@@ -994,6 +1056,7 @@ begin
   model.FInstances.Add(modelInst);
   modelInst.OnLink;
   FModelInstances.Add(AMeshInstance, modelInst);
+  modelInst.Static := not ( (modelInst.FMeshInst.Pose <> nil) and (modelInst.FMeshInst.Pose.Armature <> nil) );
 
   Result := modelInst;
 end;
@@ -1047,6 +1110,7 @@ begin
   FModels := TModelHash.Create;
   FModelInstances := TModelInstHash.Create;
   FModelMultiInstances := TModelInstSet.Create;
+  FStaticForUpdateSet := TModelInstSet.Create;
 
   FVB := TavVBManaged.Create(Self);
   FVB.CullMode := cmBack;
