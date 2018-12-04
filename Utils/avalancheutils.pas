@@ -9,7 +9,7 @@ interface
 
 uses
   avContnrs, mutils, intfUtils, avContnrsDefaults, avPathFinder, avPolygon, 
-  avFileUtils, math_fx, superobject, prof, LazarusPackageIntf;
+  avFileUtils, math_fx, superobject, prof, avRTTIUtils, LazarusPackageIntf;
 
 implementation
 

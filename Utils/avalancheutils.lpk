@@ -30,7 +30,7 @@
         <CustomOptions Value="-Oodfa"/>
       </Other>
     </CompilerOptions>
-    <Files Count="11">
+    <Files Count="12">
       <Item1>
         <Filename Value="avcontnrs.pas"/>
         <UnitName Value="avContnrs"/>
@@ -75,6 +75,10 @@
         <Filename Value="prof.pas"/>
         <UnitName Value="prof"/>
       </Item11>
+      <Item12>
+        <Filename Value="avrttiutils.pas"/>
+        <UnitName Value="avrttiutils"/>
+      </Item12>
     </Files>
     <RequiredPkgs Count="1">
       <Item1>
