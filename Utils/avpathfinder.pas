@@ -91,6 +91,7 @@ type
       procedure Reset(const ANode: TNode); overload;
       procedure Reset(const ANodes: array of TNode); overload;
       procedure Reset(const ANodes: {$IfDef FPC}specialize{$EndIf} IArray<TNode>); overload;
+      procedure Reset(const ANodes: {$IfDef FPC}specialize{$EndIf} IHashSet<TNode>); overload;
       function Next(out ANode: TNode): Boolean; overload;
       function Next(out ANode: TNode; out ADepth: Integer): Boolean; overload;
   end;
@@ -117,6 +118,7 @@ type
     procedure Reset(const ANode: TNode); overload;
     procedure Reset(const ANodes: array of TNode); overload;
     procedure Reset(const ANodes: {$IfDef FPC}specialize{$EndIf} IArray<TNode>); overload;
+    procedure Reset(const ANodes: {$IfDef FPC}specialize{$EndIf} IHashSet<TNode>); overload;
     function Next(out ANode: TNode): Boolean; overload;
     function Next(out ANode: TNode; out ADepth: Integer): Boolean; overload;
     constructor Create(const AGraph: IGraph);
@@ -164,6 +166,22 @@ begin
     item.depth := 0;
     FQueue.Push(item);
     FVisited.Add(item.node);
+  end;
+end;
+
+procedure TBFS_Iterator{$IfDef DCC}<TNode>{$EndIf}.Reset(const ANodes: {$IfDef FPC}specialize{$EndIf}IHashSet<TNode>);
+var item: TBFSItem;
+    k: TNode;
+begin
+  FQueue := TNodeQueue.Create();
+  FVisited := TVisitedHash.Create(FComparer);
+  ANodes.Reset;
+  while ANodes.Next(k) do
+  begin
+    item.node := k;
+    item.depth := 0;
+    FQueue.Push(item);
+    FVisited.Add(k);
   end;
 end;
 

@@ -1813,6 +1813,7 @@ end;
 procedure TavCanvas.AddText(const AText: ITextLines);
 var range: TVec2i;
 begin
+  if AText = nil then Exit;
   SelectGeometryKind(gkFont);
 
   FTextLines.Add(AText);

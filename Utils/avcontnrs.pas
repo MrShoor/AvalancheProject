@@ -1772,7 +1772,7 @@ begin
   Reset;
   while Next(k) do Result.Add(k);
   ASet.Reset;
-  while Next(k) do Result.Add(k);
+  while ASet.Next(k) do Result.Add(k);
 end;
 
 function THashSet{$IfDef DCC}<TKey>{$EndIf}.Intersection(const ASet: IHSet): {$IfDef FPC}specialize{$EndIf}IHashSet<TKey>;
