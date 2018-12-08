@@ -96,6 +96,12 @@ type
       function Next(out ANode: TNode; out ADepth: Integer): Boolean; overload;
   end;
 
+  {$IfDef FPC}generic{$EndIf} IFloodFill_Iterator<TNode> = interface
+      procedure Reset(const ANodes: {$IfDef FPC}specialize{$EndIf} IArray<TNode>); overload;
+      procedure Reset(const ANodes: {$IfDef FPC}specialize{$EndIf} IHashSet<TNode>); overload;
+      function Next(out ANode: TNode; out AClusterNum: Integer): Boolean; overload;
+  end;
+
   { TBFS_Iterator }
 
   {$IfDef FPC}generic{$EndIf} TBFS_Iterator<TNode> = class (TInterfacedObjectEx, {$IfDef FPC}specialize{$EndIf} IBFS_Iterator<TNode>)
@@ -124,7 +130,77 @@ type
     constructor Create(const AGraph: IGraph);
   end;
 
+  { TFloodFill_Iterator }
+
+  {$IfDef FPC}generic{$EndIf} TFloodFill_Iterator<TNode> = class (TInterfacedObjectEx, {$IfDef FPC}specialize{$EndIf} IFloodFill_Iterator<TNode>)
+  private type
+    IGraph = {$IfDef FPC}specialize{$EndIf} INonWeightedGraph<TNode>;
+    INonVisitedSet = {$IfDef FPC}specialize{$EndIf} IHashSet<TNode>;
+    TNonVisitedSet = {$IfDef FPC}specialize{$EndIf} THashSet<TNode>;
+    INodeQueue = {$IfDef FPC}specialize{$EndIf} IQueue<TNode>;
+    TNodeQueue = {$IfDef FPC}specialize{$EndIf} TQueue<TNode>;
+  private
+    FGraph: IGraph;
+    FNonVisitedSet: INonVisitedSet;
+    FClusterNum: Integer;
+    FQueue: INodeQueue;
+  public
+    procedure Reset(const ANodes: {$IfDef FPC}specialize{$EndIf} IArray<TNode>); overload;
+    procedure Reset(const ANodes: {$IfDef FPC}specialize{$EndIf} IHashSet<TNode>); overload;
+    function Next(out ANode: TNode; out AClusterNum: Integer): Boolean; overload;
+    constructor Create(const AGraph: IGraph);
+  end;
+
 implementation
+
+{ TFloodFill_Iterator }
+
+procedure TFloodFill_Iterator{$IfDef DCC}<TNode>{$EndIf}.Reset(const ANodes: {$IfDef FPC}specialize{$EndIf} IArray<TNode>);
+var i: Integer;
+begin
+  FNonVisitedSet := TNonVisitedSet.Create();
+  for i := 0 to ANodes.Count - 1 do
+    FNonVisitedSet.Add(ANodes[i]);
+  FClusterNum := -1;
+  FQueue.Clear();
+end;
+
+procedure TFloodFill_Iterator{$IfDef DCC}<TNode>{$EndIf}.Reset(const ANodes: {$IfDef FPC}specialize{$EndIf} IHashSet<TNode>);
+begin
+  FNonVisitedSet := ANodes.Clone();
+  FClusterNum := -1;
+  FQueue.Clear();
+end;
+
+function TFloodFill_Iterator{$IfDef DCC}<TNode>{$EndIf}.Next(out ANode: TNode; out AClusterNum: Integer): Boolean;
+var pt: TNode;
+    i : Integer;
+begin
+  if FNonVisitedSet.Count = 0 then Exit(False);
+
+  if FQueue.Count = 0 then
+  begin
+    FNonVisitedSet.Reset;
+    FNonVisitedSet.Next(pt);
+    FNonVisitedSet.Delete(pt);
+    FQueue.Push(pt);
+    Inc(FClusterNum);
+  end;
+
+  ANode := FQueue.Pop;
+  AClusterNum := FClusterNum;
+  for i := 0 to FGraph.MaxNeighbourCount(ANode) - 1 do
+    if FGraph.GetNeighbour(i, ANode, pt) then
+      if FNonVisitedSet.Delete(pt) then
+        FQueue.Push(pt);
+  Result := True;
+end;
+
+constructor TFloodFill_Iterator{$IfDef DCC}<TNode>{$EndIf}.Create(const AGraph: IGraph);
+begin
+  FGraph := AGraph;
+  FQueue := TNodeQueue.Create;
+end;
 
 { TBFS_Iterator }
 
