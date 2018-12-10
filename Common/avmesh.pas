@@ -1042,16 +1042,25 @@ procedure LoadFromFile(const FileName: string; out meshes: IavMeshes; out
   meshInst: IavMeshInstances; const TexManager: ITextureManager;
   const ACallBack: IMeshLoaderCallback);
 var fs: TFileStream;
+    ms: TMemoryStream;
     oldDir: string;
 begin
-  fs := TFileStream.Create(FileName, fmOpenRead);
-  oldDir := GetCurrentDir;
+  ms := nil;
+  fs := nil;
   try
+    fs := TFileStream.Create(FileName, fmOpenRead);
+    ms := TMemoryStream.Create;
+    ms.CopyFrom(fs, fs.Size);
+    ms.Position := 0;
+    FreeAndNil(fs);
+
+    oldDir := GetCurrentDir;
     SetCurrentDir(ExtractFilePath(FileName));
-    LoadFromStream(fs, meshes, meshInst, TexManager, ACallBack);
+    LoadFromStream(ms, meshes, meshInst, TexManager, ACallBack);
   finally
     SetCurrentDir(oldDir);
     FreeAndNil(fs);
+    FreeAndNil(ms);
   end;
 end;
 
@@ -1287,12 +1296,25 @@ begin
 end;
 
 procedure TavAnimationController.SetTime(const ATime: Int64);
+var
+  i: Integer;
+  doSetState: Boolean;
 begin
   if FTime = ATime then Exit;
   FTime := ATime;
   UpdateAnimationState;
   if FAnimationStates <> nil then
-    FPose.SetAnimationState(FAnimationStates);
+  begin
+    doSetState := False;
+    for i := 0 to Length(FAnimationStates) - 1 do
+      if FAnimationStates[i].Weight > 0.01 then
+      begin
+        doSetState := True;
+        Break;
+      end;
+    if doSetState then
+      FPose.SetAnimationState(FAnimationStates);
+  end;
 end;
 
 procedure TavAnimationController.AnimationStartStop(const AAnimationName: string; DoStart: Boolean; GrowSpeed: Single);
