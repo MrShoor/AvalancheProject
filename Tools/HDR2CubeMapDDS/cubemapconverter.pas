@@ -21,6 +21,7 @@ type
     OutputFmt : TImageFormat;
     OutputSize: Integer;
     Mult      : Single;
+    FlipY     : Boolean;
     GenMips   : Boolean;
   end;
 
@@ -33,13 +34,15 @@ implementation
 
 uses Math;
 
-procedure BuildCube(const src: TImageData; const dst: TDynImageDataArray; const Mult: Single);
+procedure BuildCube(const src: TImageData; const dst: TDynImageDataArray; const Mult: Single; const FlipY: Boolean);
   function GetLerpPixel(const src: TImageData; crd: TVec2): TColorFPRec;
   var p1, p2, p3, p4: TColorFPRec;
       t: TVec2;
       i: Integer;
   begin
     t.x := crd.x - Floor(crd.x);
+    if FlipY then
+      crd.y := src.Height - crd.y;
     t.y := crd.y - Floor(crd.y);
 
     p1 := GetPixelFP(src, Floor(crd.x), Floor(crd.y));
@@ -163,7 +166,7 @@ begin
       if not NewImage(AParams.OutputSize, AParams.OutputSize, AParams.OutputFmt, dst[i]) then
         raise EConvertError.Create('Can''t allocate output image');
 
-    BuildCube(src, dst, AParams.Mult);
+    BuildCube(src, dst, AParams.Mult, AParams.FlipY);
 
     if AParams.GenMips then
       GenCubeMips(dst);
@@ -200,6 +203,7 @@ begin
   WriteLn('                             RGBA32f');
   WriteLn('    -m<float mult> - color multiplier');
   WriteLn('    -g - generate mips');
+  WriteLn('    -y - flip src texture by y');
 end;
 
 procedure InvalidParam(const s: string);
@@ -285,6 +289,15 @@ begin
         Result.GenMips := True
       else
         InvalidParam(s);        
+      Continue;
+    end;
+
+    if s[2] = 'y' then
+    begin
+      if pVal = '' then
+        Result.FlipY := True
+      else
+        InvalidParam(s);
       Continue;
     end;
 

@@ -41,6 +41,8 @@ type
 
   IavModelInstanceArr = {$IfDef FPC}specialize{$EndIf} IArray<IavModelInstance>;
   TavModelInstanceArr = {$IfDef FPC}specialize{$EndIf} TArray<IavModelInstance>;
+  IavModelInstanceSet = {$IfDef FPC}specialize{$EndIf} IHashSet<IavModelInstance>;
+  TavModelInstanceSet = {$IfDef FPC}specialize{$EndIf} THashSet<IavModelInstance>;
 
   { IBoneTransformHandle }
 

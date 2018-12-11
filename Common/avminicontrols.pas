@@ -93,7 +93,6 @@ type
     procedure UPSUnSubscribe;
     procedure Validate;
     procedure DoValidate; virtual;
-    procedure Invalidate;
     procedure OnUPS; virtual;
   protected
     function  Space_ParentToLocal(const APt: TVec2): TVec2;
@@ -102,6 +101,7 @@ type
     procedure HitTestRecursive(const ALocalPt: TVec2; var AControl: TavmBaseControl);
     procedure HitTestLocal(const ALocalPt: TVec2; var AControl: TavmBaseControl); virtual;
   public
+    procedure Invalidate;
     procedure BringToFront;
     function LocalPtInArea(const Pt: TVec2): Boolean;
     function HitTest(const V: TVec2; ARecursive: Boolean): TavmBaseControl;
