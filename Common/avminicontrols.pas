@@ -216,17 +216,34 @@ type
     FDowned : Boolean;
     FText   : string;
     FOnClick: TNotifyEvent;
-    procedure SetText(const AValue: string);
   protected
     procedure Notify_MouseDown(ABtn: Integer; const APt: TVec2; AShifts: TShifts); override;
     procedure Notify_MouseMove(const APt: TVec2; AShifts: TShifts); override;
     procedure Notify_MouseUp(ABtn: Integer; const APt: TVec2; AShifts: TShifts); override;
+
+    procedure SetText(const AValue: string); virtual;
+    procedure DoOnClick; virtual;
   protected
     property Downed: Boolean read FDowned;
   public
     property Text: string read FText write SetText;
 
     property OnClick: TNotifyEvent read FOnClick write FOnClick;
+  end;
+
+  { TavmCustomCheckbox }
+
+  TavmCustomCheckbox = class (TavmCustomButton)
+  private
+    FChecked: Boolean;
+    FOnCheck: TNotifyEvent;
+    procedure SetChecked(const AValue: Boolean);
+  protected
+    procedure DoOnClick; override;
+    procedure Notify_MouseDblClick(ABtn: Integer; const APt: TVec2; AShifts: TShifts); override;
+  public
+    property Checked: Boolean read FChecked write SetChecked;
+    property OnCheck: TNotifyEvent read FOnCheck write FOnCheck;
   end;
 
   { TavmCustomScrollBar }
@@ -238,6 +255,10 @@ type
     FRange: Integer;
     FViewportPos: Integer;
     FViewportWidth: Integer;
+
+    FCapturedScrollBar: Boolean;
+    FCaptureOffset: Single;
+
     procedure SetIsVertical(AValue: Boolean);
     procedure SetRange(AValue: Integer);
     procedure SetViewportPos(AValue: Integer);
@@ -319,6 +340,30 @@ type
     procedure UpdateStates();
   end;
 
+{ TavmCustomCheckbox }
+
+procedure TavmCustomCheckbox.SetChecked(const AValue: Boolean);
+begin
+  if FChecked = AValue then Exit;
+  FChecked := AValue;
+  Invalidate;
+  if Assigned(FOnCheck) then
+    FOnCheck(Self);
+end;
+
+procedure TavmCustomCheckbox.DoOnClick;
+begin
+  inherited DoOnClick;
+  Checked := not Checked;
+end;
+
+procedure TavmCustomCheckbox.Notify_MouseDblClick(ABtn: Integer; const APt: TVec2; AShifts: TShifts);
+begin
+  inherited Notify_MouseDblClick(ABtn, APt, AShifts);
+  if ABtn = 1 then
+    DoOnClick;
+end;
+
 { TavmCustomScrollBar }
 
 procedure TavmCustomScrollBar.SetRange(AValue: Integer);
@@ -362,24 +407,86 @@ begin
 end;
 
 procedure TavmCustomScrollBar.Notify_MouseDown(ABtn: Integer; const APt: TVec2; AShifts: TShifts);
+var barRct: TRectF;
 begin
   inherited Notify_MouseDown(ABtn, APt, AShifts);
+  if ABtn = 1 then
+  begin
+    barRct := BarRect();
+    if barRct.PtInRect(APt) then
+    begin
+      if IsVertical then
+        FCaptureOffset := barRct.Center.y - APt.y
+      else
+        FCaptureOffset := barRct.Center.x - APt.x;
+      FCapturedScrollBar := True;
+      InputConnector.Captured := Self;
+    end
+    else
+    begin
+      if IsVertical then
+      begin
+        if APt.y >= barRct.max.y then
+          Scroll(ViewportWidth)
+        else
+          if APt.y < barRct.min.y then
+            Scroll(-ViewportWidth);
+      end
+      else
+      begin
+        if APt.x >= barRct.max.x then
+          Scroll(ViewportWidth)
+        else
+          if APt.x < barRct.min.x then
+            Scroll(-ViewportWidth);
+      end;
+    end;
+
+  end;
 end;
 
 procedure TavmCustomScrollBar.Notify_MouseMove(const APt: TVec2; AShifts: TShifts);
+var barRct: TRectF;
+    bounds: TVec2;
+    midpos: Single;
+    t: Single;
 begin
   inherited Notify_MouseMove(APt, AShifts);
+  if FCapturedScrollBar then
+  begin
+    barRct := BarRect();
+
+    if IsVertical then
+    begin
+      bounds := Vec(barRct.Size.y * 0.5, Size.y - barRct.Size.y * 0.5);
+      midpos := APt.y + FCaptureOffset;
+    end
+    else
+    begin
+      bounds := Vec(barRct.Size.x * 0.5, Size.x - barRct.Size.x * 0.5);
+      midpos := APt.x + FCaptureOffset;
+    end;
+    if bounds.y <= bounds.x then Exit;
+    t := (midpos - bounds.x) / (bounds.y - bounds.x);
+    ViewportPos := Round( (Range - ViewportWidth) * t );
+  end;
 end;
 
 procedure TavmCustomScrollBar.Notify_MouseUp(ABtn: Integer; const APt: TVec2; AShifts: TShifts);
 begin
   inherited Notify_MouseUp(ABtn, APt, AShifts);
+  if (ABtn = 1) and FCapturedScrollBar then
+  begin
+    InputConnector.Captured := nil;
+    FCapturedScrollBar := False;
+  end;
 end;
 
 procedure TavmCustomScrollBar.Notify_MouseWheel(const APt: TVec2;
   AWheelShift: Integer; AShifts: TShifts);
 begin
   //inherited Notify_MouseWheel(APt, AShifts);
+  Scroll(-AWheelShift);
 end;
 
 function TavmCustomScrollBar.BarRect: TRectF;
@@ -615,9 +722,14 @@ begin
     FDowned := False;
     Invalidate;
     if LocalPtInArea(APt) then
-      if Assigned(FOnClick) then
-        FOnClick(Self);
+      DoOnClick;
   end;
+end;
+
+procedure TavmCustomButton.DoOnClick;
+begin
+  if Assigned(FOnClick) then
+    FOnClick(Self);
 end;
 
 { TavmInputConnector }
