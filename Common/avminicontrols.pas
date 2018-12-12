@@ -910,8 +910,10 @@ begin
 end;
 
 procedure TavmInputConnector.EMUps(var AMsg: TavMessage);
+var i: Integer;
 begin
-  FUPSPublisher.UpdateStates();
+  for i := 0 to AMsg.param - 1 do
+    FUPSPublisher.UpdateStates();
 end;
 
 procedure TavmInputConnector.SubscribeToUPS(const AEventHandler: IUPSEvent);
