@@ -313,6 +313,9 @@ type
 
     procedure ExportGlyphs(const AFileName: string; const AFontName: string; AStyle: TGlyphStyles; const ACharFirst, ACharLast: WideChar);
 
+    procedure SaveCache(const AFileName: string);
+    procedure LoadCache(const AFileName: string);
+
     constructor Create(AParent: TavObject); overload; override;
   end;
 
@@ -1547,6 +1550,82 @@ begin
       WriteGlyph(exp[i], fs);
   finally
     FreeAndNil(fs);
+  end;
+end;
+
+procedure TavCanvasCommonData.SaveCache(const AFileName: string);
+const cVERSION_ID: Integer = 1;
+var stream: TFileStream;
+    gKey  : TGlyphKey;
+    gData : TGlyphData;
+    n     : Integer;
+    str   : AnsiString;
+begin
+  stream := TFileStream.Create(AFileName, fmCreate);
+  try
+    stream.WriteBuffer(cVERSION_ID, SizeOf(cVERSION_ID));
+    stream.WriteBuffer(n, SizeOf(n));
+    FGlyphs.Reset;
+    while FGlyphs.Next(gKey, gData) do
+    begin
+      str := AnsiString(gKey.font);
+      streamWriteString(stream, str);
+      stream.WriteBuffer(gKey.glyph, SizeOf(gKey.glyph));
+      stream.WriteBuffer(gKey.style, SizeOf(gKey.style));
+
+      stream.WriteBuffer(gData.XXXMetrics, SizeOf(gData.XXXMetrics));
+      stream.WriteBuffer(gData.YYYYMetrics, SizeOf(gData.YYYYMetrics));
+
+      n := gData.img.Width;
+      stream.WriteBuffer(n, SizeOf(n));
+      n := gData.img.Height;
+      stream.WriteBuffer(n, SizeOf(n));
+      n := gData.img.Width * gData.img.Height;
+      if n > 0 then
+        stream.WriteBuffer(gData.img.Data^, SizeOf(Single)*n);
+    end;
+  finally
+    FreeAndNil(stream);
+  end;
+end;
+
+procedure TavCanvasCommonData.LoadCache(const AFileName: string);
+const cVERSION_ID: Integer = 1;
+var stream: TFileStream;
+    gKey  : TGlyphKey;
+    gData : TGlyphData;
+    n, i  : Integer;
+    str   : AnsiString;
+    w, h  : Integer;
+begin
+  stream := TFileStream.Create(AFileName, fmOpenRead);
+  try
+    stream.ReadBuffer(n, SizeOf(n));
+    if n <> cVERSION_ID then Exit;
+
+    stream.ReadBuffer(n, SizeOf(n));
+    for i := 0 to n - 1 do
+    begin
+      StreamReadString(stream, str);
+      gKey.font := string(str);
+      stream.ReadBuffer(gKey.glyph, SizeOf(gKey.glyph));
+      stream.ReadBuffer(gKey.style, SizeOf(gKey.style));
+
+      stream.ReadBuffer(gData.XXXMetrics, SizeOf(gData.XXXMetrics));
+      stream.ReadBuffer(gData.YYYYMetrics, SizeOf(gData.YYYYMetrics));
+      stream.ReadBuffer(w, SizeOf(w));
+      stream.ReadBuffer(h, SizeOf(h));
+      if FGlyphs.Contains(gKey) then
+      begin
+        stream.Position := stream.Position + w*h*SizeOf(Single);
+        Continue;
+      end;
+      gData.img := EmptyTexData(w, h, TTextureFormat.R32f, False, True).MipData(0,0);
+      stream.ReadBuffer(gData.img.Data^, SizeOf(Single)*w*h);
+      FGlyphs.Add(gKey, gData);
+    end;
+  finally
+    FreeAndNil(stream);
   end;
 end;
 
