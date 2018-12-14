@@ -1144,6 +1144,7 @@ begin
     end;
     WriteLnInternal;
   end;
+  FWrappedWords.Clear();
 end;
 
 function TTextBuilder.Finish(): ITextLines;
