@@ -1565,6 +1565,7 @@ begin
   stream := TFileStream.Create(AFileName, fmCreate);
   try
     stream.WriteBuffer(cVERSION_ID, SizeOf(cVERSION_ID));
+    n := FGlyphs.Count;
     stream.WriteBuffer(n, SizeOf(n));
     FGlyphs.Reset;
     while FGlyphs.Next(gKey, gData) do
@@ -1607,6 +1608,7 @@ begin
     stream.ReadBuffer(n, SizeOf(n));
     for i := 0 to n - 1 do
     begin
+      ZeroClear(gKey, SizeOf(gKey));
       StreamReadString(stream, str);
       gKey.font := string(str);
       stream.ReadBuffer(gKey.glyph, SizeOf(gKey.glyph));
