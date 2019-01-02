@@ -437,6 +437,7 @@ type
     function HasData: Boolean;
 
     function Add(const AVert: IVerticesData): IVBManagedHandle;
+    procedure InvalidateNode(const AHandle: IVBManagedHandle);
 
     procedure AfterConstruction; override;
     destructor Destroy; override;
@@ -520,6 +521,7 @@ type
     function HasData: Boolean;
 
     function Add(const AVert: IVerticesData): ISBManagedHandle;
+    procedure InvalidateNode(const AHandle: ISBManagedHandle);
 
     procedure AfterConstruction; override;
     destructor Destroy; override;
@@ -1219,6 +1221,12 @@ begin
     Invalidate;
 
   Result := node;
+end;
+
+procedure TavSBManaged.InvalidateNode(const AHandle: ISBManagedHandle);
+begin
+  FNodes.Invalidate(TSBNode(AHandle.HandleData));
+  Invalidate;
 end;
 
 procedure TavSBManaged.AfterConstruction;
@@ -2399,6 +2407,11 @@ begin
     Invalidate;
 
   Result := node;
+end;
+
+procedure TavVBManaged.InvalidateNode(const AHandle: IVBManagedHandle);
+begin
+  FNodes.Invalidate(TVBNode(AHandle.HandleData));
 end;
 
 procedure TavVBManaged.AfterConstruction;
