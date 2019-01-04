@@ -370,11 +370,14 @@ type
     FDirtyNodes : IGroupList;
     FDirtyAll   : Boolean;
 
+    FAllowDefrag: Boolean;
+
     FEnumIndex : Integer;
     function GetName: string;
     procedure SetName(const AValue: string);
   public
     property Name: string read GetName write SetName;
+    property AllowDefrag: Boolean read FAllowDefrag write FAllowDefrag;
 
     function RangeManSize: Integer;
 
@@ -580,6 +583,8 @@ type
   end;
 
   IMTManagedHandle = IManagedHandle;
+  IMTManagedHandleArr = {$IfDef FPC}specialize{$EndIf} IArray<IMTManagedHandle>;
+  TMTManagedHandleArr = {$IfDef FPC}specialize{$EndIf} TArray<IMTManagedHandle>;
 
   { TavMultiTexture }
 
@@ -1708,6 +1713,7 @@ procedure TavMultiTexture.AfterConstruction;
 begin
   inherited AfterConstruction;
   FNodes := TNodes.Create;
+  FNodes.AllowDefrag := False;
   FInitSize.x := -1;
   FInitSize.y := -1;
 end;
@@ -2219,7 +2225,8 @@ begin
   if ANode.Range = nil then
   begin
       FRangeMan.AddSpace( Max(ANode.Size, Ceil(FRangeMan.Size*0.5)) );
-      FRangeMan.Defrag;
+      if FAllowDefrag then
+        FRangeMan.Defrag;
       ANode.Range := FRangeMan.Alloc(ANode.Size);
       FDirtyAll := True;
   end
@@ -2335,6 +2342,7 @@ begin
   FNodes := TGroupHash.Create;
   FDirtyNodes := TGroupList.Create;
   FRangeMan := Create_IRangeManager();
+  FAllowDefrag := True;
 end;
 
 { TavVBManaged }
