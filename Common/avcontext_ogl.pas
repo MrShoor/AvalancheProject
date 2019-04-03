@@ -980,6 +980,7 @@ type
 
     procedure SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer); overload;
     procedure SetComputeTex3D(const Index: Integer; const uav: IctxTexture3D); overload;
+    procedure SetComputeTex2D(const Index: Integer; const uav: IctxTexture); overload;
 
     procedure Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode; IndexedGeometry: Boolean;
                    InstanceCount: Integer;
@@ -2594,6 +2595,11 @@ begin
 end;
 
 procedure TProgram.SetComputeTex3D(const Index: Integer; const uav: IctxTexture3D);
+begin
+  Assert(False, 'Not implemented yet');
+end;
+
+procedure TProgram.SetComputeTex2D(const Index: Integer; const uav: IctxTexture);
 begin
   Assert(False, 'Not implemented yet');
 end;

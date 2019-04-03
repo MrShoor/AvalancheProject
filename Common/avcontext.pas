@@ -176,6 +176,7 @@ type
 
     procedure SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
     procedure SetComputeTex3D(const Index: Integer; const uav: IctxTexture3D);
+    procedure SetComputeTex2D(const Index: Integer; const uav: IctxTexture);
 
     procedure Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode; IndexedGeometry: Boolean;
                    InstanceCount: Integer;
