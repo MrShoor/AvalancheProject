@@ -959,6 +959,7 @@ type
 
     procedure SetComputeUAV(const Index: Integer; const uav: IctxUAV; const initial: Integer);
     procedure SetComputeTex3D(const Index: Integer; const uav: IctxTexture3D);
+    procedure SetComputeTex2D(const Index: Integer; const uav: IctxTexture);
 
     procedure Draw(PrimTopology: TPrimitiveType; CullMode: TCullingMode; IndexedGeometry: Boolean;
                    InstanceCount: Integer;
@@ -2018,6 +2019,19 @@ begin
 end;
 
 procedure TProgram.SetComputeTex3D(const Index: Integer; const uav: IctxTexture3D);
+var view: ID3D11UnorderedAccessView;
+    initial: LongWord;
+begin
+  initial := 0;
+  Assert(FShader[stCompute] <> nil);
+  if uav = nil then
+    view := nil
+  else
+    view := (uav as IctxUAV_DX11).GetView;
+  FContext.FDeviceContext.CSSetUnorderedAccessViews(Index, 1, @view, @initial);
+end;
+
+procedure TProgram.SetComputeTex2D(const Index: Integer; const uav: IctxTexture);
 var view: ID3D11UnorderedAccessView;
     initial: LongWord;
 begin

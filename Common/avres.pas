@@ -895,6 +895,7 @@ type
 
     procedure SetComputeUAV(const Index: Integer; const uav: TavUAV; const initial: Integer = 0);
     procedure SetComputeTex3D(const Index: Integer; const uav: TavTexture3D);
+    procedure SetComputeTex2D(const Index: Integer; const uav: TavTextureBase);
 
     procedure Load(const AProgram: string; FromResource: boolean = false; const AProgramPath: string = ''); overload;
     procedure Load(const AProgram: string; const AStremOutputLayout: IDataLayout; FromResource: boolean = false; const AProgramPath: string = ''); overload;
@@ -4005,6 +4006,19 @@ begin
   begin
     uav.Build;
     FProgram.SetComputeTex3D(Index, uav.FTexH);
+  end;
+end;
+
+procedure TavProgram.SetComputeTex2D(const Index: Integer; const uav: TavTextureBase);
+begin
+  if uav = nil then
+  begin
+    FProgram.SetComputeTex2D(Index, nil);
+  end
+  else
+  begin
+    uav.Build;
+    FProgram.SetComputeTex2D(Index, uav.FTexH);
   end;
 end;
 

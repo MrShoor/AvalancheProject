@@ -294,6 +294,10 @@ type
     FGlyphs : IGlyphsMap;
 
     FSpritesAtlas: TavAtlasArrayReferenced;
+  private
+    FGlyphGenerationSize: Integer;
+    FGlyphGenerationSize_Inv: Double;
+    FGlyphGenerationBorderSize: Integer;
   protected
     procedure AfterInit3D; override;
     procedure BeforeFree3D; override;
@@ -311,6 +315,8 @@ type
     property FontProg: TavFontProgram read FFontProg;
     property TrisProg: TavUIProgram   read FTrisProg;
 
+    procedure SetGlyphAtlasSize(const ATargetAtlasSize: TVec2i);
+    procedure SetGlyphGenerationSize(AGlyphSize: Integer = 32; ABorderSize: Integer = 8);
     procedure ExportGlyphs(const AFileName: string; const AFontName: string; AStyle: TGlyphStyles; const ACharFirst, ACharLast: WideChar);
 
     procedure SaveCache(const AFileName: string);
@@ -448,10 +454,6 @@ uses Math, avTexLoader;
 
 const
   NAME_TavCanvasCommonData = 'TavCanvasCommonData';
-
-  GLYPH_DefaultSize = 32;
-  GLYPH_DFSize = GLYPH_DefaultSize;
-  GLYPH_DFSizeInv = 1.0/GLYPH_DFSize;
 
 type
   { TTextLines }
@@ -813,8 +815,8 @@ end;
 
 procedure TTextBuilder.ScaleMetrics(var xxx: TVec3; var yyyy: TVec4);
 begin
-  xxx := xxx * GLYPH_DFSizeInv * FFont.Size;
-  yyyy := yyyy * GLYPH_DFSizeInv * FFont.Size;
+  xxx := xxx * FCommon.FGlyphGenerationSize_Inv * FFont.Size;
+  yyyy := yyyy * FCommon.FGlyphGenerationSize_Inv * FFont.Size;
 end;
 
 procedure TTextBuilder.InitLine;
@@ -1474,7 +1476,7 @@ begin
   key.style := AStyle;
   if not FGlyphs.TryGetPValue(key, Pointer(pdata)) then
   begin
-    data.img := GenerateGlyphSDF(AFontName, AChar, GLYPH_DefaultSize, GLYPH_DefaultSize div 4, gsItalic in AStyle, gsBold in AStyle, gsUnderline in AStyle, data.XXXMetrics, data.YYYYMetrics);
+    data.img := GenerateGlyphSDF(AFontName, AChar, FGlyphGenerationSize, FGlyphGenerationBorderSize, gsItalic in AStyle, gsBold in AStyle, gsUnderline in AStyle, data.XXXMetrics, data.YYYYMetrics);
     FGlyphs.Add(key, data);
     pdata := @data;
   end;
@@ -1502,6 +1504,18 @@ begin
   FLineProg.Load('CanvasLine', LOADFROMRES, DIR);
   FFontProg.Load('CanvasFont', LOADFROMRES, DIR);
   FTrisProg.Load('CanvasTris', LOADFROMRES, DIR);
+end;
+
+procedure TavCanvasCommonData.SetGlyphAtlasSize(const ATargetAtlasSize: TVec2i);
+begin
+    FGlyphsAtlas.TargetSize := ATargetAtlasSize;
+end;
+
+procedure TavCanvasCommonData.SetGlyphGenerationSize(AGlyphSize, ABorderSize: Integer);
+begin
+    FGlyphGenerationSize := AGlyphSize;
+    FGlyphGenerationSize_Inv := 1 / FGlyphGenerationSize;
+    FGlyphGenerationBorderSize := ABorderSize;
 end;
 
 procedure TavCanvasCommonData.ExportGlyphs(const AFileName: string; const AFontName: string; AStyle: TGlyphStyles; const ACharFirst, ACharLast: WideChar);
@@ -1539,7 +1553,8 @@ begin
     n := Ord(ACharLast) - Ord(ACharFirst) + 1;
     SetLength(exp, n);
     n := 0;
-    for char := ACharLast downto ACharFirst do
+    //for char := ACharLast downto ACharFirst do
+    for char := ACharFirst to ACharLast do
     begin
       exp[n].ch := char;
       exp[n].sprite := GetGlyphSprite(AFontName, char, AStyle, exp[n].XXX, exp[n].YYYY);
@@ -1637,6 +1652,8 @@ var Vert: ILineQuadVertices;
     V: TLineQuadVertex;
 begin
   inherited Create(AParent);
+  SetGlyphGenerationSize();
+
   FLineQuad := TavVB.Create(Self);
   FLineProg := TavUIProgram.Create(Self);
   FFontProg := TavFontProgram.Create(Self);
