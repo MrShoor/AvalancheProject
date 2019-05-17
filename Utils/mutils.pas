@@ -361,6 +361,8 @@ function Rotate90(const v: TVec2; const CW: Boolean): TVec2; overload; {$IFNDEF 
 
 function Intersect(const Line1, Line2: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const Seg: TSegment2D; const Line: TLine2D; out IntPoint: TVec2): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Intersect(const RayOrig, RayDir: TVec3; const AABB: TAABB; out T: Single; SolidAABB, AllowBackfaces: Boolean): Boolean; overload;
+function Intersect(const p1, p2, p3: TVec3; const RayOrig, RayDir: TVec3; out T: Single; FiniteRay: Boolean = False): Boolean; overload;
 function Intersect(const Plane: TPlane; Line: TLine; out IntPt: TVec3): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const R1: TRectF; const R2: TRectF): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const R1: TRectI; const R2: TRectI): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
@@ -2264,7 +2266,100 @@ begin
   Result := (Dot(IntPoint - Seg.Pt1, dir) >= 0) and (Dot(IntPoint - Seg.Pt2, dir) <= 0);
 end;
 
-function Intersect(const Plane: TPlane; Line: TLine; out IntPt: TVec3): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Intersect(const RayOrig, RayDir: TVec3; const AABB: TAABB; out T: Single; SolidAABB, AllowBackfaces: Boolean): Boolean;
+var tMin, tMax: TVec3;
+begin
+  if (RayDir.x = 0) and (RayDir.y = 0) and (RayDir.z = 0) then Exit(False);
+
+  if RayDir.x > 0 then
+  begin
+    tMin.x := (AABB.min.x - RayOrig.x) / RayDir.x;
+    tMax.x := (AABB.max.x - RayOrig.x) / RayDir.x;
+  end
+  else
+  begin
+    tMax.x := (AABB.min.x - RayOrig.x) / RayDir.x;
+    tMin.x := (AABB.max.x - RayOrig.x) / RayDir.x;
+  end;
+
+  if RayDir.y > 0 then
+  begin
+    tMin.y := (AABB.min.y - RayOrig.y) / RayDir.y;
+    tMax.y := (AABB.max.y - RayOrig.y) / RayDir.y;
+  end
+  else
+  begin
+    tMax.y := (AABB.min.y - RayOrig.y) / RayDir.y;
+    tMin.y := (AABB.max.y - RayOrig.y) / RayDir.y;
+  end;
+
+  if (tMin.x > tMax.y) or (tMin.y > tMax.x) then Exit(False);
+
+  tMin.x := Max(tMin.x, tMin.y);
+  tMax.x := Min(tMax.x, tMax.y);
+
+  if RayDir.z > 0 then
+  begin
+    tMin.z := (AABB.min.z - RayOrig.z) / RayDir.z;
+    tMax.z := (AABB.max.z - RayOrig.z) / RayDir.z;
+  end
+  else
+  begin
+    tMax.z := (AABB.min.z - RayOrig.z) / RayDir.z;
+    tMin.z := (AABB.max.z - RayOrig.z) / RayDir.z;
+  end;
+
+  if (tMin.x > tMax.z) or (tMin.z > tMax.x) then Exit(False);
+
+  tMin.x := Max(tMin.x, tMin.z);
+  tMax.x := Min(tMax.x, tMax.z);
+
+  if SolidAABB then
+  begin
+    tMin.x := Max(0, tMin.x);
+    if tMin.x > tMax.x then Exit(False);
+  end
+  else
+  begin
+    if AllowBackfaces and (tMin.x < 0) then tMin.x := tMax.x;
+    if tMin.x < 0 then Exit(False);
+  end;
+  T := tMin.x;
+  Result := True;
+end;
+
+function Intersect(const p1, p2, p3: TVec3; const RayOrig, RayDir: TVec3; out T: Single; FiniteRay: Boolean): Boolean;
+var a, b, p, q, n: TVec3;
+    invDet, Det: Single;
+    u, v: Single;
+begin
+  T := 0;
+
+  a := p1 - p2;
+  b := p3 - p1;
+  n := Cross(b, a);
+  p := p1 - RayOrig;
+  q := Cross(p, RayDir);
+
+  Det := dot(RayDir, n);
+  if Det = 0 then Exit(False);
+  invDet := 1.0/Det;
+
+  u := Dot(q, b) * invDet;
+  v := Dot(q, a) * invDet;
+
+  if (u<0) or (u>1) or (v<0) or (u+v>1) then Exit(False);
+
+  T := Dot(n, p) * invDet;
+  if T < 0 then Exit(False);
+
+  if FiniteRay then
+    if T > 1.0 then Exit(False);
+
+  Result := True;
+end;
+
+function Intersect(const Plane: TPlane; Line: TLine; out IntPt: TVec3): Boolean; overload;
 var Da,Db : single;
     k     : single;
 begin

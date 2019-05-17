@@ -111,6 +111,11 @@ type
     procedure BeforeDestruction; override;
   end;
 
+function WRef(const AObject: TWeakedObject): IWeakRef; overload;
+function WRef(const AIntf: IWeakedInterface): IWeakRefIntf; overload;
+function DeRef(var ARef: IWeakRef): TObject; overload;
+function DeRef(var ARef: IWeakRefIntf): IUnknown; overload;
+
 implementation
 
 type
@@ -125,6 +130,36 @@ type
     function Intf: IUnknown;
     constructor Create(const AInstance: TWeakedInterfacedObject);
   end;
+
+function WRef(const AObject: TWeakedObject): IWeakRef;
+begin
+  if AObject = nil then
+    Result := nil
+  else
+    Result := AObject.WeakRef;
+end;
+
+function WRef(const AIntf: IWeakedInterface): IWeakRefIntf;
+begin
+  if AIntf = nil then
+    Result := nil
+  else
+    Result := AIntf.WeakRef;
+end;
+
+function DeRef(var ARef: IWeakRef): TObject;
+begin
+  if ARef = nil then Exit(nil);
+  Result := ARef.Obj;
+  if Result = nil then ARef := nil;
+end;
+
+function DeRef(var ARef: IWeakRefIntf): IUnknown;
+begin
+  if ARef = nil then Exit(nil);
+  Result := ARef.Intf;
+  if Result = nil then ARef := nil;
+end;
 
 { TPublisherBase }
 

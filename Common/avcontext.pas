@@ -196,6 +196,7 @@ type
     procedure ClearColorList;
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
+    procedure SetColor3D(index: Integer; tex: IctxTexture3D; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
     procedure SetUAVTex(index: Integer; UAV: IctxTexture);
     procedure SetUAVTex3D(index: Integer; UAV: IctxTexture3D);

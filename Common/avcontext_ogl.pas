@@ -1014,6 +1014,7 @@ type
     procedure ClearColorList;
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
+    procedure SetColor3D(index: Integer; tex: IctxTexture3D; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
     procedure SetDepthStencil(tex: IctxTexture; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
     procedure SetUAVTex(index: Integer; UAV: IctxTexture);
     procedure SetUAVTex3D(index: Integer; UAV: IctxTexture3D);
@@ -1144,6 +1145,12 @@ begin
   end;
   FEnabledColorTargets[index] := Assigned(tex);
   Invalidate;
+end;
+
+procedure TFrameBuffer.SetColor3D(index: Integer; tex: IctxTexture3D;
+  mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
+begin
+  Assert(false, 'not implemeted yet');
 end;
 
 procedure TFrameBuffer.SetDepthStencil(tex: IctxTexture; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
