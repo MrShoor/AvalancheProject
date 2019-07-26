@@ -227,7 +227,6 @@ begin
 //      D3D10_ERROR_TOO_MANY_UNIQUE_STATE_OBJECTS : s := 'D3D10_ERROR_TOO_MANY_UNIQUE_STATE_OBJECTS';
       //D3DERR_INVALIDCALL                        : s := 'D3DERR_INVALIDCALL';
       //D3DERR_WASSTILLDRAWING                    : s := 'D3DERR_WASSTILLDRAWING';
-
       DXGI_ERROR_INVALID_CALL                 : s := 'DXGI_ERROR_INVALID_CALL';
       DXGI_ERROR_NOT_FOUND                    : s := 'DXGI_ERROR_NOT_FOUND';
       DXGI_ERROR_MORE_DATA                    : s := 'DXGI_ERROR_MORE_DATA';
@@ -648,7 +647,8 @@ type
   TFrameBuffer = class (THandleObject, IctxFrameBuffer, IctxFrameBuffer_DX11)
   private type
     TTexInfo = record
-      Tex       : IctxTexture;
+      Tex2D     : IctxTexture;
+      Tex3D     : IctxTexture3D;
       Mip       : Integer;
       SliceStart: Integer;
       SliceCount: Integer;
@@ -688,6 +688,7 @@ type
     procedure ClearColorList;
     procedure EnableColorTarget(index: Integer; Enabled: Boolean);
     procedure SetColor(index: Integer; tex: IctxTexture; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
+    procedure SetColor3D(index: Integer; tex: IctxTexture3D; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
     procedure SetUAVTex(index: Integer; UAV: IctxTexture);
     procedure SetUAVTex3D(index: Integer; UAV: IctxTexture3D);
     procedure SetUAV(index: Integer; UAV: IctxUAV);
@@ -3290,44 +3291,60 @@ begin
   begin
     for i := 0 to Length(FTex) - 1 do
     begin
-      if FTex[i].Tex = nil then
+      if FTex[i].Tex2D <> nil then
       begin
-        FViews[i] := nil;
+        ZeroClear(RTDesc, SizeOf(RTDesc));
+        RTDesc.Format := D3D11ViewFormat[FTex[i].Tex2D.Format];
+        if FTex[i].Tex2D.sRGB then RTDesc.Format := Add_sRGB(RTDesc.Format);
+        if FTex[i].Tex2D.SampleCount > 1 then
+        begin
+          if FTex[i].SliceStart < 0 then
+          begin
+            RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2DMS;
+          end
+          else
+          begin
+            RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY;
+            RTDesc.Texture2DMSArray.ArraySize := FTex[i].SliceCount;
+            RTDesc.Texture2DMSArray.FirstArraySlice := FTex[i].SliceStart;
+          end;
+        end
+        else
+        begin
+          if FTex[i].SliceStart < 0 then
+          begin
+            RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2D;
+            RTDesc.Texture2D.MipSlice := FTex[i].Mip;
+          end
+          else
+          begin
+            RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+            RTDesc.Texture2DArray.MipSlice := FTex[i].Mip;
+            RTDesc.Texture2DArray.ArraySize := FTex[i].SliceCount;
+            RTDesc.Texture2DArray.FirstArraySlice := FTex[i].SliceStart;
+          end;
+        end;
+
+        Check3DError(FContext.FDevice.CreateRenderTargetView((FTex[i].Tex2D as IctxTexture_DX11).GetHandle, @RTDesc, FViews[i]));
         Continue;
       end;
-      ZeroClear(RTDesc, SizeOf(RTDesc));
-      RTDesc.Format := D3D11ViewFormat[FTex[i].Tex.Format];
-      if FTex[i].Tex.sRGB then RTDesc.Format := Add_sRGB(RTDesc.Format);
-      if FTex[i].Tex.SampleCount > 1 then
+
+      if FTex[i].Tex3D <> nil then
       begin
-        if FTex[i].SliceStart < 0 then
-        begin
-          RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2DMS;
-        end
-        else
-        begin
-          RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY;
-          RTDesc.Texture2DMSArray.ArraySize := FTex[i].SliceCount;
-          RTDesc.Texture2DMSArray.FirstArraySlice := FTex[i].SliceStart;
-        end;
-      end
-      else
-      begin
-        if FTex[i].SliceStart < 0 then
-        begin
-          RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2D;
-          RTDesc.Texture2D.MipSlice := FTex[i].Mip;
-        end
-        else
-        begin
-          RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
-          RTDesc.Texture2DArray.MipSlice := FTex[i].Mip;
-          RTDesc.Texture2DArray.ArraySize := FTex[i].SliceCount;
-          RTDesc.Texture2DArray.FirstArraySlice := FTex[i].SliceStart;
-        end;
+        ZeroClear(RTDesc, SizeOf(RTDesc));
+        RTDesc.Format := D3D11ViewFormat[FTex[i].Tex3D.Format];
+        if FTex[i].Tex3D.sRGB then RTDesc.Format := Add_sRGB(RTDesc.Format);
+
+        RTDesc.ViewDimension := D3D11_RTV_DIMENSION_TEXTURE3D;
+        RTDesc.Texture3D.MipSlice := FTex[i].Mip;
+        RTDesc.Texture3D.FirstWSlice := FTex[i].SliceStart;
+        RTDesc.Texture3D.WSize := FTex[i].SliceCount;
+
+        Check3DError(FContext.FDevice.CreateRenderTargetView((FTex[i].Tex3D as IctxTexture3D_DX11).GetHandle, @RTDesc, FViews[i]));
+        Continue;
       end;
 
-      Check3DError(FContext.FDevice.CreateRenderTargetView((FTex[i].Tex as IctxTexture_DX11).GetHandle, @RTDesc, FViews[i]));
+      FViews[i] := nil;
     end;
 
     if Assigned(FDepthTex) then
@@ -3397,9 +3414,10 @@ begin
     SetLength(FTex, index + 1);
   end;
 
-  if FTex[index].Tex = tex then Exit;
+  if FTex[index].Tex2D = tex then Exit;
 
-  FTex[index].Tex := tex;
+  FTex[index].Tex2D := tex;
+  FTex[index].Tex3D := nil;
   FTex[index].Mip := mipLevel;
   FTex[index].SliceStart := sliceStart;
   FTex[index].SliceCount := sliceCount;
@@ -3407,6 +3425,29 @@ begin
   FViews[index] := nil;
 
   FValid := False;
+end;
+
+procedure TFrameBuffer.SetColor3D(index: Integer; tex: IctxTexture3D; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
+begin
+  Assert(Length(FStreams)=0, 'You can''t mix stream output with render to textures');
+  if index <= Length(FTex) then
+  begin
+    SetLength(FViews, index + 1);
+    SetLength(FTex, index + 1);
+  end;
+
+  if FTex[index].Tex3D = tex then Exit;
+
+  FTex[index].Tex2D := nil;
+  FTex[index].Tex3D := tex;
+  FTex[index].Mip := mipLevel;
+  FTex[index].SliceStart := sliceStart;
+  FTex[index].SliceCount := sliceCount;
+  FTex[index].Enabled := True;
+  FViews[index] := nil;
+
+  FValid := False;
+
 end;
 
 procedure TFrameBuffer.SetDepthStencil(tex: IctxTexture; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
@@ -3508,22 +3549,22 @@ var SrcBox: TD3D11_Box;
     desc: TD3D11_Texture2DDesc;
 begin
   //todo blitting with stretch
-  if FTex[index].Tex = nil then Exit;
+  if FTex[index].Tex2D = nil then Exit;
   SrcBox.left := srcRect.Left;
   SrcBox.top := srcRect.Top;
   SrcBox.right := srcRect.Right;
   SrcBox.bottom := srcRect.Bottom;
   SrcBox.front := 0;
   SrcBox.back := 1;
-  if FTex[index].Tex.SampleCount > 1 then
+  if FTex[index].Tex2D.SampleCount > 1 then
   begin
     FContext.FBackBuffer.GetDesc(desc);
-    FContext.FDeviceContext.ResolveSubresource(FContext.FBackBuffer, 0, (FTex[index].Tex as IctxTexture_DX11).GetHandle, 0, desc.Format);
+    FContext.FDeviceContext.ResolveSubresource(FContext.FBackBuffer, 0, (FTex[index].Tex2D as IctxTexture_DX11).GetHandle, 0, desc.Format);
   end
   else
   begin
     FContext.FDeviceContext.CopySubresourceRegion(FContext.FBackBuffer, 0, dstRect.Left, dstRect.Top, 0,
-                                                  (FTex[index].Tex as IctxTexture_DX11).GetHandle, FTex[index].Mip, @SrcBox);
+                                                  (FTex[index].Tex2D as IctxTexture_DX11).GetHandle, FTex[index].Mip, @SrcBox);
   end;
 end;
 
@@ -3845,8 +3886,17 @@ begin
 end;
 
 procedure TContext_DX11.Present;
+var hres, devRemove: HRESULT;
 begin
-  Check3DError(FSwapChain.Present(0, 0));
+  hres := FSwapChain.Present(0, 0);
+  if (hres = DXGI_ERROR_DEVICE_REMOVED) then
+  begin
+    devRemove := FDevice.GetDeviceRemovedReason;
+    if devRemove = S_OK then
+      raise E3DError.Create('DXGI_ERROR_DEVICE_REMOVED occurs but GetDeviceRemovedReason==S_OK')
+    else
+      Check3DError(devRemove);
+  end;
 end;
 
 constructor TContext_DX11.Create(const Wnd: TWindow; const WARP: Boolean);

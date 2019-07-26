@@ -2225,7 +2225,10 @@ end;
 
 function TArray{$IfDef DCC}<TValue>{$EndIf}.GetLast: TValue;
 begin
-  Result := FData[FCount-1];
+  if FCount > 0 then
+    Result := FData[FCount-1]
+  else
+    Result := Default(TValue);
 end;
 
 procedure TArray{$IfDef DCC}<TValue>{$EndIf}.SetLast(const AValue: TValue);

@@ -1884,7 +1884,10 @@ begin
     FUAVBufH := Main.Context.CreateUAV(FElementsCount, FStrideSize, FAppendable, initDataPtr);
   end
   else
+  begin
+    FElementsCount := FVert.VerticesCount;
     FUAVBufH := Main.Context.CreateUAV(FElementsCount, FStrideSize, FAppendable, FVert.Data.data);
+  end;
   FbufH := FUAVBufH;
 end;
 
@@ -2421,6 +2424,7 @@ end;
 procedure TavVBManaged.InvalidateNode(const AHandle: IVBManagedHandle);
 begin
   FNodes.Invalidate(TVBNode(AHandle.HandleData));
+  Invalidate;
 end;
 
 procedure TavVBManaged.AfterConstruction;
