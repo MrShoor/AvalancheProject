@@ -27,7 +27,7 @@ procedure LinkHLSL(const prog: TProgramInfo; shaders: TShadersString; const OutF
 
 implementation
 
-uses StrUtils;
+uses StrUtils, apccUtils;
 
 type
 
@@ -51,6 +51,7 @@ type
     function Close(pData:Pointer):HResult; {$IfNDef fpc} Override; {$EndIf} stdcall;
 
     function FileNameByPointer(const ptr: Pointer): string;
+    function FullFilename(const fname: string): string;
 
     constructor Create(const prog: TProgramInfo);
   end;
@@ -184,26 +185,32 @@ function ReparseOutput(const str: ID3DBlob; const incl: TIncludeAdapter): string
 
       fname := incl.FileNameByPointer(addr);
       if fname = '' then Exit;
-
-      //extract row index
-      n1 := PosEx('(', ALine, OffsetIndex);
-      if n1 <= 0 then Exit;
-      Inc(OffsetIndex);
-      n2 := PosEx(',', ALine, OffsetIndex);
-      if n2 <= 0 then Exit;
-      OffsetIndex := n2 + 1;
-      if not TryStrToInt(Copy(ALine, n1+1, n2-n1-1), rowInd) then Exit;
-
-      //extract char index
-      n1 := n2;
-      n2 := PosEx(')', ALine, OffsetIndex);
-      if n2 <= 0 then Exit;
-      OffsetIndex := n2 + 1;
-      if not TryStrToInt(Copy(ALine, n1+1, n2-n1-1), charInd) then Exit;
-
-      Inc(OffsetIndex);
-      Result := fname + ':' + IntToStr(rowInd) + ':' + IntToStr(charInd) + ':' + Copy(ALine, OffsetIndex, Length(ALine) - OffsetIndex + 1);
+    end
+    else
+    begin
+      OffsetIndex := Pos('(', ALine);
+      if OffsetIndex <= 1 then Exit;
+      fname := incl.FullFilename(Copy(ALine, 1, OffsetIndex-1));
     end;
+
+    //extract row index
+    n1 := PosEx('(', ALine, OffsetIndex);
+    if n1 <= 0 then Exit;
+    Inc(OffsetIndex);
+    n2 := PosEx(',', ALine, OffsetIndex);
+    if n2 <= 0 then Exit;
+    OffsetIndex := n2 + 1;
+    if not TryStrToInt(Copy(ALine, n1+1, n2-n1-1), rowInd) then Exit;
+
+    //extract char index
+    n1 := n2;
+    n2 := PosEx(')', ALine, OffsetIndex);
+    if n2 <= 0 then Exit;
+    OffsetIndex := n2 + 1;
+    if not TryStrToInt(Copy(ALine, n1+1, n2-n1-1), charInd) then Exit;
+
+    Inc(OffsetIndex);
+    Result := fname + ':' + IntToStr(rowInd) + ':' + IntToStr(charInd) + ':' + Copy(ALine, OffsetIndex, Length(ALine) - OffsetIndex + 1);
   end;
 
 var src: AnsiString;
@@ -269,11 +276,15 @@ begin
     if Assigned(output) then
     begin
       WriteLn;
+      SetConsoleColor(CONSOLE_Red);
       WriteLn(ReparseOutput(output, incl));
+      SetConsoleColor(CONSOLE_Default);
     end;
     incl.Free;
   end;
+  SetConsoleColor(CONSOLE_Green);
   WriteLn('done.');
+  SetConsoleColor(CONSOLE_Default);
 end;
 
 type
@@ -536,7 +547,9 @@ begin
     FreeAndNil(fs);
   end;
 
+  SetConsoleColor(CONSOLE_Green);
   WriteLn('done.');
+  SetConsoleColor(CONSOLE_Default);
 end;
 
 { TChunkWriter }
@@ -576,12 +589,6 @@ function TIncludeAdapter.Open(IncludeType: TD3D_IncludeType;
   pBytes: PLongWord): HResult; stdcall;
 var astr: AnsiString;
 begin
-  if pFileName = 'hlsl.h' then
-  begin
-    ppData^ := PAnsiChar(NullData);
-    pBytes^ := 0;
-    Exit(S_OK);
-  end;
   if not FIncludes.TryGetValue(string(pFileName), astr) then
   begin
     astr := OpenFileToString(string(pFileName), FProg);
@@ -606,6 +613,11 @@ begin
   while FIncludes.Next(fname, data) do
     if Pointer(data)=ptr then
       Exit(FProg.FullFileName(fname));
+end;
+
+function TIncludeAdapter.FullFilename(const fname: string): string;
+begin
+  Result := FProg.FullFileName(fname);
 end;
 
 constructor TIncludeAdapter.Create(const prog: TProgramInfo);

@@ -9,16 +9,27 @@ unit apccUtils;
 interface
 
 uses
+  Windows,
   Classes, SysUtils;
+
+const
+  CONSOLE_Default = FOREGROUND_BLUE  or FOREGROUND_GREEN or FOREGROUND_RED;
+  CONSOLE_Red     = FOREGROUND_RED   or FOREGROUND_INTENSITY;
+  CONSOLE_Green   = FOREGROUND_GREEN or FOREGROUND_INTENSITY;
+  CONSOLE_Yellow  = FOREGROUND_RED   or FOREGROUND_GREEN or FOREGROUND_INTENSITY;
 
 function Exec(const App, CmdLine: string; out output: string): Cardinal;
 function CreateFxcProcess(Params: string; out output: string): Cardinal;
 function CreateHLSLccProcess(Params: string; out output: string): Cardinal;
 
+procedure SetConsoleColor(const Color: Cardinal);
+
 implementation
 
-uses
-  Windows;
+procedure SetConsoleColor(const Color: Cardinal);
+begin
+  SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Color);
+end;
 
 function Exec(const App, CmdLine: string; out output: string): Cardinal;
 const BUFSIZE = 2048;

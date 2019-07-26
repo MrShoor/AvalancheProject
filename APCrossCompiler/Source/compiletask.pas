@@ -379,6 +379,9 @@ begin
       if FileExists(Result) then Exit;
     end;
 
+  Result := ExtractFileDir(ParamStr(0)) + '\' + FileName;
+  if FileExists(Result) then Exit;
+
   Result := '';
 end;
 

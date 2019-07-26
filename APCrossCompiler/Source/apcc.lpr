@@ -17,7 +17,9 @@ begin
   except
     on E: Exception do
     begin
+      SetConsoleColor(CONSOLE_Red);
       Writeln(E.ClassName, ': ', E.Message);
+      SetConsoleColor(CONSOLE_Default);
       ExitCode := 1;
     end;
   end;
