@@ -830,19 +830,19 @@ begin
   Result := False;
 
   i := 0;
-  while (i < 8) and (pts[i].x < -pts[i].w) do inc(i);
+  while (i < 8) and (pts[i].x < -abs(pts[i].w)) do inc(i);
   if i = 8 then exit;
 
   i := 0;
-  while (i < 8) and (pts[i].x >  pts[i].w) do inc(i);
+  while (i < 8) and (pts[i].x >  abs(pts[i].w)) do inc(i);
   if i = 8 then exit;
 
   i := 0;
-  while (i < 8) and (pts[i].y < -pts[i].w) do inc(i);
+  while (i < 8) and (pts[i].y < -abs(pts[i].w)) do inc(i);
   if i = 8 then exit;
 
   i := 0;
-  while (i < 8) and (pts[i].y >  pts[i].w) do inc(i);
+  while (i < 8) and (pts[i].y >  abs(pts[i].w)) do inc(i);
   if i = 8 then exit;
 
   if ADepthRange.y < ADepthRange.x then
