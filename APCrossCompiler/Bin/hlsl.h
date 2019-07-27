@@ -47,8 +47,17 @@
         #define centroid
         #define nointerpolation
         #define noperspective
-        #define sample
-        #define register(a)
+        #define register_(a)
+
+        #define point
+        #define line
+        #define triangle
+        #define lineadj
+        #define triangleadj
+        #define maxvertexcount(a) [noexcept]
+
+        #define unroll [noexcept]
+        #define loop [noexcept]
 
         #define SamplerState int
         typedef unsigned int uint;
@@ -91,7 +100,53 @@
             float4 &xxxx, &xxxy, &xxyx, &xxyy, &xyxx, &xyxy, &xyyx, &xyyy, &yxxx, &yxxy, &yxyx, &yxyy, 
                 &yyxx, &yyxy, &yyyx, &yyyy;
             float& operator[](uint idx);
+            float2();
+            float2(float x);
+            float2(double x);
+            float2(float x, float y);
+            float2& operator = (float x);
+            float2& operator = (const float2& xyzw);
+            float2 operator - (float2 v);
+            float2 operator - (int2 v);
+            float2 operator - (uint2 v);
+            float2 operator - (float s);
+            float2 operator + (float2 v);
+            float2 operator + (int2 v);
+            float2 operator + (uint2 v);
+            float2 operator + (float s);
+            float2 operator / (float2 v);
+            float2 operator / (int2 v);
+            float2 operator / (uint2 v);
+            float2 operator / (float s);
+            float2 operator * (float2 v);
+            float2 operator * (int2 v);
+            float2 operator * (uint2 v);
+            float2 operator * (float s);
+            float2 operator -= (float2 v);
+            float2 operator -= (int2 v);
+            float2 operator -= (uint2 v);
+            float2 operator -= (float s);
+            float2 operator += (float2 v);
+            float2 operator += (int2 v);
+            float2 operator += (uint2 v);
+            float2 operator += (float s);
+            float2 operator /= (float2 v);
+            float2 operator /= (int2 v);
+            float2 operator /= (uint2 v);
+            float2 operator /= (float s);
+            float2 operator *= (float2 v);
+            float2 operator *= (int2 v);
+            float2 operator *= (uint2 v);
+            float2 operator *= (float s);
+            float2 operator - ();
+            operator int2();
+            operator uint2();
+            operator float();
         };
+        float2 operator * (float s, float2 v);
+        float2 operator + (float s, float2 v);
+        float2 operator / (float s, float2 v);
+        float2 operator - (float s, float2 v);
 
         struct int3 {
             int x, y, z, r, g, b;
@@ -106,6 +161,31 @@
                 &zxzx, &zxzy, &zxzz, &zyxx, &zyxy, &zyxz, &zyyx, &zyyy, &zyyz, &zyzx, &zyzy, &zyzz, 
                 &zzxx, &zzxy, &zzxz, &zzyx, &zzyy, &zzyz, &zzzx, &zzzy, &zzzz;
             int& operator[](uint idx);
+            int3();
+            int3(float x);
+            int3(float x, float y, float z);
+            int3(const float2& xy, float z);
+            int3(float x, const float2& yz);
+            int3(const int3& xyz);
+            int3& operator = (float x);
+            int3& operator = (const int3& xyz);
+            int3 operator - (int3 v);
+            int3 operator - (float s);
+            int3 operator + (int3 v);
+            int3 operator + (float s);
+            int3 operator / (int3 v);
+            int3 operator / (float s);
+            int3 operator * (int3 v);
+            int3 operator * (float s);
+            int3 operator -= (int3 v);
+            int3 operator -= (float s);
+            int3 operator += (int3 v);
+            int3 operator += (float s);
+            int3 operator /= (int3 v);
+            int3 operator /= (float s);
+            int3 operator *= (int3 v);
+            int3 operator *= (float s);
+            int3 operator - ();
         };
 
         struct uint3 {
@@ -121,6 +201,33 @@
                 &zxzx, &zxzy, &zxzz, &zyxx, &zyxy, &zyxz, &zyyx, &zyyy, &zyyz, &zyzx, &zyzy, &zyzz, 
                 &zzxx, &zzxy, &zzxz, &zzyx, &zzyy, &zzyz, &zzzx, &zzzy, &zzzz;
             uint& operator[](uint idx);
+            uint3();
+            uint3(float x);
+            uint3(float x, float y, float z);
+            uint3(const float2& xy, float z);
+            uint3(float x, const float2& yz);
+            uint3(const uint3& xyz);
+            uint3(const int3& xyz);
+            uint3& operator = (float x);
+            uint3& operator = (const uint3& xyz);
+            uint3& operator = (const int3& xyz);
+            uint3 operator - (uint3 v);
+            uint3 operator - (float s);
+            uint3 operator + (uint3 v);
+            uint3 operator + (float s);
+            uint3 operator / (uint3 v);
+            uint3 operator / (float s);
+            uint3 operator * (uint3 v);
+            uint3 operator * (float s);
+            uint3 operator -= (uint3 v);
+            uint3 operator -= (float s);
+            uint3 operator += (uint3 v);
+            uint3 operator += (float s);
+            uint3 operator /= (uint3 v);
+            uint3 operator /= (float s);
+            uint3 operator *= (uint3 v);
+            uint3 operator *= (float s);
+            uint3 operator - ();
         };
 
         struct float3 {
@@ -136,7 +243,59 @@
                 &zxzx, &zxzy, &zxzz, &zyxx, &zyxy, &zyxz, &zyyx, &zyyy, &zyyz, &zyzx, &zyzy, &zyzz, 
                 &zzxx, &zzxy, &zzxz, &zzyx, &zzyy, &zzyz, &zzzx, &zzzy, &zzzz;
             float& operator[](uint idx);
+            float3();
+            float3(float x);
+            float3(double x);
+            float3(float x, float y, float z);
+            float3(const float2& xy, float z);
+            float3(float x, const float2& yz);
+            float3(const float3& xyz);
+            float3& operator = (float x);
+            float3& operator = (const float3& xyz);
+            float3 operator - (float3 v);
+            float3 operator - (int3 v);
+            float3 operator - (uint3 v);
+            float3 operator - (float s);
+            float3 operator + (float3 v);
+            float3 operator + (int3 v);
+            float3 operator + (uint3 v);
+            float3 operator + (float s);
+            float3 operator / (float3 v);
+            float3 operator / (int3 v);
+            float3 operator / (uint3 v);
+            float3 operator / (float s);
+            float3 operator * (float3 v);
+            float3 operator * (int3 v);
+            float3 operator * (uint3 v);
+            float3 operator * (float s);
+            float3 operator -= (float3 v);
+            float3 operator -= (int3 v);
+            float3 operator -= (uint3 v);
+            float3 operator -= (float s);
+            float3 operator += (float3 v);
+            float3 operator += (int3 v);
+            float3 operator += (uint3 v);
+            float3 operator += (float s);
+            float3 operator /= (float3 v);
+            float3 operator /= (int3 v);
+            float3 operator /= (uint3 v);
+            float3 operator /= (float s);
+            float3 operator *= (float3 v);
+            float3 operator *= (int3 v);
+            float3 operator *= (uint3 v);
+            float3 operator *= (float s);
+            float3 operator - ();
+            operator int2();
+            operator uint2();
         };
+        float3 operator * (float s, float3 v);
+        float3 operator * (int s, float3 v);
+        float3 operator + (float s, float3 v);
+        float3 operator + (int s, float3 v);
+        float3 operator / (float s, float3 v);
+        float3 operator / (int s, float3 v);
+        float3 operator - (float s, float3 v);
+        float3 operator - (int s, float3 v);
 
         struct int4 {
             int    x, y, z, w, r, g, b, a;
@@ -237,6 +396,7 @@
             float& operator[](uint idx);
             float4();
             float4(float x);
+            float4(double x);
             float4(float x, float y, float z, float w);
             float4(const float2& xy, float z, float w);
             float4(float x, const float2& yz, float w);
@@ -246,7 +406,50 @@
             float4(const float4& xyzw);
             float4& operator = (float x);
             float4& operator = (const float4& xyzw);
+            float4 operator - (float4 v);
+            float4 operator - (int4 v);
+            float4 operator - (uint4 v);
+            float4 operator - (float s);
+            float4 operator + (float4 v);
+            float4 operator + (int4 v);
+            float4 operator + (uint4 v);
+            float4 operator + (float s);
+            float4 operator / (float4 v);
+            float4 operator / (int4 v);
+            float4 operator / (uint4 v);
+            float4 operator / (float s);
+            float4 operator * (float4 v);
+            float4 operator * (int4 v);
+            float4 operator * (uint4 v);
+            float4 operator * (float s);
+            float4 operator -= (float4 v);
+            float4 operator -= (int4 v);
+            float4 operator -= (uint4 v);
+            float4 operator -= (float s);
+            float4 operator += (float4 v);
+            float4 operator += (int4 v);
+            float4 operator += (uint4 v);
+            float4 operator += (float s);
+            float4 operator /= (float4 v);
+            float4 operator /= (int4 v);
+            float4 operator /= (uint4 v);
+            float4 operator /= (float s);
+            float4 operator *= (float4 v);
+            float4 operator *= (int4 v);
+            float4 operator *= (uint4 v);
+            float4 operator *= (float s);
+            float4 operator - ();
+            operator int4();
+            operator uint4();
         };
+        float4 operator * (float s, float4 v);
+        float4 operator * (int s, float4 v);
+        float4 operator + (float s, float4 v);
+        float4 operator + (int s, float4 v);
+        float4 operator / (float s, float4 v);
+        float4 operator / (int s, float4 v);
+        float4 operator - (float s, float4 v);
+        float4 operator - (int s, float4 v);
 
         struct float2x2 {
             float2& operator[](uint idx);
@@ -254,11 +457,60 @@
 
         struct float3x3 {
             float3& operator[](uint idx);
+            float3x3();
+            float3x3(float m00, float m01, float m02,
+                     float m10, float m11, float m12,
+                     float m20, float m21, float m22);
+            float3x3(float3 row1, float3 row2, float3 row3);
+            float3x3 operator - (float3x3 v);
+            float3x3 operator - (float s);
+            float3x3 operator + (float3x3 v);
+            float3x3 operator + (float s);
+            float3x3 operator / (float3x3 v);
+            float3x3 operator / (float s);
+            float3x3 operator * (float3x3 v);
+            float3x3 operator * (float s);
+            float3x3 operator -= (float3x3 v);
+            float3x3 operator -= (float s);
+            float3x3 operator += (float3x3 v);
+            float3x3 operator += (float s);
+            float3x3 operator /= (float3x3 v);
+            float3x3 operator /= (float s);
+            float3x3 operator *= (float3x3 v);
+            float3x3 operator *= (float s);
+            float3x3 operator - ();
         };
 
         struct float4x4 {
             float4& operator[](uint idx);
+            float4x4();
+            float4x4(float m00, float m01, float m02, float m03,
+                     float m10, float m11, float m12, float m13,
+                     float m20, float m21, float m22, float m23,
+                     float m30, float m31, float m32, float m33);
+            float4x4 operator - (float4x4 v);
+            float4x4 operator - (float s);
+            float4x4 operator + (float4x4 v);
+            float4x4 operator + (float s);
+            float4x4 operator / (float4x4 v);
+            float4x4 operator / (float s);
+            float4x4 operator * (float4x4 v);
+            float4x4 operator * (float s);
+            float4x4 operator -= (float4x4 v);
+            float4x4 operator -= (float s);
+            float4x4 operator += (float4x4 v);
+            float4x4 operator += (float s);
+            float4x4 operator /= (float4x4 v);
+            float4x4 operator /= (float s);
+            float4x4 operator *= (float4x4 v);
+            float4x4 operator *= (float s);
+            float4x4 operator - ();
+            operator float3x3();
         };
+        float4x4 operator * (float s, float4x4 v);
+        float4x4 operator + (float s, float4x4 v);
+        float4x4 operator / (float s, float4x4 v);
+        float4x4 operator - (float s, float4x4 v);
 
         struct Mips2D {
             struct Mip2D {
@@ -266,7 +518,7 @@
             };
             Mip2D operator[](in uint mip);
         };
-                
+        
         struct Texture2D{
             float4 Load(int3 pixelcoord);
             float4 Load(int3 pixelcoord, int2 offset);
@@ -322,8 +574,55 @@
             void GetDimensions(out float Width, out float Height);
             void GetDimensions(int mipLevel, out uint Width, out uint Height, out uint NumberOfLevels);
             void GetDimensions(out uint Width, out uint Height);
+            float CalculateLevelOfDetail(SamplerState sampler, float2 uv);
             float4 operator[](in uint2 pos);
             Mips2D& mips();
+        };
+
+        struct TextureCube{
+            float4 Sample(SamplerState, float3 texcoord, float lodClamp = {1024});
+            float4 Sample(SamplerState, float3 texcoord, float lodClamp, out uint status);
+            float4 SampleLevel(SamplerState, float3 texcoord, int mipLevel);
+            float4 SampleLevel(SamplerState, float3 texcoord, int mipLevel, out uint status);
+            float4 SampleGrad(SamplerState, float3 texcoord, float3 DDX, float3 DDY, float lodClamp = {1024});
+            float4 SampleGrad(SamplerState, float3 texcoord, float3 DDX, float3 DDY, float lodClamp, out uint status);
+            float4 SampleBias(SamplerState, float3 texcoord, float bias, float lodClamp = {1024});
+            float4 SampleBias(SamplerState, float3 texcoord, float bias, float lodClamp, out uint status);
+            float4 SampleCmp(SamplerState, float3 texcoord, float CompareValue, float lodClamp = {1024});
+            float4 SampleCmp(SamplerState, float3 texcoord, float CompareValue, float lodClamp, out uint status);
+            float4 SampleCmpLevelZero(SamplerState, float3 texcoord, float CompareValue);
+            float4 SampleCmpLevelZero(SamplerState, float3 texcoord, float CompareValue, out uint status);
+            float4 Gather(SamplerState, float3 texcoord);
+            float4 Gather(SamplerState, float3 texcoord, out uint status);
+            float4 GatherRed(SamplerState, float3 texcoord);
+            float4 GatherRed(SamplerState, float3 texcoord, out uint status);
+            float4 GatherGreen(SamplerState, float3 texcoord);
+            float4 GatherGreen(SamplerState, float3 texcoord, out uint status);
+            float4 GatherBlue(SamplerState, float3 texcoord);
+            float4 GatherBlue(SamplerState, float3 texcoord, out uint status);
+            float4 GatherAlpha(SamplerState, float3 texcoord);
+            float4 GatherAlpha(SamplerState, float3 texcoord, out uint status);
+            float4 GatherCmp(SamplerState, float3 texcoord, float CompareValue);
+            float4 GatherCmp(SamplerState, float3 texcoord, float CompareValue, out uint status);
+            float4 GatherCmpRed(SamplerState, float3 texcoord, float CompareValue);
+            float4 GatherCmpRed(SamplerState, float3 texcoord, float CompareValue, out uint status);
+            float4 GatherCmpGreen(SamplerState, float3 texcoord, float CompareValue);
+            float4 GatherCmpGreen(SamplerState, float3 texcoord, float CompareValue, out uint status);
+            float4 GatherCmpBlue(SamplerState, float3 texcoord, float CompareValue);
+            float4 GatherCmpBlue(SamplerState, float3 texcoord, float CompareValue, out uint status);
+            float4 GatherCmpAlpha(SamplerState, float3 texcoord, float CompareValue);
+            float4 GatherCmpAlpha(SamplerState, float3 texcoord, float CompareValue, out uint status);
+            float CalculateLevelOfDetail(SamplerState sampler, float3 uv);
+        };
+
+        template<typename ordinaltype>
+        struct RWTexture2D {
+            void GetDimensions(out int width, out int height);
+            ordinaltype Load(int3 pixelcoord);
+            ordinaltype Load(int3 pixelcoord, out int status);
+            ordinaltype operator[](in uint2 pos);
+            ordinaltype operator[](in int2 pos);
+            ordinaltype operator[](in float2 pos);
         };
 
         struct Mips2DArray {
@@ -386,10 +685,74 @@
             float4 GatherCmpAlpha(SamplerState, float3 texcoord, float CompareValue, int2 offset1, int2 offset2, int2 offset3, int2 offset4, out uint status);
             void GetDimensions(int mipLevel, out float Width, out float Height, out float Elements, out float NumberOfLevels);
             void GetDimensions(out float Width, out float Height, out float Elements);
-            void GetDimensions(int mipLevel, out uint Width, out uint Height, out uint Elements, out uint NumberOfLevels);
-            void GetDimensions(out uint Width, out uint Height, out uint Elements);
+            void GetDimensions(int mipLevel, out int Width, out int Height, out int Elements, out int NumberOfLevels);
+            void GetDimensions(out int Width, out int Height, out int Elements);
+            float CalculateLevelOfDetail(SamplerState sampler, float2 uv);
             float4 operator[](in uint3 pos);
             Mips2DArray& mips();
+        };
+
+        struct TextureCubeArray{
+            float4 Sample(SamplerState, float4 texcoord, float lodClamp = {1024});
+            float4 Sample(SamplerState, float4 texcoord, float lodClamp, out uint status);
+            float4 SampleLevel(SamplerState, float4 texcoord, int mipLevel);
+            float4 SampleLevel(SamplerState, float4 texcoord, int mipLevel, out uint status);
+            float4 SampleGrad(SamplerState, float4 texcoord, float3 DDX, float3 DDY, float lodClamp = {1024});
+            float4 SampleGrad(SamplerState, float4 texcoord, float3 DDX, float3 DDY, float lodClamp, out uint status);
+            float4 SampleBias(SamplerState, float4 texcoord, float bias, float lodClamp = {1024});
+            float4 SampleBias(SamplerState, float4 texcoord, float bias, float lodClamp, out uint status);
+            float4 SampleCmp(SamplerState, float4 texcoord, float CompareValue, float lodClamp = {1024});
+            float4 SampleCmp(SamplerState, float4 texcoord, float CompareValue, float lodClamp, out uint status);
+            float4 SampleCmpLevelZero(SamplerState, float4 texcoord, float CompareValue);
+            float4 SampleCmpLevelZero(SamplerState, float4 texcoord, float CompareValue, out uint status);
+            float4 Gather(SamplerState, float4 texcoord);
+            float4 Gather(SamplerState, float4 texcoord, out uint status);
+            float4 GatherRed(SamplerState, float4 texcoord);
+            float4 GatherRed(SamplerState, float4 texcoord, out uint status);
+            float4 GatherGreen(SamplerState, float4 texcoord);
+            float4 GatherGreen(SamplerState, float4 texcoord, out uint status);
+            float4 GatherBlue(SamplerState, float4 texcoord);
+            float4 GatherBlue(SamplerState, float4 texcoord, out uint status);
+            float4 GatherAlpha(SamplerState, float4 texcoord);
+            float4 GatherAlpha(SamplerState, float4 texcoord, out uint status);
+            float4 GatherCmp(SamplerState, float4 texcoord, float CompareValue);
+            float4 GatherCmp(SamplerState, float4 texcoord, float CompareValue, out uint status);
+            float4 GatherCmpRed(SamplerState, float4 texcoord, float CompareValue);
+            float4 GatherCmpRed(SamplerState, float4 texcoord, float CompareValue, out uint status);
+            float4 GatherCmpGreen(SamplerState, float4 texcoord, float CompareValue);
+            float4 GatherCmpGreen(SamplerState, float4 texcoord, float CompareValue, out uint status);
+            float4 GatherCmpBlue(SamplerState, float4 texcoord, float CompareValue);
+            float4 GatherCmpBlue(SamplerState, float4 texcoord, float CompareValue, out uint status);
+            float4 GatherCmpAlpha(SamplerState, float4 texcoord, float CompareValue);
+            float4 GatherCmpAlpha(SamplerState, float4 texcoord, float CompareValue, out uint status);
+            float CalculateLevelOfDetail(SamplerState sampler, float4 uv);
+        };
+
+        struct Mips3D {
+            struct Mip3D {
+                float4 operator[](in uint3 pos);
+            };
+            Mip3D operator[](in uint mip);
+        };
+
+        template<typename gentype = float4>
+        struct Texture3D {
+            gentype Sample(SamplerState, float3 texcoord, int3 offset = {0,0,0}, float lodClamp = {1024});
+            gentype Sample(SamplerState, float3 texcoord, int3 offset, float lodClamp, out uint status);
+            gentype SampleBias(SamplerState, float3 texcoord, float bias, int3 offset = {0,0,0}, float lodClamp = {1024});
+            gentype SampleBias(SamplerState, float3 texcoord, float bias, int3 offset, float lodClamp, out uint status);
+            gentype SampleGrad(SamplerState, float3 texcoord, float3 ddx, float3 ddy, int3 offset = {0,0,0}, float lodClamp = {1024});
+            gentype SampleGrad(SamplerState, float3 texcoord, float3 ddx, float3 ddy, int3 offset, float lodClamp, out uint status);
+            gentype SampleLevel(SamplerState, float3 texcoord, float lod, int3 offset = {0,0,0}, float lodClamp = {1024});
+            gentype SampleLevel(SamplerState, float3 texcoord, float lod, int3 offset, float lodClamp, out uint status);
+            gentype Load(int4 texcoord, int3 offset);
+            gentype Load(int4 texcoord, int3 offset, out uint status);
+            gentype operator[](uint3 texcoord);
+            void GetDimensions(int mipLevel, out float Width, out float Height, out float Depth, out float NumberOfLevels);
+            void GetDimensions(out float Width, out float Height, out float Depth);
+            void GetDimensions(int mipLevel, out int Width, out int Height, out int Depth, out int NumberOfLevels);
+            void GetDimensions(out int Width, out int Height, out int Depth);
+            Mips3D& mips();
         };
 
         template<typename TAnyStruct> struct AppendStructuredBuffer{
@@ -416,6 +779,21 @@
             TAnyStruct operator[](in uint pos);
         };
 
+        template<typename TAnyStruct> struct TriangleStream{
+            void Append(TAnyStruct v);
+            void RestartStrip();
+        };
+
+        template<typename TAnyStruct> struct PointStream{
+            void Append(TAnyStruct v);
+            void RestartStrip();
+        };
+
+        template<typename TAnyStruct> struct LineStream{
+            void Append(TAnyStruct v);
+            void RestartStrip();
+        };
+
         void discard;
 
         template<typename gentype> gentype abs(gentype v);
@@ -438,7 +816,7 @@
         template<typename gentype> gentype cos(gentype v);
         template<typename gentype> gentype cosh(gentype v);
                         uint    countbits(uint v);
-        template<typename gentype> gentype cross(gentype v);
+        template<typename gentype> gentype cross(gentype v1, gentype v2);
         template<typename gentype> gentype ddx(gentype v);
         template<typename gentype> gentype ddx_coarse(gentype v);
         template<typename gentype> gentype ddx_fine(gentype v);
@@ -450,7 +828,7 @@
                         void    DeviceMemoryBarrier();
                         void    DeviceMemoryBarrierWithGroupSync();
         template<typename gentype> gentype distance(gentype x, gentype y);
-        template<typename gentype> float   dot(gentype v);
+        template<typename gentype> float   dot(gentype v1, gentype v2);
         template<typename gentype> gentype exp(gentype v);
         template<typename gentype> gentype exp2(gentype v);
         template<typename gentype> gentype faceforward(gentype n, gentype i, gentype ng);
@@ -481,17 +859,23 @@
         template<typename gentype> gentype ldexp(gentype x, gentype exp);
         template<typename gentype> float   length(gentype x);
         template<typename gentype> gentype lerp(gentype min, gentype max, gentype k);
+        template<typename gentype> gentype lerp(gentype min, gentype max, float k);
         template<typename gentype> gentype log(gentype x);
         template<typename gentype> gentype log10(gentype x);
         template<typename gentype> gentype log2(gentype x);
         template<typename gentype> gentype mad(gentype m, gentype a, gentype b);
-        template<typename gentype> gentype max(gentype v);
-        template<typename gentype> gentype min(gentype v);
+        template<class gentype, typename gentype2> gentype max(gentype v1, gentype2 v2);
+        template<class gentype, typename gentype2> gentype min(gentype v1, gentype2 v2);
         template<typename gentype> gentype modf(gentype v, out gentype ip);
-        template<typename gentype, typename mat> gentype mul(gentype val1, mat val2);
+                                   float2 mul(float2 val1, float2x2 val2);
+                                   float2 mul(float2x2 val1, float2 val2);
+                                   float3 mul(float3 val1, float3x3 val2);
+                                   float3 mul(float3x3 val1, float3 val2);
+                                   float4 mul(float4 val1, float4x4 val2);
+                                   float4 mul(float4x4 val1, float4 val2);
         template<typename gentype> float   noise(gentype v);
         template<typename gentype> gentype normalize(gentype v);
-        template<typename gentype> gentype pow(gentype v);
+        template<class gentype, typename p> gentype pow(gentype base, p power);
         template<typename gentype> gentype radians(gentype v);
         template<typename gentype> gentype rcp(gentype v);
         template<typename gentype> gentype reflect(gentype i, gentype n);
@@ -510,7 +894,10 @@
         template<typename gentype> gentype tan(gentype v);
         template<typename gentype> gentype tanh(gentype v);
         template<typename gentype> gentype transpose(gentype v);
-        template<typename gentype> gentype trunc(gentype v);
+                                   int  trunc(float v);
+                                   int2 trunc(float2 v);
+                                   int3 trunc(float3 v);
+                                   int4 trunc(float4 v);
     #else // !CppEditor
         #define S_(a) a : a
         #define S_VertexID(a) a : SV_VertexID
@@ -548,6 +935,8 @@
         #define S_SampleIndex(a) a : SV_SampleIndex
         #define S_StencilRef(a) a : SV_StencilRef
         #define S_TessFactor(a) a : SV_TessFactor
+
+        #define register_(a) : register(a)
     #endif
 
 #endif	/* HLSL_H */
