@@ -668,6 +668,7 @@ type
     function Atlas: TavAtlasArrayReferenced;
     function Index: Integer;
     function Data : ITextureMip;
+    function Size : TVec2i;
   end;
   ISpriteIndexArr = {$IfDef FPC}specialize{$EndIf} IArray<ISpriteIndex>;
   TSpriteIndexArr = {$IfDef FPC}specialize{$EndIf} TArray<ISpriteIndex>;
@@ -685,6 +686,8 @@ type
   TavAtlasArrayReferenced  = class(TavTextureBase)
   private type
 
+    { TSpriteIndex }
+
     TSpriteIndex = class(TInterfacedObject, ISpriteIndex)
     private
       FOwner: TavAtlasArrayReferenced;
@@ -695,6 +698,7 @@ type
       function Atlas: TavAtlasArrayReferenced;
       function Index: Integer;
       function Data : ITextureMip;
+      function Size : TVec2i;
     public
       constructor Create(const AOwner: TavAtlasArrayReferenced; const AIndex: Integer; const AData: ITextureMip; const ASlice: Integer; const AQuad: IQuadRange);
       destructor Destroy; override;
@@ -1585,6 +1589,13 @@ end;
 function TavAtlasArrayReferenced.TSpriteIndex.Data: ITextureMip;
 begin
   Result := FData;
+end;
+
+function TavAtlasArrayReferenced.TSpriteIndex.Size: TVec2i;
+begin
+  if FData = nil then Result := Vec(0,0);
+  Result.x := FData.Width;
+  Result.y := FData.Height;
 end;
 
 constructor TavAtlasArrayReferenced.TSpriteIndex.Create(

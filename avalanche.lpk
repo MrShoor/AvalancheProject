@@ -12,11 +12,6 @@
         <OtherUnitFiles Value="Common;Common\DX_JSB;.;Spine"/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
-      <Parsing>
-        <SyntaxOptions>
-          <IncludeAssertionCode Value="True"/>
-        </SyntaxOptions>
-      </Parsing>
       <CodeGeneration>
         <Optimizations>
           <OptimizationLevel Value="0"/>

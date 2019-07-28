@@ -5,21 +5,22 @@ float4 BoundsXY;
 float2 YPos_ClipWithBounds;
 
 struct VS_Input {
-    float2 Pos       : Pos;
-    float  Align     : Align;
-    float2 Size      : Size;
-    float  SDFOffset : SDFOffset;
-    float4 Color     : Color;
-    uint   GlyphID   : GlyphID;
+    float2 S_(Pos);
+    float  S_(Align);
+    float2 S_(Size);
+    float  S_(SDFOffset);
+    float4 S_(Color);
+    uint   S_(GlyphID);
     
-    uint   VertexID  : SV_VertexID;
+    uint   S_VertexID(VertexID);
 };
 
 struct VS_Output {
-    float4 Pos      : SV_Position;
-    float2 BoundsPos: BoundsPos;
-    float4 Color    : Color;
-    float3 TexCoord : TexCoord;
+    float4 S_Position(Pos);
+    float2 S_(BoundsPos);
+    float4 S_(Color);
+    float3 S_(TexCoord);
+    float  S_(SDFOffset);
 };
 
 static const float2 QuadVertices[4] = { {-0.5,-0.5}, {-0.5, 0.5}, {0.5, -0.5}, {0.5, 0.5} };
@@ -51,6 +52,7 @@ VS_Output VS(VS_Input In) {
     Out.TexCoord.z = region.slice;
     
     Out.Color = In.Color;
+    Out.SDFOffset = In.SDFOffset;
     
     return Out;
 }
@@ -58,7 +60,7 @@ VS_Output VS(VS_Input In) {
 Texture2DArray Atlas; SamplerState AtlasSampler;
 
 struct PS_Output {
-    float4 Color : SV_Target0;
+    float4 S_Target0(Color);
 };
 
 PS_Output PS(VS_Output In) {
@@ -75,9 +77,9 @@ PS_Output PS(VS_Output In) {
     
     float4 c = In.Color;
     float Y = dot(c.xyz, float3(0.212656, 0.715158, 0.072186));
-    float r = Atlas.Sample(AtlasSampler, In.TexCoord).r;
+    float r = Atlas.Sample(AtlasSampler, In.TexCoord).r + In.SDFOffset;
     c.a *= saturate(-r/tex_per_pixel + 0.5 + lerp(0.3, 0.0, Y));
-    c.rgb *= c.a;
+    c.xyz *= c.a;
     
     Out.Color = c;
     

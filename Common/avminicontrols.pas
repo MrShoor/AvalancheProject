@@ -51,11 +51,12 @@ type
     function GetAbsPos: TVec2;
     procedure SetAbsAngle(const AValue: Single);
     procedure SetAbsPos(const AValue: TVec2);
-    procedure SetAngle(const AValue: Single);
-    procedure SetOrigin(const AValue: TVec2);
-    procedure SetPos(const AValue: TVec2);
-    procedure SetSize(const AValue: TVec2);
-    procedure SetVisible(const AValue: Boolean);
+  protected
+    procedure SetAngle(const AValue: Single); virtual;
+    procedure SetOrigin(const AValue: TVec2); virtual;
+    procedure SetPos(const AValue: TVec2); virtual;
+    procedure SetSize(const AValue: TVec2); virtual;
+    procedure SetVisible(const AValue: Boolean); virtual;
   protected
     FDragThreshold: Single;
     FDragDowned: array [0..2] of Boolean;
@@ -88,6 +89,8 @@ type
     procedure Notify_KeyDown(AKey: Word; const Ex: TKeyEventEx); virtual;
     procedure Notify_Char(AChar: WideChar; const Ex: TKeyEventEx); virtual;
     procedure Notify_KeyUp(AKey: Word; const Ex: TKeyEventEx); virtual;
+
+    procedure RedirectToParent_MouseWheel(const APt: TVec2; AWheelShift: Integer; AShifts: TShifts);
   protected
     procedure UPSSubscribe;
     procedure UPSUnSubscribe;
@@ -97,6 +100,7 @@ type
   protected
     function  Space_ParentToLocal(const APt: TVec2): TVec2;
     function  Space_LocalToRootControl(const APt: TVec2): TVec2;
+    function  Space_LocalToParent(const APt: TVec2): TVec2;
 
     procedure HitTestRecursive(const ALocalPt: TVec2; var AControl: TavmBaseControl);
     procedure HitTestLocal(const ALocalPt: TVec2; var AControl: TavmBaseControl); virtual;
@@ -280,6 +284,7 @@ type
 
     property OnScroll: TNotifyEvent read FOnScroll write FOnScroll;
   end;
+  TavmCustomScrollBarClass = class of TavmCustomScrollBar;
 
   { TavmCustomEdit }
 
@@ -315,6 +320,38 @@ type
     procedure AfterConstruction; override;
   end;
 
+  { TavmCustomScrollContainer }
+
+  TavmCustomScrollContainer = class (TavmCustomControl)
+  private
+    FVScroll: TavmCustomScrollBarClass;
+    FWorkArea: TVec2;
+    FWorkOrigin: TVec2;
+    FCapturedPt: TVec2;
+
+    procedure SetWorkArea(AValue: TVec2);
+    procedure SetWorkOrigin(AValue: TVec2);
+  protected
+    //procedure SetAngle(const AValue: Single); override;
+    //procedure SetOrigin(const AValue: TVec2); override;
+    procedure SetSize(const AValue: TVec2); override;
+    procedure SetPos(const AValue: TVec2); override;
+  protected
+    procedure Notify_MouseDown(ABtn: Integer; const APt: TVec2; AShifts: TShifts); override;
+    procedure Notify_MouseMove(const APt: TVec2; AShifts: TShifts); override;
+    procedure Notify_MouseUp(ABtn: Integer; const APt: TVec2; AShifts: TShifts); override;
+    procedure Notify_MouseWheel(const APt: TVec2; AWheelShift: Integer; AShifts: TShifts); override;
+
+    procedure DrawRecursive(const AMat: TMat3); override;
+  protected
+    function ArrangeChilds(const AVertical: Boolean; const ABorder: Single): Single;
+  public
+    procedure SetVScrollbar(const AClass: TavmCustomScrollBarClass);
+
+    property WorkArea  : TVec2 read FWorkArea   write SetWorkArea;
+    property WorkOrigin: TVec2 read FWorkOrigin write SetWorkOrigin;
+  end;
+
 implementation
 
 uses
@@ -339,6 +376,126 @@ type
   private
     procedure UpdateStates();
   end;
+
+{ TavmCustomScrollContainer }
+
+procedure TavmCustomScrollContainer.SetWorkArea(AValue: TVec2);
+begin
+  if FWorkArea=AValue then Exit;
+  FWorkArea:=AValue;
+end;
+
+procedure TavmCustomScrollContainer.SetWorkOrigin(AValue: TVec2);
+begin
+  if FWorkOrigin=AValue then Exit;
+  FWorkOrigin:=AValue;
+end;
+
+procedure TavmCustomScrollContainer.SetSize(const AValue: TVec2);
+begin
+  inherited SetSize(AValue);
+  Pos := Pos;
+end;
+
+procedure TavmCustomScrollContainer.SetPos(const AValue: TVec2);
+var newPos: TVec2;
+begin
+  newPos := Max(AValue, WorkOrigin+WorkArea-Size);
+  newPos := Min(newPos, Vec(0,0));
+  inherited SetPos(newPos);
+end;
+
+procedure TavmCustomScrollContainer.Notify_MouseDown(ABtn: Integer; const APt: TVec2; AShifts: TShifts);
+begin
+  inherited Notify_MouseDown(ABtn, APt, AShifts);
+  if ABtn = 1 then
+  begin
+    FCapturedPt := APt;
+    InputConnector.Captured := Self;
+  end;
+end;
+
+procedure TavmCustomScrollContainer.Notify_MouseMove(const APt: TVec2; AShifts: TShifts);
+begin
+  inherited Notify_MouseMove(APt, AShifts);
+  if InputConnector.Captured = Self then
+    Pos := Pos + (APt - FCapturedPt);
+end;
+
+procedure TavmCustomScrollContainer.Notify_MouseUp(ABtn: Integer; const APt: TVec2; AShifts: TShifts);
+begin
+  inherited Notify_MouseUp(ABtn, APt, AShifts);
+end;
+
+procedure TavmCustomScrollContainer.Notify_MouseWheel(const APt: TVec2; AWheelShift: Integer; AShifts: TShifts);
+begin
+  inherited Notify_MouseWheel(APt, AWheelShift, AShifts);
+  Pos := Pos + Vec(AWheelShift, AWheelShift)*120;
+end;
+
+procedure TavmCustomScrollContainer.DrawRecursive(const AMat: TMat3);
+  function GetControlScissor: TRectI;
+  var pts: array [0..3] of TVec3;
+      i: Integer;
+  begin
+    pts[0] := Vec(WorkOrigin.x, WorkOrigin.y, 1.0) * AMat;
+    pts[1] := Vec(WorkOrigin.x, WorkOrigin.y+WorkArea.y, 1.0) * AMat;
+    pts[2] := Vec(WorkOrigin.x+WorkArea.x, WorkOrigin.y, 1.0) * AMat;
+    pts[3] := Vec(WorkOrigin.x+WorkArea.x, WorkOrigin.y+WorkArea.y, 1.0) * AMat;
+    Result.min.x := HUGE;
+    Result.min.y := HUGE;
+    Result.max.x := -HUGE;
+    Result.max.y := -HUGE;
+    for i := 0 to 3 do
+    begin
+      Result.min := Round( min(pts[i].xy, Result.min) );
+      Result.max := Round( max(pts[i].xy, Result.max) );
+    end;
+  end;
+var oldScissor: TRectI;
+    oldTest: Boolean;
+begin
+  oldScissor := Main.States.Scissor;
+  oldTest := Main.States.GetScissorTest;
+  try
+    Main.States.SetScissorTest(True);
+    Main.States.Scissor := GetControlScissor();
+    inherited DrawRecursive(AMat);
+  finally
+    Main.States.Scissor := oldScissor;
+    Main.States.SetScissorTest(oldTest);
+  end;
+end;
+
+function TavmCustomScrollContainer.ArrangeChilds(const AVertical: Boolean; const ABorder: Single): Single;
+  function AutoFlip(const v: TVec2): TVec2;
+  begin
+    if AVertical then Result := v else Result := Vec(v.y, v.x);
+  end;
+var s: TVec2;
+    p: TVec2;
+    ch: TavmBaseControl;
+begin
+  s := AutoFlip(Size);
+  s := Max(s - Vec(ABorder, ABorder), Vec(0,0));
+
+  p.x := ABorder;
+  p.y := 0;
+  ResetIterator();
+  while NextChildControl(ch) do
+  begin
+    p.y := p.y + ABorder;
+    ch.Pos := AutoFlip(p);
+    ch.Size := AutoFlip( Vec(s.x - ABorder, AutoFlip(ch.Size).y) );
+    p.y := p.y + AutoFlip(ch.Size).y;
+  end;
+  Result := p.y + ABorder;
+end;
+
+procedure TavmCustomScrollContainer.SetVScrollbar(const AClass: TavmCustomScrollBarClass);
+begin
+
+end;
 
 { TavmCustomCheckbox }
 
@@ -1028,8 +1185,7 @@ begin
   end;
 end;
 
-procedure TavmBaseControl.Notify_MouseWheel(const APt: TVec2;
-  AWheelShift: Integer; AShifts: TShifts);
+procedure TavmBaseControl.Notify_MouseWheel(const APt: TVec2; AWheelShift: Integer; AShifts: TShifts);
 begin
 end;
 
@@ -1073,6 +1229,12 @@ end;
 
 procedure TavmBaseControl.Notify_KeyUp(AKey: Word; const Ex: TKeyEventEx);
 begin
+end;
+
+procedure TavmBaseControl.RedirectToParent_MouseWheel(const APt: TVec2; AWheelShift: Integer; AShifts: TShifts);
+begin
+  if Parent is TavmBaseControl then
+    TavmBaseControl(Parent).Notify_MouseWheel(Space_LocalToParent(APt), AWheelShift, AShifts);
 end;
 
 procedure TavmBaseControl.UPSSubscribe;
@@ -1149,6 +1311,20 @@ begin
     Result := TavmBaseControl(Parent).Space_LocalToRootControl(APt * Transform)
   else
     Result := APt;
+end;
+
+function TavmBaseControl.Space_LocalToParent(const APt: TVec2): TVec2;
+var npt: TVec2;
+begin
+  if Parent is TavmBaseControl then
+    Result := APt * Transform
+  else
+  begin
+    npt := APt * Transform;
+    npt := npt * GetUIMat3(Main.States.Viewport.Size);
+    npt := npt * Vec(0.5,-0.5);
+    Result := (npt + Vec(0.5, 0.5))*Main.States.Viewport.Size;
+  end;
 end;
 
 procedure TavmBaseControl.HitTestRecursive(const ALocalPt: TVec2; var AControl: TavmBaseControl);

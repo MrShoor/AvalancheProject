@@ -427,6 +427,9 @@ function HammersleyPoint(const I, N: Integer): TVec2;
 function GenerateHammersleyPts(const N: Integer): TVec4Arr;
 function WeightedRandom(weights: array of Integer): Integer;
 
+function sRGBToLiear(const rgb: TVec3): TVec3;
+function LinearTosRGB(const linear: TVec3): TVec3;
+
 {$IfDef FPC}
 operator = (const v1, v2: TRectF): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
 operator = (const v1, v2: TRectI): Boolean; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -515,6 +518,16 @@ begin
     n := n - weights[Result];
     Inc(Result);
   end;
+end;
+
+function sRGBToLiear(const rgb: TVec3): TVec3;
+begin
+  Result := Pow(rgb, 2.2);
+end;
+
+function LinearTosRGB(const linear: TVec3): TVec3;
+begin
+  Result := Pow(linear, 1.0/2.2);
 end;
 
 type

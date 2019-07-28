@@ -232,8 +232,10 @@ type
     procedure WriteSpace(ASpace: Single);
     procedure Write(const AStr: string);
     procedure WriteLn(const AStr: string);
+    procedure WriteMultiline(const AStr: string);
     procedure WriteWrapped(const AStr: string);
     procedure WriteWrappedEnd(const AMaxWidth: Single; AJustifyAlign: Boolean = False; AFirstRowOffset: Single = 0; ANextRowsOffset: Single = 0);
+    procedure WriteWrappedMultiline(const AStr: string; const AMaxWidth: Single; AJustifyAlign: Boolean = False; AFirstRowOffset: Single = 0; ANextRowsOffset: Single = 0);
 
     function Finish(): ITextLines;
 
@@ -305,6 +307,7 @@ type
     function GetGlyphImage(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out YYYYMetrics: TVec4): ITextureMip;
     function GetGlyphSprite(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out YYYYMetrics: TVec4): ISpriteIndex;
     function GetImageSprite(const AFileName: string): ISpriteIndex;
+    function GetTextureSprite(const ATexture: ITextureMip): ISpriteIndex;
 
     property GlyphsAtlas : TavAtlasArrayReferenced read FGlyphsAtlas;
     property SpritesAtlas: TavAtlasArrayReferenced read FSpritesAtlas;
@@ -550,8 +553,10 @@ type
     procedure WriteSpace(ASpace: Single);
     procedure Write(const AStr: string);
     procedure WriteLn(const AStr: string);
+    procedure WriteMultiline(const AStr: string);
     procedure WriteWrapped(const AStr: string);
     procedure WriteWrappedEnd(const AMaxWidth: Single; AJustifyAlign: Boolean = False; AFirstRowOffset: Single = 0; ANextRowsOffset: Single = 0);
+    procedure WriteWrappedMultiline(const AStr: string; const AMaxWidth: Single; AJustifyAlign: Boolean = False; AFirstRowOffset: Single = 0; ANextRowsOffset: Single = 0);
 
     function Finish(): ITextLines;
   public
@@ -903,7 +908,7 @@ begin
     glyph^.Size.x := xxx.y;
     glyph^.Size.y := yyyy.y + yyyy.z;
 
-    glyph^.SDFOffset := 0;
+    glyph^.SDFOffset := FFont.SDFOffset;
     glyph^.Color := FFont.Color;
 
     pword^.YYMetrics := Max(pword^.YYMetrics, Vec(yyyy.x + yyyy.y, yyyy.z + yyyy.w));
@@ -942,7 +947,7 @@ begin
     glyph^.Size.x := xxx.y;
     glyph^.Size.y := yyyy.y + yyyy.z;
 
-    glyph^.SDFOffset := 0;
+    glyph^.SDFOffset := FFont.SDFOffset;
     glyph^.Color := FFont.Color;
 
     FLineInfo.yymetrics := Max(FLineInfo.yymetrics, Vec(yyyy.x + yyyy.y, yyyy.z + yyyy.w));
@@ -1025,19 +1030,66 @@ begin
   WriteLnInternal;
 end;
 
-procedure TTextBuilder.WriteWrapped(const AStr: string);
+procedure TTextBuilder.WriteMultiline(const AStr: string);
 var sl: TStringList;
     i: Integer;
 begin
+  sl := TStringList.Create;
+  try
+    sl.Text := AStr;
+    for i := 0 to sl.Count - 1 do
+      WriteLn(sl[i]);
+  finally
+    sl.Free;
+  end;
+end;
+
+procedure TTextBuilder.WriteWrapped(const AStr: string);
+  function FirstSpaces(): UnicodeString;
+  var i: Integer;
+  begin
+    for i := 1 to Length(AStr) do
+      if AStr[i] <> ' ' then
+      begin
+        Result := UnicodeString(Copy(AStr, 1, i-1));
+        Exit;
+      end;
+    Result := '';
+  end;
+var sl: TStringList;
+    i: Integer;
+    fs: UnicodeString;
+begin
   if FWrappedWords = nil then FWrappedWords := TWordsArr.Create();
+  fs := FirstSpaces();
   sl := TStringList.Create;
   try
     sl.Delimiter := ' ';
     sl.DelimitedText := AStr;
     for i := 0 to sl.Count - 1 do
-      WriteWordInternal(UnicodeString(sl.Strings[i]));
+      if i = 0 then
+        WriteWordInternal(fs + UnicodeString(sl.Strings[i]))
+      else
+        WriteWordInternal(UnicodeString(sl.Strings[i]));
   finally
     FreeAndNil(sl);
+  end;
+end;
+
+procedure TTextBuilder.WriteWrappedMultiline(const AStr: string; const AMaxWidth: Single; AJustifyAlign: Boolean = False; AFirstRowOffset: Single = 0; ANextRowsOffset: Single = 0);
+var sl: TStringList;
+    i: Integer;
+begin
+  sl := TStringList.Create;
+  try
+    sl.Text := AStr;
+    for i := 0 to sl.Count - 1 do
+    begin
+      WriteWrapped(sl[i]);
+      WriteWrappedEnd(AMaxWidth, AJustifyAlign, AFirstRowOffset, ANextRowsOffset);
+    end;
+  finally
+    sl.Free;
   end;
 end;
 
@@ -1494,7 +1546,12 @@ end;
 
 function TavCanvasCommonData.GetImageSprite(const AFileName: string): ISpriteIndex;
 begin
-  Result := FSpritesAtlas.ObtainSprite(Default_ITextureManager.LoadTexture(AFileName, SIZE_DEFAULT, SIZE_DEFAULT, FORMAT_DEFAULT, True).MipData(0,0));
+  Result := GetTextureSprite(Default_ITextureManager.LoadTexture(AFileName, SIZE_DEFAULT, SIZE_DEFAULT, FORMAT_DEFAULT, True).MipData(0,0));
+end;
+
+function TavCanvasCommonData.GetTextureSprite(const ATexture: ITextureMip): ISpriteIndex;
+begin
+  Result := FSpritesAtlas.ObtainSprite(ATexture);
 end;
 
 procedure TavCanvasCommonData.ReloadShaders;
@@ -1511,7 +1568,8 @@ begin
     FGlyphsAtlas.TargetSize := ATargetAtlasSize;
 end;
 
-procedure TavCanvasCommonData.SetGlyphGenerationSize(AGlyphSize, ABorderSize: Integer);
+procedure TavCanvasCommonData.SetGlyphGenerationSize(AGlyphSize: Integer;
+  ABorderSize: Integer);
 begin
     FGlyphGenerationSize := AGlyphSize;
     FGlyphGenerationSize_Inv := 1 / FGlyphGenerationSize;
