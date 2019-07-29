@@ -294,16 +294,31 @@ var cnv: TImagingCanvas;
     pCol: PVec4b;
     i: Integer;
     k: Double;
+    multed: TVec3;
 begin
   if image^.Format = ImagingTypes.TImageFormat.ifA8R8G8B8 then
   begin
     pCol := image^.Bits;
     for i := 0 to image^.Width*image^.Height - 1 do
     begin
+      if pCol^.w = 255 then
+      begin
+        Inc(pCol);
+        Continue;
+      end;
+      if pCol^.w = 0 then
+      begin
+        pCol^.x := 0;
+        pCol^.y := 0;
+        pCol^.z := 0;
+        Inc(pCol);
+        Continue;
+      end;
       k := pCol^.w/255;
-      pCol^.x := Round(pCol^.x*k);
-      pCol^.y := Round(pCol^.y*k);
-      pCol^.z := Round(pCol^.z*k);
+      multed := LinearTosRGB(sRGB255ToLinear(pCol^.x, pCol^.y, pCol^.z)*k) * 255;
+      pCol^.x := Clamp(Round(multed.x), 0, 255);// Round(pCol^.x*k);
+      pCol^.y := Clamp(Round(multed.y), 0, 255);// Round(pCol^.y*k);
+      pCol^.z := Clamp(Round(multed.z), 0, 255);// Round(pCol^.z*k);
       Inc(pCol);
     end;
   end

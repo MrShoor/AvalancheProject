@@ -44,6 +44,7 @@ type
     FInputConnector: IWeakRef;
     FVisible: Boolean;
     FAllowFocus: Boolean;
+    FPassScrollToParent: Boolean;
 
     FUPSSubscriber: IUPSEvent;
 
@@ -130,6 +131,7 @@ type
 
     property Visible: Boolean read FVisible write SetVisible;
     property AllowFocus: Boolean read FAllowFocus write FAllowFocus;
+    property PassScrollToParent: Boolean read FPassScrollToParent write FPassScrollToParent;
 
     function Transform   : TMat3;
     function TransformInv: TMat3;
@@ -345,6 +347,7 @@ type
     procedure DrawRecursive(const AMat: TMat3); override;
   protected
     function ArrangeChilds(const AVertical: Boolean; const ABorder: Single): Single;
+    function ArrangeChildsToGrid(const AVertical: Boolean; const ABorder: Single): Single;
   public
     procedure SetVScrollbar(const AClass: TavmCustomScrollBarClass);
 
@@ -490,6 +493,47 @@ begin
     p.y := p.y + AutoFlip(ch.Size).y;
   end;
   Result := p.y + ABorder;
+end;
+
+function TavmCustomScrollContainer.ArrangeChildsToGrid(const AVertical: Boolean; const ABorder: Single): Single;
+  function AutoFlip(const v: TVec2): TVec2;
+  begin
+    if AVertical then Result := v else Result := Vec(v.y, v.x);
+  end;
+var CellSize: TVec2;
+    ch: TavmBaseControl;
+    s: TVec2;
+    p: TVec2i;
+    pitch: Integer;
+    xSpacing: Single;
+begin
+  CellSize := Vec(0,0);
+  ResetIterator();
+  while NextChildControl(ch) do
+    CellSize := max(CellSize, ch.Size);
+  CellSize := AutoFlip(CellSize);
+
+  s := AutoFlip(Size);
+  s := Max(s - Vec(ABorder, ABorder), Vec(0,0));
+
+  pitch := max(Floor(s.x / (CellSize.x+ABorder)), 1);
+  xSpacing := (s.x - CellSize.x*pitch - ABorder*max(0,pitch-1) + ABorder)*0.5;
+
+  p := Vec(0,0);
+  ResetIterator();
+  while NextChildControl(ch) do
+  begin
+    ch.Pos := AutoFlip( p*(CellSize + Vec(ABorder, ABorder)) + Vec(xSpacing, ABorder) );
+    Inc(p.x);
+    if (p.x >= pitch) then
+    begin
+      p.x := 0;
+      Inc(p.y);
+    end;
+  end;
+  if p.x <> 0 then
+    Inc(p.y);
+  Result := p.y * (CellSize.y + ABorder) + ABorder;
 end;
 
 procedure TavmCustomScrollContainer.SetVScrollbar(const AClass: TavmCustomScrollBarClass);
@@ -1187,6 +1231,8 @@ end;
 
 procedure TavmBaseControl.Notify_MouseWheel(const APt: TVec2; AWheelShift: Integer; AShifts: TShifts);
 begin
+  if FPassScrollToParent then
+    RedirectToParent_MouseWheel(APt, AWheelShift, AShifts);
 end;
 
 procedure TavmBaseControl.Notify_MouseDblClick(ABtn: Integer; const APt: TVec2; AShifts: TShifts);

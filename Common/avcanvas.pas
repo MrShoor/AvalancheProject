@@ -416,6 +416,7 @@ type
     procedure SelectGeometryKind(const AKind: TGeometryKind);
 
     procedure AddQuad(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex);
+    procedure AddQuadClipped(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex; const ASpriteRect: TRectI);
   public
     property ZValue: Single      read FZValue write FZValue;
     property Pen   : TPenStyle   read FPen    write SetPen;
@@ -438,6 +439,8 @@ type
     procedure AddTriangle(const V1,V2,V3: TVec2); overload;
     procedure AddSprite(const LeftTop, RightBottom: TVec2; const AFileName: string); overload;
     procedure AddSprite(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex); overload;
+    procedure AddSpriteClipped(const LeftTop, RightBottom: TVec2; const AFileName: string; const AClipRect: TRectI); overload;
+    procedure AddSpriteClipped(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex; const AClipRect: TRectI); overload;
 
     procedure Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single); overload;
     procedure Draw(const ATransform: TMat3); overload;
@@ -1546,7 +1549,7 @@ end;
 
 function TavCanvasCommonData.GetImageSprite(const AFileName: string): ISpriteIndex;
 begin
-  Result := GetTextureSprite(Default_ITextureManager.LoadTexture(AFileName, SIZE_DEFAULT, SIZE_DEFAULT, FORMAT_DEFAULT, True).MipData(0,0));
+  Result := GetTextureSprite(Default_ITextureManager.LoadTexture(AFileName, SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.A8R8G8B8, True).MipData(0,0));
 end;
 
 function TavCanvasCommonData.GetTextureSprite(const ATexture: ITextureMip): ISpriteIndex;
@@ -1844,10 +1847,26 @@ begin
   FCurrentBatch.ranges.y := 0;
 end;
 
-procedure TavCanvas.AddQuad(const LeftTop, RightBottom: TVec2;
-  const ASprite: ISpriteIndex);
-var v: array [0..3] of TCanvasTriangleVertex;
+procedure TavCanvas.AddQuad(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex);
+var
+  rct: TRectI;
 begin
+  if ASprite = nil then
+    rct := RectI(0,0,1,1)
+  else
+    rct := RectI(Vec(0,0), ASprite.Size);
+  AddQuadClipped(LeftTop, RightBottom, ASprite, rct);
+end;
+
+procedure TavCanvas.AddQuadClipped(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex; const ASpriteRect: TRectI);
+var v: array [0..3] of TCanvasTriangleVertex;
+    sInv: TVec2;
+begin
+  if ASprite <> nil then
+    sInv := Vec(1,1)/ASprite.Size
+  else
+    sInv := Vec(1,1);
+
   SelectGeometryKind(gkTris);
 
   FillVertexWithBrush(v[0]);
@@ -1856,19 +1875,19 @@ begin
   FillVertexWithBrush(v[3]);
 
   v[0].Coords := LeftTop;
-  v[0].TexCoord := Vec(0,0);
+  v[0].TexCoord := Vec(ASpriteRect.Left,ASpriteRect.Top) * sInv;
   v[0].Sprite := ASprite;
 
   v[1].Coords := Vec(LeftTop.x, RightBottom.y);
-  v[1].TexCoord := Vec(0,1);
+  v[1].TexCoord := Vec(ASpriteRect.Left, ASpriteRect.Bottom) * sInv;
   v[1].Sprite := ASprite;
 
   v[2].Coords := Vec(RightBottom.x, LeftTop.y);
-  v[2].TexCoord := Vec(1,0);
+  v[2].TexCoord := Vec(ASpriteRect.Right, ASpriteRect.Top) * sInv;
   v[2].Sprite := ASprite;
 
   v[3].Coords := RightBottom;
-  v[3].TexCoord := Vec(1,1);
+  v[3].TexCoord := Vec(ASpriteRect.Right, ASpriteRect.Bottom) * sInv;
   v[3].Sprite := ASprite;
 
   FTrisData.Add(v[0]);
@@ -2010,6 +2029,16 @@ end;
 procedure TavCanvas.AddSprite(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex);
 begin
   AddQuad(LeftTop, RightBottom, ASprite);
+end;
+
+procedure TavCanvas.AddSpriteClipped(const LeftTop, RightBottom: TVec2; const AFileName: string; const AClipRect: TRectI);
+begin
+  AddQuadClipped(LeftTop, RightBottom, CommonData.GetImageSprite(AFileName), AClipRect);
+end;
+
+procedure TavCanvas.AddSpriteClipped(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex; const AClipRect: TRectI);
+begin
+  AddQuadClipped(LeftTop, RightBottom, ASprite, AClipRect);
 end;
 
 procedure TavCanvas.Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single);
