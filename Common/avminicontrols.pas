@@ -516,7 +516,7 @@ begin
   s := AutoFlip(Size);
   s := Max(s - Vec(ABorder, ABorder), Vec(0,0));
 
-  pitch := max(Floor(s.x / (CellSize.x+ABorder)), 1);
+  pitch := min(max(Floor(s.x / (CellSize.x+ABorder)), 1), ChildControlsCount);
   xSpacing := (s.x - CellSize.x*pitch - ABorder*max(0,pitch-1) + ABorder)*0.5;
 
   p := Vec(0,0);
@@ -1330,6 +1330,7 @@ end;
 procedure TavmBaseControl.Invalidate;
 begin
   FValid := False;
+  Main.InvalidateWindow;
 end;
 
 procedure TavmBaseControl.OnUPS;
