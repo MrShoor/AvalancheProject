@@ -584,8 +584,8 @@ type
     procedure SetMipImage(X, Y, ImageWidth, ImageHeight, MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
     procedure SetMipImage(DestRect: TRect; MipLevel, ZSlice: Integer; DataFormat: TImageFormat; Data: PByte); overload;
 
-    procedure CopyFrom(const DstMipLevel: Integer; const DstPos: TVec2I;
-                       const ASrcRes: IctxTexture; const SrcMipLevel: Integer; const SrcRect: TRectI);
+    procedure CopyFrom(const DstMipLevel, DstSlice: Integer; const DstPos: TVec2I;
+                       const ASrcRes: IctxTexture; const SrcMipLevel, SrcSlice: Integer; const SrcRect: TRectI);
 
     procedure GenerateMips;
 
@@ -3180,8 +3180,9 @@ begin
     end;
 end;
 
-procedure TTexture.CopyFrom(const DstMipLevel: Integer; const DstPos: TVec2I; const ASrcRes: IctxTexture;
-  const SrcMipLevel: Integer; const SrcRect: TRectI);
+procedure TTexture.CopyFrom(const DstMipLevel, DstSlice: Integer;
+  const DstPos: TVec2I; const ASrcRes: IctxTexture; const SrcMipLevel,
+  SrcSlice: Integer; const SrcRect: TRectI);
 var box: TD3D11_Box;
     wholeCopy: Boolean;
 begin
@@ -3199,8 +3200,8 @@ begin
   if wholeCopy then
   begin
     FContext.FDeviceContext.CopySubresourceRegion(
-        FTexture, D3D11CalcSubresource(DstMipLevel, 0, 1), 0, 0, 0,
-        IctxTexture_DX11(ASrcRes).GetHandle, D3D11CalcSubresource(SrcMipLevel, 0, 1), nil);
+        FTexture, D3D11CalcSubresource(DstMipLevel, DstSlice, 1), 0, 0, 0,
+        IctxTexture_DX11(ASrcRes).GetHandle, D3D11CalcSubresource(SrcMipLevel, SrcSlice, 1), nil);
   end
   else
   begin
@@ -3211,8 +3212,8 @@ begin
     box.Front := 0;
     box.Back := 1;
     FContext.FDeviceContext.CopySubresourceRegion(
-        FTexture, D3D11CalcSubresource(DstMipLevel, 0, 1), DstPos.x, DstPos.y, 0,
-        IctxTexture_DX11(ASrcRes).GetHandle, D3D11CalcSubresource(SrcMipLevel, 0, 1), @box);
+        FTexture, D3D11CalcSubresource(DstMipLevel, DstSlice, 1), DstPos.x, DstPos.y, 0,
+        IctxTexture_DX11(ASrcRes).GetHandle, D3D11CalcSubresource(SrcMipLevel, SrcSlice, 1), @box);
   end;
 end;
 

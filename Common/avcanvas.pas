@@ -8,9 +8,11 @@ unit avCanvas;
 interface
 
 uses
-  Classes, SysUtils, intfUtils, avBase, avRes, mutils, avTypes, avContnrs, avTess, avContext, avGlyphGenerator;
+  Classes, SysUtils, intfUtils, avBase, avRes, mutils, avTypes, avContnrs, avTess, avContext, avGlyphGenerator, avGPUGlyphGenerator;
 
 type
+  IGlyphIndex = interface;
+
   { TLinePointVertex }
 
   TLinePointVertex = packed record
@@ -48,7 +50,7 @@ type
 
   TGlyphVertex = packed record
   private
-    procedure SetGlyph(const AValue: ISpriteIndex);
+    procedure SetGlyph(const AValue: IGlyphIndex);
   public
     Pos       : TVec2;
     Align     : Single;
@@ -57,10 +59,10 @@ type
     Color     : TVec4;
     GlyphID   : Integer;
 
-    _Glyph    : ISpriteIndex;
+    _Glyph    : IGlyphIndex;
     class function Layout: IDataLayout; static;
 
-    property Glyph: ISpriteIndex read _Glyph write SetGlyph;
+    property Glyph: IGlyphIndex read _Glyph write SetGlyph;
   end;
   PGlyphVertex = ^TGlyphVertex;
   TGlyphVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TGlyphVertex>;
@@ -256,6 +258,8 @@ type
 
     FUniform_ZValue: TUniformField;
 
+    FUniform_ColorFilter: TUniformField;
+
     FLastViewportSize: TVec2i;
   protected
     procedure BeforeFree3D; override;
@@ -266,34 +270,125 @@ type
     procedure SetCanvasTransform(const ATransform: TMat3);
     procedure SetPixelToUnit(const AScale: single);
     procedure SetZValue(const AZVal: single);
+    procedure SetColorFilters(const AColorFilter: TMat4);
   end;
   TavFontProgram = class;
 
-  { TavCanvasCommonData }
-  TavCanvasCommonData = class (TavRes)
+  TavGlyphAtlas = class;
+
+  IGlyphIndex = interface
+    function Atlas: TavGlyphAtlas;
+    function Index: Integer;
+    function Size : TVec2i;
+    function XXXMetrics: TVec3;
+    function YYYYMetrics: TVec4;
+  end;
+  IGlyphIndexArr = {$IfDef FPC}specialize{$EndIf} IArray<IGlyphIndex>;
+  TGlyphIndexArr = {$IfDef FPC}specialize{$EndIf} TArray<IGlyphIndex>;
+  IGlyphIndexSet = {$IfDef FPC}specialize{$EndIf} IHashSet<IGlyphIndex>;
+  TGlyphIndexSet = {$IfDef FPC}specialize{$EndIf} THashSet<IGlyphIndex>;
+
+  { TavGlyphAtlas }
+
+  TavGlyphAtlas = class(TavTextureBase)
   private type
+    TGlyphData = packed record
+      poly   : IGlyphPoly;
+      ImgSize: TVec2i;
+      Border : Integer;
+      XXX    : TVec3;
+      YYYY   : TVec4;
+    end;
+
     TGlyphKey = packed record
       font : string[255];
       glyph: WideChar;
       style: TGlyphStyles;
+      function GenData(ASize, ABorder: Integer): TGlyphData;
     end;
-    TGlyphData = packed record
-      img         : ITextureMip;
-      XXXMetrics  : TVec3;
-      YYYYMetrics : TVec4;
-    end;
-    PGlyphData = ^TGlyphData;
 
-    TGlyphsMap = {$IfDef FPC}specialize{$EndIf}THashMap<TGlyphKey, TGlyphData>;
-    IGlyphsMap = {$IfDef FPC}specialize{$EndIf}IHashMap<TGlyphKey, TGlyphData>;
+    TGlyphIndex = class(TInterfacedObject, IGlyphIndex)
+    private
+      FOwner: TavGlyphAtlas;
+      FKey  : TGlyphKey;
+      FData : TGlyphData;
+      FIndex: Integer;
+      FSlice: Integer;
+      FQuad : IQuadRange;
+      function Atlas: TavGlyphAtlas;
+      function Index: Integer;
+      function Size : TVec2i;
+      function XXXMetrics: TVec3;
+      function YYYYMetrics: TVec4;
+    public
+      constructor Create(const AOwner: TavGlyphAtlas; const AKey: TGlyphKey; const AData: TGlyphData; const AIndex: Integer; const ASlice: Integer; const AQuad: IQuadRange);
+      destructor Destroy; override;
+    end;
+
+    ISpriteMap = {$IfDef FPC}specialize{$EndIf} IHashMap<TGlyphKey, TGlyphIndex>;
+    TSpriteMap = {$IfDef FPC}specialize{$EndIf} THashMap<TGlyphKey, TGlyphIndex>;
+
+    ISpriteList = {$IfDef FPC}specialize{$EndIf} IArray<TGlyphIndex>;
+    TSpriteList = {$IfDef FPC}specialize{$EndIf} TArray<TGlyphIndex>;
+
+    TPageInfo = record
+      QManager: IQuadManager;
+      InvalidSprites: ISpriteList;
+    end;
+    PPageInfo = ^TPageInfo;
+
+    IPages = {$IfDef FPC}specialize{$EndIf} IArray<TPageInfo>;
+    TPages = {$IfDef FPC}specialize{$EndIf} TArray<TPageInfo>;
+
+    IRegions = {$IfDef FPC}specialize{$EndIf} IArray<TSpriteRegion>;
+    TRegions = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TSpriteRegion>;
+
+    IFreeIndices = {$IfDef FPC}specialize{$EndIf} IArray<Integer>;
+    TFreeIndices = {$IfDef FPC}specialize{$EndIf} TArray<Integer>;
+  private
+    FSprites    : ISpriteMap;
+    FSpriteList : ISpriteList;
+    FFreeIndices: IFreeIndices;
+
+    FPages : IPages;
+    FInvalidPagesCount : Boolean;
+
+    FRegions: IRegions;
+    FRegionsBuffer: TavSB;
+
+    FTargetSize: TVec2i;
+
+    function  AllocIndex: Integer;
+    procedure AllocQuad(const ASize: TVec2i; out ARange: IQuadRange; out ASlice: Integer);
+    procedure SetTargetSize(const AValue: TVec2i);
+    procedure FullRebuild;
+  protected
+    function DoBuild: Boolean; override;
+    procedure DoOnFrameStart; override;
+  public
+    procedure Invalidate; override;
+    property RegionsVB: TavSB read FRegionsBuffer;
+
+    procedure CleanUnused;
+
+    property TargetSize: TVec2i read FTargetSize write SetTargetSize;
+
+    function ObtainGlyph(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles): IGlyphIndex;
+    function GetRegion(AIndex: Integer): TSpriteRegion;
+
+    procedure AfterConstruction; override;
+    destructor Destroy; override;
+  end;
+
+  { TavCanvasCommonData }
+  TavCanvasCommonData = class (TavRes)
   private
     FLineQuad : TavVB;
     FLineProg : TavUIProgram;
     FFontProg : TavFontProgram;
     FTrisProg : TavUIProgram;
 
-    FGlyphsAtlas : TavAtlasArrayReferenced;
-    FGlyphs : IGlyphsMap;
+    FGlyphsAtlas : TavGlyphAtlas;
 
     FSpritesAtlas: TavAtlasArrayReferenced;
   private
@@ -304,12 +399,12 @@ type
     procedure AfterInit3D; override;
     procedure BeforeFree3D; override;
   public
-    function GetGlyphImage(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out YYYYMetrics: TVec4): ITextureMip;
-    function GetGlyphSprite(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out YYYYMetrics: TVec4): ISpriteIndex;
+    //function GetGlyphImage(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out YYYYMetrics: TVec4): ITextureMip;
+    function GetGlyphSprite(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out YYYYMetrics: TVec4): IGlyphIndex;
     function GetImageSprite(const AFileName: string): ISpriteIndex;
     function GetTextureSprite(const ATexture: ITextureMip): ISpriteIndex;
 
-    property GlyphsAtlas : TavAtlasArrayReferenced read FGlyphsAtlas;
+    property GlyphsAtlas : TavGlyphAtlas read FGlyphsAtlas;
     property SpritesAtlas: TavAtlasArrayReferenced read FSpritesAtlas;
     property LineQuad: TavVB          read FLineQuad;
 
@@ -321,9 +416,6 @@ type
     procedure SetGlyphAtlasSize(const ATargetAtlasSize: TVec2i);
     procedure SetGlyphGenerationSize(AGlyphSize: Integer = 32; ABorderSize: Integer = 8);
     procedure ExportGlyphs(const AFileName: string; const AFontName: string; AStyle: TGlyphStyles; const ACharFirst, ACharLast: WideChar);
-
-    procedure SaveCache(const AFileName: string);
-    procedure LoadCache(const AFileName: string);
 
     constructor Create(AParent: TavObject); overload; override;
   end;
@@ -444,6 +536,8 @@ type
 
     procedure Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single); overload;
     procedure Draw(const ATransform: TMat3); overload;
+    procedure Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single; const AColorFilter: TMat4); overload;
+    procedure Draw(const ATransform: TMat3; const AColorFilter: TMat4); overload;
 
     constructor Create(AParent: TavObject); overload; override;
     destructor Destroy; override;
@@ -584,6 +678,305 @@ begin
     Result := TavCanvasCommonData.Create(RenderMain);
     Result.Name := NAME_TavCanvasCommonData;
   end;
+end;
+
+{ TavGlyphAtlas.TGlyphKey }
+
+function TavGlyphAtlas.TGlyphKey.GenData(ASize, ABorder: Integer): TGlyphData;
+var scale: Single;
+    i, j: Integer;
+    vOffset: TVec2;
+    cntr: IGlyphContour;
+begin
+  Result.poly := GenerateGlyphOutline(font, glyph, gsItalic in style, gsBold in style, gsUnderline in style, Result.XXX, Result.YYYY);
+  Result.Border := ABorder;
+
+  scale := ASize/(Result.YYYY.x+Result.YYYY.y+Result.YYYY.z+Result.YYYY.w);
+
+  Result.XXX := Result.XXX * scale;
+  Result.YYYY := Result.YYYY * scale;
+
+  Result.ImgSize.x := Ceil(Result.XXX.y) + Result.Border*2;
+  Result.ImgSize.y := Ceil(Result.YYYY.y+Result.YYYY.z) + Result.Border*2;
+
+  Result.XXX.x := Result.XXX.x - Result.Border;
+  Result.XXX.y := Result.XXX.y + 2*Result.Border;
+  Result.XXX.z := Result.XXX.z - Result.Border;
+  Result.YYYY.x := Result.YYYY.x - Result.Border;
+  Result.YYYY.y := Result.YYYY.y + Result.Border;
+  Result.YYYY.z := Result.YYYY.z + Result.Border;
+  Result.YYYY.w := Result.YYYY.w - Result.Border;
+
+  vOffset := Vec(ABorder, ABorder);
+  for j := 0 to Result.poly.Count - 1 do
+  begin
+    cntr := Result.poly[j];
+    for i := 0 to cntr.Count - 1 do
+      PVec2(cntr.PItem[i])^ := cntr.Item[i] * scale + vOffset;
+  end;
+end;
+
+{ TavGlyphAtlas }
+
+function TavGlyphAtlas.AllocIndex: Integer;
+var dummy: TSpriteRegion;
+begin
+  if FFreeIndices.Count = 0 then
+  begin
+    Result := FSpriteList.Add(nil);
+    dummy.Rect := Vec(0,0,0,0);
+    dummy.Slice := 0;
+    FRegions.Add(dummy);
+  end
+  else
+  begin
+    Result := FFreeIndices.Last;
+    FFreeIndices.Delete(FFreeIndices.Count-1);
+  end;
+end;
+
+procedure TavGlyphAtlas.AllocQuad(const ASize: TVec2i; out ARange: IQuadRange; out ASlice: Integer);
+var Page: PPageInfo;
+    NewPage: TPageInfo;
+begin
+  Assert(ASize.x <= FTargetSize.x);
+  Assert(ASize.y <= FTargetSize.y);
+  ASlice := 0;
+  while ASlice < FPages.Count do
+  begin
+    Page := PPageInfo(FPages.PItem[ASlice]);
+    try
+      ARange := Page^.QManager.Alloc(ASize.x, ASize.y);
+      Invalidate;
+      Exit;
+    except
+      on e: EQuadRangeOutOfSpace do
+        Inc(ASlice);
+    end;
+  end;
+
+  FInvalidPagesCount := True;
+  NewPage.QManager := Create_IQuadManager(FTargetSize.x, FTargetSize.y);
+  NewPage.InvalidSprites := TSpriteList.Create();
+  FPages.Add(NewPage);
+  AllocQuad(ASize, ARange, ASlice);
+end;
+
+procedure TavGlyphAtlas.SetTargetSize(const AValue: TVec2i);
+begin
+  if FTargetSize = AValue then Exit;
+  FTargetSize := AValue;
+  FullRebuild;
+end;
+
+procedure TavGlyphAtlas.FullRebuild;
+var i : Integer;
+    sprite: TGlyphIndex;
+    region: TSpriteRegion;
+begin
+  for i := 0 to FSpriteList.Count - 1 do
+  begin
+    sprite := FSpriteList[i];
+    if sprite = nil then Continue;
+    sprite.FQuad := nil;
+    sprite.FSlice := 0;
+  end;
+
+  FRegions.Clear();
+
+  //todo sort by size
+  for i := 0 to FSpriteList.Count - 1 do
+  begin
+    sprite := FSpriteList[i];
+    if sprite = nil then Continue;
+    AllocQuad(sprite.FData.ImgSize, sprite.FQuad, sprite.FSlice);
+    region.Rect := sprite.FQuad.Rect.v;
+    region.Slice := sprite.FSlice;
+    FRegions[sprite.FIndex] := region;
+  end;
+  FRegionsBuffer.Invalidate;
+  FInvalidPagesCount := True;
+end;
+
+function TavGlyphAtlas.DoBuild: Boolean;
+var page: PPageInfo;
+    sprite: TGlyphIndex;
+    i, j: Integer;
+    glyphGen: IGPUGlyphGenerator;
+begin
+  glyphGen := GetGlyphGenerator(Main);
+
+  Result := True;
+  if FPages.Count = 0 then Exit;
+
+  if FInvalidPagesCount then
+  begin
+    FInvalidPagesCount := False;
+    FTexH := Main.Context.CreateTexture;
+    FTexH.TargetFormat := FTargetFormat;
+    FTexH.sRGB := FsRGB;
+    FTexH.AllocMem(FTargetSize.x, FTargetSize.y, FPages.Count, False, True);
+
+    for i := 0 to FPages.Count - 1 do
+    begin
+      page := PPageInfo(FPages.PItem[i]);
+      page^.InvalidSprites.Clear();
+    end;
+
+    for i := 0 to FSpriteList.Count - 1 do
+    begin
+      sprite := FSpriteList[i];
+      if sprite = nil then Continue;
+      PPageInfo(FPages.PItem[sprite.FSlice])^.InvalidSprites.Add(sprite);
+    end;
+  end;
+
+  for i := 0 to FPages.Count - 1 do
+  begin
+    page := PPageInfo(FPages.PItem[i]);
+    for j := 0 to page^.InvalidSprites.Count - 1 do
+    begin
+      sprite := page^.InvalidSprites[j];
+      glyphGen.DrawToTexture(sprite.FData.poly, sprite.FData.ImgSize, FTexH, sprite.FQuad.Rect.min, sprite.FSlice, 0);
+    end;
+    page^.InvalidSprites.Clear();
+  end;
+end;
+
+procedure TavGlyphAtlas.DoOnFrameStart;
+begin
+  inherited DoOnFrameStart;
+  Build;
+end;
+
+procedure TavGlyphAtlas.Invalidate;
+begin
+  inherited Invalidate;
+  SubscribeForNextFrame;
+end;
+
+procedure TavGlyphAtlas.CleanUnused;
+begin
+  FullRebuild;
+end;
+
+function TavGlyphAtlas.ObtainGlyph(const AFontName: string; AChar: WideChar; AStyle: TGlyphStyles): IGlyphIndex;
+var spriteObj: TGlyphIndex;
+    key: TGlyphKey;
+    data: TGlyphData;
+    range: IQuadRange;
+    slice: Integer;
+    freeIndex: Integer;
+    region: TSpriteRegion;
+begin
+  FillChar(key, SizeOf(key), 0);
+  key.font  := AFontName;
+  key.glyph := AChar;
+  key.style := AStyle;
+  if not FSprites.TryGetValue(key, spriteObj) then
+  begin
+    data := key.GenData(48, 6);
+    AllocQuad(data.ImgSize, range, slice);
+    freeIndex := AllocIndex();
+    spriteObj := TGlyphIndex.Create(Self, key, data, freeIndex, slice, range);
+    FSpriteList[freeIndex] := spriteObj;
+    FSprites.Add(key, spriteObj);
+    region.Slice := spriteObj.FSlice;
+    region.Rect := spriteObj.FQuad.Rect.v;
+    FRegions[freeIndex] := region;
+
+    FPages[slice].InvalidSprites.Add(spriteObj);
+    FRegionsBuffer.Invalidate;
+  end;
+  Result := spriteObj;
+end;
+
+function TavGlyphAtlas.GetRegion(AIndex: Integer): TSpriteRegion;
+begin
+  Result := FRegions[AIndex];
+end;
+
+procedure TavGlyphAtlas.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  FSprites := TSpriteMap.Create();
+  FSpriteList := TSpriteList.Create();
+  FFreeIndices := TFreeIndices.Create();
+  FPages := TPages.Create();
+  FRegions := TRegions.Create();
+
+  FRegionsBuffer := TavSB.Create(Self);
+  FRegionsBuffer.Vertices := FRegions as IVerticesData;
+
+  FTargetSize := Vec(4096, 4096);
+end;
+
+destructor TavGlyphAtlas.Destroy;
+var i: Integer;
+begin
+  for i := 0 to FSpriteList.Count - 1 do
+  begin
+    if FSpriteList[i] = nil then Continue;
+    FSpriteList[i].FQuad  := nil;
+    FSpriteList[i].FOwner := nil;
+  end;
+  inherited Destroy;
+end;
+
+{ TavGlyphAtlas.TGlyphIndex }
+
+function TavGlyphAtlas.TGlyphIndex.Atlas: TavGlyphAtlas;
+begin
+  Result := FOwner;
+end;
+
+function TavGlyphAtlas.TGlyphIndex.Index: Integer;
+begin
+  Result := FIndex;
+end;
+
+function TavGlyphAtlas.TGlyphIndex.Size: TVec2i;
+begin
+  if FQuad = nil then
+    Result := Vec(1,1)
+  else
+    Result := FQuad.Size;
+end;
+
+function TavGlyphAtlas.TGlyphIndex.XXXMetrics: TVec3;
+begin
+  Result := FData.XXX;
+end;
+
+function TavGlyphAtlas.TGlyphIndex.YYYYMetrics: TVec4;
+begin
+  Result := FData.YYYY;
+end;
+
+constructor TavGlyphAtlas.TGlyphIndex.Create(const AOwner: TavGlyphAtlas;
+  const AKey: TGlyphKey; const AData: TGlyphData; const AIndex: Integer;
+  const ASlice: Integer; const AQuad: IQuadRange);
+begin
+  FOwner := AOwner;
+  FKey := AKey;
+  FData := AData;
+  FIndex := AIndex;
+  FSlice := ASlice;
+  FQuad := AQuad;
+end;
+
+destructor TavGlyphAtlas.TGlyphIndex.Destroy;
+var n: Integer;
+begin
+  if FOwner <> nil then
+  begin
+    FOwner.FSprites.Delete(FKey);
+    FOwner.FSpriteList[FIndex] := nil;
+    FOwner.FFreeIndices.Add(FIndex);
+    n := FOwner.FPages[FSlice].InvalidSprites.IndexOf(Self);
+    if n >= 0 then FOwner.FPages[FSlice].InvalidSprites.Delete(n);
+  end;
+  inherited Destroy;
 end;
 
 { TavTrisProgram }
@@ -760,6 +1153,7 @@ begin
     FUniform_PixelToUnit := GetUniformField('PixelToUnit');
     FUniform_CanvasTransform := GetUniformField('_CanvasTransform');
     FUniform_ZValue := GetUniformField('ZValue');
+    FUniform_ColorFilter := GetUniformField('UIColorFilter');
     FLastViewportSize := Vec(0,0);
   end;
 end;
@@ -789,6 +1183,11 @@ begin
   SetUniform(FUniform_CanvasTransform, m);
 end;
 
+procedure TavUIProgram.SetColorFilters(const AColorFilter: TMat4);
+begin
+  SetUniform(FUniform_ColorFilter, AColorFilter);
+end;
+
 procedure TavUIProgram.SetPixelToUnit(const AScale: single);
 begin
   SetUniform(FUniform_PixelToUnit, AScale);
@@ -801,7 +1200,7 @@ end;
 
 { TGlyphVertexGPU }
 
-procedure TGlyphVertex.SetGlyph(const AValue: ISpriteIndex);
+procedure TGlyphVertex.SetGlyph(const AValue: IGlyphIndex);
 begin
   if _Glyph = AValue then Exit;
   _Glyph := AValue;
@@ -1518,33 +1917,36 @@ begin
   inherited BeforeFree3D;
 end;
 
-function TavCanvasCommonData.GetGlyphImage(const AFontName: string;
-  AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out
-  YYYYMetrics: TVec4): ITextureMip;
-var key  : TGlyphKey;
-    pdata: PGlyphData;
-    data : TGlyphData;
-begin
-  ZeroClear(key, SizeOf(key));
-  key.font := AFontName;
-  key.glyph := AChar;
-  key.style := AStyle;
-  if not FGlyphs.TryGetPValue(key, Pointer(pdata)) then
-  begin
-    data.img := GenerateGlyphSDF(AFontName, AChar, FGlyphGenerationSize, FGlyphGenerationBorderSize, gsItalic in AStyle, gsBold in AStyle, gsUnderline in AStyle, data.XXXMetrics, data.YYYYMetrics);
-    FGlyphs.Add(key, data);
-    pdata := @data;
-  end;
-  Result := pdata^.img;
-  XXXMetrics := pdata^.XXXMetrics;
-  YYYYMetrics := pdata^.YYYYMetrics;
-end;
+//function TavCanvasCommonData.GetGlyphImage(const AFontName: string;
+//  AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out
+//  YYYYMetrics: TVec4): ITextureMip;
+//var key  : TGlyphKey;
+//    pdata: PGlyphData;
+//    data : TGlyphData;
+//begin
+//  ZeroClear(key, SizeOf(key));
+//  key.font := AFontName;
+//  key.glyph := AChar;
+//  key.style := AStyle;
+//  if not FGlyphs.TryGetPValue(key, Pointer(pdata)) then
+//  begin
+//    data.img := GenerateGlyphSDF(AFontName, AChar, FGlyphGenerationSize, FGlyphGenerationBorderSize, gsItalic in AStyle, gsBold in AStyle, gsUnderline in AStyle, data.XXXMetrics, data.YYYYMetrics);
+//    FGlyphs.Add(key, data);
+//    pdata := @data;
+//  end;
+//  Result := pdata^.img;
+//  XXXMetrics := pdata^.XXXMetrics;
+//  YYYYMetrics := pdata^.YYYYMetrics;
+//end;
 
 function TavCanvasCommonData.GetGlyphSprite(const AFontName: string;
   AChar: WideChar; AStyle: TGlyphStyles; out XXXMetrics: TVec3; out
-  YYYYMetrics: TVec4): ISpriteIndex;
+  YYYYMetrics: TVec4): IGlyphIndex;
 begin
-  Result := FGlyphsAtlas.ObtainSprite(GetGlyphImage(AFontName, AChar, AStyle, XXXMetrics, YYYYMetrics));
+//  GetGlyphImage(AFontName, AChar, AStyle, XXXMetrics, YYYYMetrics)
+  Result := FGlyphsAtlas.ObtainGlyph(AFontName, AChar, AStyle);
+  XXXMetrics := Result.XXXMetrics;
+  YYYYMetrics := Result.YYYYMetrics;
 end;
 
 function TavCanvasCommonData.GetImageSprite(const AFileName: string): ISpriteIndex;
@@ -1585,22 +1987,22 @@ procedure TavCanvasCommonData.ExportGlyphs(const AFileName: string; const AFontN
       ch    : WideChar;
       XXX   : TVec3;
       YYYY  : TVec4;
-      sprite: ISpriteIndex;
+      sprite: IGlyphIndex;
     end;
-    procedure WriteGlyph(const AExp: TExportInformation; const AStream: TStream);
+    procedure WriteGlyph(const AExp: TExportInformation; const AStream: TStream);   ///todo fixit
     var region : TSpriteRegion;
         picture: ITextureMip;
     begin
-      AStream.WriteBuffer(AExp.ch, SizeOf(AExp.ch));
-      AStream.WriteBuffer(AExp.XXX, SizeOf(AExp.XXX));
-      AStream.WriteBuffer(AExp.YYYY, SizeOf(AExp.YYYY));
-      region := GlyphsAtlas.GetRegion(AExp.sprite.Index);
-      AStream.WriteBuffer(region, SizeOf(region));
-      picture := AExp.sprite.Data;
-      Assert(picture.Width = region.Rect.z - region.Rect.x);
-      Assert(picture.Height = region.Rect.w - region.Rect.y);
-      if picture.Width * picture.Height > 0 then
-        AStream.WriteBuffer(picture.Data^, picture.Width*picture.Height*SizeOf(Single));
+      //AStream.WriteBuffer(AExp.ch, SizeOf(AExp.ch));
+      //AStream.WriteBuffer(AExp.XXX, SizeOf(AExp.XXX));
+      //AStream.WriteBuffer(AExp.YYYY, SizeOf(AExp.YYYY));
+      //region := GlyphsAtlas.GetRegion(AExp.sprite.Index);
+      //AStream.WriteBuffer(region, SizeOf(region));
+      //picture := AExp.sprite.Data;
+      //Assert(picture.Width = region.Rect.z - region.Rect.x);
+      //Assert(picture.Height = region.Rect.w - region.Rect.y);
+      //if picture.Width * picture.Height > 0 then
+      //  AStream.WriteBuffer(picture.Data^, picture.Width*picture.Height*SizeOf(Single));
     end;
 
 var fs    : TFileStream;
@@ -1630,84 +2032,6 @@ begin
   end;
 end;
 
-procedure TavCanvasCommonData.SaveCache(const AFileName: string);
-const cVERSION_ID: Integer = 1;
-var stream: TFileStream;
-    gKey  : TGlyphKey;
-    gData : TGlyphData;
-    n     : Integer;
-    str   : AnsiString;
-begin
-  stream := TFileStream.Create(AFileName, fmCreate);
-  try
-    stream.WriteBuffer(cVERSION_ID, SizeOf(cVERSION_ID));
-    n := FGlyphs.Count;
-    stream.WriteBuffer(n, SizeOf(n));
-    FGlyphs.Reset;
-    while FGlyphs.Next(gKey, gData) do
-    begin
-      str := AnsiString(gKey.font);
-      streamWriteString(stream, str);
-      stream.WriteBuffer(gKey.glyph, SizeOf(gKey.glyph));
-      stream.WriteBuffer(gKey.style, SizeOf(gKey.style));
-
-      stream.WriteBuffer(gData.XXXMetrics, SizeOf(gData.XXXMetrics));
-      stream.WriteBuffer(gData.YYYYMetrics, SizeOf(gData.YYYYMetrics));
-
-      n := gData.img.Width;
-      stream.WriteBuffer(n, SizeOf(n));
-      n := gData.img.Height;
-      stream.WriteBuffer(n, SizeOf(n));
-      n := gData.img.Width * gData.img.Height;
-      if n > 0 then
-        stream.WriteBuffer(gData.img.Data^, SizeOf(Single)*n);
-    end;
-  finally
-    FreeAndNil(stream);
-  end;
-end;
-
-procedure TavCanvasCommonData.LoadCache(const AFileName: string);
-const cVERSION_ID: Integer = 1;
-var stream: TFileStream;
-    gKey  : TGlyphKey;
-    gData : TGlyphData;
-    n, i  : Integer;
-    str   : AnsiString;
-    w, h  : Integer;
-begin
-  stream := TFileStream.Create(AFileName, fmOpenRead);
-  try
-    stream.ReadBuffer(n, SizeOf(n));
-    if n <> cVERSION_ID then Exit;
-
-    stream.ReadBuffer(n, SizeOf(n));
-    for i := 0 to n - 1 do
-    begin
-      ZeroClear(gKey, SizeOf(gKey));
-      StreamReadString(stream, str);
-      gKey.font := string(str);
-      stream.ReadBuffer(gKey.glyph, SizeOf(gKey.glyph));
-      stream.ReadBuffer(gKey.style, SizeOf(gKey.style));
-
-      stream.ReadBuffer(gData.XXXMetrics, SizeOf(gData.XXXMetrics));
-      stream.ReadBuffer(gData.YYYYMetrics, SizeOf(gData.YYYYMetrics));
-      stream.ReadBuffer(w, SizeOf(w));
-      stream.ReadBuffer(h, SizeOf(h));
-      if FGlyphs.Contains(gKey) then
-      begin
-        stream.Position := stream.Position + w*h*SizeOf(Single);
-        Continue;
-      end;
-      gData.img := EmptyTexData(w, h, TTextureFormat.R32f, False, True).MipData(0,0);
-      stream.ReadBuffer(gData.img.Data^, SizeOf(Single)*w*h);
-      FGlyphs.Add(gKey, gData);
-    end;
-  finally
-    FreeAndNil(stream);
-  end;
-end;
-
 constructor TavCanvasCommonData.Create(AParent: TavObject);
 var Vert: ILineQuadVertices;
     V: TLineQuadVertex;
@@ -1728,9 +2052,8 @@ begin
   FLineQuad.Vertices := Vert as IVerticesData;
   FLineQuad.PrimType := ptTriangleStrip;
 
-  FGlyphs := TGlyphsMap.Create();
-  FGlyphsAtlas := TavAtlasArrayReferenced.Create(Self);
-  FGlyphsAtlas.TargetFormat := TTextureFormat.R32f;
+  FGlyphsAtlas := TavGlyphAtlas.Create(Self);
+  FGlyphsAtlas.TargetFormat := TTextureFormat.R16f;
 
   FSpritesAtlas := TavAtlasArrayReferenced.Create(Self);
   FSpritesAtlas.TargetFormat := TTextureFormat.RGBA;
@@ -2043,16 +2366,27 @@ end;
 
 procedure TavCanvas.Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single);
 begin
-  Draw( Mat3(Vec(APixelToUnit, APixelToUnit), ARotation, AOffset) );
+  Draw(ARotation, AOffset, APixelToUnit, IdentityMat4);
 end;
 
 procedure TavCanvas.Draw(const ATransform: TMat3);
+begin
+  Draw(ATransform, IdentityMat4);
+end;
+
+procedure TavCanvas.Draw(const ARotation: Single; const AOffset: TVec2; const APixelToUnit: Single; const AColorFilter: TMat4);
+begin
+  Draw( Mat3(Vec(APixelToUnit, APixelToUnit), ARotation, AOffset), AColorFilter );
+end;
+
+procedure TavCanvas.Draw(const ATransform: TMat3; const AColorFilter: TMat4);
 
   function InitProg(const AProg: TavUIProgram): Boolean;
   begin
     AProg.SetCanvasTransform(ATransform);
     AProg.SetPixelToUnit(Len(ATransform.OX));
     AProg.SetZValue(FZValue);
+    AProg.SetColorFilters(AColorFilter);
     Result := True;
   end;
 

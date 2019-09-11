@@ -56,6 +56,8 @@
         #define triangleadj
         #define maxvertexcount(a) [noexcept]
 
+        #define numthreads(a,b,c) [noexcept]
+
         #define unroll [noexcept]
         #define loop [noexcept]
 
@@ -91,6 +93,9 @@
             uint4 &xxxx, &xxxy, &xxyx, &xxyy, &xyxx, &xyxy, &xyyx, &xyyy, &yxxx, &yxxy, &yxyx, &yxyy, 
                 &yyxx, &yyxy, &yyyx, &yyyy;
             uint& operator[](uint idx);
+
+            uint2(uint x);
+            uint2(uint x, uint y);
         };
 
         struct float2 {
@@ -536,19 +541,19 @@
             float4 SampleCmpLevelZero(SamplerState, float2 texcoord, float CompareValue, int2 offset, out uint status);
             float4 Gather(SamplerState, float2 texcoord, int2 offset);
             float4 Gather(SamplerState, float2 texcoord, int2 offset, out uint status);
-            float4 GatherRed(SamplerState, float2 texcoord, int2 offset);
+            float4 GatherRed(SamplerState, float2 texcoord, int2 offset = {0,0});
             float4 GatherRed(SamplerState, float2 texcoord, int2 offset, out uint status);
             float4 GatherRed(SamplerState, float2 texcoord, int2 offset1, int2 offset2, int2 offset3, int2 offset4);
             float4 GatherRed(SamplerState, float2 texcoord, int2 offset1, int2 offset2, int2 offset3, int2 offset4, out uint status);
-            float4 GatherGreen(SamplerState, float2 texcoord, int2 offset);
+            float4 GatherGreen(SamplerState, float2 texcoord, int2 offset = {0,0});
             float4 GatherGreen(SamplerState, float2 texcoord, int2 offset, out uint status);
             float4 GatherGreen(SamplerState, float2 texcoord, int2 offset1, int2 offset2, int2 offset3, int2 offset4);
             float4 GatherGreen(SamplerState, float2 texcoord, int2 offset1, int2 offset2, int2 offset3, int2 offset4, out uint status);
-            float4 GatherBlue(SamplerState, float2 texcoord, int2 offset);
+            float4 GatherBlue(SamplerState, float2 texcoord, int2 offset = {0,0});
             float4 GatherBlue(SamplerState, float2 texcoord, int2 offset, out uint status);
             float4 GatherBlue(SamplerState, float2 texcoord, int2 offset1, int2 offset2, int2 offset3, int2 offset4);
             float4 GatherBlue(SamplerState, float2 texcoord, int2 offset1, int2 offset2, int2 offset3, int2 offset4, out uint status);
-            float4 GatherAlpha(SamplerState, float2 texcoord, int2 offset);
+            float4 GatherAlpha(SamplerState, float2 texcoord, int2 offset = {0,0});
             float4 GatherAlpha(SamplerState, float2 texcoord, int2 offset, out uint status);
             float4 GatherAlpha(SamplerState, float2 texcoord, int2 offset1, int2 offset2, int2 offset3, int2 offset4);
             float4 GatherAlpha(SamplerState, float2 texcoord, int2 offset1, int2 offset2, int2 offset3, int2 offset4, out uint status);

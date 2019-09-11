@@ -24,7 +24,7 @@
         <CustomOptions Value="-Oodfa"/>
       </Other>
     </CompilerOptions>
-    <Files Count="25">
+    <Files Count="26">
       <Item1>
         <Filename Value="Common\avbase.pas"/>
         <UnitName Value="avBase"/>
@@ -125,6 +125,10 @@
         <Filename Value="Common\avConfig.inc"/>
         <Type Value="Include"/>
       </Item25>
+      <Item26>
+        <Filename Value="Common\avgpuglyphgenerator.pas"/>
+        <UnitName Value="avGPUGlyphGenerator"/>
+      </Item26>
     </Files>
     <RequiredPkgs Count="3">
       <Item1>

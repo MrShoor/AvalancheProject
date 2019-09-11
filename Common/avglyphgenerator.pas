@@ -8,10 +8,16 @@ unit avGlyphGenerator;
 interface
 
 uses
-  Classes, SysUtils, avTypes, mutils;
+  Classes, SysUtils, avTypes, mutils, avContnrs;
 
 const
   GLYPH_DFOverscale = 3;
+
+type
+  TGlyphContour = {$IfDef FPC}specialize{$EndIf}TArray<TVec2>;
+  IGlyphContour = {$IfDef FPC}specialize{$EndIf}IArray<TVec2>;
+  TGlyphPoly = {$IfDef FPC}specialize{$EndIf}TArray<IGlyphContour>;
+  IGlyphPoly = {$IfDef FPC}specialize{$EndIf}IArray<IGlyphContour>;
 
 function GenerateGlyphImage(const AFontName  : string;
                             const AChar      : WideChar;
@@ -30,6 +36,14 @@ function GenerateGlyphSDF(const AFontName  : string;
                           const AUnderLine : Boolean;
                           out   XXX        : TVec3;
                           out   YYYY       : TVec4): ITextureMip;
+
+function GenerateGlyphOutline(const AFontName  : string;
+                              const AChar      : WideChar;
+                              const AItalic    : Boolean;
+                              const ABold      : Boolean;
+                              const AUnderLine : Boolean;
+                              out   XXX        : TVec3;
+                              out   YYYY       : TVec4): IGlyphPoly;
 
 implementation
 
@@ -313,6 +327,218 @@ begin
 
     XXX  := XXX  * (1.0 / (1 shl GLYPH_DFOverscale));
     YYYY := YYYY * (1.0 / (1 shl GLYPH_DFOverscale));
+  finally
+    FreeAndNil(bmp);
+  end;
+end;
+
+function GenerateGlyphOutline(const AFontName: string; const AChar: WideChar; const AItalic: Boolean; const ABold: Boolean;
+  const AUnderLine: Boolean; out XXX: TVec3; out YYYY: TVec4): IGlyphPoly;
+
+  function ToCoord(const AFixed: Windows.FIXED): Single; inline;
+  begin
+    Result := Integer(AFixed) / 65536.0
+  end;
+
+  function ToVec(const APoint: TPOINTFX): TVec2; inline;
+  begin
+    Result.x := ToCoord(APoint.x);
+    Result.y := ToCoord(APoint.y);
+  end;
+
+  procedure ApproxBezier2(const APt1, APt2, APt3: TVec2; ATolerance: Single; const APath: IGlyphContour);
+  var lpt1, lpt2, lpt3, rpt1, rpt2, rpt3: TVec2;
+  begin
+    if Bezier2IsLine(APt1, APt2, APt3, ATolerance) then
+    begin
+      if APath.Last <> APt3 then
+        APath.Add(APt3);
+    end
+    else
+    begin
+      Bezier2Split(APt1, APt2, APt3, 0.5, lpt1, lpt2, lpt3, rpt1, rpt2, rpt3);
+      ApproxBezier2(lpt1, lpt2, lpt3, ATolerance, APath);
+      ApproxBezier2(rpt1, rpt2, rpt3, ATolerance, APath);
+    end;
+  end;
+
+  procedure ApproxBezier3(const APt1, APt2, APt3, APt4: TVec2; ATolerance: Single; const APath: IGlyphContour);
+  var lpt1, lpt2, lpt3, lpt4, rpt1, rpt2, rpt3, rpt4: TVec2;
+  begin
+    if Bezier3IsLine(APt1, APt2, APt3, APt4, ATolerance) then
+    begin
+      if APath.Last <> APt4 then
+        APath.Add(APt4);
+    end
+    else
+    begin
+      Bezier3Split(APt1, APt2, APt3, APt4, 0.5, lpt1, lpt2, lpt3, lpt4, rpt1, rpt2, rpt3, rpt4);
+      ApproxBezier3(lpt1, lpt2, lpt3, lpt4, ATolerance, APath);
+      ApproxBezier3(rpt1, rpt2, rpt3, rpt4, ATolerance, APath);
+    end;
+  end;
+
+const
+  cToleranceScale = 0.0025;
+const
+  F_IDENTITY : Windows.TMAT2 = (eM11: (fract: 0; value: 1); eM12: (fract: 0; value: 0); eM21: (fract: 0; value: 0); eM22: (fract: 0; value: 1));
+const GGO_BEZIER = 3;
+      GGO_UNHINTED = $0100;
+      TT_PRIM_CSPLINE = 3;
+const GGO_FLAGS = GGO_NATIVE or GGO_UNHINTED;// or GGO_BEZIER;
+var i, j: Integer;
+    metrics: TGLYPHMETRICS;
+    textM: TTextMetricW;
+    bufSize: DWORD;
+    Buf: array of Byte;
+    polyHeader: PTTPOLYGONHEADER;
+    polyCurve : PTTPOLYCURVE;
+    path: IGlyphContour;
+    pB, pC, pD: TVec2;
+    startoffset, curveoffset: Integer;
+    cTol: Single;
+
+var bmp: TBitmap;
+    cnv: TCanvas;
+    fstyle: TFontStyles;
+begin
+  Result := TGlyphPoly.Create();
+  bmp := nil;
+  cnv := nil;
+  try
+    fstyle := [];
+    if ABold then fstyle := fstyle + [fsBold];
+    if AItalic then fstyle := fstyle + [fsItalic];
+    if AUnderLine then fstyle := fstyle + [fsUnderline];
+
+    bmp := TBitmap.Create;
+    bmp.PixelFormat := pf24bit;
+    cnv := bmp.Canvas;
+    cnv.Font.Name := AFontName;
+    cnv.Font.Height := 32*(1 shl GLYPH_DFOverscale);
+    cnv.Font.Style := fstyle;
+
+    bufSize := GetGlyphOutlineW(cnv.Handle, Ord(AChar), GGO_FLAGS, metrics, 0, nil, F_IDENTITY);
+    if bufSize = GDI_ERROR then
+      RaiseLastOSError;
+    SetLength(Buf, bufSize);
+    GetGlyphOutlineW(cnv.Handle, Ord(AChar), GGO_FLAGS, metrics, bufSize, @Buf[0], F_IDENTITY);
+    cTol := max(metrics.gmBlackBoxX, metrics.gmBlackBoxY)*cToleranceScale;
+
+    polyHeader := nil;
+    curveoffset := 0;
+    startoffset := 0;
+    while curveoffset < bufSize do
+    begin
+      if (polyHeader = nil) or (curveoffset-startoffset = polyHeader^.cb) then
+      begin
+        polyHeader := @Buf[curveoffset];
+        Assert(polyHeader^.dwType = TT_POLYGON_TYPE);
+        startoffset := curveoffset;
+        Inc(curveoffset, SizeOf(TTPOLYGONHEADER));
+        path := TGlyphContour.Create();
+        Result.Add(path);
+        path.Add(ToVec(polyHeader^.pfxStart));
+      end;
+
+      polyCurve := @Buf[curveoffset];
+      case polyCurve^.wType of
+        TT_PRIM_LINE :
+          begin
+            for i := 0 to polyCurve^.cpfx - 1 do
+            begin
+              pB := ToVec(polyCurve^.apfx[i]);
+              if path.Last <> pB then path.Add(pB);
+            end;
+          end;
+        TT_PRIM_QSPLINE :
+          begin
+            for i := 0 to polyCurve^.cpfx - 2 do
+            begin
+              pB := ToVec(polyCurve^.apfx[i]);
+              pC := ToVec(polyCurve^.apfx[i+1]);
+              if i < polyCurve^.cpfx - 2 then
+                pC := (pB + pC)*0.5;
+              ApproxBezier2(path.Last, pB, pC, cTol, path);
+            end;
+          end;
+        TT_PRIM_CSPLINE :
+          begin
+            for i := 0 to polyCurve^.cpfx - 3 do
+            begin
+              if i = 0 then
+              begin
+                pB := ToVec(polyCurve^.apfx[i]);
+              end
+              else
+              begin
+                if i = polyCurve^.cpfx - 3 then
+                  pB := (ToVec(polyCurve^.apfx[i]) + ToVec(polyCurve^.apfx[i+1]))*0.5
+                else
+                  pB := lerp(ToVec(polyCurve^.apfx[i]), ToVec(polyCurve^.apfx[i+1]), 1/3);
+              end;
+
+              if i = polyCurve^.cpfx - 3 then
+              begin
+                pC := ToVec(polyCurve^.apfx[i+1]);
+              end
+              else
+              begin
+                if i = 0 then
+                  pC := (ToVec(polyCurve^.apfx[i]) + ToVec(polyCurve^.apfx[i+1]))*0.5
+                else
+                  pC := lerp(ToVec(polyCurve^.apfx[i]), ToVec(polyCurve^.apfx[i+1]), 2/3);
+              end;
+
+              if i = polyCurve^.cpfx - 3 then
+                pD := ToVec(polyCurve^.apfx[i+2])
+              else
+              begin
+                if i+1 = polyCurve^.cpfx - 3 then
+                  pD := (ToVec(polyCurve^.apfx[i+1]) + ToVec(polyCurve^.apfx[i+2]))*0.5
+                else
+                  pD := lerp(ToVec(polyCurve^.apfx[i+1]), ToVec(polyCurve^.apfx[i+2]), 1/3);
+                pD := (pD + pC) * 0.5;
+              end;
+              ApproxBezier3(path.Last, pB, pC, pD, cTol, path);
+            end;
+          end;
+      end;
+      curveoffset := curveoffset + SizeOf(polyCurve^.wType) + SizeOf(polyCurve^.cpfx) + SizeOf(POINTFX)*polyCurve^.cpfx;
+    end;
+
+    for i := Result.Count - 1 downto 0 do
+    begin
+      path := Result[i];
+      if path.Count < 3 then
+      begin
+        Result.Delete(i);
+        Continue;
+      end;
+      if path.Last = path[0] then
+        path.Delete(path.Count - 1);
+    end;
+
+    if not GetTextMetricsW(cnv.Handle, {$IfDef FPC}@{$EndIF}textM) then
+      RaiseLastOSError;
+    YYYY.x := textM.tmAscent - metrics.gmptGlyphOrigin.Y;
+    YYYY.y := metrics.gmptGlyphOrigin.Y;
+    YYYY.z := metrics.gmBlackBoxY - YYYY.y;
+    YYYY.w := textM.tmAscent + textM.tmDescent - YYYY.x - YYYY.y - YYYY.z;
+
+    XXX.x := metrics.gmptGlyphOrigin.X;
+    XXX.y := metrics.gmBlackBoxX;
+    XXX.z := metrics.gmCellIncX - metrics.gmBlackBoxX - metrics.gmptGlyphOrigin.X;
+
+    for i := 0 to Result.Count - 1 do
+    begin
+      path := Result[i];
+      for j := 0 to path.Count - 1 do
+      begin
+        PVec2( path.PItem[j] )^.x := path[j].x-XXX.x;
+        PVec2( path.PItem[j] )^.y := YYYY.y-path[j].y;
+      end;
+    end;
   finally
     FreeAndNil(bmp);
   end;

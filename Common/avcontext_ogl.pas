@@ -870,8 +870,8 @@ type
 
     procedure ReadBack(const ATexData: ITextureData; const ASlice: Integer; const AMipLevel: Integer); //-1 for all mip levels
 
-    procedure CopyFrom(const DstMipLevel: Integer; const DstPos: TVec2I;
-                       const ASrcRes: IctxTexture; const SrcMipLevel: Integer; const SrcRect: TRectI);
+    procedure CopyFrom(const DstMipLevel, DstSlice: Integer; const DstPos: TVec2I;
+                       const ASrcRes: IctxTexture; const SrcMipLevel, SrcSlice: Integer; const SrcRect: TRectI);
   end;
 
   { TProgram }
@@ -1444,8 +1444,8 @@ begin
   Assert(False, 'Not implemented yet');
 end;
 
-procedure TTexture.CopyFrom(const DstMipLevel: Integer; const DstPos: TVec2I; const ASrcRes: IctxTexture;
-  const SrcMipLevel: Integer; const SrcRect: TRectI);
+procedure TTexture.CopyFrom(const DstMipLevel, DstSlice: Integer; const DstPos: TVec2I; const ASrcRes: IctxTexture;
+  const SrcMipLevel, SrcSlice: Integer; const SrcRect: TRectI);
 begin
   Assert(False, 'Not implemented yet');
 end;

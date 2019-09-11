@@ -4,8 +4,10 @@ object frmMain: TfrmMain
   Top = 234
   Width = 771
   Caption = 'frmMain'
+  DoubleBuffered = False
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnPaint = FormPaint
-  LCLVersion = '1.8.0.3'
+  ParentDoubleBuffered = False
+  LCLVersion = '2.0.0.4'
 end

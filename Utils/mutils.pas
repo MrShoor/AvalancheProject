@@ -400,9 +400,15 @@ function BitsCount(x: UInt64): Integer; overload;
 function GetMipsCount(Width, Height: Integer): Integer; overload;
 function GetMipsCount(Width, Height, Deep: Integer): Integer; overload;
 
+function Bezier2(const pt1, pt2, pt3: TVec2; t: single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+procedure Bezier2Split(const pt1, pt2, pt3: TVec2; t: single; out lpt1, lpt2, lpt3, rpt1, rpt2, rpt3: TVec2); overload;
+function Bezier2IsLine(const pt1, pt2, pt3: TVec2; ATolerance: Single): Boolean; overload;
+
 function Bezier3(const pt1, pt2, pt3, pt4: TVec2; t: single): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function DistanceToBezier3(const APt: TVec2; const pt1, pt2, pt3, pt4: TVec2): Single; overload;
 function DistanceToBezier3(const APt: TVec2; const pt1, pt2, pt3, pt4: TVec2; out ClosestPt: TVec2; out T: Single): Single; overload;
+procedure Bezier3Split(const pt1, pt2, pt3, pt4: TVec2; t: single; out lpt1, lpt2, lpt3, lpt4, rpt1, rpt2, rpt3, rpt4: TVec2); overload;
+function Bezier3IsLine(const pt1, pt2, pt3, pt4: TVec2; ATolerance: Single): Boolean; overload;
 
 function SetViewMatrix(var MatrixView: TMat4; const From, At, Worldup: TVec3; leftHanded: boolean = true): HResult;
 function GetUIMatrix(const AWidth, AHeight: Single; const ADepth: Single = 10000): TMat4;
@@ -1912,6 +1918,52 @@ begin
   Result := Log2Int(Min(Min(Width, Height), Deep))+1;
 end;
 
+function Bezier2(const pt1, pt2, pt3: TVec2; t: single): TVec2;
+var t2: single;
+begin
+  t2 := 1 - t;
+  Result := pt1*(t2*t2) + pt2*(2*t2*t) + pt3*(t*t);
+end;
+
+procedure Bezier2Split(const pt1, pt2, pt3: TVec2; t: single; out lpt1, lpt2, lpt3, rpt1, rpt2, rpt3: TVec2);
+begin
+  lpt1 := pt1;
+  lpt2 := lerp(pt1, pt2, t);
+
+  rpt3 := pt3;
+  rpt2 := lerp(pt2, pt3, t);
+
+  lpt3 := lerp(lpt2, rpt2, t);
+  rpt1 := lpt3;
+end;
+
+function Bezier2IsLine(const pt1, pt2, pt3: TVec2; ATolerance: Single): Boolean;
+var mainDir: TVec2;
+    mainDirLen: Single;
+    cDir1, cDir2: TVec2;
+    s: Single;
+    tolSqr: Single;
+begin
+  Result := False;
+  mainDir := pt3 - pt1;
+  cDir1 := pt2 - pt1;
+  cDir2 := pt3 - pt2;
+  tolSqr := ATolerance * ATolerance;
+  if dot(cDir1, mainDir) <= 0 then
+  begin
+    if LenSqr(cDir1) > tolSqr then Exit;
+  end;
+  if dot(cDir2, mainDir) <= 0 then
+  begin
+    if LenSqr(cDir2) > tolSqr then Exit;
+  end;
+  mainDirLen := LenSqr(mainDir);
+  s := Cross(cDir1, mainDir);
+  s := s * s / mainDirLen;
+  if s > tolSqr then Exit;
+  Result := True;
+end;
+
 function Bezier3(const pt1, pt2, pt3, pt4: TVec2; t: single): TVec2;
 var t2: single;
 begin
@@ -1978,6 +2030,53 @@ begin
   end;
   ClosestPt := minPt;
   Result := sqrt(minDist);
+end;
+
+procedure Bezier3Split(const pt1, pt2, pt3, pt4: TVec2; t: single; out lpt1, lpt2, lpt3, lpt4, rpt1, rpt2, rpt3, rpt4: TVec2); overload;
+var tmp: TVec2;
+begin
+  tmp := lerp(pt2, pt3, t);
+
+  lpt1 := pt1;
+  lpt2 := lerp(pt1, pt2, t);
+  lpt3 := lerp(lpt2, tmp, t);
+
+  rpt4 := pt4;
+  rpt3 := lerp(pt3, pt4, t);
+  rpt2 := lerp(tmp, rpt3, t);
+
+  lpt4 := lerp(lpt3, rpt2, t);
+  rpt1 := lpt4;
+end;
+
+function Bezier3IsLine(const pt1, pt2, pt3, pt4: TVec2; ATolerance: Single): Boolean; overload;
+var mainDir: TVec2;
+    mainDirLen: Single;
+    cDir1, cDir2: TVec2;
+    s: Single;
+    tolSqr: Single;
+begin
+  Result := False;
+  mainDir := pt4 - pt1;
+  cDir1 := pt2 - pt1;
+  cDir2 := pt4 - pt3;
+  tolSqr := ATolerance * ATolerance;
+  if dot(cDir1, mainDir) <= 0 then
+  begin
+    if LenSqr(cDir1) > tolSqr then Exit;
+  end;
+  if dot(cDir2, mainDir) <= 0 then
+  begin
+    if LenSqr(cDir2) > tolSqr then Exit;
+  end;
+  mainDirLen := LenSqr(mainDir);
+  s := Cross(cDir1, mainDir);
+  s := s * s / mainDirLen;
+  if s > tolSqr then Exit;
+  s := Cross(cDir2, mainDir);
+  s := s * s / mainDirLen;
+  if s > tolSqr then Exit;
+  Result := True;
 end;
 
 function SetViewMatrix(var MatrixView: TMat4; const From, At, Worldup: TVec3; leftHanded: boolean = true): HResult;

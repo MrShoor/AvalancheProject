@@ -1151,7 +1151,10 @@ end;
 procedure TavmBaseControl.SetVisible(const AValue: Boolean);
 begin
   if FVisible = AValue then Exit;
+  if InputConnector.Focused = Self then
+    InputConnector.Focused := nil;
   FVisible := AValue;
+  Main.InvalidateWindow;
 end;
 
 procedure TavmBaseControl.AfterRegister;
@@ -1567,6 +1570,7 @@ begin
   ResetIterator;
   while NextChildControl(c) do
     c.Notify_ParentOriginChanged;
+  Main.InvalidateWindow;
 end;
 
 function TavmBaseControl.GetAbsAngle: Single;
@@ -1605,6 +1609,7 @@ begin
   ResetIterator;
   while NextChildControl(c) do
     c.Notify_ParentPosChanged;
+  Main.InvalidateWindow;
 end;
 
 end.

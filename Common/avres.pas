@@ -32,6 +32,8 @@ type
     FBindTime: Int64;
     FLastTime: Int64;
 
+    FFrameWaiters: TList;
+
     function GetActiveProgram: TavProgram;
     function GetWindow: TWindow;
     function GetWindowSize: TVec2i;
@@ -248,13 +250,19 @@ type
     procedure EM3DAfterFree(var msg: TavMessage); message EM_3D_AFTER_FREE;
     procedure EM3DBeforeFree(var msg: TavMessage); message EM_3D_BEFORE_FREE;
     procedure EM3DAfterInit(var msg: TavMessage); message EM_3D_AFTER_INIT;
+  protected
+    FWaitForNextframe: Boolean;
+    procedure DoOnFrameStart; virtual;
+    procedure FrameStartCallback;
+    procedure SubscribeForNextFrame;
   public
     procedure Build;
-    procedure Invalidate;
+    procedure Invalidate; virtual;
     function Valid: Boolean;
     procedure AfterConstruction; override;
 
     constructor Create(AParent: TavObject); overload; override;
+    destructor Destroy; override;
   end;
 
   { TavVerticesBase }
@@ -539,13 +547,16 @@ type
     FsRGB: Boolean;
     procedure BeforeFree3D; override;
   public
+    function Handle: IctxTexture;
     function Width: Integer;
     function Height: Integer;
     function Deep: Integer;
     function MipsCount: Integer;
     function Size: TVec2;
 
-    procedure CopyFrom(const ASrc: TavTextureBase; SrcMipLevel: Integer; const ASrcRect: TRectI);
+    procedure CopyFrom(const ASrc: TavTextureBase; SrcMipLevel: Integer; const ASrcRect: TRectI); overload;
+    procedure CopyFrom(const ASrc: TavTextureBase; const DstPos: TVec2i; SrcMipLevel: Integer; const ASrcRect: TRectI); overload;
+    procedure CopyFrom(const ASrc: TavTextureBase; const DstPos: TVec2i; DstMipLevel, DstSlice, SrcMipLevel, SrcSlice: Integer; const ASrcRect: TRectI); overload;
     procedure GenerateMips();
 
     procedure ReadBack(var ATexData: ITextureData; ASlice: Integer; const AMipLevel: Integer); //-1 for all mip levels
@@ -1990,6 +2001,11 @@ begin
   FTexH := nil;
 end;
 
+function TavTextureBase.Handle: IctxTexture;
+begin
+  Result := FTexH;
+end;
+
 function TavTextureBase.Width: Integer;
 begin
   if Assigned(FTexH) then
@@ -2037,6 +2053,17 @@ begin
 end;
 
 procedure TavTextureBase.CopyFrom(const ASrc: TavTextureBase; SrcMipLevel: Integer; const ASrcRect: TRectI);
+begin
+  CopyFrom(ASrc, Vec(0,0), SrcMipLevel, ASrcRect);
+end;
+
+procedure TavTextureBase.CopyFrom(const ASrc: TavTextureBase;
+  const DstPos: TVec2i; SrcMipLevel: Integer; const ASrcRect: TRectI);
+begin
+  CopyFrom(ASrc, DstPos, 0, 0, 0, SrcMipLevel, ASrcRect);
+end;
+
+procedure TavTextureBase.CopyFrom(const ASrc: TavTextureBase; const DstPos: TVec2i; DstMipLevel, DstSlice, SrcMipLevel, SrcSlice: Integer; const ASrcRect: TRectI);
 var w, h: Integer;
 begin
   if ASrc.FTexH = nil then Exit;
@@ -2052,7 +2079,7 @@ begin
   begin
     FTexH.AllocMem(w, h, 1, False);
   end;
-  FTexH.CopyFrom(0, Vec(0,0), ASrc.FTexH, SrcMipLevel, ASrcRect);
+  FTexH.CopyFrom(DstMipLevel, DstSlice, DstPos, ASrc.FTexH, SrcMipLevel, SrcSlice, ASrcRect);
   FDirty := False;
 end;
 
@@ -3519,11 +3546,22 @@ begin
 end;
 
 function TavMainRender.Bind: boolean;
+var wasBinded: Boolean;
+    i: Integer;
 begin
+  wasBinded := Binded;
   Result := FContext.Bind;
   FCursor.UpdateCursor;
   ProcessTimerEvents;
   FBindTime := Time64;
+  if not wasBinded and Result then
+  begin
+    for i := FFrameWaiters.Count - 1 downto 0 do
+    begin
+      TavRes(FFrameWaiters[i]).FrameStartCallback;
+      FFrameWaiters.Delete(i);
+    end;
+  end;
 end;
 
 function TavMainRender.Binded: boolean;
@@ -3569,6 +3607,7 @@ end;
 constructor TavMainRender.Create(AParent: TavObject);
 begin
   inherited Create(AParent);
+  FFrameWaiters := TList.Create;
   FWindow := NOTWINDOW;
   FCamera := TavCamera.Create(Self);
   FProjection := TavProjection.Create(Self);
@@ -3581,6 +3620,7 @@ begin
   Free3D;
   Window := NOTWINDOW;
   inherited Destroy;
+  FreeAndNil(FFrameWaiters);
 end;
 
 { TavIB }
@@ -3703,6 +3743,24 @@ begin
   AfterInit3D;
 end;
 
+procedure TavRes.DoOnFrameStart;
+begin
+
+end;
+
+procedure TavRes.FrameStartCallback;
+begin
+  FWaitForNextframe := False;
+  DoOnFrameStart;
+end;
+
+procedure TavRes.SubscribeForNextFrame;
+begin
+  if FWaitForNextframe then Exit;
+  FWaitForNextframe := True;
+  Main.FFrameWaiters.Add(Self);
+end;
+
 procedure TavRes.Build;
 begin
   if not FDirty then Exit;
@@ -3729,6 +3787,20 @@ end;
 constructor TavRes.Create(AParent: TavObject);
 begin
   inherited Create(AParent);
+end;
+
+destructor TavRes.Destroy;
+var
+  n: Integer;
+begin
+  if FWaitForNextframe then
+  begin
+    n := Main.FFrameWaiters.IndexOf(Self);
+    Assert(n>=0);
+    Main.FFrameWaiters.Delete(n);
+    FWaitForNextframe := False;
+  end;
+  inherited Destroy;
 end;
 
 { TavProgram }
