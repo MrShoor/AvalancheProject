@@ -24,7 +24,7 @@ struct PS_Output {
 };
 
 float GlyphSize;
-StructuredBuffer<float4> Glyph;
+StructuredBuffer<float4> Glyph : register(t32);
 
 float Cross2D(float2 v1, float2 v2) {
     return v1.x*v2.y - v1.y*v2.x;
@@ -40,7 +40,7 @@ float DistanceToLine(float4 seg, float2 pt) {
     return sqrt( s*s/dot(segdir,segdir) );
 }
 
-float2 eps = {0, 0.001};
+const static float2 eps = {0, 0.001};
 
 uint InTriangle(float4 seg, float2 pt) {
     float d = (seg.x-eps.x)*(seg.w-eps.y)-(seg.z-eps.x)*(seg.y-eps.y);

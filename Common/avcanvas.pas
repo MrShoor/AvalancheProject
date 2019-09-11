@@ -366,6 +366,7 @@ type
     function DoBuild: Boolean; override;
     procedure DoOnFrameStart; override;
   public
+    procedure Build; override;
     procedure Invalidate; override;
     property RegionsVB: TavSB read FRegionsBuffer;
 
@@ -809,12 +810,16 @@ begin
   Result := True;
   if FPages.Count = 0 then Exit;
 
-  if FInvalidPagesCount then
+  if FTexH = nil then
   begin
-    FInvalidPagesCount := False;
     FTexH := Main.Context.CreateTexture;
     FTexH.TargetFormat := FTargetFormat;
     FTexH.sRGB := FsRGB;
+  end;
+
+  if FInvalidPagesCount then
+  begin
+    FInvalidPagesCount := False;
     FTexH.AllocMem(FTargetSize.x, FTargetSize.y, FPages.Count, False, True);
 
     for i := 0 to FPages.Count - 1 do
@@ -849,6 +854,19 @@ begin
   Build;
 end;
 
+procedure TavGlyphAtlas.Build;
+var
+  glyphGen: IGPUGlyphGenerator;
+begin
+  glyphGen := GetGlyphGenerator(Main);
+  if not Valid then
+  begin
+    glyphGen.BeginGeneration;
+    inherited Build;
+    glyphGen.EndGeneration;
+  end;
+end;
+
 procedure TavGlyphAtlas.Invalidate;
 begin
   inherited Invalidate;
@@ -875,7 +893,7 @@ begin
   key.style := AStyle;
   if not FSprites.TryGetValue(key, spriteObj) then
   begin
-    data := key.GenData(48, 6);
+    data := key.GenData(32, 8);
     AllocQuad(data.ImgSize, range, slice);
     freeIndex := AllocIndex();
     spriteObj := TGlyphIndex.Create(Self, key, data, freeIndex, slice, range);

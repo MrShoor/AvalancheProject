@@ -256,7 +256,7 @@ type
     procedure FrameStartCallback;
     procedure SubscribeForNextFrame;
   public
-    procedure Build;
+    procedure Build; virtual;
     procedure Invalidate; virtual;
     function Valid: Boolean;
     procedure AfterConstruction; override;

@@ -23,8 +23,10 @@ type
   IGPUGlyphGenerator = interface
     procedure InvalidateProg;
     function GlyphSegments: TavSB;
+    procedure BeginGeneration;
     procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: IctxTexture; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer);
     procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: TavTextureBase; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer);
+    procedure EndGeneration;
   end;
 
 function GetGlyphGenerator(const AMain: TavMainRender): IGPUGlyphGenerator;
@@ -46,6 +48,13 @@ type
     FProgram: TavProgram;
     FSBGlyph: TavSB;
     FSBDataGlyph: ISegmentVertexArr;
+
+    FInGeneration: Boolean;
+    FPrevFBO  : TavFrameBuffer;
+    FPrevProg : TavProgram;
+    FPrevBlend: Boolean;
+    FPrevScissor: Boolean;
+
     procedure PrepareBuffers(const AGlyph: IGlyphPoly; AScale, AOffset: Single); overload;
     procedure PrepareBuffers(const AGlyph: IGlyphPoly); overload;
     procedure RenderGlyph(const ATexSize: TVec2i);
@@ -71,8 +80,10 @@ type
     procedure DrawToTexture(const ATexture: IctxTexture; const ADstPos: TVec2i); overload;
     procedure DrawToTexture(const ATexture: TavTextureBase; const ADstPos: TVec2i); overload;
 
+    procedure BeginGeneration;
     procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: IctxTexture; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer);
     procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: TavTextureBase; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer);
+    procedure EndGeneration;
   end;
 
 function GetGlyphGenerator(const AMain: TavMainRender): IGPUGlyphGenerator;
@@ -144,7 +155,6 @@ end;
 
 procedure TavGlyphGenerator.RenderGlyph(const ATexSize: TVec2i);
 begin
-  Main.States.Blending[AllTargets] := False;
   FFBO.FrameRect := RectI(Vec(0,0), ATexSize);
   FFBO.Select(False);
   FProgram.Select();
@@ -177,7 +187,7 @@ begin
   FFBO := Create_FrameBuffer(Self, [TTextureFormat.R16f]);
 
   FProgram := TavProgram.Create(Self);
-  FProgram.Load('GPUSDFGlyphGenerator', False, '');
+  FProgram.Load('GPUSDFGlyphGenerator', True, '');
 
   FSBGlyph := TavSB.Create(Self);
   FSBDataGlyph := TSegmentVertexArr.Create();
@@ -239,8 +249,22 @@ begin
 //  ATexture.CopyFrom(FFBO.GetColor(0), ADstPos, 0, FFBO.FrameRect);
 end;
 
+procedure TavGlyphGenerator.BeginGeneration;
+begin
+  Assert(not FInGeneration);
+  FInGeneration := True;
+  FPrevProg := Main.ActiveProgram;
+  FPrevFBO := Main.ActiveFrameBuffer;
+  FPrevBlend := Main.States.Blending[0];
+  FPrevScissor := Main.States.GetScissorTest;
+
+  Main.States.Blending[0] := False;
+  Main.States.SetScissorTest(False);
+end;
+
 procedure TavGlyphGenerator.DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: IctxTexture; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer);
 begin
+  Assert(FInGeneration);
   PrepareBuffers(AGlyph);
   RenderGlyph(ASize);
   ADstTexture.CopyFrom(ADstMip, ADstSlice, ADstPos, FFBO.GetColor(0).Handle, 0, 0, RectI(Vec(0,0), ASize));
@@ -250,6 +274,16 @@ procedure TavGlyphGenerator.DrawToTexture(const AGlyph: IGlyphPoly; const ASize:
 begin
   ADstTexture.Build;
   DrawToTexture(AGlyph, ASize, ADstTexture.Handle, ADstPos, ADstSlice, ADstMip);
+end;
+
+procedure TavGlyphGenerator.EndGeneration;
+begin
+  Assert(FInGeneration);
+  FInGeneration := False;
+  Main.States.Blending[0] := FPrevBlend;
+  Main.States.SetScissorTest(FPrevScissor);
+  if (FPrevFBO <> nil) then FPrevFBO.Select(False);
+  if (FPrevProg <> nil) then FPrevProg.Select();
 end;
 
 end.
