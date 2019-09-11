@@ -21,8 +21,6 @@ type
   ISegmentVertexArr = {$IfDef FPC}specialize{$EndIf}IArray<TSegmentVertex>;
 
   IGPUGlyphGenerator = interface
-    procedure InvalidateProg;
-    function GlyphSegments: TavSB;
     procedure BeginGeneration;
     procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: IctxTexture; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer);
     procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: TavTextureBase; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer);
@@ -54,8 +52,8 @@ type
     FPrevProg : TavProgram;
     FPrevBlend: Boolean;
     FPrevScissor: Boolean;
+    FPrevViewport: TRectI;
 
-    procedure PrepareBuffers(const AGlyph: IGlyphPoly; AScale, AOffset: Single); overload;
     procedure PrepareBuffers(const AGlyph: IGlyphPoly); overload;
     procedure RenderGlyph(const ATexSize: TVec2i);
   private
@@ -65,21 +63,6 @@ type
   protected
     procedure AfterRegister; override;
   public
-    function PrepareGlyph(const AFontName  : string;
-                          const AChar      : WideChar;
-                          const ASize      : Integer;
-                          const ABorder    : Integer;
-                          const AItalic    : Boolean;
-                          const ABold      : Boolean;
-                          const AUnderLine : Boolean;
-                          out   XXX        : TVec3;
-                          out   YYYY       : TVec4): TVec2i;
-    procedure InvalidateProg;
-    function GlyphSegments: TavSB;
-    function GlyphTexture: TavTextureBase;
-    procedure DrawToTexture(const ATexture: IctxTexture; const ADstPos: TVec2i); overload;
-    procedure DrawToTexture(const ATexture: TavTextureBase; const ADstPos: TVec2i); overload;
-
     procedure BeginGeneration;
     procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: IctxTexture; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer);
     procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: TavTextureBase; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer);
@@ -108,30 +91,6 @@ end;
 
 { TavGlyphGenerator }
 
-procedure TavGlyphGenerator.PrepareBuffers(const AGlyph: IGlyphPoly; AScale, AOffset: Single);
-var i, j: Integer;
-    seg: TSegmentVertex;
-    vOffset: TVec2;
-    cntr: IGlyphContour;
-begin
-  vOffset := Vec(AOffset, AOffset);
-
-  FSBDataGlyph.Clear();
-
-  for j := 0 to AGlyph.Count - 1 do
-  begin
-    cntr := AGlyph[j];
-    for i := 0 to cntr.Count - 1 do
-    begin
-      seg.seg.xy := cntr[i]*AScale+vOffset;
-      seg.seg.zw := cntr[(i+1) mod cntr.Count]*AScale+vOffset;
-      FSBDataGlyph.Add(seg);
-    end;
-  end;
-
-  FSBGlyph.Invalidate;
-end;
-
 procedure TavGlyphGenerator.PrepareBuffers(const AGlyph: IGlyphPoly);
 var i, j: Integer;
     seg: TSegmentVertex;
@@ -155,8 +114,9 @@ end;
 
 procedure TavGlyphGenerator.RenderGlyph(const ATexSize: TVec2i);
 begin
-  FFBO.FrameRect := RectI(Vec(0,0), ATexSize);
+  FFBO.FrameRect := RectI(Vec(0,0), Max(ATexSize, FFBO.FrameRect.max));
   FFBO.Select(False);
+  Main.States.Viewport := RectI(Vec(0,0), ATexSize);
   FProgram.Select();
   FProgram.SetUniform('GlyphSize', Single(FSBDataGlyph.Count));
   FProgram.SetUniform('Glyph', FSBGlyph);
@@ -185,6 +145,7 @@ procedure TavGlyphGenerator.AfterRegister;
 begin
   inherited AfterRegister;
   FFBO := Create_FrameBuffer(Self, [TTextureFormat.R16f]);
+  FFBO.FrameRect := RectI(0,0,1,1);
 
   FProgram := TavProgram.Create(Self);
   FProgram.Load('GPUSDFGlyphGenerator', True, '');
@@ -192,61 +153,6 @@ begin
   FSBGlyph := TavSB.Create(Self);
   FSBDataGlyph := TSegmentVertexArr.Create();
   FSBGlyph.Vertices := FSBDataGlyph as IVerticesData;
-end;
-
-function TavGlyphGenerator.PrepareGlyph(const AFontName: string;
-  const AChar: WideChar; const ASize: Integer; const ABorder: Integer;
-  const AItalic: Boolean; const ABold: Boolean; const AUnderLine: Boolean; out
-  XXX: TVec3; out YYYY: TVec4): TVec2i;
-var
-  glyph: IGlyphPoly;
-  YSize: Single;
-  scale: Single;
-begin
-  glyph := GenerateGlyphOutline(AFontName, AChar, AItalic, ABold, AUnderLine, XXX, YYYY);
-  YSize := YYYY.x+YYYY.y+YYYY.z+YYYY.w;
-  scale := ASize/YSize;
-  Result.x := Ceil(XXX.y*scale) + ABorder*2;
-  Result.y := Ceil((YYYY.y+YYYY.z)*scale) + ABorder*2;
-
-  XXX := XXX * scale;
-  YYYY := YYYY * scale;
-
-  XXX.x := XXX.x - ABorder;
-  XXX.y := XXX.y + 2*ABorder;
-  XXX.z := XXX.z - ABorder;
-  YYYY.x := YYYY.x - ABorder;
-  YYYY.y := YYYY.y + ABorder;
-  YYYY.z := YYYY.z + ABorder;
-  YYYY.w := YYYY.w - ABorder;
-
-  PrepareBuffers(glyph, scale, ABorder);
-  RenderGlyph(Result);
-end;
-
-procedure TavGlyphGenerator.InvalidateProg;
-begin
-  FProgram.Invalidate;
-end;
-
-function TavGlyphGenerator.GlyphSegments: TavSB;
-begin
-  Result := FSBGlyph;
-end;
-
-function TavGlyphGenerator.GlyphTexture: TavTextureBase;
-begin
-  Result := FFBO.GetColor(0);
-end;
-
-procedure TavGlyphGenerator.DrawToTexture(const ATexture: IctxTexture; const ADstPos: TVec2i);
-begin
-//  ATexture.CopyFrom(0, ADstPos, ATexture, 0, FFBO.FrameRect);
-end;
-
-procedure TavGlyphGenerator.DrawToTexture(const ATexture: TavTextureBase; const ADstPos: TVec2i);
-begin
-//  ATexture.CopyFrom(FFBO.GetColor(0), ADstPos, 0, FFBO.FrameRect);
 end;
 
 procedure TavGlyphGenerator.BeginGeneration;
@@ -257,6 +163,7 @@ begin
   FPrevFBO := Main.ActiveFrameBuffer;
   FPrevBlend := Main.States.Blending[0];
   FPrevScissor := Main.States.GetScissorTest;
+  FPrevViewport := Main.States.Viewport;
 
   Main.States.Blending[0] := False;
   Main.States.SetScissorTest(False);
@@ -284,6 +191,7 @@ begin
   Main.States.SetScissorTest(FPrevScissor);
   if (FPrevFBO <> nil) then FPrevFBO.Select(False);
   if (FPrevProg <> nil) then FPrevProg.Select();
+  Main.States.Viewport := FPrevViewport;
 end;
 
 end.

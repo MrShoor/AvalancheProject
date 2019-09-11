@@ -53,8 +53,6 @@ uint InTriangle(float4 seg, float2 pt) {
     if (l2<=0) return false;
     if (l1+l2>=1) return false;
     return true;
-    //float2 segdir = seg.zw - seg.xy;
-    //return !( ( Cross2D(seg.xy, pt) * Cross2D(pt, seg.zw) <= 0 ) || ( Cross2D(segdir, -seg.xy) * Cross2D(segdir, pt-seg.xy) <= 0 ) );
 }
 
 PS_Output PS(VS_Output In) {
