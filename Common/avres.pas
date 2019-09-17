@@ -964,6 +964,7 @@ type
     function GetColor(Index: Integer): TavTextureBase;
     function GetColorMipLevel(Index: Integer): Integer;
     procedure SetColor(Index: Integer; AValue: TavTextureBase; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
+    procedure SetColor3D(Index: Integer; AValue: TavTexture3D; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
     procedure SetUAV(Index: Integer; AValue: TavUAV); overload;
     procedure SetUAV(Index: Integer; AValue: TavTextureBase); overload;
     procedure SetUAV(Index: Integer; AValue: TavTexture3D); overload;
@@ -2502,6 +2503,25 @@ begin
   Invalidate;
 end;
 
+procedure TavFrameBuffer.SetColor3D(Index: Integer; AValue: TavTexture3D; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
+var oldCount: Integer;
+    ainfo: TAttachInfo;
+    i: Integer;
+begin
+  oldCount := FColors.Count;
+  for i := oldCount to Index do
+    FColors.Add(EmptyAttachInfo);
+  if Assigned(AValue) then
+  begin
+    ainfo.tex := AValue.WeakRef;
+    ainfo.mipLevel := mipLevel;
+    ainfo.sliceStart := sliceStart;
+    ainfo.sliceCount := sliceCount;
+    FColors.Item[index] := ainfo;
+  end;
+  Invalidate;
+end;
+
 procedure TavFrameBuffer.SetUAV(Index: Integer; AValue: TavUAV);
 var oldCount: Integer;
     i: Integer;
@@ -2604,11 +2624,25 @@ end;
 
 function TavFrameBuffer.DoBuild: Boolean;
   function GetTex(const ainfo: TAttachInfo): TavTextureBase; inline;
+  var obj: TObject;
   begin
-    if Assigned(ainfo.tex) then
-      Result := TavTexture(ainfo.tex.Obj)
-    else
-      Result := nil;
+    Result := nil;
+    if ainfo.tex = nil then Exit;
+    obj := ainfo.tex.Obj;
+    if obj = nil then Exit;
+    if not (obj is TavTextureBase) then Exit;
+    Result := TavTextureBase(obj);
+  end;
+
+  function GetTex3D(const ainfo: TAttachInfo): TavTexture3D; inline;
+  var obj: TObject;
+  begin
+    Result := nil;
+    if ainfo.tex = nil then Exit;
+    obj := ainfo.tex.Obj;
+    if obj = nil then Exit;
+    if not (obj is TavTexture3D) then Exit;
+    Result := TavTexture3D(obj);
   end;
 
   function GetStream(const sinfo: TStreamAttachInfo): TavVerticesBase; inline;
@@ -2671,13 +2705,22 @@ begin
   begin
     ainfo := FColors[i];
     tex := GetTex(ainfo);
-    if Assigned(tex) then
+    if tex <> nil then
     begin
       ResizeTex(tex, FrameSize, max(0, ainfo.sliceStart) + max(1, ainfo.sliceCount), ainfo.mipLevel);
       FFrameBuf.SetColor(i, tex.FTexH, ainfo.mipLevel, ainfo.sliceStart, ainfo.sliceCount);
     end
     else
-      FFrameBuf.SetColor(i, nil, ainfo.mipLevel, ainfo.sliceStart, ainfo.sliceCount);
+    begin
+      tex3D := GetTex3D(ainfo);
+      if tex3D <> nil then
+      begin
+        Assert(FrameSize = tex3D.Size.xy);
+        FFrameBuf.SetColor3D(i, tex3D.FTexH, ainfo.mipLevel, ainfo.sliceStart, ainfo.sliceCount);
+      end
+      else
+        FFrameBuf.SetColor(i, nil, ainfo.mipLevel, ainfo.sliceStart, ainfo.sliceCount);
+    end;
   end;
 
   for i := 0 to FUAVs.Count - 1 do
@@ -2734,7 +2777,7 @@ begin
     FFrameBuf.SetDepthStencil(nil, FDepth.mipLevel, FDepth.sliceStart, FDepth.sliceCount);
 end;
 
-procedure TavFrameBuffer.SetFrameRectFromWindow;
+procedure TavFrameBuffer.SetFrameRectFromWindow();
 var s: TVec2i;
 begin
   s := Main.WindowSize;
