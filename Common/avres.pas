@@ -1447,7 +1447,7 @@ begin
     sprite := FSpriteList[i];
     if sprite = nil then Continue;
     AllocQuad(Vec(sprite.FData.Width,sprite.FData.Height), sprite.FQuad, sprite.FSlice);
-    PPageInfo(FPages.PItem[sprite.FSlice])^.Invalids.Add(sprite);
+    PPageInfo(FPages.PItem[sprite.FSlice])^.Invalids.AddOrSet(sprite);
     region.Rect := sprite.FQuad.Rect.v;
     region.Slice := sprite.FSlice;
     region.Rect.xy := region.Rect.xy + Vec(1,1);
@@ -1484,7 +1484,7 @@ begin
       sprite := FSpriteList[i];
       if sprite = nil then Continue;
       page := PPageInfo(FPages.PItem[sprite.FSlice]);
-      page^.Invalids.Add(sprite);
+      page^.Invalids.AddOrSet(sprite);
     end;
   end;
 
@@ -1639,6 +1639,7 @@ begin
     FOwner.FSprites.Delete(FData);
     FOwner.FSpriteList[FIndex] := nil;
     FOwner.FFreeIndices.Add(FIndex);
+    PPageInfo(FOwner.FPages.PItem[FSlice])^.Invalids.Delete(Self);
   end;
   inherited Destroy;
 end;
