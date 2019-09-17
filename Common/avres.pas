@@ -714,18 +714,19 @@ type
       constructor Create(const AOwner: TavAtlasArrayReferenced; const AIndex: Integer; const AData: ITextureMip; const ASlice: Integer; const AQuad: IQuadRange);
       destructor Destroy; override;
     end;
+    ISpriteList = {$IfDef FPC}specialize{$EndIf} IArray<TSpriteIndex>;
+    TSpriteList = {$IfDef FPC}specialize{$EndIf} TArray<TSpriteIndex>;
+    ISpriteSet = {$IfDef FPC}specialize{$EndIf} IHashSet<TSpriteIndex>;
+    TSpriteSet = {$IfDef FPC}specialize{$EndIf} THashSet<TSpriteIndex>;
 
     TPageInfo = record
       QManager: IQuadManager;
-      Valid   : Boolean;
+      Invalids: ISpriteSet;
     end;
     PPageInfo = ^TPageInfo;
 
     ISpriteMap = {$IfDef FPC}specialize{$EndIf} IHashMap<ITextureMip, TSpriteIndex>;
     TSpriteMap = {$IfDef FPC}specialize{$EndIf} THashMap<ITextureMip, TSpriteIndex>;
-
-    ISpriteList = {$IfDef FPC}specialize{$EndIf} IArray<TSpriteIndex>;
-    TSpriteList = {$IfDef FPC}specialize{$EndIf} TArray<TSpriteIndex>;
 
     IPages = {$IfDef FPC}specialize{$EndIf} IArray<TPageInfo>;
     TPages = {$IfDef FPC}specialize{$EndIf} TArray<TPageInfo>;
@@ -1395,7 +1396,6 @@ begin
     Page := PPageInfo(FPages.PItem[ASlice]);
     try
       ARange := Page^.QManager.Alloc(ASize.x, ASize.y);
-      Page^.Valid := False;
       Invalidate;
       Exit;
     except
@@ -1406,7 +1406,7 @@ begin
 
   FInvalidPagesCount := True;
   NewPage.QManager := Create_IQuadManager(FTargetSize.x, FTargetSize.y);
-  NewPage.Valid := False;
+  NewPage.Invalids := TSpriteSet.Create();
   FPages.Add(NewPage);
   AllocQuad(ASize, ARange, ASlice);
 end;
@@ -1447,6 +1447,7 @@ begin
     sprite := FSpriteList[i];
     if sprite = nil then Continue;
     AllocQuad(Vec(sprite.FData.Width,sprite.FData.Height), sprite.FQuad, sprite.FSlice);
+    PPageInfo(FPages.PItem[sprite.FSlice])^.Invalids.Add(sprite);
     region.Rect := sprite.FQuad.Rect.v;
     region.Slice := sprite.FSlice;
     region.Rect.xy := region.Rect.xy + Vec(1,1);
@@ -1473,50 +1474,59 @@ begin
 
   if FInvalidPagesCount then
   begin
+    FInvalidPagesCount := False;
     FTexH := Main.Context.CreateTexture;
     FTexH.TargetFormat := FTargetFormat;
     FTexH.sRGB := FsRGB;
     FTexH.AllocMem(FTargetSize.x, FTargetSize.y, FPages.Count, FAutoGenerateMips, True);
-    for i := 0 to FPages.Count - 1 do
-      PPageInfo(FPages.PItem[i])^.Valid := False;
-  end;
-
-  for i := 0 to FSpriteList.Count - 1 do
-  begin
-    sprite := FSpriteList[i];
-    if sprite = nil then Continue;
-    page := PPageInfo(FPages.PItem[sprite.FSlice]);
-    if page^.Valid then Continue;
-    rct := sprite.FQuad.Rect;
-
-    w := sprite.FData.Width;
-    h := sprite.FData.Height;
-    pf:= sprite.FData.PixelFormat;
-    px:= ImagePixelSize[pf];
-    slice := sprite.FSlice;
-
-    FTexH.SetMipImage(rct.Left+1, rct.Top,      rct.Right-rct.Left-2, 1,                    0, slice, pf, sprite.FData.Pixel(0, h-1));
-    FTexH.SetMipImage(rct.Left+1, rct.Top+1,    rct.Right-rct.Left-2, rct.Bottom-rct.Top-2, 0, slice, pf, sprite.FData.Data);
-    FTexH.SetMipImage(rct.Left+1, rct.Bottom-1, rct.Right-rct.Left-2, 1,                    0, slice, pf, sprite.FData.Data);
-
-    if Length(col) <> (h + 2)*px then
-      SetLength(col, (h + 2)*px);
-
-    Move(sprite.FData.Pixel(w-1,h-1)^, col[0], px);
-    for j := 0 to h - 1 do
-      Move(sprite.FData.Pixel(w-1,j)^, col[(j+1)*px], px);
-    Move(sprite.FData.Pixel(w-1,0)^, col[(h+1)*px], px);
-    FTexH.SetMipImage(rct.Left, rct.Top, 1, rct.Bottom-rct.Top, 0, slice, pf, @col[0]);
-
-    Move(sprite.FData.Pixel(0,h-1)^, col[0], px);
-    for j := 0 to h - 1 do
-      Move(sprite.FData.Pixel(0,j)^, col[(j+1)*px], px);
-    Move(sprite.FData.Pixel(0,0)^, col[(h+1)*px], px);
-    FTexH.SetMipImage(rct.Right-1, rct.Top, 1, rct.Bottom-rct.Top, 0, slice, pf, @col[0]);
+    for i := 0 to FSpriteList.Count - 1 do
+    begin
+      sprite := FSpriteList[i];
+      if sprite = nil then Continue;
+      page := PPageInfo(FPages.PItem[sprite.FSlice]);
+      page^.Invalids.Add(sprite);
+    end;
   end;
 
   for i := 0 to FPages.Count - 1 do
-    PPageInfo(FPages.PItem[i])^.Valid := True;
+  begin
+    page := PPageInfo(FPages.PItem[i]);
+    page^.Invalids.Reset;
+    while page^.Invalids.Next(sprite) do
+    begin
+      Assert(sprite <> nil);
+
+      rct := sprite.FQuad.Rect;
+
+      w := sprite.FData.Width;
+      h := sprite.FData.Height;
+      pf:= sprite.FData.PixelFormat;
+      px:= ImagePixelSize[pf];
+      slice := sprite.FSlice;
+
+      FTexH.SetMipImage(rct.Left+1, rct.Top,      rct.Right-rct.Left-2, 1,                    0, slice, pf, sprite.FData.Pixel(0, h-1));
+      FTexH.SetMipImage(rct.Left+1, rct.Top+1,    rct.Right-rct.Left-2, rct.Bottom-rct.Top-2, 0, slice, pf, sprite.FData.Data);
+      FTexH.SetMipImage(rct.Left+1, rct.Bottom-1, rct.Right-rct.Left-2, 1,                    0, slice, pf, sprite.FData.Data);
+
+      if Length(col) <> (h + 2)*px then
+        SetLength(col, (h + 2)*px);
+
+      Move(sprite.FData.Pixel(w-1,h-1)^, col[0], px);
+      for j := 0 to h - 1 do
+        Move(sprite.FData.Pixel(w-1,j)^, col[(j+1)*px], px);
+      Move(sprite.FData.Pixel(w-1,0)^, col[(h+1)*px], px);
+      FTexH.SetMipImage(rct.Left, rct.Top, 1, rct.Bottom-rct.Top, 0, slice, pf, @col[0]);
+
+      Move(sprite.FData.Pixel(0,h-1)^, col[0], px);
+      for j := 0 to h - 1 do
+        Move(sprite.FData.Pixel(0,j)^, col[(j+1)*px], px);
+      Move(sprite.FData.Pixel(0,0)^, col[(h+1)*px], px);
+      FTexH.SetMipImage(rct.Right-1, rct.Top, 1, rct.Bottom-rct.Top, 0, slice, pf, @col[0]);
+    end;
+  end;
+
+  for i := 0 to FPages.Count - 1 do
+    PPageInfo(FPages.PItem[i])^.Invalids.Clear;
 
   if AutoGenerateMips then
     FTexH.GenerateMips;
@@ -1544,6 +1554,7 @@ begin
     spriteObj := TSpriteIndex.Create(Self, freeIndex, ASprite, slice, range);
     FSpriteList[freeIndex] := spriteObj;
     FSprites.Add(ASprite, spriteObj);
+    PPageInfo(FPages.PItem[slice])^.Invalids.Add(spriteObj);
     region.Slice := spriteObj.FSlice;
     region.Rect := spriteObj.FQuad.Rect.v;
     region.Rect.xy := region.Rect.xy + Vec(1,1);
