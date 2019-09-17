@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${apccdir}",
+                "${workspaceFolder}"
+            ],
+            "defines": [
+                "CppEditor"
+            ],
+            "windowsSdkVersion": "10.0.17763.0",
+            "compilerPath": "${apccdir}/apcc.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64"
+        }
+    ],
+    "version": 4
+}

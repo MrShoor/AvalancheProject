@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
-    <Version Value="9"/>
+    <Version Value="11"/>
     <PathDelim Value="\"/>
     <General>
       <SessionStorage Value="InProjectDir"/>
@@ -13,9 +13,6 @@
     <i18n>
       <EnableI18N LFM="False"/>
     </i18n>
-    <VersionInfo>
-      <StringTable ProductVersion=""/>
-    </VersionInfo>
     <BuildModes Count="3">
       <Item1 Name="Default" Default="True"/>
       <Item2 Name="Debug">
@@ -26,7 +23,7 @@
             <Filename Value="..\..\Bin\Instancing"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir);..\..\..\Utils"/>
+            <IncludeFiles Value="$(ProjOutDir);..\..\..\Common"/>
             <OtherUnitFiles Value="..\Common"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -70,7 +67,7 @@
             <Filename Value="..\..\Bin\Instancing"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir);..\..\..\Utils"/>
+            <IncludeFiles Value="$(ProjOutDir);..\..\..\Common"/>
             <OtherUnitFiles Value="..\Common"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -103,9 +100,10 @@
       <Version Value="2"/>
     </PublishOptions>
     <RunParams>
-      <local>
-        <FormatVersion Value="1"/>
-      </local>
+      <FormatVersion Value="2"/>
+      <Modes Count="1">
+        <Mode0 Name="default"/>
+      </Modes>
     </RunParams>
     <RequiredPackages Count="3">
       <Item1>
@@ -140,7 +138,7 @@
         <IsPartOfProject Value="True"/>
       </Unit3>
       <Unit4>
-        <Filename Value="..\..\..\Utils\avConfig.inc"/>
+        <Filename Value="..\..\..\Common\avConfig.inc"/>
         <IsPartOfProject Value="True"/>
       </Unit4>
     </Units>
@@ -152,7 +150,7 @@
       <Filename Value="..\..\Bin\Instancing"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir);..\..\..\Utils"/>
+      <IncludeFiles Value="$(ProjOutDir);..\..\..\Common"/>
       <OtherUnitFiles Value="..\Common"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>

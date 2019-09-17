@@ -1,5 +1,5 @@
 CC=apcc
-ShaderName=shaders
+ShaderName=GlyphGen_Shaders
 
 all:
 	$(CC) $(ShaderName).json

@@ -21,6 +21,8 @@ procedure CompileGLSL(const code: AnsiString; st: TShaderType);
 procedure LinkGLSL(const prog: TProgramInfo; code: TShadersString; const OutFile: string);
 
 implementation
+
+uses apccUtils;
                                                     {stUnknown,    stVertex,      stTessControl,          stTessEval,                stGeometry,         stFragment,        stCompute}
 const GL_ShaderType: array [TShaderType] of GLuint = (GL_ZERO, GL_VERTEX_SHADER, GL_TESS_CONTROL_SHADER, GL_TESS_EVALUATION_SHADER, GL_GEOMETRY_SHADER, GL_FRAGMENT_SHADER, GL_COMPUTE_SHADER);
 
@@ -138,7 +140,9 @@ begin
     glDeleteShader(Shader);
     UnBindGlobalContext;
   end;
+  SetConsoleColor(CONSOLE_Green);
   WriteLn('done.');
+  SetConsoleColor(CONSOLE_Default);
 end;
 
 procedure LinkGLSL(const prog: TProgramInfo; code: TShadersString; const OutFile: string);
@@ -208,7 +212,9 @@ begin
     glDeleteProgram(GLProg);
     UnBindGlobalContext;
   end;
+  SetConsoleColor(CONSOLE_Green);
   WriteLn('done.');
+  SetConsoleColor(CONSOLE_Default);
 end;
 
 { TGLContext }

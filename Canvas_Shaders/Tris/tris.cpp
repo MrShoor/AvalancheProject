@@ -3,17 +3,17 @@
 #include "hinting.h"
 
 struct VS_Input {
-    float2 Coords   : Coords;
-    float2 Hinting  : Hinting;
-    float4 Color    : Color;
-    float2 TexCoord : TexCoord;
-    int    SpriteID : SpriteID;
+    float2 S_(Coords);
+    float2 S_(Hinting);
+    float4 S_(Color);
+    float2 S_(TexCoord);
+    int    S_(SpriteID);
 };
 
 struct VS_Output {
-    float4 Pos      : SV_Position;
-    float3 TexCoord : TexCoord;
-    float4 Color    : Color;
+    float4 S_Position(Pos);
+    float3 S_(TexCoord);
+    float4 S_(Color);
 };
 
 struct AtlasRegion {
@@ -50,7 +50,7 @@ VS_Output VS(VS_Input In) {
 }
 
 struct PS_Output {
-    float4 Color : SV_Target0;
+    float4 S_Target0(Color);
 };
 
 Texture2DArray Atlas; SamplerState AtlasSampler;
@@ -62,7 +62,7 @@ PS_Output PS(VS_Output In) {
     float4 texColor = (In.TexCoord.z < 0) ? 1.0 : Atlas.Sample(AtlasSampler, texCrd);
     texColor.xyz /= texColor.a;
     Out.Color = In.Color * texColor;
-    Out.Color.rgb *= Out.Color.a;
+    Out.Color.xyz *= Out.Color.a;
     
     return Out;
 }

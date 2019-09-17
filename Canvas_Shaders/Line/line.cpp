@@ -3,17 +3,17 @@
 #include "hinting.h"
 
 struct VS_Input {
-    float2 quadCoord : quadCoord;
-    float4 Coords : Coords;
-    float4 Normals : Normals;
-    float2 Width: Width;
-    float4 HintingAlign: HintingAlign;
-    float4 Color : Color;    
+    float2 S_(quadCoord);
+    float4 S_(Coords);
+    float4 S_(Normals);
+    float2 S_(Width);
+    float4 S_(HintingAlign);
+    float4 S_(Color);
 };
 
 struct VS_Output {
-    float4 Pos   : SV_Position;
-    float4 Color : Color;
+    float4 S_Position(Pos);
+    float4 S_(Color);
 };
 
 VS_Output VS(VS_Input In) {
@@ -46,7 +46,7 @@ VS_Output VS(VS_Input In) {
 }
 
 struct PS_Output {
-    float4 Color : SV_Target0;
+    float4 S_Target0(Color);
 };
 
 PS_Output PS(VS_Output In) {

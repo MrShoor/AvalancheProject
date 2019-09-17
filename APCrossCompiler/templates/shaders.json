@@ -1,20 +1,28 @@
 {
-    "HLSLcc_lang" : 330,
+    "HLSLcc_lang" : 430,
     "HLSLcc_flags": ["HLSLCC_FLAG_DISABLE_GLOBALS_STRUCT",
                      "HLSLCC_FLAG_INOUT_SEMANTIC_NAMES",
                      "HLSLCC_FLAG_DISABLE_EXPLICIT_LOCATIONS"],    
-    "OGLTranslate" : true,
+    "OGLTranslate" : false,
     "OutDir" : "!Out",
     "VertexEntry" : "VS",
+    "TessControlEntry" : "HS",
+    "TessEvalEntry" : "DS",
+    "GeometryEntry" : "GS",
     "FragmentEntry" : "PS",
-    "VertexTarget" : "vs_4_0",
-    "FragmentTarget" : "ps_4_0",
+    "ComputeEntry" : "CS",
+    "VertexTarget" : "vs_5_0",
+    "TessControlTarget" : "hs_5_0",
+    "TessEvalTarget" : "ds_5_0",
+    "GeometryTarget" : "gs_5_0",
+    "FragmentTarget" : "ps_5_0",
+    "ComputeTarget" : "cs_5_0",
     "Programs":[
         {
-        "Name"     : "default",
-	"Vertex"   : "default_v.cpp",
-	"Fragment" : "default_f.cpp",
-	"Path"     :["default"]
-        }      
+            "Name"     : "Default",
+            "Vertex"   : "default.cpp",
+            "Fragment" : "default.cpp",
+            "Path"     :["default"]
+        }
     ]
 }
