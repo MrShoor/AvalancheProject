@@ -2283,9 +2283,41 @@ begin
 end;
 
 procedure TavCanvas.AddPolyline(const APts: array of TVec2; AClosed: Boolean);
+var Seg: TLinePointVertex;
+    i, n, idx: Integer;
+    norm: TVec2;
+    normSqrLen: Single;
 begin
-  //todo
-  Assert(False, 'not implemented yet');
+  if Length(APts) < 2 then Exit;
+
+  SelectGeometryKind(gkLines);
+
+  FillSegmentByPen(Seg);
+
+  if AClosed then
+  begin
+    n := Length(APts);
+    for i := 0 to n - 1 do
+    begin
+      Seg.Coords.xy := APts[i];
+      Seg.Coords.zw := APts[(i+1) mod n];
+      Seg.Normals.xy := NormalizeSafe(Rotate90(APts[(i+1) mod n] - APts[(i-1+n) mod n], False), Vec(0, 0));
+      Seg.Normals.zw := NormalizeSafe(Rotate90(APts[(i+2) mod n] - APts[i], False), Vec(0, 0));
+      FLineData.Add(Seg);
+    end;
+  end
+  else
+  begin
+    n := Length(APts) - 1;
+    for i := 0 to n - 1 do
+    begin
+      Seg.Coords.xy := APts[i];
+      Seg.Coords.zw := APts[i+1];
+      Seg.Normals.xy := NormalizeSafe(Rotate90(APts[i+1] - APts[Max(i-1, 0)], False), Vec(0, 0));
+      Seg.Normals.zw := NormalizeSafe(Rotate90(APts[Min(i+2, n)] - APts[i], False), Vec(0, 0));
+      FLineData.Add(Seg);
+    end;
+  end;
 end;
 
 procedure TavCanvas.AddRectangle(Left, Top, Right, Bottom: Single);

@@ -342,6 +342,8 @@ function Normalize(const v: TVec2): TVec2; overload; {$IFNDEF NoInline} inline; 
 function Normalize(const v: TVec3): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Normalize(const v: TVec4): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function Normalize(const v: TQuat): TQuat; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function NormalizeSafe(const v: TVec2; const def: TVec2): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
+function NormalizeSafe(const v: TVec3; const def: TVec3): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function NormalizeWeights(const v: TVec2): TVec2; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function NormalizeWeights(const v: TVec3): TVec3; overload; {$IFNDEF NoInline} inline; {$ENDIF}
 function NormalizeWeights(const v: TVec4): TVec4; overload; {$IFNDEF NoInline} inline; {$ENDIF}
@@ -1625,6 +1627,26 @@ begin
   Result.y := v.y * ql;
   Result.z := v.z * ql;
   Result.w := v.w * ql;
+end;
+
+function NormalizeSafe(const v: TVec2; const def: TVec2): TVec2;
+var ls: Single;
+begin
+  ls := LenSqr(v);
+  if ls = 0 then
+    Result := def
+  else
+    Result := v / sqrt(ls);
+end;
+
+function NormalizeSafe(const v: TVec3; const def: TVec3): TVec3;
+var ls: Single;
+begin
+  ls := LenSqr(v);
+  if ls = 0 then
+    Result := def
+  else
+    Result := v / sqrt(ls);
 end;
 
 function NormalizeWeights(const v: TVec2): TVec2;

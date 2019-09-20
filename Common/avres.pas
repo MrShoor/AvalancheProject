@@ -716,18 +716,19 @@ type
       constructor Create(const AOwner: TavAtlasArrayReferenced; const AIndex: Integer; const AData: ITextureMip; const ASlice: Integer; const AQuad: IQuadRange);
       destructor Destroy; override;
     end;
+    ISpriteList = {$IfDef FPC}specialize{$EndIf} IArray<TSpriteIndex>;
+    TSpriteList = {$IfDef FPC}specialize{$EndIf} TArray<TSpriteIndex>;
+    ISpriteSet = {$IfDef FPC}specialize{$EndIf} IHashSet<TSpriteIndex>;
+    TSpriteSet = {$IfDef FPC}specialize{$EndIf} THashSet<TSpriteIndex>;
 
     TPageInfo = record
       QManager: IQuadManager;
-      Valid   : Boolean;
+      Invalids: ISpriteSet;
     end;
     PPageInfo = ^TPageInfo;
 
     ISpriteMap = {$IfDef FPC}specialize{$EndIf} IHashMap<ITextureMip, TSpriteIndex>;
     TSpriteMap = {$IfDef FPC}specialize{$EndIf} THashMap<ITextureMip, TSpriteIndex>;
-
-    ISpriteList = {$IfDef FPC}specialize{$EndIf} IArray<TSpriteIndex>;
-    TSpriteList = {$IfDef FPC}specialize{$EndIf} TArray<TSpriteIndex>;
 
     IPages = {$IfDef FPC}specialize{$EndIf} IArray<TPageInfo>;
     TPages = {$IfDef FPC}specialize{$EndIf} TArray<TPageInfo>;
@@ -981,6 +982,7 @@ type
     function GetColor(Index: Integer): TavTextureBase;
     function GetColorMipLevel(Index: Integer): Integer;
     procedure SetColor(Index: Integer; AValue: TavTextureBase; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
+    procedure SetColor3D(Index: Integer; AValue: TavTexture3D; mipLevel: Integer = 0; sliceStart: Integer = -1; sliceCount: Integer = 0);
     procedure SetUAV(Index: Integer; AValue: TavUAV); overload;
     procedure SetUAV(Index: Integer; AValue: TavTextureBase); overload;
     procedure SetUAV(Index: Integer; AValue: TavTexture3D); overload;
@@ -1396,7 +1398,6 @@ begin
     Page := PPageInfo(FPages.PItem[ASlice]);
     try
       ARange := Page^.QManager.Alloc(ASize.x, ASize.y);
-      Page^.Valid := False;
       Invalidate;
       Exit;
     except
@@ -1407,7 +1408,7 @@ begin
 
   FInvalidPagesCount := True;
   NewPage.QManager := Create_IQuadManager(FTargetSize.x, FTargetSize.y);
-  NewPage.Valid := False;
+  NewPage.Invalids := TSpriteSet.Create();
   FPages.Add(NewPage);
   AllocQuad(ASize, ARange, ASlice);
 end;
@@ -1448,6 +1449,7 @@ begin
     sprite := FSpriteList[i];
     if sprite = nil then Continue;
     AllocQuad(Vec(sprite.FData.Width,sprite.FData.Height), sprite.FQuad, sprite.FSlice);
+    PPageInfo(FPages.PItem[sprite.FSlice])^.Invalids.AddOrSet(sprite);
     region.Rect := sprite.FQuad.Rect.v;
     region.Slice := sprite.FSlice;
     region.Rect.xy := region.Rect.xy + Vec(1,1);
@@ -1474,50 +1476,59 @@ begin
 
   if FInvalidPagesCount then
   begin
+    FInvalidPagesCount := False;
     FTexH := Main.Context.CreateTexture;
     FTexH.TargetFormat := FTargetFormat;
     FTexH.sRGB := FsRGB;
     FTexH.AllocMem(FTargetSize.x, FTargetSize.y, FPages.Count, FAutoGenerateMips, True);
-    for i := 0 to FPages.Count - 1 do
-      PPageInfo(FPages.PItem[i])^.Valid := False;
-  end;
-
-  for i := 0 to FSpriteList.Count - 1 do
-  begin
-    sprite := FSpriteList[i];
-    if sprite = nil then Continue;
-    page := PPageInfo(FPages.PItem[sprite.FSlice]);
-    if page^.Valid then Continue;
-    rct := sprite.FQuad.Rect;
-
-    w := sprite.FData.Width;
-    h := sprite.FData.Height;
-    pf:= sprite.FData.PixelFormat;
-    px:= ImagePixelSize[pf];
-    slice := sprite.FSlice;
-
-    FTexH.SetMipImage(rct.Left+1, rct.Top,      rct.Right-rct.Left-2, 1,                    0, slice, pf, sprite.FData.Pixel(0, h-1));
-    FTexH.SetMipImage(rct.Left+1, rct.Top+1,    rct.Right-rct.Left-2, rct.Bottom-rct.Top-2, 0, slice, pf, sprite.FData.Data);
-    FTexH.SetMipImage(rct.Left+1, rct.Bottom-1, rct.Right-rct.Left-2, 1,                    0, slice, pf, sprite.FData.Data);
-
-    if Length(col) <> (h + 2)*px then
-      SetLength(col, (h + 2)*px);
-
-    Move(sprite.FData.Pixel(w-1,h-1)^, col[0], px);
-    for j := 0 to h - 1 do
-      Move(sprite.FData.Pixel(w-1,j)^, col[(j+1)*px], px);
-    Move(sprite.FData.Pixel(w-1,0)^, col[(h+1)*px], px);
-    FTexH.SetMipImage(rct.Left, rct.Top, 1, rct.Bottom-rct.Top, 0, slice, pf, @col[0]);
-
-    Move(sprite.FData.Pixel(0,h-1)^, col[0], px);
-    for j := 0 to h - 1 do
-      Move(sprite.FData.Pixel(0,j)^, col[(j+1)*px], px);
-    Move(sprite.FData.Pixel(0,0)^, col[(h+1)*px], px);
-    FTexH.SetMipImage(rct.Right-1, rct.Top, 1, rct.Bottom-rct.Top, 0, slice, pf, @col[0]);
+    for i := 0 to FSpriteList.Count - 1 do
+    begin
+      sprite := FSpriteList[i];
+      if sprite = nil then Continue;
+      page := PPageInfo(FPages.PItem[sprite.FSlice]);
+      page^.Invalids.AddOrSet(sprite);
+    end;
   end;
 
   for i := 0 to FPages.Count - 1 do
-    PPageInfo(FPages.PItem[i])^.Valid := True;
+  begin
+    page := PPageInfo(FPages.PItem[i]);
+    page^.Invalids.Reset;
+    while page^.Invalids.Next(sprite) do
+    begin
+      Assert(sprite <> nil);
+
+      rct := sprite.FQuad.Rect;
+
+      w := sprite.FData.Width;
+      h := sprite.FData.Height;
+      pf:= sprite.FData.PixelFormat;
+      px:= ImagePixelSize[pf];
+      slice := sprite.FSlice;
+
+      FTexH.SetMipImage(rct.Left+1, rct.Top,      rct.Right-rct.Left-2, 1,                    0, slice, pf, sprite.FData.Pixel(0, h-1));
+      FTexH.SetMipImage(rct.Left+1, rct.Top+1,    rct.Right-rct.Left-2, rct.Bottom-rct.Top-2, 0, slice, pf, sprite.FData.Data);
+      FTexH.SetMipImage(rct.Left+1, rct.Bottom-1, rct.Right-rct.Left-2, 1,                    0, slice, pf, sprite.FData.Data);
+
+      if Length(col) <> (h + 2)*px then
+        SetLength(col, (h + 2)*px);
+
+      Move(sprite.FData.Pixel(w-1,h-1)^, col[0], px);
+      for j := 0 to h - 1 do
+        Move(sprite.FData.Pixel(w-1,j)^, col[(j+1)*px], px);
+      Move(sprite.FData.Pixel(w-1,0)^, col[(h+1)*px], px);
+      FTexH.SetMipImage(rct.Left, rct.Top, 1, rct.Bottom-rct.Top, 0, slice, pf, @col[0]);
+
+      Move(sprite.FData.Pixel(0,h-1)^, col[0], px);
+      for j := 0 to h - 1 do
+        Move(sprite.FData.Pixel(0,j)^, col[(j+1)*px], px);
+      Move(sprite.FData.Pixel(0,0)^, col[(h+1)*px], px);
+      FTexH.SetMipImage(rct.Right-1, rct.Top, 1, rct.Bottom-rct.Top, 0, slice, pf, @col[0]);
+    end;
+  end;
+
+  for i := 0 to FPages.Count - 1 do
+    PPageInfo(FPages.PItem[i])^.Invalids.Clear;
 
   if AutoGenerateMips then
     FTexH.GenerateMips;
@@ -1545,6 +1556,7 @@ begin
     spriteObj := TSpriteIndex.Create(Self, freeIndex, ASprite, slice, range);
     FSpriteList[freeIndex] := spriteObj;
     FSprites.Add(ASprite, spriteObj);
+    PPageInfo(FPages.PItem[slice])^.Invalids.Add(spriteObj);
     region.Slice := spriteObj.FSlice;
     region.Rect := spriteObj.FQuad.Rect.v;
     region.Rect.xy := region.Rect.xy + Vec(1,1);
@@ -1629,6 +1641,7 @@ begin
     FOwner.FSprites.Delete(FData);
     FOwner.FSpriteList[FIndex] := nil;
     FOwner.FFreeIndices.Add(FIndex);
+    PPageInfo(FOwner.FPages.PItem[FSlice])^.Invalids.Delete(Self);
   end;
   inherited Destroy;
 end;
@@ -2542,6 +2555,25 @@ begin
   Invalidate;
 end;
 
+procedure TavFrameBuffer.SetColor3D(Index: Integer; AValue: TavTexture3D; mipLevel: Integer; sliceStart: Integer; sliceCount: Integer);
+var oldCount: Integer;
+    ainfo: TAttachInfo;
+    i: Integer;
+begin
+  oldCount := FColors.Count;
+  for i := oldCount to Index do
+    FColors.Add(EmptyAttachInfo);
+  if Assigned(AValue) then
+  begin
+    ainfo.tex := AValue.WeakRef;
+    ainfo.mipLevel := mipLevel;
+    ainfo.sliceStart := sliceStart;
+    ainfo.sliceCount := sliceCount;
+    FColors.Item[index] := ainfo;
+  end;
+  Invalidate;
+end;
+
 procedure TavFrameBuffer.SetUAV(Index: Integer; AValue: TavUAV);
 var oldCount: Integer;
     i: Integer;
@@ -2644,11 +2676,25 @@ end;
 
 function TavFrameBuffer.DoBuild: Boolean;
   function GetTex(const ainfo: TAttachInfo): TavTextureBase; inline;
+  var obj: TObject;
   begin
-    if Assigned(ainfo.tex) then
-      Result := TavTexture(ainfo.tex.Obj)
-    else
-      Result := nil;
+    Result := nil;
+    if ainfo.tex = nil then Exit;
+    obj := ainfo.tex.Obj;
+    if obj = nil then Exit;
+    if not (obj is TavTextureBase) then Exit;
+    Result := TavTextureBase(obj);
+  end;
+
+  function GetTex3D(const ainfo: TAttachInfo): TavTexture3D; inline;
+  var obj: TObject;
+  begin
+    Result := nil;
+    if ainfo.tex = nil then Exit;
+    obj := ainfo.tex.Obj;
+    if obj = nil then Exit;
+    if not (obj is TavTexture3D) then Exit;
+    Result := TavTexture3D(obj);
   end;
 
   function GetStream(const sinfo: TStreamAttachInfo): TavVerticesBase; inline;
@@ -2711,13 +2757,22 @@ begin
   begin
     ainfo := FColors[i];
     tex := GetTex(ainfo);
-    if Assigned(tex) then
+    if tex <> nil then
     begin
       ResizeTex(tex, FrameSize, max(0, ainfo.sliceStart) + max(1, ainfo.sliceCount), ainfo.mipLevel);
       FFrameBuf.SetColor(i, tex.FTexH, ainfo.mipLevel, ainfo.sliceStart, ainfo.sliceCount);
     end
     else
-      FFrameBuf.SetColor(i, nil, ainfo.mipLevel, ainfo.sliceStart, ainfo.sliceCount);
+    begin
+      tex3D := GetTex3D(ainfo);
+      if tex3D <> nil then
+      begin
+        Assert(FrameSize = tex3D.Size.xy);
+        FFrameBuf.SetColor3D(i, tex3D.FTexH, ainfo.mipLevel, ainfo.sliceStart, ainfo.sliceCount);
+      end
+      else
+        FFrameBuf.SetColor(i, nil, ainfo.mipLevel, ainfo.sliceStart, ainfo.sliceCount);
+    end;
   end;
 
   for i := 0 to FUAVs.Count - 1 do
@@ -2774,7 +2829,7 @@ begin
     FFrameBuf.SetDepthStencil(nil, FDepth.mipLevel, FDepth.sliceStart, FDepth.sliceCount);
 end;
 
-procedure TavFrameBuffer.SetFrameRectFromWindow;
+procedure TavFrameBuffer.SetFrameRectFromWindow();
 var s: TVec2i;
 begin
   s := Main.WindowSize;
