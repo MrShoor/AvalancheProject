@@ -121,6 +121,12 @@ type
     function  AbsPose: TMat4Arr;
   end;
 
+  TavMeshHitTestInfo = record
+    T       : Single;
+    Triangle: TVec4i; //xyz - indices of vertices, w - index of triangle
+    UVW     : TVec3;
+  end;
+
   { IavMeshInstance }
 
   IavMeshInstance = interface (IWeakedInterface)
@@ -132,14 +138,17 @@ type
     function GetPose: IavPose;
     function GetTransform: TMat4;
     function GetBindPoseTransform: TMat4;
+    function GetUserFlags: Cardinal;
     procedure SetPose(const AValue: IavPose);
     procedure SetTransform(const AValue: TMat4);
+    procedure SetUserFlags(AValue: Cardinal);
     //--------------------------
     property Name       : string       read GetName;
     property Transform  : TMat4        read GetTransform write SetTransform;
     property CustomProps: ICustomProps read GetCustomProps;
     property Mesh       : IavMesh      read GetMesh;
     property BindPoseTransform: TMat4  read GetBindPoseTransform;
+    property UserFlags: Cardinal read GetUserFlags write SetUserFlags;
 
     property Parent: IavMeshInstance read GetParent;
 
@@ -154,6 +163,8 @@ type
     function PoseStateID: Int64;
     property Pose: IavPose read GetPose write SetPose;
     function PoseArray: TMat4Arr;
+
+    function HitTest(const ARay: TLine; out AHit: TavMeshHitTestInfo): Boolean;
 
     function Clone(const NewInstanceName: string): IavMeshInstance;
   end;
@@ -534,6 +545,8 @@ type
     FBoneRemap: TIntArr;
     FBoneBindTransform: TMat4;
 
+    FUserFlags: Cardinal;
+
     procedure BumpPoseStateID;
     function PoseStateID: Int64;
     function PoseArray: TMat4Arr;
@@ -546,11 +559,13 @@ type
     function GetParent: IavMeshInstance;
     function GetPose: IavPose;
     function GetTransform: TMat4;
+    function GetUserFlags: Cardinal;
     procedure SetPose(const AValue: IavPose);
     procedure SetMesh(const AValue: IavMesh);
     procedure SetName(const AValue: string);
     procedure SetParent(const AValue: IavMeshInstance);
     procedure SetTransform(const AValue: TMat4);
+    procedure SetUserFlags(AValue: Cardinal);
     //--------------------------
 
     property Name     : string      read GetName;
@@ -567,6 +582,8 @@ type
     function IndexOf(const AChild: IavMeshInstance): Integer;
 
     function GetSingleBoneTransform(const ABoneRemapedIndex: Integer): TMat4;
+
+    function HitTest(const ARay: TLine; out AHit: TavMeshHitTestInfo): Boolean;
 
     function Clone(const NewInstanceName: string): IavMeshInstance;
   public
@@ -1539,6 +1556,11 @@ begin
   Result := FTransform;
 end;
 
+function TavMeshInstance.GetUserFlags: Cardinal;
+begin
+  Result := FUserFlags;
+end;
+
 procedure TavMeshInstance.SetPose(const AValue: IavPose);
 var
   i: Integer;
@@ -1580,6 +1602,11 @@ begin
   BumpPoseStateID;
 end;
 
+procedure TavMeshInstance.SetUserFlags(AValue: Cardinal);
+begin
+  FUserFlags := AValue;
+end;
+
 function TavMeshInstance.ChildsCount: Integer;
 begin
   Result := FChilds.Count;
@@ -1608,6 +1635,44 @@ end;
 function TavMeshInstance.GetSingleBoneTransform(const ABoneRemapedIndex: Integer): TMat4;
 begin
   Result := FBoneBindTransform * FPose.AbsPose[ABoneRemapedIndex];
+end;
+
+function TavMeshInstance.HitTest(const ARay: TLine; out AHit: TavMeshHitTestInfo): Boolean;
+  function GetVertPos(VertexIndex: Integer): TVec3;
+  var pv: PMeshVertex;
+      i: Integer;
+  begin
+    pv := FMesh.Vert.PItem[VertexIndex];
+    Result := Vec(0,0,0);
+    for i := 0 to 3 do
+    begin
+      if pv^.vsWIndex.f[i] < 0 then Break;
+      Result := Result + (pv^.vsCoord * FPoseArray[Trunc(pv^.vsWIndex.f[i])]) * pv^.vsWeight.f[i];
+    end;
+  end;
+var i: Integer;
+    tri: TVec3i;
+    tmpT: Single;
+    tmpUVW: TVec3;
+begin
+  PoseArray();
+  AHit.T := HUGE;
+  Result := False;
+  for i := 0 to FMesh.Ind.PrimitiveCount - 1 do
+  begin
+    tri := FMesh.Ind.Triangle[i];
+    if Intersect(GetVertPos(tri.x), GetVertPos(tri.y), GetVertPos(tri.z), ARay.Pnt, ARay.Dir, tmpT, tmpUVW) then
+    begin
+      if tmpT < AHit.T then
+      begin
+        AHit.T := tmpT;
+        AHit.Triangle.xyz := tri;
+        AHit.Triangle.w := i;
+        AHit.UVW := tmpUVW;
+      end;
+      Result := True;
+    end;
+  end;
 end;
 
 function TavMeshInstance.Clone(const NewInstanceName: string): IavMeshInstance;

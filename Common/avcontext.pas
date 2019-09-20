@@ -225,6 +225,8 @@ type
     function GetDepthFunc              : TCompareFunc;
     function GetDepthTest              : Boolean;
     function GetDepthWrite             : Boolean;
+    function GetDepthBias              : Single;
+    function GetSlopeScaledDepthBias   : Single;
     function GetNearFarClamp           : Boolean;
     function GetViewport               : TRectI;
     function GetScissor                : TRectI;
@@ -234,6 +236,8 @@ type
     procedure SetDepthTest             (const Value : Boolean);
     procedure SetDepthWrite            (const Value : Boolean);
     procedure SetDepthFunc             (const Value : TCompareFunc);
+    procedure SetDepthBias             (const Value : Single);
+    procedure SetSlopeScaledDepthBias  (const Value : Single);
     procedure SetNearFarClamp          (const Value : Boolean);
     procedure SetBlending              (RenderTargetIndex: Integer; const Value : Boolean);
     procedure SetColorMask             (RenderTargetIndex: Integer; const Value : TColorMask);

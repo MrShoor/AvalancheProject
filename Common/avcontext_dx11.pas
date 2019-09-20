@@ -178,7 +178,7 @@ const
   {DXT5} DXGI_FORMAT_UNKNOWN,
   {D24_S8} DXGI_FORMAT_UNKNOWN,
   {D32f_S8} DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS,
-  {D16} DXGI_FORMAT_R16_FLOAT,
+  {D16} DXGI_FORMAT_R16_UNORM,
   {D24} DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
   {D32} DXGI_FORMAT_R32_SINT,
   {D32f} DXGI_FORMAT_R32_FLOAT
@@ -456,6 +456,8 @@ type
     function GetColorMask(RenderTargetIndex: Integer = AllTargets): TColorMask;
     function GetCullMode               : TCullingMode;
     function GetDepthFunc              : TCompareFunc;
+    function GetDepthBias              : Single;
+    function GetSlopeScaledDepthBias   : Single;
     function GetDepthTest              : Boolean;
     function GetDepthWrite             : Boolean;
     function GetNearFarClamp           : Boolean;
@@ -467,6 +469,8 @@ type
     procedure SetDepthTest             (const Value : Boolean);
     procedure SetDepthWrite            (const Value : Boolean);
     procedure SetDepthFunc             (const Value : TCompareFunc);
+    procedure SetDepthBias             (const Value : Single);
+    procedure SetSlopeScaledDepthBias  (const Value : Single);
     procedure SetNearFarClamp          (const Value : Boolean);
     procedure SetBlending              (RenderTargetIndex: Integer; const Value : Boolean);
     procedure SetColorMask             (RenderTargetIndex: Integer; const Value : TColorMask);
@@ -2286,6 +2290,16 @@ begin
   Result := AVDepthFunc[FDDesc.DepthFunc];
 end;
 
+function TStates.GetDepthBias: Single;
+begin
+  Result := FRDesc.DepthBias;
+end;
+
+function TStates.GetSlopeScaledDepthBias: Single;
+begin
+  Result := FRDesc.SlopeScaledDepthBias;
+end;
+
 function TStates.GetDepthTest: Boolean;
 begin
   Result := FDDesc.DepthEnable;
@@ -2374,6 +2388,18 @@ procedure TStates.SetDepthFunc(const Value: TCompareFunc);
 begin
   FDDescDirty := FDDescDirty or (FDDesc.DepthFunc <> DXCompareFunc[Value]);
   FDDesc.DepthFunc := DXCompareFunc[Value];
+end;
+
+procedure TStates.SetDepthBias(const Value: Single);
+begin
+  FRDescDirty := FRDescDirty or (FRDesc.DepthBias <> Value);
+  FRDesc.DepthBias := Round(Value);
+end;
+
+procedure TStates.SetSlopeScaledDepthBias(const Value: Single);
+begin
+  FRDescDirty := FRDescDirty or (FRDesc.SlopeScaledDepthBias <> Value);
+  FRDesc.SlopeScaledDepthBias := Value;
 end;
 
 procedure TStates.SetNearFarClamp(const Value: Boolean);

@@ -870,7 +870,7 @@ end;
 procedure TavGlyphAtlas.Invalidate;
 begin
   inherited Invalidate;
-  SubscribeForNextFrame;
+//  SubscribeForNextFrame;
 end;
 
 procedure TavGlyphAtlas.CleanUnused;

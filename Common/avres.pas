@@ -412,6 +412,7 @@ type
   end;
 
   IVBManagedHandle = IManagedHandle;
+  PIVBManagedHandle = ^IVBManagedHandle;
   { TavVBManaged }
 
   TavVBManaged = class(TavVerticesBase)
@@ -455,6 +456,7 @@ type
   end;
 
   IIBManagedHandle = IManagedHandle;
+  PIIBManagedHandle = ^IIBManagedHandle;
   { TavIBManaged }
 
   TavIBManaged = class(TavIndicesBase)
@@ -1756,7 +1758,7 @@ var pSprite: Pointer;
     img   : ITextureMip;
     rct   : TRectI;
 begin
-  Result := inherited DoBuild;
+  inherited DoBuild;
   if FTexH = nil then
   begin
     FTexH := Main.Context.CreateTexture;

@@ -593,6 +593,8 @@ type
     FDepthWrite   : Boolean;
     FDepthTest    : Boolean;
     FDepthFunc    : TCompareFunc;
+    FDepthBias    : Single;
+    FSSDepthBias  : Single;
     FNearFarClamp : Boolean;
     FBlendSrc     : array [0..MAX_RENDER_TARGET_COUNT-1] of TBlendFunc;
     FBlendDest    : array [0..MAX_RENDER_TARGET_COUNT-1] of TBlendFunc;
@@ -611,6 +613,8 @@ type
     function GetDepthFunc: TCompareFunc;
     function GetDepthTest: Boolean;
     function GetDepthWrite: Boolean;
+    function GetDepthBias: Single;
+    function GetSlopeScaledDepthBias: Single;
     function GetNearFarClamp: Boolean;
     function GetViewport: TRectI;
     function GetScissor: TRectI;
@@ -620,6 +624,8 @@ type
     procedure SetDepthTest(const Value: Boolean);
     procedure SetDepthWrite(const Value: Boolean);
     procedure SetDepthFunc(const Value: TCompareFunc);
+    procedure SetDepthBias(const Value : Single);
+    procedure SetSlopeScaledDepthBias(const Value : Single);
     procedure SetNearFarClamp(const Value: Boolean);
     procedure SetColorMask(RenderTargetIndex: Integer; const Value: TColorMask);
     procedure SetBlending(RenderTargetIndex: Integer; const Value : Boolean);
@@ -1494,6 +1500,16 @@ begin
   Result := FDepthWrite;
 end;
 
+function TStates_OGL.GetDepthBias: Single;
+begin
+  Result := FDepthBias;
+end;
+
+function TStates_OGL.GetSlopeScaledDepthBias: Single;
+begin
+  Result := FSSDepthBias;
+end;
+
 function TStates_OGL.GetNearFarClamp: Boolean;
 begin
   Result := FNearFarClamp;
@@ -1586,6 +1602,24 @@ begin
   begin
     FDepthFunc := Value;
     glDepthFunc(GLCompareFunction[FDepthFunc]);
+  end;
+end;
+
+procedure TStates_OGL.SetDepthBias(const Value: Single);
+begin
+  if (FDepthBias <> Value) and FContext.Binded then
+  begin
+    FDepthBias := Value;
+    glPolygonOffset(FSSDepthBias, FDepthBias);
+  end;
+end;
+
+procedure TStates_OGL.SetSlopeScaledDepthBias(const Value: Single);
+begin
+  if (FSSDepthBias <> Value) and FContext.Binded then
+  begin
+    FSSDepthBias := Value;
+    glPolygonOffset(FSSDepthBias, FDepthBias);
   end;
 end;
 

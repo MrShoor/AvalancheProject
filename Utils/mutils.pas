@@ -145,6 +145,10 @@ type
   { TLine }
 
   TLine = record
+  {$IfDef DCC}
+  public
+    class operator Multiply(const a: TLine; const b: TMat4): TLine;
+  {$EndIf}
   case Byte of
     0: (Pnt, Dir: TVec3);
   end;
@@ -362,7 +366,7 @@ function Rotate90(const v: TVec2; const CW: Boolean): TVec2; overload; {$IFNDEF 
 function Intersect(const Line1, Line2: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const Seg: TSegment2D; const Line: TLine2D; out IntPoint: TVec2): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const RayOrig, RayDir: TVec3; const AABB: TAABB; out T: Single; SolidAABB, AllowBackfaces: Boolean): Boolean; overload;
-function Intersect(const p1, p2, p3: TVec3; const RayOrig, RayDir: TVec3; out T: Single; FiniteRay: Boolean = False): Boolean; overload;
+function Intersect(const p1, p2, p3: TVec3; const RayOrig, RayDir: TVec3; out T: Single; out UVW: TVec3; FiniteRay: Boolean = False): Boolean; overload;
 function Intersect(const Plane: TPlane; Line: TLine; out IntPt: TVec3): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const R1: TRectF; const R2: TRectF): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Intersect(const R1: TRectI; const R2: TRectI): Boolean; overload;{$IFNDEF NoInline} inline; {$ENDIF}
@@ -1334,6 +1338,14 @@ end;
 class operator TQuat.Equal(const a, b: TQuat): Boolean;
 begin
   Result := a.v4 = b.v4;
+end;
+
+class operator TLine.Multiply(const a: TLine; const b: TMat4): TLine;
+var p2: TVec3;
+begin
+  p2 := (a.Pnt + a.Dir) * b;
+  Result.Pnt := a.Pnt * b;
+  Result.Dir := p2 - Result.Pnt;
 end;
 {$EndIf}
 
@@ -2446,10 +2458,9 @@ begin
   Result := True;
 end;
 
-function Intersect(const p1, p2, p3: TVec3; const RayOrig, RayDir: TVec3; out T: Single; FiniteRay: Boolean): Boolean;
+function Intersect(const p1, p2, p3: TVec3; const RayOrig, RayDir: TVec3; out T: Single; out UVW: TVec3; FiniteRay: Boolean): Boolean;
 var a, b, p, q, n: TVec3;
     invDet, Det: Single;
-    u, v: Single;
 begin
   T := 0;
 
@@ -2463,10 +2474,11 @@ begin
   if Det = 0 then Exit(False);
   invDet := 1.0/Det;
 
-  u := Dot(q, b) * invDet;
-  v := Dot(q, a) * invDet;
+  UVW.x := Dot(q, b) * invDet;
+  UVW.y := Dot(q, a) * invDet;
 
-  if (u<0) or (u>1) or (v<0) or (u+v>1) then Exit(False);
+  if (UVW.x<0) or (UVW.x>1) or (UVW.y<0) or (UVW.x+UVW.y>1) then Exit(False);
+  UVW.z := 1.0 - UVW.x - UVW.y;
 
   T := Dot(n, p) * invDet;
   if T < 0 then Exit(False);

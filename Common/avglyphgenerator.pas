@@ -319,7 +319,7 @@ begin
 
     XXX.x := glyph.metrics.gmptGlyphOrigin.X;
     XXX.y := glyph.metrics.gmBlackBoxX;
-    XXX.z := glyph.metrics.gmCellIncX - glyph.metrics.gmBlackBoxX - glyph.metrics.gmptGlyphOrigin.X;
+    XXX.z := Integer(glyph.metrics.gmCellIncX) - Integer(glyph.metrics.gmBlackBoxX) - glyph.metrics.gmptGlyphOrigin.X;
 
     XXX.x := XXX.x - scaledBorder;
     XXX.y := XXX.y + 2 * scaledBorder;
@@ -579,7 +579,7 @@ begin
       rowsize := ((metrics.gmBlackBoxX + 31) div 32) * 4;
       for j := 0 to metrics.gmBlackBoxY - 1 do
       begin
-        row := @buf[j * rowsize];
+        row := @buf[Cardinal(j) * rowsize];
         for i := 0 to metrics.gmBlackBoxX - 1 do
         begin
           if ((TByteArr(row)[i div 8] shr (7 - i mod 8)) and 1 = 1) then
@@ -910,8 +910,8 @@ var i, j: Integer;
     row: PByte;
     v: TVec2;
 begin
-  FWidth := AGlyph.metrics.gmBlackBoxX + 2 * ABorder;
-  FHeight := AGlyph.metrics.gmBlackBoxY + 2 * ABorder;
+  FWidth := Integer(AGlyph.metrics.gmBlackBoxX) + 2 * ABorder;
+  FHeight := Integer(AGlyph.metrics.gmBlackBoxY) + 2 * ABorder;
   SetLength(FData, FWidth * FHeight);
 
   if not AInverted then
