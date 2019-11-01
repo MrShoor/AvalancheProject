@@ -11,6 +11,7 @@ uses
   Classes, SysUtils,
   intfUtils,
   avBase, avRes, avTypes, mutils,
+  avContnrs, avContnrsDefaults,
   avCanvas;
 
 type
@@ -37,6 +38,7 @@ type
     FOrigin: TVec2;
     FPos: TVec2;
     FSize: TVec2;
+    FTabIndex: Integer;
 
     FValid: Boolean;
     FIteratorIdx: Integer;
@@ -65,6 +67,8 @@ type
     FDragDownedCoord: array[0..2] of TVec2;
     procedure AfterRegister; override;
   protected
+    procedure Notify_ChildVisibleChanged(const AChild: TavmBaseControl); virtual;
+
     procedure Notify_ParentSizeChanged; virtual;
     procedure Notify_ParentOriginChanged; virtual;
     procedure Notify_ParentPosChanged; virtual;
@@ -90,6 +94,8 @@ type
     procedure Notify_KeyDown(AKey: Word; const Ex: TKeyEventEx); virtual;
     procedure Notify_Char(AChar: WideChar; const Ex: TKeyEventEx); virtual;
     procedure Notify_KeyUp(AKey: Word; const Ex: TKeyEventEx); virtual;
+
+    procedure NextTabStop(ACurrentChild: TavmBaseControl); virtual;
 
     procedure RedirectToParent_MouseWheel(const APt: TVec2; AWheelShift: Integer; AShifts: TShifts);
   protected
@@ -123,6 +129,7 @@ type
     property Origin: TVec2  read FOrigin write SetOrigin;
     property Angle : Single read FAngle  write SetAngle;
     property Pos   : TVec2  read FPos    write SetPos;
+    property TabIndex: Integer read FTabIndex write FTabIndex;
 
     property DragThreshold : Single read FDragThreshold write FDragThreshold;
 
@@ -223,6 +230,7 @@ type
     FText   : string;
     FOnClick: TNotifyEvent;
   protected
+    procedure Notify_KeyDown(AKey: Word; const Ex: TKeyEventEx); override;
     procedure Notify_MouseDown(ABtn: Integer; const APt: TVec2; AShifts: TShifts); override;
     procedure Notify_MouseMove(const APt: TVec2; AShifts: TShifts); override;
     procedure Notify_MouseUp(ABtn: Integer; const APt: TVec2; AShifts: TShifts); override;
@@ -292,6 +300,8 @@ type
 
   TavmCustomEdit = class (TavmCustomControl)
   private
+    FEmptyText: UnicodeString;
+    FIsPasswordBox: Boolean;
     FText: UnicodeString;
     FMaxTextLength: Integer;
 
@@ -301,6 +311,8 @@ type
 
     FOnChanged: TNotifyEvent;
     FOnComplete: TNotifyEvent;
+    procedure SetEmptyText(AValue: UnicodeString);
+    procedure SetIsPasswordBox(AValue: Boolean);
     procedure SetText(const AValue: UnicodeString);
   protected
     function CanAddChar: Boolean; virtual;
@@ -315,6 +327,8 @@ type
   public
     property MaxTextLength: Integer read FMaxTextLength write FMaxTextLength;
     property Text: UnicodeString read FText write SetText;
+    property EmptyText: UnicodeString read FEmptyText write SetEmptyText;
+    property IsPasswordBox: Boolean read FIsPasswordBox write SetIsPasswordBox;
 
     property OnChanged : TNotifyEvent read FOnChanged  write FOnChanged;
     property OnComplete: TNotifyEvent read FOnComplete write FOnComplete;
@@ -355,6 +369,55 @@ type
     property WorkOrigin: TVec2 read FWorkOrigin write SetWorkOrigin;
   end;
 
+  TOnBreadcrumbClick = procedure (ASender: TObject; ACrumbIdx: Integer; const ACrumbName: string) of object;
+
+  { TavmCustomBreadCrubmBar }
+
+  TavmCustomBreadCrubmBar = class (TavmCustomControl)
+  private
+    FLastActive: boolean;
+  public
+    procedure AddCrumb(const AName: string; const ACallback: TOnBreadcrumbClick);
+    procedure CutCrumbs(const ALastIdx: string);
+
+    function CrumbsCount: Integer;
+    function CrumbName(idx: Integer): string;
+
+    property LastActive: boolean read FLastActive write FLastActive;
+  end;
+
+  { TavmCustomToolbar }
+
+  TavmCustomToolbar = class (TavmCustomControl)
+  private type
+    IArrangeWeights = {$IfDef FPC}specialize{$EndIf} IHashMap<IWeakRef, Integer>;
+    TArrangeWeights = {$IfDef FPC}specialize{$EndIf} THashMap<IWeakRef, Integer>;
+
+    IIntArr = {$IfDef FPC}specialize{$EndIf} IArray<Integer>;
+    TIntArr = {$IfDef FPC}specialize{$EndIf} TArray<Integer>;
+  private type
+    TArrangeComparer = class (TInterfacedObject, IComparer)
+    private
+      FToolbar: TavmCustomToolbar;
+      function Compare(const Left, Right): Integer;
+    public
+      constructor Create(AToolBar: TavmCustomToolbar);
+    end;
+  private
+    FBorderWidth: Integer;
+    FWeights: IArrangeWeights;
+    function GetArrangeWeight(const AControl: TavObject): Integer;
+    procedure SetArrangeWeight(const AControl: TavObject; AValue: Integer);
+    procedure SetBorderWidth(AValue: Integer);
+  protected
+    function ArrangeChilds(): Single;
+  public
+    property ArrangeWeight[const AControl: TavObject]: Integer read GetArrangeWeight write SetArrangeWeight;
+    property BorderWidth: Integer read FBorderWidth write SetBorderWidth;
+
+    constructor Create(AParent: TavObject); override;
+  end;
+
 implementation
 
 uses
@@ -379,6 +442,133 @@ type
   private
     procedure UpdateStates();
   end;
+
+{ TavmCustomToolbar.TArrangeComparer }
+
+function TavmCustomToolbar.TArrangeComparer.Compare(const Left, Right): Integer;
+var L: Integer absolute Left;
+    R: Integer absolute Right;
+    lw, rw: Integer;
+begin
+  lw := FToolbar.ArrangeWeight[FToolbar.Child[L]];
+  rw := FToolbar.ArrangeWeight[FToolbar.Child[R]];
+  Result := lw - rw;
+  if Result = 0 then
+    Result := L - R;
+end;
+
+constructor TavmCustomToolbar.TArrangeComparer.Create(AToolBar: TavmCustomToolbar);
+begin
+  FToolbar := AToolBar;
+end;
+
+{ TavmCustomBreadCrubmBar }
+
+procedure TavmCustomBreadCrubmBar.AddCrumb(const AName: string; const ACallback: TOnBreadcrumbClick);
+begin
+
+end;
+
+procedure TavmCustomBreadCrubmBar.CutCrumbs(const ALastIdx: string);
+begin
+
+end;
+
+function TavmCustomBreadCrubmBar.CrumbsCount: Integer;
+begin
+
+end;
+
+function TavmCustomBreadCrubmBar.CrumbName(idx: Integer): string;
+begin
+
+end;
+
+{ TavmCustomToolbar }
+
+function TavmCustomToolbar.GetArrangeWeight(const AControl: TavObject): Integer;
+begin
+  if not FWeights.TryGetValue(AControl.WeakRef, Result) then Result := 0;
+end;
+
+procedure TavmCustomToolbar.SetArrangeWeight(const AControl: TavObject; AValue: Integer);
+begin
+  FWeights.AddOrSet(AControl.WeakRef, AValue);
+end;
+
+procedure TavmCustomToolbar.SetBorderWidth(AValue: Integer);
+begin
+  if FBorderWidth = AValue then Exit;
+  FBorderWidth := AValue;
+  ArrangeChilds();
+  Invalidate;
+end;
+
+function TavmCustomToolbar.ArrangeChilds(): Single;
+var cmp: IComparer;
+    order: IIntArr;
+    i: Integer;
+    w: Integer;
+    newpos: TVec2;
+    newsize: TVec2;
+    chld: TavmBaseControl;
+begin
+  if ChildCount = 0 then Exit;
+
+  order := TIntArr.Create();
+  order.Capacity := ChildCount;
+  for i := 0 to ChildCount - 1 do
+    order.Add(i);
+
+  cmp := TArrangeComparer.Create(Self);
+  order.Sort(cmp);
+
+  ChildReorder(order.PItem[0]);
+
+  newpos.x := 0;
+  newpos.y := 0;
+  for i := 0 to ChildCount - 1 do
+  begin
+    w := ArrangeWeight[Child[i]];
+    if w > 0 then Exit;
+    if Child[i] is TavmBaseControl then
+    begin
+      chld := TavmBaseControl(Child[i]);
+      if not chld.Visible then Continue;
+
+      chld.Pos := newpos;
+      newsize := chld.Size;
+      newsize.y := Min(Size.y, newsize.y);
+      chld.Size := newsize;
+      newpos.x := newpos.x + chld.Size.x;
+    end;
+  end;
+
+  newpos.x := Size.x;
+  newpos.y := 0;
+  for i := ChildCount - 1 downto 0 do
+  begin
+    w := ArrangeWeight[Child[i]];
+    if w <= 0 then Exit;
+    if Child[i] is TavmBaseControl then
+    begin
+      chld := TavmBaseControl(Child[i]);
+      if not chld.Visible then Continue;
+
+      newpos.x := newpos.x - chld.Size.x;
+      chld.Pos := newpos;
+      newsize := chld.Size;
+      newsize.y := Min(Size.y, newsize.y);
+      chld.Size := newsize;
+    end;
+  end;
+end;
+
+constructor TavmCustomToolbar.Create(AParent: TavObject);
+begin
+  inherited Create(AParent);
+  FWeights := TArrangeWeights.Create();
+end;
 
 { TavmCustomScrollContainer }
 
@@ -757,6 +947,20 @@ begin
   if Assigned(FOnChanged) then FOnChanged(Self);
 end;
 
+procedure TavmCustomEdit.SetEmptyText(AValue: UnicodeString);
+begin
+  if FEmptyText = AValue then Exit;
+  FEmptyText := AValue;
+  Invalidate;
+end;
+
+procedure TavmCustomEdit.SetIsPasswordBox(AValue: Boolean);
+begin
+  if FIsPasswordBox = AValue then Exit;
+  FIsPasswordBox := AValue;
+  Invalidate;
+end;
+
 function TavmCustomEdit.CanAddChar: Boolean;
 begin
   Result := Length(FText) < FMaxTextLength;
@@ -789,6 +993,9 @@ begin
   end;
   if AKey = 13 then //enter
     InputConnector.Focused := nil;
+  if AKey = 9 then //tab
+    if Parent is TavmBaseControl then
+      TavmBaseControl(Parent).NextTabStop(Self);
 end;
 
 procedure TavmCustomEdit.Notify_Char(AChar: WideChar; const Ex: TKeyEventEx);
@@ -886,6 +1093,18 @@ begin
   if FText = AValue then Exit;
   FText := AValue;
   Invalidate;
+end;
+
+procedure TavmCustomButton.Notify_KeyDown(AKey: Word; const Ex: TKeyEventEx);
+begin
+  inherited Notify_KeyDown(AKey, Ex);
+  if AKey = 13 then //enter
+  begin
+    DoOnClick;
+  end;
+  if AKey = 9 then //tab
+    if Parent is TavmBaseControl then
+      TavmBaseControl(Parent).NextTabStop(Self);
 end;
 
 procedure TavmCustomButton.Notify_MouseDown(ABtn: Integer; const APt: TVec2;
@@ -1154,6 +1373,8 @@ begin
   if InputConnector.Focused = Self then
     InputConnector.Focused := nil;
   FVisible := AValue;
+  if Parent is TavmBaseControl then
+    TavmBaseControl(Parent).Notify_ChildVisibleChanged(Self);
   Main.InvalidateWindow;
 end;
 
@@ -1167,6 +1388,11 @@ begin
     FInputConnector := TavmInputConnector.Create(Main).WeakRef;
     InputConnector.SetRootControl(Self);
   end;
+end;
+
+procedure TavmBaseControl.Notify_ChildVisibleChanged(const AChild: TavmBaseControl);
+begin
+
 end;
 
 procedure TavmBaseControl.Notify_ParentSizeChanged;
@@ -1278,6 +1504,37 @@ end;
 
 procedure TavmBaseControl.Notify_KeyUp(AKey: Word; const Ex: TKeyEventEx);
 begin
+end;
+
+procedure TavmBaseControl.NextTabStop(ACurrentChild: TavmBaseControl);
+var next, nextMin: TavmBaseControl;
+    di, diMin, n, j, i: Integer;
+begin
+  if ACurrentChild = nil then Exit;
+  n := ChildIndex(ACurrentChild);
+  if n < 0 then Exit;
+
+  nextMin := nil;
+  diMin := MaxInt;
+  for i := n + 1 to n + ChildCount - 2 do
+  begin
+    j := i mod ChildCount;
+    if Child[j] is TavmBaseControl then
+    begin
+      next := TavmBaseControl(Child[j]);
+      if not next.AllowFocus then Continue;
+      di := next.TabIndex - ACurrentChild.TabIndex;
+      if di < 0 then di := di + MaxInt;
+      if di < diMin then
+      begin
+        nextMin := next;
+        diMin := di;
+      end;
+    end;
+  end;
+
+  if nextMin <> nil then
+    InputConnector.Focused := nextMin;
 end;
 
 procedure TavmBaseControl.RedirectToParent_MouseWheel(const APt: TVec2; AWheelShift: Integer; AShifts: TShifts);

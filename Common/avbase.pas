@@ -52,6 +52,7 @@ type
     function  ChildIndex(AChild: TavObject): integer;
     function  ChildExists(obj: TavObject): boolean;
     function  ChildExistsRecursive(obj: TavObject): boolean;
+    procedure ChildReorder(newOrder: PInteger);
     function  FindChild(const AName: string): TavObject; overload;
     function  FindChild(const AName: string; objClass: TavObjectClass): TavObject; overload;
     function  FindChildRecursive(const AName: string): TavObject; overload;
@@ -221,6 +222,30 @@ begin
       Result := Child[i].ChildExistsRecursive(obj);
       if Result then Exit;
     end;
+  end;
+end;
+
+procedure TavObject.ChildReorder(newOrder: PInteger);
+var newObjects: TList;
+    newIdx: PInteger;
+    i: Integer;
+begin
+  try
+    newObjects := TList.Create;
+    newObjects.Count := FObjects.Count;
+
+    newIdx := newOrder;
+    for i := 0 to FObjects.Count - 1 do
+    begin
+      newObjects[i] := FObjects[newIdx^];
+      Inc(newIdx);
+    end;
+    FreeAndNil(FObjects);
+    FObjects := newObjects;
+    newObjects := nil;
+  except
+    FreeAndNil(newObjects);
+    raise;
   end;
 end;
 

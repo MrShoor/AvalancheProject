@@ -877,6 +877,7 @@
                                    float3 mul(float3x3 val1, float3 val2);
                                    float4 mul(float4 val1, float4x4 val2);
                                    float4 mul(float4x4 val1, float4 val2);
+                                   float4x4 mul(float4x4 val1, float4x4 val2);
         template<typename gentype> float   noise(gentype v);
         template<typename gentype> gentype normalize(gentype v);
         template<class gentype, typename p> gentype pow(gentype base, p power);
