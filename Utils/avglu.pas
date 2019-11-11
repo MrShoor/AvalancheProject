@@ -159,6 +159,7 @@ procedure gluTessEndPolygon  (t: PGLUtesselator);                               
 procedure gluTessBeginContour(t: PGLUtesselator);                                          stdcall; external GLU_LIBNAME;
 procedure gluTessEndContour  (t: PGLUtesselator);                                          stdcall; external GLU_LIBNAME;
 procedure gluTessVertex      (t: PGLUtesselator; const coords: TGLArrayd3; data: Pointer); stdcall; external GLU_LIBNAME;
+procedure gluTessNormal      (t: PGLUTesselator; X, Y, Z: TGLdouble);                      stdcall; external GLU_LIBNAME;
 
 implementation
 

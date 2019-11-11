@@ -440,7 +440,8 @@ function GenerateHammersleyPts(const N: Integer): TVec4Arr;
 function WeightedRandom(weights: array of Integer): Integer;
 
 function sRGBToLinear(const rgb: TVec3): TVec3;
-function sRGB255ToLinear(r, g, b: Byte): TVec3;
+function sRGB255ToLinear(r, g, b: Byte): TVec3; overload;
+function sRGB255ToLinear(rgb: TVec3b): TVec3; overload;
 function LinearTosRGB(const linear: TVec3): TVec3;
 
 {$IfDef FPC}
@@ -540,7 +541,12 @@ end;
 
 function sRGB255ToLinear(r, g, b: Byte): TVec3;
 begin
-  Result := sRGBToLinear(Vec(r,g,b)/255);
+  Result := sRGBToLinear(Vec(r/255,g/255,b/255));
+end;
+
+function sRGB255ToLinear(rgb: TVec3b): TVec3;
+begin
+  Result := sRGB255ToLinear(rgb.x, rgb.y, rgb.z);
 end;
 
 function LinearTosRGB(const linear: TVec3): TVec3;
