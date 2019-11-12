@@ -8,7 +8,8 @@ unit avCanvas;
 interface
 
 uses
-  Classes, SysUtils, intfUtils, avBase, avRes, mutils, avTypes, avContnrs, avTess, avContext, avGlyphGenerator, avGPUGlyphGenerator;
+  Classes, SysUtils, intfUtils,
+  avBase, avRes, mutils, avTypes, avContnrs, avTess, avContext, avGlyphGenerator, avGPUGlyphGenerator, avGLUIntf;
 
 type
   IGlyphIndex = interface;
@@ -100,6 +101,7 @@ type
     FAlign: TPenAlign;
     FColor: TVec4;
     FHinting: TPenHinting;
+    FJointsBreakAngle: Single;
     FMinPixWidth: Integer;
     FPattern: ITextureMip;
     FPatternTransform: TMat3;
@@ -107,6 +109,7 @@ type
     procedure SetAlign(AValue: TPenAlign);
     procedure SetColor(const AValue: TVec4);
     procedure SetHinting(AValue: TPenHinting);
+    procedure SetJointsBreakAngle(AValue: Single);
     procedure SetMinPixWidth(AValue: Integer);
     procedure SetPattern(const AValue: ITextureMip);
     procedure SetPatternTransform(const AValue: TMat3);
@@ -120,6 +123,8 @@ type
     property Align: TPenAlign read FAlign write SetAlign;
 
     property MinPixWidth: Integer read FMinPixWidth write SetMinPixWidth;
+
+    property JointsBreakAngle: Single read FJointsBreakAngle write SetJointsBreakAngle;
 
     property Pattern: ITextureMip read FPattern write SetPattern; //todo
     property PatternTransform: TMat3 read FPatternTransform write SetPatternTransform; //todo
@@ -529,6 +534,7 @@ type
     procedure AddRectangle(LeftTop, RightBottom: TVec2); overload;
     procedure AddText(const AText: ITextLines);
     procedure AddFill(const LeftTop, RightBottom: TVec2); overload;
+    procedure AddPolyFill(const APoly: array of TPolyContour); overload;
     procedure AddTriangle(const V1,V2,V3: TVec2); overload;
     procedure AddSprite(const LeftTop, RightBottom: TVec2; const AFileName: string); overload;
     procedure AddSprite(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex); overload;
@@ -2283,12 +2289,42 @@ begin
 end;
 
 procedure TavCanvas.AddPolyline(const APts: array of TVec2; AClosed: Boolean);
+
+  procedure EvalNormals(const p1, p2, p3, p4: TVec2; CosBreakTolerance: Single; out n1, n2: TVec2);
+  var d1, d2, d3: TVec2;
+      D, C: Single;
+  begin
+    d1 := NormalizeSafe(p2 - p1, Vec(0,0));
+    d2 := NormalizeSafe(p3 - p2, Vec(0,0));
+    d3 := NormalizeSafe(p4 - p3, Vec(0,0));
+
+    C := Cross(d1, d2);
+    D := Dot(d1, -d2);
+    if (D > CosBreakTolerance) or (abs(C) < EPS) then
+      n1 := Rotate90(d2, True)
+    else
+    begin
+      D := sqrt(Max(0.5 - D*0.5, 0))*Sign(C);
+      n1 := Normalize(d1 - d2) / D;
+    end;
+
+    C := Cross(d2, d3);
+    D := Dot(d2, -d3);
+    if (D > CosBreakTolerance) or (abs(C) < EPS) then
+      n2 := Rotate90(d2, True)
+    else
+    begin
+      D := sqrt(Max(0.5 - D*0.5, 0))*Sign(C);
+      n2 := Normalize(d2 - d3) / D;
+    end;
+  end;
+
 var Seg: TLinePointVertex;
-    i, n, idx: Integer;
-    norm: TVec2;
-    normSqrLen: Single;
+    i, n: Integer;
+    cosBreak: Single;
 begin
   if Length(APts) < 2 then Exit;
+  cosBreak := Cos(FPen.JointsBreakAngle);
 
   SelectGeometryKind(gkLines);
 
@@ -2301,8 +2337,7 @@ begin
     begin
       Seg.Coords.xy := APts[i];
       Seg.Coords.zw := APts[(i+1) mod n];
-      Seg.Normals.xy := NormalizeSafe(Rotate90(APts[(i+1) mod n] - APts[(i-1+n) mod n], False), Vec(0, 0));
-      Seg.Normals.zw := NormalizeSafe(Rotate90(APts[(i+2) mod n] - APts[i], False), Vec(0, 0));
+      EvalNormals(APts[(i-1+n) mod n], APts[i], APts[(i+1) mod n], APts[(i+2) mod n], cosBreak, Seg.Normals.xy, Seg.Normals.zw);
       FLineData.Add(Seg);
     end;
   end
@@ -2313,8 +2348,7 @@ begin
     begin
       Seg.Coords.xy := APts[i];
       Seg.Coords.zw := APts[i+1];
-      Seg.Normals.xy := NormalizeSafe(Rotate90(APts[i+1] - APts[Max(i-1, 0)], False), Vec(0, 0));
-      Seg.Normals.zw := NormalizeSafe(Rotate90(APts[Min(i+2, n)] - APts[i], False), Vec(0, 0));
+      EvalNormals(APts[Max(i-1, 0)], APts[i], APts[i+1], APts[Min(i+2, n)], cosBreak, Seg.Normals.xy, Seg.Normals.zw);
       FLineData.Add(Seg);
     end;
   end;
@@ -2375,6 +2409,46 @@ end;
 procedure TavCanvas.AddFill(const LeftTop, RightBottom: TVec2);
 begin
   AddQuad(LeftTop, RightBottom, nil);
+end;
+
+procedure TavCanvas.AddPolyFill(const APoly: array of TPolyContour);
+var convex: TContours;
+    c: TVec2Arr;
+    i, j: Integer;
+    v: array [0..2] of TCanvasTriangleVertex;
+    vidx: Integer;
+begin
+  if Length(APoly) = 0 then Exit;
+  convex := PolyToConvex(APoly);
+  if Length(convex) = 0 then Exit;
+
+  SelectGeometryKind(gkTris);
+
+  FillVertexWithBrush(v[0]);
+  FillVertexWithBrush(v[1]);
+  FillVertexWithBrush(v[2]);
+  v[0].TexCoord := Vec(0,0);
+  v[1].TexCoord := Vec(0,0);
+  v[2].TexCoord := Vec(0,0);
+  v[0].Sprite := nil;
+  v[1].Sprite := nil;
+  v[2].Sprite := nil;
+  for j := 0 to Length(convex) - 1 do
+  begin
+    c := convex[j];
+    if Length(c) < 3 then Continue;
+    v[2].Coords := c[0];
+    v[0].Coords := c[1];
+    vidx := 0;
+    for i := 2 to Length(c) - 1 do
+    begin
+      vidx := vidx xor 1;
+      v[vidx].Coords := c[i];
+      FTrisData.Add(v[2]);
+      FTrisData.Add(v[vidx xor 1]);
+      FTrisData.Add(v[vidx]);
+    end;
+  end;
 end;
 
 procedure TavCanvas.AddTriangle(const V1, V2, V3: TVec2);
@@ -2558,6 +2632,7 @@ begin
   PenDest.FColor := FColor;
   PenDest.FAlign := FAlign;
   PenDest.FHinting := FHinting;
+  PenDest.JointsBreakAngle := FJointsBreakAngle;
   PenDest.FMinPixWidth := FMinPixWidth;
   PenDest.FWidth := FWidth;
   PenDest.FPattern := FPattern;
@@ -2570,12 +2645,19 @@ begin
   FWidth := 1;
   FColor := Vec(0,0,0,1);
   FHinting := cPenHintingAll;
+  FJointsBreakAngle := Pi/8;
 end;
 
 procedure TPenStyle.SetHinting(AValue: TPenHinting);
 begin
   if FHinting = AValue then Exit;
   FHinting := AValue;
+end;
+
+procedure TPenStyle.SetJointsBreakAngle(AValue: Single);
+begin
+  if FJointsBreakAngle = AValue then Exit;
+  FJointsBreakAngle := AValue;
 end;
 
 procedure TPenStyle.SetMinPixWidth(AValue: Integer);

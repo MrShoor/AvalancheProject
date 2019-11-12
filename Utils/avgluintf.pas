@@ -13,9 +13,12 @@ uses
 type
   TContours = array of TVec2Arr;
 
+  { TPolyContour }
+
   TPolyContour = record
     cntr: TVec2Arr;
     hole: Boolean;
+    procedure SetPoints(const APoints: array of TVec2);
   end;
   TPoly = array of TPolyContour;
 
@@ -209,6 +212,16 @@ begin
     summ := summ + (AContour[ii].x - AContour[i].x)*(AContour[ii].y + AContour[i].y);
   end;
   Result := summ * 0.5;
+end;
+
+{ TPolyContour }
+
+procedure TPolyContour.SetPoints(const APoints: array of TVec2);
+var i: Integer;
+begin
+  SetLength(cntr, Length(APoints));
+  for i := 0 to Length(APoints) - 1 do
+    cntr[i] := APoints[i];
 end;
 
 { TPolyContour_rawptr }
