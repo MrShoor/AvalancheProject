@@ -479,6 +479,8 @@ type
 
     function RootNode: {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TBox>;
 
+    procedure Reset;
+    function  Next(out AItem: TItem): Boolean;
     procedure EnumNodes(const ACallbackIterator: ILooseNodeCallBackIterator);
     procedure CleanUnused;
 
@@ -593,6 +595,9 @@ type
 
     function RootNode: {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TAABB>;
 
+    procedure Reset;
+    function  Next(out AItem: TItem): Boolean;
+
     procedure EnumNodesRecursive(const ANode: IBaseNode; const ACallbackIterator: ILooseNodeCallBackIterator);
     procedure EnumNodes(const ACallbackIterator: ILooseNodeCallBackIterator);
 
@@ -600,6 +605,124 @@ type
     procedure CleanUnused;
   public
     constructor Create(const AMinNodeSize: TVec3);
+  end;
+
+  {$IfDef FPC}generic{$EndIf}
+  ILooseQTreeNode<TItem> = interface ({$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TRectF>)
+  end;
+
+  {$IfDef FPC}generic{$EndIf}
+  IQNodeInternal<TItem> = interface ({$IfDef FPC}specialize{$EndIf} ILooseQTreeNode<TItem>)
+    function Place: TVec2i;
+    function Parent: {$IfDef FPC}specialize{$EndIf} IQNodeInternal<TItem>;
+
+    function InNode(const AMinBound, AMaxBound: TVec2i): Boolean; overload;
+    function InNode(const APoint: TVec2): Boolean; overload;
+    function CreateParent(const AMinBound: TVec2): {$IfDef FPC}specialize{$EndIf} IQNodeInternal<TItem>;
+    function CalcChildIndex(const AChildPlace: TVec2): Integer; overload;
+    function ObtainChild(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IQNodeInternal<TItem>;
+
+    procedure AddItem(const AItem: TItem);
+    procedure DelItem(const AItem: TItem);
+
+    procedure IncTotalCounter;
+    procedure DecTotalCounter;
+
+    procedure ClearParentLink;
+  end;
+
+  {$IfDef FPC}generic{$EndIf}
+  ILooseQTree<TItem> = interface ({$IfDef FPC}specialize{$EndIf} IBase_LooseTree<TItem, TRectF>)
+  end;
+
+  { TLooseQTreeNode }
+
+  {$IfDef FPC}generic{$EndIf}
+  TLooseQTreeNode<TItem> = class (TInterfacedObjectEx, {$IfDef FPC}specialize{$EndIf} IQNodeInternal<TItem>)
+  private type
+    IItems = {$IfDef FPC}specialize{$EndIf} IArray<TItem>;
+    TItems = {$IfDef FPC}specialize{$EndIf} TArray<TItem>;
+
+    INode = {$IfDef FPC}specialize{$EndIf} IQNodeInternal<TItem>;
+    TNode = {$IfDef FPC}specialize{$EndIf} TLooseQTreeNode<TItem>;
+  private
+    FLevel       : Integer;
+    FPlace       : TVec2i;  //left bottom of bound
+    FParent      : TNode;
+    FTotalCounter: Integer;
+    FChilds      : array [0..3] of INode;
+    FItems       : IItems;
+  private
+    function UsedMemory: Integer;
+
+    function Level: Integer;
+    function Child(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TRectF>;
+
+    function TotalCount: Integer;
+    function ItemsCount: Integer;
+    function Item(const AIndex: Integer): TItem;
+
+    function CalcChildIndex(const AParentPlace: TVec2i; const AParentLevel: Integer; const AChildPlace: TVec2): Integer; overload;
+    function InNode(const AMinBound, AMaxBound: TVec2i): Boolean; overload;
+    function InNode(const APoint: TVec2): Boolean; overload;
+
+    procedure TryDetachFromParent;
+
+    procedure AddItem(const AItem: TItem);
+    procedure DelItem(const AItem: TItem);
+
+    procedure IncTotalCounter;
+    procedure DecTotalCounter;
+
+    procedure ClearParentLink;
+
+    function Place: TVec2i;
+    function Parent: INode;
+  public
+    function CalcChildIndex(const AChildPlace: TVec2): Integer; overload;
+    function ObtainChild(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IQNodeInternal<TItem>;
+    function CreateParent(const AMinBound: TVec2): {$IfDef FPC}specialize{$EndIf} IQNodeInternal<TItem>;
+    constructor Create(const AParent: TNode; const ALevel: Integer; const APlace: TVec2i);
+  end;
+
+  {$IfDef FPC}generic{$EndIf}
+  TLooseQTree<TItem> = class (TInterfacedObjectEx, {$IfDef FPC}specialize{$EndIf} ILooseQTree<TItem>)
+  private type
+    ITree = {$IfDef FPC}specialize{$EndIf} ILooseQTree<TItem>;
+
+    IBaseNode = {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TRectF>;
+
+    INode = {$IfDef FPC}specialize{$EndIf} IQNodeInternal<TItem>;
+    TNode = {$IfDef FPC}specialize{$EndIf} TLooseQTreeNode<TItem>;
+
+    IItemToNodeHash = {$IfDef FPC}specialize{$EndIf} IHashMap<TItem, INode>;
+    TItemToNodeHash = {$IfDef FPC}specialize{$EndIf} THashMap<TItem, INode>;
+  private
+    FMinNodeSize: TVec2;
+    FMinNodeSizeInv: TVec2;
+    FRoot: INode;
+    FItemToNode: IItemToNodeHash;
+  protected
+    function UsedMemory: Integer;
+
+    function Add(const AItem: TItem; Const ABox: TRectF): Boolean;
+    function Contains(const AItem: TItem): Boolean;
+    function Delete(const AItem: TItem): Boolean;
+
+    function AABB(const ANode: IInterface; const APlaceArea: Boolean = False): TRectF;
+
+    function RootNode: {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TRectF>;
+
+    procedure Reset;
+    function  Next(out AItem: TItem): Boolean;
+
+    procedure EnumNodesRecursive(const ANode: IBaseNode; const ACallbackIterator: ILooseNodeCallBackIterator);
+    procedure EnumNodes(const ACallbackIterator: ILooseNodeCallBackIterator);
+
+    function GetNewRoot(out NewRoot: INode): boolean;
+    procedure CleanUnused;
+  public
+    constructor Create(const AMinNodeSize: TVec2);
   end;
 
 procedure StreamAutoWrite(const AStream: TStream; const AData; ATypeInfo: PTypeInfo);
@@ -951,6 +1074,400 @@ end;
 procedure StreamAutoRead (const AStream: TStream; var AData; ATypeInfo: PTypeInfo);
 begin
   StreamRawAutoRead(AStream, AData, ATypeInfo);
+end;
+
+{ TLooseQTree }
+
+function TLooseQTree{$IfDef DCC}<TItem>{$EndIf}.UsedMemory: Integer;
+begin
+  Result := InstanceSize;
+  Inc(Result, FItemToNode.Capacity*(SizeOf(TItem)+SizeOf(Pointer)+SizeOf(Integer)) );
+  Inc(Result, FRoot.UsedMemory);
+end;
+
+function TLooseQTree{$IfDef DCC}<TItem>{$EndIf}.Add(const AItem: TItem; const ABox: TRectF): Boolean;
+//{$Define TreeCheck}
+var KMin, KMax: TVec2i;
+    Level: Integer;
+    Place: TVec2;
+    node: INode;
+    {$IfDef TreeCheck}
+    nodeBox: TRectF;
+    k: Single;
+    v: TVec2;
+    size1, size2: Single;
+    {$EndIf}
+begin
+  Delete(AItem);
+
+  Place := ABox.Center * FMinNodeSizeInv * 2;
+  SetRoundMode(rmUp);
+  KMax := mutils.Ceil( (ABox.max - ABox.min) * FMinNodeSizeInv )*2;
+  Level := Max(Log2Int(Integer(KMax.x-1)), Log2Int(Integer(KMax.y-1))) + 1;
+  {$IfDef TreeCheck}
+  Assert(Level < 1000);
+  {$EndIf}
+  KMax  := mutils.Ceil (ABox.max * FMinNodeSizeInv * 2);
+  SetRoundMode(rmDown);
+  KMin  := mutils.Floor(ABox.min * FMinNodeSizeInv * 2);
+  SetRoundMode(rmNearest);
+
+  {$ifdef TreeCheck}
+  SetRoundMode(rmDown);
+  v := KMin * FMinNodeSize * 0.5;
+  Assert(v.x <= ABox.min.x);
+  Assert(v.y <= ABox.min.y);
+  SetRoundMode(rmUp);
+  v := KMax * FMinNodeSize * 0.5;
+  Assert(v.x >= ABox.max.x);
+  Assert(v.y >= ABox.max.y);
+  SetRoundMode(rmNearest);
+  {$EndIf}
+
+  if FRoot = nil then
+    FRoot := TNode.Create(nil, Level, KMin);
+
+  while (not FRoot.InNode(Place)) or (FRoot.Level < Level) do
+    FRoot := INode(FRoot.CreateParent(Place));
+
+  node := FRoot;
+  while node.Level <> Level do
+  begin
+    node.IncTotalCounter;
+    node := INode(node.ObtainChild(node.CalcChildIndex(Place)));
+  end;
+
+  {$IfDef TreeCheck}
+  nodeBox := AABB(node, false);
+  if ABox.min.x < nodeBox.min.x then raise Exception.Create('bad');
+  if ABox.min.y < nodeBox.min.y then raise Exception.Create('bad');
+  if ABox.max.x > nodeBox.max.x then raise Exception.Create('bad');
+  if ABox.max.y > nodeBox.max.y then raise Exception.Create('bad');
+
+  v := AABB(node, true).Size;
+  size1 := Max(v.x, v.y);
+  v := ABox.Size;
+  size2 := Max(v.x, v.y);
+  k := size1/size2;
+  If (level > 1) and (k > 2) Then raise Exception.Create('bad');
+  {$EndIf}
+
+  node.AddItem(AItem);
+  FItemToNode.Add(AItem, node);
+
+  Result := True;
+end;
+
+function TLooseQTree{$IfDef DCC}<TItem>{$EndIf}.Contains(const AItem: TItem): Boolean;
+begin
+  Result := FItemToNode.Contains(AItem);
+end;
+
+function TLooseQTree{$IfDef DCC}<TItem>{$EndIf}.Delete(const AItem: TItem): Boolean;
+var node, parent, nextParent: INode;
+begin
+  Result := False;
+
+  if FItemToNode.TryGetValue(AItem, node) then
+  begin
+    parent := node.Parent;
+    node.DelItem(AItem);
+    FItemToNode.Delete(AItem);
+    while parent <> nil do
+    begin
+      nextParent := parent.Parent;
+      parent.DecTotalCounter;
+      parent := nextParent;
+    end;
+
+    CleanUnused;
+    Result := True;
+  end;
+end;
+
+function TLooseQTree{$IfDef DCC}<TItem>{$EndIf}.AABB(const ANode: IInterface; const APlaceArea: Boolean): TRectF;
+var size: Integer;
+    offset: Single;
+begin
+  Result.min := INode(ANode).Place;
+  size := 1 shl INode(ANode).Level;
+  if not APlaceArea then
+  begin
+    offset := -size * 0.5;
+    Result.min.x := Result.min.x + offset;
+    Result.min.y := Result.min.y + offset;
+    size := size shl 1;
+  end;
+  Result.max.x := Result.min.x + size;
+  Result.max.y := Result.min.y + size;
+
+  Result.min := Result.min * FMinNodeSize * 0.5;
+  Result.max := Result.max * FMinNodeSize * 0.5;
+end;
+
+function TLooseQTree{$IfDef DCC}<TItem>{$EndIf}.RootNode: {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TRectF>;
+begin
+  Result := FRoot;
+end;
+
+procedure TLooseQTree{$IfDef DCC}<TItem>{$EndIf}.Reset;
+begin
+  FItemToNode.Reset;
+end;
+
+function TLooseQTree{$IfDef DCC}<TItem>{$EndIf}.Next(out AItem: TItem): Boolean;
+begin
+  Result := FItemToNode.NextKey(AItem);
+end;
+
+procedure TLooseQTree{$IfDef DCC}<TItem>{$EndIf}.EnumNodesRecursive(const ANode: IBaseNode; const ACallbackIterator: ILooseNodeCallBackIterator);
+var EnumChilds: Boolean;
+    Child: IBaseNode;
+    i: Integer;
+    sender: ITree;
+begin
+  EnumChilds := True;
+
+  sender := Self;
+  ACallbackIterator.OnEnumNode(sender, ANode, EnumChilds);
+  if EnumChilds then
+    for i := 0 to 3 do
+    begin
+      Child := ANode.Child(i);
+      if Assigned(Child) then
+        EnumNodesRecursive(Child, ACallbackIterator);
+    end;
+end;
+
+procedure TLooseQTree{$IfDef DCC}<TItem>{$EndIf}.EnumNodes(const ACallbackIterator: ILooseNodeCallBackIterator);
+begin
+  if FRoot = nil then Exit;
+  EnumNodesRecursive(FRoot, ACallbackIterator);
+end;
+
+function TLooseQTree{$IfDef DCC}<TItem>{$EndIf}.GetNewRoot(out NewRoot: INode): boolean;
+var i: Integer;
+    chld: INode;
+begin
+  NewRoot := nil;
+  for i := 0 to 3 do
+  begin
+    chld := INode(FRoot.Child(i));
+    if (chld <> nil) then
+    begin
+      if NewRoot <> nil then Exit(False);
+      NewRoot := chld;
+    end;
+  end;
+  Result := NewRoot <> nil;
+end;
+
+procedure TLooseQTree{$IfDef DCC}<TItem>{$EndIf}.CleanUnused;
+var newRoot: INode;
+begin
+  if FRoot = nil then Exit;
+  if FRoot.TotalCount = 0 then
+  begin
+    FRoot := nil;
+    Exit;
+  end;
+  if FRoot.ItemsCount > 0 then Exit;
+
+  while True do
+  begin
+    if not GetNewRoot(newRoot) then Break;
+    FRoot := newRoot;
+    FRoot.ClearParentLink;
+    if FRoot.Level = 0 then Break;
+  end;
+end;
+
+constructor TLooseQTree{$IfDef DCC}<TItem>{$EndIf}.Create(const AMinNodeSize: TVec2);
+begin
+  FMinNodeSize := AMinNodeSize;
+  FMinNodeSizeInv.x := 1.0/FMinNodeSize.x;
+  FMinNodeSizeInv.y := 1.0/FMinNodeSize.y;
+  FItemToNode := TItemToNodeHash.Create;
+end;
+
+{ TLooseQTreeNode }
+
+function TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.UsedMemory: Integer;
+var
+  i: Integer;
+begin
+  Result := InstanceSize;
+  Inc(Result, FItems.Capacity * SizeOf(TItem));
+  for i := 0 to 3 do
+    if FChilds[i] <> nil then
+      Inc(Result, FChilds[i].UsedMemory);
+end;
+
+function TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.Level: Integer;
+begin
+  Result := FLevel;
+end;
+
+function TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.Child(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TRectF>;
+begin
+  Result := FChilds[AIndex];
+end;
+
+function TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.TotalCount: Integer;
+begin
+  Result := FTotalCounter;
+end;
+
+function TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.ItemsCount: Integer;
+begin
+  if FItems = nil then
+    Result := 0
+  else
+    Result := FItems.Count;
+end;
+
+function TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.Item(const AIndex: Integer): TItem;
+begin
+  Result := FItems[AIndex];
+end;
+
+function TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.CalcChildIndex(const AParentPlace: TVec2i; const AParentLevel: Integer; const AChildPlace: TVec2): Integer;
+var offset: Integer;
+begin
+  Assert(AParentLevel > 0);
+  Result := 0;
+  offset := 1 shl AParentLevel shr 1;
+  if AChildPlace.x >= AParentPlace.x+offset then Result := Result or 1;
+  if AChildPlace.y >= AParentPlace.y+offset then Result := Result or 2;
+end;
+
+function TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.InNode(const AMinBound, AMaxBound: TVec2i): Boolean;
+var offset: Integer;
+begin
+  Result := False;
+  if AMinBound.x < FPlace.x then Exit;
+  if AMinBound.y < FPlace.y then Exit;
+  offset := 1 shl FLevel;
+  if AMaxBound.x >= FPlace.x+offset then Exit;
+  if AMaxBound.y >= FPlace.y+offset then Exit;
+  Result := True;
+end;
+
+function TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.InNode(const APoint: TVec2): Boolean;
+var offset: Integer;
+begin
+  Result := False;
+  if APoint.x < FPlace.x then Exit;
+  if APoint.y < FPlace.y then Exit;
+  offset := 1 shl FLevel;
+  if APoint.x >= FPlace.x+offset then Exit;
+  if APoint.y >= FPlace.y+offset then Exit;
+  Result := True;
+end;
+
+procedure TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.TryDetachFromParent;
+var selfIntf: INode;
+    i: Integer;
+begin
+  if (FTotalCounter = 0) and Assigned(FParent) then
+  begin
+    selfIntf := Self;
+    for i := 0 to 3 do
+      if FParent.FChilds[i] = selfIntf then
+        begin
+          FParent.FChilds[i] := nil;
+          FParent := nil;
+          Exit;
+        end;
+  end;
+end;
+
+procedure TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.AddItem(const AItem: TItem);
+begin
+  FItems.Add(AItem);
+  IncTotalCounter;
+end;
+
+procedure TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.DelItem(const AItem: TItem);
+begin
+  DecTotalCounter;
+  FItems.Delete(FItems.IndexOf(AItem));
+end;
+
+procedure TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.IncTotalCounter;
+begin
+  Inc(FTotalCounter);
+end;
+
+procedure TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.DecTotalCounter;
+begin
+  Dec(FTotalCounter);
+  TryDetachFromParent;
+end;
+
+procedure TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.ClearParentLink;
+begin
+  FParent := nil;
+end;
+
+function TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.Place: TVec2i;
+begin
+  Result := FPlace;
+end;
+
+function TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.Parent: INode;
+begin
+  Result := FParent;
+end;
+
+function TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.CalcChildIndex(const AChildPlace: TVec2): Integer;
+begin
+  Result := CalcChildIndex(FPlace, FLevel, AChildPlace);
+end;
+
+function TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.ObtainChild(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IQNodeInternal<TItem>;
+var childPlace: TVec2i;
+    offset: Integer;
+begin
+  Assert(FLevel <> 0);
+  Result := FChilds[AIndex];
+  if Result <> nil then Exit;
+  Assert(FChilds[AIndex] = nil);
+
+  offset := 1 shl FLevel shr 1;
+  childPlace.x := FPlace.x + (AIndex and 1)*offset;
+  childPlace.y := FPlace.y + ((AIndex and 2) shr 1)*offset;
+
+  FChilds[AIndex] := TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.Create(Self, FLevel - 1, childPlace);
+  Result := FChilds[AIndex];
+end;
+
+function TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.CreateParent(const AMinBound: TVec2): {$IfDef FPC}specialize{$EndIf} IQNodeInternal<TItem>;
+var parentLevel: Integer;
+    parentPlace: TVec2i;
+    LevelSize: Integer;
+begin
+  Assert(FParent = Nil);
+
+  LevelSize := 1 shl FLevel;
+  parentPlace := FPlace;
+  if AMinBound.x < FPlace.x then parentPlace.x := parentPlace.x - LevelSize;
+  if AMinBound.y < FPlace.y then parentPlace.y := parentPlace.y - LevelSize;
+  parentLevel := FLevel + 1;
+
+  FParent := TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.Create(nil, parentLevel, parentPlace);
+  FParent.FTotalCounter := FTotalCounter;
+  Result := FParent;
+  FParent.FChilds[CalcChildIndex(parentPlace, parentLevel, FPlace)] := Self;
+end;
+
+constructor TLooseQTreeNode{$IfDef DCC}<TItem>{$EndIf}.Create(const AParent: TNode; const ALevel: Integer; const APlace: TVec2i);
+begin
+  FParent := AParent;
+  FPlace := APlace;
+  FLevel := ALevel;
+  FItems := TItems.Create();
+  FTotalCounter := 0;
 end;
 
 { TQueue }
@@ -1440,6 +1957,16 @@ end;
 function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.RootNode: {$IfDef FPC}specialize{$EndIf} IBase_LooseTreeNode<TItem, TAABB>;
 begin
   Result := FRoot;
+end;
+
+procedure TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.Reset;
+begin
+  FItemToNode.Reset;
+end;
+
+function TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.Next(out AItem: TItem): Boolean;
+begin
+  Result := FItemToNode.NextKey(AItem);
 end;
 
 procedure TLooseOctTree{$IfDef DCC}<TItem>{$EndIf}.EnumNodesRecursive(const ANode: IBaseNode; const ACallbackIterator: ILooseNodeCallBackIterator);

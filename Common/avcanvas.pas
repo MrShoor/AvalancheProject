@@ -273,6 +273,7 @@ type
     procedure UpdateUniforms; override;
   public
     procedure SetCanvasTransform(const ATransform: TMat3);
+    procedure SetCustomUIMatrix(const ATransform: TMat4);
     procedure SetPixelToUnit(const AScale: single);
     procedure SetZValue(const AZVal: single);
     procedure SetColorFilters(const AColorFilter: TMat4);
@@ -483,6 +484,9 @@ type
     function GetCommonData: TavCanvasCommonData;
     property CommonData: TavCanvasCommonData read GetCommonData;
   private
+    FUseCustomUIMatrix: Boolean;
+    FCustomUIMatrix: TMat4;
+
     FZValue: Single;
     FPen   : TPenStyle;
     FBrush : TBrushStyle;
@@ -516,6 +520,9 @@ type
     procedure AddQuad(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex);
     procedure AddQuadClipped(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex; const ASpriteRect: TRectI);
   public
+    property UseCustomUIMatrix: Boolean read FUseCustomUIMatrix write FUseCustomUIMatrix;
+    property CustomUIMatrix: TMat4 read FCustomUIMatrix write FCustomUIMatrix;
+
     property ZValue: Single      read FZValue write FZValue;
     property Pen   : TPenStyle   read FPen    write SetPen;
     property Brush : TBrushStyle read FBrush  write SetBrush;
@@ -524,7 +531,8 @@ type
     property Valid: Boolean    read FValid write SetValid;
 
     function TextBuilder: ITextBuilder;
-    function GetSprite(const AFileName: string): ISpriteIndex;
+    function GetSprite(const AFileName: string): ISpriteIndex; overload;
+    function GetSprite(const ATexture: ITextureMip): ISpriteIndex; overload;
 
     //drawing functions
     procedure Clear;
@@ -1205,6 +1213,12 @@ begin
   m.Row[2] := Vec(ATransform.Row[2], 0);
   m.Row[3] := Vec(0, 0, 0, 0);
   SetUniform(FUniform_CanvasTransform, m);
+end;
+
+procedure TavUIProgram.SetCustomUIMatrix(const ATransform: TMat4);
+begin
+  SetUniform(FUniform_UIMatrix, ATransform);
+  SetUniform(FUniform_UIMatrixInverse, Inv(ATransform));
 end;
 
 procedure TavUIProgram.SetColorFilters(const AColorFilter: TMat4);
@@ -2256,6 +2270,11 @@ begin
   Result := CommonData.GetImageSprite(AFileName);
 end;
 
+function TavCanvas.GetSprite(const ATexture: ITextureMip): ISpriteIndex;
+begin
+  Result := CommonData.GetTextureSprite(ATexture);
+end;
+
 procedure TavCanvas.Clear;
 begin
   SelectGeometryKind(gkUnknown);
@@ -2507,6 +2526,8 @@ procedure TavCanvas.Draw(const ATransform: TMat3; const AColorFilter: TMat4);
 
   function InitProg(const AProg: TavUIProgram): Boolean;
   begin
+    if UseCustomUIMatrix then
+      AProg.SetCustomUIMatrix(FCustomUIMatrix);
     AProg.SetCanvasTransform(ATransform);
     AProg.SetPixelToUnit(Len(ATransform.OX));
     AProg.SetZValue(FZValue);
