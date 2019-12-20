@@ -4,7 +4,7 @@ unit avTypes;
 interface
 
 uses
-  Classes, SysUtils, Math, mutils;
+  Classes, SysUtils, Math, mutils, avContnrs;
 
 const
   EM_NONE              = $0000;
@@ -214,6 +214,8 @@ Type
     function Replicate  : ITextureMip;
     function Pixel(const x,y: Integer): PByte;
   end;
+  ITextureMipArr = {$IfDef FPC}specialize{$EndIf}IArray<ITextureMip>;
+  TTextureMipArr = {$IfDef FPC}specialize{$EndIf}TArray<ITextureMip>;
 
   { ITextureData }
 

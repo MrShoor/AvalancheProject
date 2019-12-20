@@ -546,6 +546,7 @@ type
     procedure AddTriangle(const V1,V2,V3: TVec2); overload;
     procedure AddSprite(const LeftTop, RightBottom: TVec2; const AFileName: string); overload;
     procedure AddSprite(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex); overload;
+    procedure AddSpriteRotated(const AOrigin, ASize, APos: TVec2; const ARotation: Single; const ASprite: ISpriteIndex); overload;
     procedure AddSpriteClipped(const LeftTop, RightBottom: TVec2; const AFileName: string; const AClipRect: TRectI); overload;
     procedure AddSpriteClipped(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex; const AClipRect: TRectI); overload;
 
@@ -1988,8 +1989,13 @@ begin
 end;
 
 function TavCanvasCommonData.GetImageSprite(const AFileName: string): ISpriteIndex;
+var tex: ITextureData;
+    mip: ITextureMip;
 begin
-  Result := GetTextureSprite(Default_ITextureManager.LoadTexture(AFileName, SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.A8R8G8B8, True).MipData(0,0));
+  tex := Default_ITextureManager.LoadTexture(AFileName, SIZE_DEFAULT, SIZE_DEFAULT, TImageFormat.A8R8G8B8, True);
+  if tex = nil then raise ETextureLoadError.Create('Unable to load "'+AFileName+'" texture');
+  mip := tex.MipData(0,0);
+  Result := GetTextureSprite(mip);
 end;
 
 function TavCanvasCommonData.GetTextureSprite(const ATexture: ITextureMip): ISpriteIndex;
@@ -2495,6 +2501,41 @@ end;
 procedure TavCanvas.AddSprite(const LeftTop, RightBottom: TVec2; const ASprite: ISpriteIndex);
 begin
   AddQuad(LeftTop, RightBottom, ASprite);
+end;
+
+procedure TavCanvas.AddSpriteRotated(const AOrigin, ASize, APos: TVec2; const ARotation: Single; const ASprite: ISpriteIndex);
+var v: array [0..3] of TCanvasTriangleVertex;
+begin
+  SelectGeometryKind(gkTris);
+
+  FillVertexWithBrush(v[0]);
+  FillVertexWithBrush(v[1]);
+  FillVertexWithBrush(v[2]);
+  FillVertexWithBrush(v[3]);
+
+  v[0].Coords := Rotate(-AOrigin, ARotation) + APos;
+  v[0].TexCoord := Vec(0, 0);
+  v[0].Sprite := ASprite;
+
+  v[1].Coords := Rotate(Vec(-AOrigin.x, ASize.y - AOrigin.y), ARotation) + APos;
+  v[1].TexCoord := Vec(0, 1);
+  v[1].Sprite := ASprite;
+
+  v[2].Coords := Rotate(Vec(ASize.x - AOrigin.x, -AOrigin.y), ARotation) + APos;
+  v[2].TexCoord := Vec(1, 0);
+  v[2].Sprite := ASprite;
+
+  v[3].Coords := Rotate(ASize - AOrigin, ARotation) + APos;
+  v[3].TexCoord := Vec(1, 1);
+  v[3].Sprite := ASprite;
+
+  FTrisData.Add(v[0]);
+  FTrisData.Add(v[1]);
+  FTrisData.Add(v[2]);
+
+  FTrisData.Add(v[2]);
+  FTrisData.Add(v[1]);
+  FTrisData.Add(v[3]);
 end;
 
 procedure TavCanvas.AddSpriteClipped(const LeftTop, RightBottom: TVec2; const AFileName: string; const AClipRect: TRectI);

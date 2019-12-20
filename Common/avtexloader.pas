@@ -23,6 +23,7 @@ const
 
 type
   ETextureFormatError = class (Exception);
+  ETextureLoadError = class (Exception);
 
   { ITextureManager }
 
