@@ -2505,27 +2505,32 @@ end;
 
 procedure TavCanvas.AddSpriteRotated(const AOrigin, ASize, APos: TVec2; const ARotation: Single; const ASprite: ISpriteIndex);
 var v: array [0..3] of TCanvasTriangleVertex;
+    size: TVec2;
+    scale: TVec2;
 begin
   SelectGeometryKind(gkTris);
+
+  size := ASprite.Size;
+  scale := ASize / size;
 
   FillVertexWithBrush(v[0]);
   FillVertexWithBrush(v[1]);
   FillVertexWithBrush(v[2]);
   FillVertexWithBrush(v[3]);
 
-  v[0].Coords := Rotate(-AOrigin, ARotation) + APos;
+  v[0].Coords := Rotate(-AOrigin*scale, ARotation) + APos;
   v[0].TexCoord := Vec(0, 0);
   v[0].Sprite := ASprite;
 
-  v[1].Coords := Rotate(Vec(-AOrigin.x, ASize.y - AOrigin.y), ARotation) + APos;
+  v[1].Coords := Rotate(Vec(-AOrigin.x, size.y - AOrigin.y)*scale, ARotation) + APos;
   v[1].TexCoord := Vec(0, 1);
   v[1].Sprite := ASprite;
 
-  v[2].Coords := Rotate(Vec(ASize.x - AOrigin.x, -AOrigin.y), ARotation) + APos;
+  v[2].Coords := Rotate(Vec(size.x - AOrigin.x, -AOrigin.y)*scale, ARotation) + APos;
   v[2].TexCoord := Vec(1, 0);
   v[2].Sprite := ASprite;
 
-  v[3].Coords := Rotate(ASize - AOrigin, ARotation) + APos;
+  v[3].Coords := Rotate((size - AOrigin)*scale, ARotation) + APos;
   v[3].TexCoord := Vec(1, 1);
   v[3].Sprite := ASprite;
 
