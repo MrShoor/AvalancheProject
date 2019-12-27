@@ -98,6 +98,7 @@ type
 
     function LinesCount: Integer;
     function LineSize(const i: Integer): TVec2;
+    function LineGlyphs(const i: Integer): TVec2i;
     function MaxLineWidth(): Single;
     function TotalHeight() : Single;
 
@@ -287,6 +288,7 @@ type
 
     function LinesCount: Integer;
     function LineSize(const i: Integer): TVec2;
+    function LineGlyphs(const i: Integer): TVec2i;
     function MaxLineWidth(): Single;
     function TotalHeight() : Single;
 
@@ -523,6 +525,13 @@ begin
   pl := PLineInfo( FLines.PItem[i] );
   Result.x := pl^.width;
   Result.y := pl^.yymetrics.x + pl^.yymetrics.y;
+end;
+
+function TTextLines.LineGlyphs(const i: Integer): TVec2i;
+var pl: PLineInfo;
+begin
+  pl := PLineInfo( FLines.PItem[i] );
+  Result := pl^.glyphs;
 end;
 
 function TTextLines.MaxLineWidth(): Single;
