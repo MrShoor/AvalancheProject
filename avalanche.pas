@@ -12,7 +12,7 @@ uses
   avLog, avPlatform, avRes, avTess, avTimer, avTypes, dglOpenGL, avTexLoader, 
   D3D11_JSB, DXGI_JSB, DXTypes_JSB, D3DCommon_JSB, avContext_DX11, avMesh, 
   avModel, avGlyphGenerator, avMiniControls, avUtils, avGPUGlyphGenerator, 
-  LazarusPackageIntf;
+  avTextUtils, LazarusPackageIntf;
 
 implementation
 
