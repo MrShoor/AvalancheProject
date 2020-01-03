@@ -378,6 +378,7 @@ function Distance(const Pt: TVec2; const Seg: TSegment2D; out AClosestPt: TVec2)
 function Projection(const Pt: TVec2; const Line: TLine2D): TVec2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Projection(const Cast: TVec3; const Recieve: TVec3): TVec3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Projection(const Pt: TVec3; const Line: TLine): TVec3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+function Projection(const Pt: TVec3; const Plane: TPlane): TVec3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat2): TMat2; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat3): TMat3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
 function Inv(const m: TMat4): TMat4; overload;{$IFNDEF NoInline} inline; {$ENDIF}
@@ -2625,6 +2626,14 @@ var ppt: TVec3;
 begin
   ppt := Projection(Pt - Line.Pnt, Line.Dir);
   Result := Line.Pnt + ppt;
+end;
+
+function Projection(const Pt: TVec3; const Plane: TPlane): TVec3; overload;{$IFNDEF NoInline} inline; {$ENDIF}
+var DPt: Single;
+begin
+  DPt := -Dot(Plane.Norm, Pt);
+  DPt := DPt - Plane.D;
+  Result := Pt + Plane.Norm * DPt / LenSqr(Plane.Norm);
 end;
 
 function Inv(const m: TMat2): TMat2; overload;{$IFNDEF NoInline} inline; {$ENDIF}

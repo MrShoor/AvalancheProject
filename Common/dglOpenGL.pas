@@ -19989,9 +19989,11 @@ begin
   //  immediate mode (glvertex, glrotate, gltranslate, etc.)
   if ForwardCompatible then
     begin
-      SetLength(Attribs, Length(Attribs)+2);
+      SetLength(Attribs, Length(Attribs)+4);
       Attribs[4] := WGL_CONTEXT_FLAGS_ARB;
       Attribs[5] := WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB;
+      Attribs[6] := WGL_CONTEXT_PROFILE_MASK_ARB;
+      Attribs[7] := WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
     end;
 
   // Attribute flags must be finalized with a zero

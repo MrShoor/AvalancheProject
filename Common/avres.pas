@@ -229,6 +229,7 @@ type
   protected
     function CanRegister(target: TavObject): boolean; override;
   public
+    function InWindow: Boolean;
     property WindowCur: TVec2 read GetWindowCur;
     property From: TVec3 read GetFrom;
     property At  : TVec3 read GetAt;
@@ -2109,7 +2110,7 @@ var
   i: Integer;
 begin
   if FTexH = nil then Exit;
-  if (ATexData.Width <> Width) or (ATexData.Height <> Height) or
+  if (ATexData = nil) or (ATexData.Width <> Width) or (ATexData.Height <> Height) or
      (ATexData.ItemCount <> 1) or (ATexData.MipsCount < AMipLevel) or
      (ImagePixelSize[ATexData.Format] <> TexturePixelSize[FTexH.Format]) then
     ATexData := EmptyTexData(FTexH.Width, FTexH.Height, FTexH.Format, FTexH.MipsCount > 0, True);
@@ -2989,6 +2990,11 @@ begin
   Result := inherited CanRegister(target);
   Result := Result and (target is TavMainRender);
   FMain := TavMainRender(target);
+end;
+
+function TavCursor.InWindow: Boolean;
+begin
+  Result := (FWindowCur.x > -1) and (FWindowCur.x < 1) and (FWindowCur.y > -1) and (FWindowCur.y < 1);
 end;
 
 { TavProjection }
