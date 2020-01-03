@@ -337,7 +337,7 @@ type
 var GV_BuildBuffer: TVec2Arr;
     GV_SkeletonCache: IspSkeletonCache;
 
-procedure AnimationCallBacks(state: PspAnimation; event_type: TspEventType; entry: PspTrackEntry; event: PspEvent); //sometime state comes corrupted?
+procedure AnimationCallBacks(state: PspAnimationState; event_type: TspEventType; entry: PspTrackEntry; event: PspEvent); //sometime state comes corrupted?
 begin
   if entry^.userData = nil then Exit;
   TAnimationState(entry^.userData).CallBackEvent(entry^.animation, event_type, entry, event);
@@ -813,7 +813,7 @@ end;
 
 procedure TAnimationState.DoNotifyAnimEvent(state: PspAnimation; entry: PspTrackEntry; event_type: TspEventType);
 begin
-  WriteLn(AnsiString(state^.name));
+//  WriteLn(AnsiString(state^.name));
   FUserEventPublisher.Event_OnAnimEvent(Self, state, entry, event_type);
 end;
 

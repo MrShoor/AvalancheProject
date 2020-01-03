@@ -500,7 +500,7 @@ type
     bonesCount: Integer;
     bones     : PPspBone;
 
-    target    : PspBone;
+    target    : PspSlot;
 
     position    : Single;
     spacing     : Single;
@@ -595,9 +595,11 @@ type
   end;
   PspTrackEntryArray = ^TspTrackEntryArray;
 
+  PspAnimationState = ^TspAnimationState;
+
 //typedef void (*spAnimationStateListener) (spAnimationState* state, spEventType type, spTrackEntry* entry, spEvent* event);
 TspEventType = (SP_ANIMATION_START, SP_ANIMATION_INTERRUPT, SP_ANIMATION_END, SP_ANIMATION_COMPLETE, SP_ANIMATION_DISPOSE, SP_ANIMATION_EVENT);
-TspAnimationStateListener = procedure (state: PspAnimation; event_type: TspEventType; entry: PspTrackEntry; event: PspEvent);
+TspAnimationStateListener = procedure (state: PspAnimationState; event_type: TspEventType; entry: PspTrackEntry; event: PspEvent);
 
 //***TrackEntry***
   TspTrackEntry = record
@@ -633,15 +635,15 @@ TspAnimationStateListener = procedure (state: PspAnimation; event_type: TspEvent
     mixingTo: PspTrackEntryArray;
 
     userData: Pointer;
+    userData2: Pointer;
   end;
-  PspAnimationState = ^TspAnimationState;
 
 procedure Init;
 
 function  spAtlas_create(const data: PspPChar; len: Integer; const dir: PspPChar; UserData: Pointer): PspAtlas; external cSpineWrapperDll;
 function  spAtlas_createFromFile(const path: PspPChar; UserData: Pointer): PspAtlas; external cSpineWrapperDll;
 procedure spAtlas_dispose(self: PspAtlas); external cSpineWrapperDll;
-function  spAtlas_findRegion(atlas: PspAtlas): PspAtlasRegion; external cSpineWrapperDll; //Returns 0 if the region was not found.
+function  spAtlas_findRegion(atlas: PspAtlas; name: PspPChar): PspAtlasRegion; external cSpineWrapperDll; //Returns 0 if the region was not found.
 
 
 //function  spSkeletonBinary_createWithLoader(.....): PspSkeletonBinary
