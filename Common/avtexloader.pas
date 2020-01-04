@@ -1191,7 +1191,7 @@ begin
   FHeight := AHeight;
 
   FFormat := AFormat;
-  withMips := withMips and IsPow2(Vec(AWidth, AHeight));
+  withMips := withMips;// and IsPow2(Vec(AWidth, AHeight));
   if withMips then
     FMipsCount := Log2Int(Min(AWidth, AHeight))+1
   else
