@@ -173,6 +173,7 @@ type
     FNearPlane  : single;
     FFarPlane   : single;
     FOrthoHeight: single;
+    FPixelOffset: TVec2;
 
     FMatrix : TMat4;
     FuMatrix: TMat4;
@@ -185,6 +186,7 @@ type
     procedure SetNearPlane(AValue: single);
     procedure SetOrtho(AValue: Boolean);
     procedure SetOrthoHeight(AValue: single);
+    procedure SetPixelOffset(const AValue: TVec2);
 
     procedure UpdateMatrix;
   public
@@ -196,6 +198,7 @@ type
     property FarPlane   : single read FFarPlane    write SetFarPlane;
     property OrthoHeight: single read FOrthoHeight write SetOrthoHeight;
     property DepthRange : TVec2  read FDepthRange  write SetDepthRange;
+    property PixelOffset: TVec2  read FPixelOffset write SetPixelOffset;
 
     property Ortho: Boolean read FOrtho write SetOrtho;
 
@@ -896,6 +899,7 @@ type
     procedure SetUniform (const Field: TUniformField; const m: TMat4);           overload;
     procedure SetUniform (const Field: TUniformField; const m: PMat4; const mCount: Integer); overload;
     procedure SetUniform (const Field: TUniformField; const tex: TavTextureBase;  const sampler: TSamplerInfo); overload;
+    procedure SetUniform (const Field: TUniformField; const tex: TavTextureBase; const sampler: TSamplerInfo; const ASliceMip: TVec2i); overload;
     procedure SetUniform (const Field: TUniformField; const tex: TavTexture3D; const sampler: TSamplerInfo); overload;
     procedure SetUniform (const Field: TUniformField; const buf: TavStructuredBase); overload;
 
@@ -909,6 +913,7 @@ type
     procedure SetUniform (const AName: string; const m: TMat4);           overload;
     procedure SetUniform (const AName: string; const m: PMat4; const mCount: Integer); overload;
     procedure SetUniform (const AName: string; const tex: TavTextureBase; const sampler: TSamplerInfo); overload;
+    procedure SetUniform (const AName: string; const tex: TavTextureBase; const sampler: TSamplerInfo; const ASliceMip: TVec2i); overload;
     procedure SetUniform (const AName: string; const tex: TavTexture3D; const sampler: TSamplerInfo); overload;
     procedure SetUniform (const AName: string; const buf: TavStructuredBase); overload;
 
@@ -3056,6 +3061,13 @@ begin
   UpdateMatrix;
 end;
 
+procedure TavProjection.SetPixelOffset(const AValue: TVec2);
+begin
+  if FPixelOffset = AValue then Exit;
+  FPixelOffset := AValue;
+  UpdateMatrix;
+end;
+
 procedure TavProjection.UpdateMatrix;
 
   function CalcPerspectiveMatrix: TMat4;
@@ -3095,6 +3107,7 @@ begin
     FMatrix := CalcOrthoMatrix
   else
     FMatrix := CalcPerspectiveMatrix;
+  FMatrix := FMatrix * MatTranslate(Vec(FPixelOffset, 0));
   FuMatrix := Inv(FMatrix);
   Inc(FUpdateID);
 end;
@@ -3127,6 +3140,7 @@ begin
   FFarPlane := 703.62;
   FOrthoHeight := 100;
   FDepthRange := DepthRangeMinMax;
+  FPixelOffset := Vec(0, 0);
   UpdateMatrix;
 end;
 
@@ -4050,6 +4064,13 @@ begin
   FProgram.SetUniform(Field, tex.FTexH, sampler);
 end;
 
+procedure TavProgram.SetUniform(const Field: TUniformField; const tex: TavTextureBase; const sampler: TSamplerInfo; const ASliceMip: TVec2i);
+begin
+  if tex = nil then Exit;
+  tex.Build;
+  FProgram.SetUniform(Field, tex.FTexH, sampler, ASliceMip);
+end;
+
 procedure TavProgram.SetUniform(const Field: TUniformField; const tex: TavTexture3D; const sampler: TSamplerInfo);
 begin
   if tex = nil then Exit;
@@ -4114,6 +4135,13 @@ begin
   if tex = nil then Exit;
   tex.Build;
   FProgram.SetUniform(GetUniformField(AName), tex.FTexH, sampler);
+end;
+
+procedure TavProgram.SetUniform(const AName: string; const tex: TavTextureBase; const sampler: TSamplerInfo; const ASliceMip: TVec2i);
+begin
+  if tex = nil then Exit;
+  tex.Build;
+  FProgram.SetUniform(GetUniformField(AName), tex.FTexH, sampler, ASliceMip);
 end;
 
 procedure TavProgram.SetUniform(const AName: string; const tex: TavTexture3D; const sampler: TSamplerInfo);
