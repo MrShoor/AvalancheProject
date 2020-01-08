@@ -522,6 +522,8 @@ type
     function GetHandle : ID3D11Texture2D;
     function GetResView: ID3D11ShaderResourceView;
     function GetResCubeView: ID3D11ShaderResourceView;
+    function GetPartialResCubeView(const ASliceMip: TVec2i): ID3D11ShaderResourceView;
+    function GetPartialResView(const ASliceMip: TVec2i): ID3D11ShaderResourceView;
   end;
 
   IctxUAV_DX11 = interface
@@ -554,6 +556,8 @@ type
     FResView: ID3D11ShaderResourceView;
     FCubeResView: ID3D11ShaderResourceView;
 
+    FPartialViews: array of ID3D11ShaderResourceView;
+
     FUAVView: ID3D11UnorderedAccessView;
 
     function BuildDesc(AWidth, AHeight, ADeep: Integer; WithMips: Boolean): TD3D11_Texture2DDesc;
@@ -561,6 +565,8 @@ type
     function GetHandle : ID3D11Texture2D;
     function GetResView: ID3D11ShaderResourceView;
     function GetResCubeView: ID3D11ShaderResourceView;
+    function GetPartialResCubeView(const ASliceMip: TVec2i): ID3D11ShaderResourceView;
+    function GetPartialResView(const ASliceMip: TVec2i): ID3D11ShaderResourceView;
   private //IctxUAV_DX11
     procedure InvalidateCounter;
     function GetView: ID3D11UnorderedAccessView;
@@ -958,6 +964,7 @@ type
     procedure SetUniform(const Field: TUniformField; const m: TMat4); overload;
     procedure SetUniform(const Field: TUniformField; const m: PMat4; const mCount: Integer); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
+    procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo; const ASliceMip: TVec2i); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture3D; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
 
@@ -1960,6 +1967,20 @@ begin
     resview := dxtex.GetResCubeView
   else
     resview := dxtex.GetResView;
+  SetUniform_internal(DXField, resview, Sampler);
+end;
+
+procedure TProgram.SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo; const ASliceMip: TVec2i);
+var DXField: TUniformField_DX absolute Field;
+    dxtex: IctxTexture_DX11;
+    resview: ID3D11ShaderResourceView;
+begin
+  if Field = nil then Exit;
+  if not Supports(tex, IctxTexture_DX11, dxtex) then Exit;
+  if Field.DataClass = dcCubeSampler then
+    resview := dxtex.GetPartialResCubeView(ASliceMip)
+  else
+    resview := dxtex.GetPartialResView(ASliceMip);
   SetUniform_internal(DXField, resview, Sampler);
 end;
 
@@ -2972,6 +2993,42 @@ begin
   Result := FCubeResView;
 end;
 
+function TTexture.GetPartialResCubeView(const ASliceMip: TVec2i): ID3D11ShaderResourceView;
+begin
+  Assert(False, 'not supported yet');
+end;
+
+function TTexture.GetPartialResView(const ASliceMip: TVec2i): ID3D11ShaderResourceView;
+var n: Integer;
+    desc: TD3D11_ShaderResourceViewDesc;
+begin
+  if ASliceMip.x >= FDeep then Exit(nil);
+  if ASliceMip.y >= FMipsCount then Exit(nil);
+  if FPartialViews = nil then SetLength(FPartialViews, FMipsCount * FDeep);
+  n := ASliceMip.y * FDeep + ASliceMip.x;
+  if FPartialViews[n] = nil then
+  begin
+    desc.Format := D3D11ShaderViewFormat[FFormat];
+    if FsRGB then desc.Format := Add_sRGB(desc.Format);
+    if (FDeep > 1) or FForcedArray then
+    begin
+      desc.ViewDimension := D3D10_SRV_DIMENSION_TEXTURE2DARRAY;
+      desc.Texture2DArray.ArraySize := 1;
+      desc.Texture2DArray.FirstArraySlice := ASliceMip.x;
+      desc.Texture2DArray.MostDetailedMip := ASliceMip.y;
+      desc.Texture2DArray.MipLevels := 1;
+    end
+    else
+    begin
+      desc.ViewDimension := D3D10_SRV_DIMENSION_TEXTURE2D;
+      desc.Texture2D.MostDetailedMip := ASliceMip.y;
+      desc.Texture2D.MipLevels := 1;
+    end;
+    Check3DError(FContext.FDevice.CreateShaderResourceView(FTexture, @desc, FPartialViews[n]));
+  end;
+  Result := FPartialViews[n];
+end;
+
 function TTexture.GetResView: ID3D11ShaderResourceView;
 var desc: TD3D11_ShaderResourceViewDesc;
 begin
@@ -3111,6 +3168,7 @@ begin
   desc.CPUAccessFlags := 0;
   desc.MiscFlags := 0;
 
+  FPartialViews := nil;
   FResView := nil;
   FCubeResView := nil;
   Check3DError(FContext.FDevice.CreateTexture2D(desc, nil, FTexture));
@@ -3125,6 +3183,7 @@ end;
 procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean; ForcedArray: Boolean);
 var desc: TD3D11_Texture2DDesc;
 begin
+  FPartialViews := nil;
   FResView := nil;
   FCubeResView := nil;
   FUAVView := nil;
@@ -3141,6 +3200,7 @@ procedure TTexture.AllocMem(AWidth, AHeight, ADeep: Integer; WithMips: Boolean;
   DataFormat: TImageFormat; Data: PByte; ForcedArray: Boolean);
 var desc: TD3D11_Texture2DDesc;
 begin
+  FPartialViews := nil;
   FResView := nil;
   FCubeResView := nil;
   FUAVView := nil;

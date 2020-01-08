@@ -981,6 +981,7 @@ type
     procedure SetUniform(const Field: TUniformField; const m: TMat4); overload;
     procedure SetUniform(const Field: TUniformField; const m: PMat4; const mCount: Integer); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo); overload;
+    procedure SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo; const ASliceMip: TVec2i); overload;
     procedure SetUniform(const Field: TUniformField; const tex: IctxTexture3D; const Sampler: TSamplerInfo); overload;
     procedure SetUniform(const Field: TUniformField; const buf: IctxStructuredBuffer); overload;
 
@@ -2620,6 +2621,11 @@ begin
   glTexParameterfv(TexTarget, GL_TEXTURE_BORDER_COLOR, @Sampler.Border);
 end;
 
+procedure TProgram.SetUniform(const Field: TUniformField; const tex: IctxTexture; const Sampler: TSamplerInfo; const ASliceMip: TVec2i);
+begin
+  Assert(False, 'Not implemented yet');
+end;
+
 procedure TProgram.SetUniform(const Field: TUniformField; const tex: IctxTexture3D; const Sampler: TSamplerInfo);
 begin
   Assert(False, 'Not implemented yet');
@@ -2975,6 +2981,11 @@ begin
     FRC := CreateRenderingContext(FDC, [opDoubleBuffered], 32, 0, 0, 0, 0, 0)
   else
     FRC := CreateRenderingContext(FDC, [], 32, 0, 0, 0, 0, 0);
+  //if DEFAULT_BackBuffer then
+  //  FRC := CreateRenderingContextVersion(FDC, [opDoubleBuffered], 3, 0, False, 32, 0, 0, 0, 0, 0)
+  //else
+  //  FRC := CreateRenderingContextVersion(FDC, [], 3, 0, False, 32, 0, 0, 0, 0, 0);
+
   ActivateRenderingContext(FDC, FRC);
   DeactivateRenderingContext;
 

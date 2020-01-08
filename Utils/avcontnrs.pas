@@ -244,6 +244,7 @@ type
     function Add(const AKey: TKey; const AValue: TValue): Boolean;
     function AddIfNotContains(const AKey: TKey; const AValue: TValue): Boolean;
     procedure AddOrSet(const AKey: TKey; const AValue: TValue);
+    procedure AddOrSkip(const AKey: TKey; const AValue: TValue);
     function Delete(const AKey: TKey): Boolean;
     function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
     function TryGetPValue(const AKey: TKey; out Value: Pointer): Boolean;
@@ -275,6 +276,7 @@ type
     function Add(const AKey: TKey): Boolean; overload; //Return True if new item added, False if item already in set
     //procedure Add(const Arr : {$IfDef FPC}specialize{$EndIf} IArray<TKey>); overload;
     procedure AddOrSet(const AKey: TKey);
+    procedure AddOrSkip(const AKey: TKey);
     function Delete(const AKey: TKey): Boolean;
     function Contains(const AKey: TKey): Boolean;
     procedure Clear;
@@ -348,6 +350,7 @@ type
     function Add(const AKey: TKey; const AValue: TValue): Boolean;
     function AddIfNotContains(const AKey: TKey; const AValue: TValue): Boolean;
     procedure AddOrSet(const AKey: TKey; const AValue: TValue);
+    procedure AddOrSkip(const AKey: TKey; const AValue: TValue);
     function Delete(const AKey: TKey): Boolean;
     function TryGetValue(const AKey: TKey; out AValue: TValue): Boolean;
     function TryGetPValue(const AKey: TKey; out AValue: Pointer): Boolean;
@@ -396,6 +399,7 @@ type
     function Count: Integer;
     function Add(const AKey: TKey): Boolean; overload;
     procedure AddOrSet(const AKey: TKey);
+    procedure AddOrSkip(const AKey: TKey);
     function Delete(const AKey: TKey): Boolean;
     function Contains(const AKey: TKey): Boolean;
     procedure Clear;
@@ -723,6 +727,63 @@ type
     procedure CleanUnused;
   public
     constructor Create(const AMinNodeSize: TVec2);
+  end;
+
+  {$IfDef FPC}generic{$EndIf}
+  IAutoItem<TData> = interface
+    function Index: Integer;
+    function Data : TData;
+    function PData: Pointer;
+  end;
+
+  {$IfDef FPC}generic{$EndIf}
+  IAutoCollection<TData> = interface
+    function MakeItem(const AData: TData): {$IfDef FPC}specialize{$EndIf} IAutoItem<TData>;
+
+    function ItemsCount: Integer;
+    function Item(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IAutoItem<TData>;
+    function ItemData(const AIndex: Integer): TData;
+    function ItemPData(const AIndex: Integer): Pointer;
+    function PData: Pointer;
+
+    function DataArr: {$IfDef FPC}specialize{$EndIf} IArray<TData>;
+  end;
+
+  {$IfDef FPC}generic{$EndIf}
+  TAutoCollection<TData> = class(TInterfacedObject, {$IfDef FPC}specialize{$EndIf} IAutoCollection<TData>)
+  private type
+    TCollectionItem = class(TInterfacedObject, {$IfDef FPC}specialize{$EndIf} IAutoItem<TData>)
+    public
+      FOwner: {$IfDef FPC}specialize{$EndIf} TAutoCollection<TData>;
+      FIndex: Integer;
+      function Index: Integer;
+      function Data : TData;
+      function PData: Pointer;
+      constructor Create(AOwner: {$IfDef FPC}specialize{$EndIf} TAutoCollection<TData>; AIdx: Integer);
+      destructor Destroy; override;
+    end;
+
+    ICollObjArr = {$IfDef FPC}specialize{$EndIf} IArray<TCollectionItem>;
+    TCollObjArr = {$IfDef FPC}specialize{$EndIf} TArray<TCollectionItem>;
+
+    IDataArr = {$IfDef FPC}specialize{$EndIf} IArray<TData>;
+    TDataArr = {$IfDef FPC}specialize{$EndIf} TArray<TData>;
+  private
+    FObj : ICollObjArr;
+    FData: IDataArr;
+  public
+    function MakeItem(const AData: TData): {$IfDef FPC}specialize{$EndIf} IAutoItem<TData>;
+
+    function ItemsCount: Integer;
+    function Item(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IAutoItem<TData>;
+    function ItemData(const AIndex: Integer): TData;
+    function ItemPData(const AIndex: Integer): Pointer;
+    function PData: Pointer;
+
+    function DataArr: {$IfDef FPC}specialize{$EndIf} IArray<TData>;
+
+    constructor Create;
+    destructor Destroy; override;
   end;
 
 procedure StreamAutoWrite(const AStream: TStream; const AData; ATypeInfo: PTypeInfo);
@@ -1074,6 +1135,101 @@ end;
 procedure StreamAutoRead (const AStream: TStream; var AData; ATypeInfo: PTypeInfo);
 begin
   StreamRawAutoRead(AStream, AData, ATypeInfo);
+end;
+
+{ TAutoCollection }
+
+function TAutoCollection{$IfDef DCC}<TData>{$EndIf}.MakeItem(const AData: TData): {$IfDef FPC}specialize{$EndIf} IAutoItem<TData>;
+var n: Integer;
+    obj: TCollectionItem;
+begin
+  n := FData.Add(AData);
+  obj := TCollectionItem.Create(Self, n);
+  Result := obj;
+  n := FObj.Add(obj);
+  Assert(n = obj.FIndex);
+end;
+
+function TAutoCollection{$IfDef DCC}<TData>{$EndIf}.ItemsCount: Integer;
+begin
+  Result := FObj.Count;
+end;
+
+function TAutoCollection{$IfDef DCC}<TData>{$EndIf}.Item(const AIndex: Integer): {$IfDef FPC}specialize{$EndIf} IAutoItem<TData>;
+begin
+  Result := FObj[AIndex];
+end;
+
+function TAutoCollection{$IfDef DCC}<TData>{$EndIf}.ItemData(const AIndex: Integer): TData;
+begin
+  Result := FData[AIndex];
+end;
+
+function TAutoCollection{$IfDef DCC}<TData>{$EndIf}.ItemPData(const AIndex: Integer): Pointer;
+begin
+  Result := FData.PItem[AIndex];
+end;
+
+function TAutoCollection{$IfDef DCC}<TData>{$EndIf}.PData: Pointer;
+begin
+  if FData.Count = 0 then
+    Result := nil
+  else
+    Result := FData.PItem[0];
+end;
+
+function TAutoCollection.DataArr: {$IfDef FPC}specialize{$EndIf} IArray<TData>;
+begin
+  Result := FData;
+end;
+
+constructor TAutoCollection{$IfDef DCC}<TData>{$EndIf}.Create;
+begin
+  FObj  := TCollObjArr.Create();
+  FData := TDataArr.Create();
+end;
+
+destructor TAutoCollection{$IfDef DCC}<TData>{$EndIf}.Destroy;
+var i: Integer;
+begin
+  for i := 0 to FObj.Count - 1 do
+    FObj[i].FOwner := nil;
+  inherited Destroy;
+end;
+
+{ TAutoCollection.TCollectionItem }
+
+function TAutoCollection{$IfDef DCC}<TData>{$EndIf}.TCollectionItem.Index: Integer;
+begin
+  Result := FIndex;
+end;
+
+function TAutoCollection{$IfDef DCC}<TData>{$EndIf}.TCollectionItem.Data: TData;
+begin
+  Result := FOwner.ItemData(FIndex);
+end;
+
+function TAutoCollection{$IfDef DCC}<TData>{$EndIf}.TCollectionItem.PData: Pointer;
+begin
+  Result := FOwner.ItemPData(FIndex);
+end;
+
+constructor TAutoCollection{$IfDef DCC}<TData>{$EndIf}.TCollectionItem.Create(AOwner: {$IfDef FPC}specialize{$EndIf} TAutoCollection<TData>; AIdx: Integer);
+begin
+  FOwner := AOwner;
+  FIndex := AIdx;
+end;
+
+destructor TAutoCollection{$IfDef DCC}<TData>{$EndIf}.TCollectionItem.Destroy;
+begin
+  inherited Destroy;
+  if FOwner <> nil then
+  begin
+    FOwner.FData.DeleteWithSwap(FIndex);
+    FOwner.FObj.DeleteWithSwap(FIndex);
+    FOwner.FObj[FIndex].FIndex := FIndex;
+    FOwner := nil;
+  end;
 end;
 
 { TLooseQTree }
@@ -2263,17 +2419,22 @@ end;
 
 procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.AddOrSet(const AKey: TKey);
 begin
- FHash.AddOrSet(AKey, False);
+  FHash.AddOrSet(AKey, False);
+end;
+
+procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.AddOrSkip(const AKey: TKey);
+begin
+  FHash.AddOrSkip(AKey, False);
 end;
 
 function THashSet{$IfDef DCC}<TKey>{$EndIf}.Delete(const AKey: TKey): Boolean;
 begin
- Result := FHash.Delete(AKey);
+  Result := FHash.Delete(AKey);
 end;
 
 function THashSet{$IfDef DCC}<TKey>{$EndIf}.Contains(const AKey: TKey): Boolean;
 begin
- Result := FHash.Contains(AKey);
+  Result := FHash.Contains(AKey);
 end;
 
 procedure THashSet{$IfDef DCC}<TKey>{$EndIf}.Clear;
@@ -2507,6 +2668,17 @@ begin
   GrowIfNeeded;
   hash := FComparer.Hash(AKey);
   CalcBucketIndex(AKey, hash, bIndex);
+  DoAddOrSet(bIndex, hash, AKey, AValue);
+end;
+
+procedure THashMap{$IfDef DCC}<TKey, TValue>{$EndIf}.AddOrSkip(const AKey: TKey; const AValue: TValue);
+var hash: Cardinal;
+    bIndex: Integer;
+begin
+  hash := FComparer.Hash(AKey);
+  CalcBucketIndex(AKey, hash, bIndex);
+  if FData[bIndex].Hash <> EMPTY_HASH then Exit;
+  GrowIfNeeded;
   DoAddOrSet(bIndex, hash, AKey, AValue);
 end;
 
