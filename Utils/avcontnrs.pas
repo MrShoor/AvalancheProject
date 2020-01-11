@@ -2676,8 +2676,7 @@ var hash: Cardinal;
     bIndex: Integer;
 begin
   hash := FComparer.Hash(AKey);
-  CalcBucketIndex(AKey, hash, bIndex);
-  if FData[bIndex].Hash <> EMPTY_HASH then Exit;
+  if CalcBucketIndex(AKey, hash, bIndex) then Exit;
   GrowIfNeeded;
   DoAddOrSet(bIndex, hash, AKey, AValue);
 end;
