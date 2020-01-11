@@ -4197,8 +4197,15 @@ begin
 end;
 
 procedure TUAV.SetSubData(AOffset, ASize: Integer; Data: PByte);
+var box: TD3D11_Box;
 begin
-  Assert(False, 'not available for UAV');
+  box.left := AOffset;
+  box.right := AOffset + ASize;
+  box.top := 0;
+  box.bottom := 1;
+  box.front := 0;
+  box.back := 1;
+  FContext.FDeviceContext.UpdateSubresource(FBuffer, 0, @box, Data, ASize, 0);
 end;
 
 procedure TUAV.SetTargetPoolType(Value: TBufferPoolType);

@@ -820,16 +820,15 @@ type
 
   TavUAV = class(TavStructuredBase)
   private
-    FElementsCount : Integer;
-    FStrideSize    : Integer;
-    FAppendable    : Boolean;
-    FUAVBufH       : IctxUAV;
-    FInitialElement: TByteArr;
-  private
     FDropLocalAfterBuild: Boolean;
     FVert: IVerticesData;
     procedure SetVert(AValue: IVerticesData);
   protected
+    FElementsCount : Integer;
+    FStrideSize    : Integer;
+    FAppendable    : Boolean;
+    FInitialElement: TByteArr;
+    FUAVBufH: IctxUAV;
     procedure BeforeFree3D; override;
     function DoBuild: Boolean; override;
   public
@@ -1924,7 +1923,13 @@ begin
         Move(FInitialElement[0], initData[i*FStrideSize], FStrideSize);
       initDataPtr := @initData[0];
     end;
-    FUAVBufH := Main.Context.CreateUAV(FElementsCount, FStrideSize, FAppendable, initDataPtr);
+    if FUAVBufH = nil then
+      FUAVBufH := Main.Context.CreateUAV(FElementsCount, FStrideSize, FAppendable, initDataPtr)
+    else
+    begin
+      if (FUAVBufH.ElementsCount <> FElementsCount) or (FUAVBufH.StrideSize <> FStrideSize) then
+        FUAVBufH := Main.Context.CreateUAV(FElementsCount, FStrideSize, FAppendable, initDataPtr);
+    end;
   end
   else
   begin
