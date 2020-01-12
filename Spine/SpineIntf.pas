@@ -31,14 +31,11 @@ type
     vsCoord    : TVec3;
     vsTexCrd   : TVec2;
     vsColor    : TVec4;
-    vsAtlasRef : Single;
-    class function Layout: IDataLayout; static;
+    vsAtlasRef : IUnknown;
   end;
-  ISpineVertices = {$IfDef FPC}specialize{$EndIf} IArray<TSpineVertex>;
-  TSpineVertices = {$IfDef FPC}specialize{$EndIf} TVerticesRec<TSpineVertex>;
 
   ISpineAddVertexCallback = interface
-    procedure AddVertex(const Coord: TVec3; const TexCoord: TVec2; const Color: TVec4; const AtlasRef: Single);
+    procedure AddVertex(const AVert: TSpineVertex);
   end;
 
   IspAtlas = interface
@@ -49,6 +46,10 @@ type
     function Handle: PspSkeletonData;
   end;
 
+  IspTextureToRefIdx = interface
+    function GetPageRef(const UserDataAltasPage: Pointer): IUnknown;
+  end;
+
   TOnWriteVertices = procedure (const ASlot: PspSlot; const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single) of object;
 
   IspSkeletonSlotRenderSubscriber = interface
@@ -56,16 +57,12 @@ type
     procedure OnWriteVertices(const ASlot: PspSlot; const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single);
   end;
 
-  ISpritesSet = {$IfDef FPC}specialize{$EndIf} IHashSet<ISpriteIndex>;
-  TSpritesSet = {$IfDef FPC}specialize{$EndIf} THashSet<ISpriteIndex>;
-
   { IspSkeleton }
 
   IspSkeleton = interface
     function Handle : PspSkeleton;
     function Data : IspSkeletonData;
-    function Texture: TavAtlasArrayReferenced;
-    function CachedSprites: ISpritesSet;
+    function Texture: IspTextureToRefIdx;
 
     function  SubscribeOnSlotRender(const ASlotName: string; const AOnWriteVertices: TOnWriteVertices): IspSkeletonSlotRenderSubscriber;
     procedure SubscribeOnSlotRender(const ASlotName: string; const ASubscriber: IspSkeletonSlotRenderSubscriber);
@@ -131,15 +128,15 @@ type
   end;
 
   IspSkeletonCache = interface
-    function ObtainSkeleton(const AAtlasFileName, ASkelFileName: string; const ATexture: TavAtlasArrayReferenced; const AScale: Single = 1): IspSkeleton;
+    function ObtainSkeleton(const AAtlasFileName, ASkelFileName: string; const ATexture: IspTextureToRefIdx; const AScale: Single = 1): IspSkeleton;
     procedure ClearCache(const ASkeletons: Boolean = True; const AAtlases: Boolean = True);
   end;
 
 function Create_IspAtlas(const AFileName: string): IspAtlas;
 function Create_IspSkeletonData(const ASkelFileName: string; const AAtlas: IspAtlas; const AScale: Single = 1): IspSkeletonData;
 
-function Create_IspSkeleton(const AData: IspSkeletonData; const ATexture: TavAtlasArrayReferenced): IspSkeleton; overload;
-function Create_IspSkeleton(const AAtlasFileName, ASkelFileName: string; const ATexture: TavAtlasArrayReferenced; const AScale: Single = 1): IspSkeleton; overload;
+function Create_IspSkeleton(const AData: IspSkeletonData; const ATexture: IspTextureToRefIdx): IspSkeleton; overload;
+function Create_IspSkeleton(const AAtlasFileName, ASkelFileName: string; const ATexture: IspTextureToRefIdx; const AScale: Single = 1): IspSkeleton; overload;
 
 function Create_IspAnimationStateData(const ASkeletonData: IspSkeletonData): IspAnimationStateData;
 function Create_IspAnimationState(const AData: IspAnimationStateData): IspAnimationState; overload;
@@ -205,9 +202,8 @@ type
   private
     FspSkeleton : PspSkeleton;
     FData       : IspSkeletonData;
-    FTexture    : IWeakRef; //TavAtlasArrayReferenced
+    FTexture    : IspTextureToRefIdx;
 
-    FSprites    : ISpritesSet;
     FSubscribers: array of TSlotPublisher;
     function  GetPos: TVec2;
     function  GetFlipX: Boolean;
@@ -220,8 +216,7 @@ type
   public
     function Handle : PspSkeleton;
     function Data : IspSkeletonData;
-    function Texture: TavAtlasArrayReferenced;
-    function CachedSprites: ISpritesSet;
+    function Texture: IspTextureToRefIdx;
 
     function  SubscribeOnSlotRender(const ASlotName: string; const AOnWriteVertices: TOnWriteVertices): IspSkeletonSlotRenderSubscriber;
     procedure SubscribeOnSlotRender(const ASlotName: string; const ASubscriber: IspSkeletonSlotRenderSubscriber);
@@ -235,7 +230,7 @@ type
     property FlipX: Boolean read GetFlipX write SetFlipX;
     property FlipY: Boolean read GetFlipY write SetFlipY;
 
-    constructor Create(const AData: IspSkeletonData; const ATexture: TavAtlasArrayReferenced);
+    constructor Create(const AData: IspSkeletonData; const ATexture: IspTextureToRefIdx);
     destructor Destroy; override;
   end;
 
@@ -328,7 +323,7 @@ type
     FSkeletons: ISkelSet;
     function ObtainAtlas(const AAtlasFileName: string): IspAtlas;
   public
-    function ObtainSkeleton(const AAtlasFileName, ASkelFileName: string; const ATexture: TavAtlasArrayReferenced; const AScale: Single = 1): IspSkeleton;
+    function ObtainSkeleton(const AAtlasFileName, ASkelFileName: string; const ATexture: IspTextureToRefIdx; const AScale: Single = 1): IspSkeleton;
     procedure ClearCache(const ASkeletons: Boolean = True; const AAtlases: Boolean = True);
     procedure AfterConstruction; override;
   end;
@@ -374,13 +369,11 @@ var i, j, n: Integer;
 
     regionWorldPos: array [0..3] of TVec2;
 
-    tex: TavAtlasArrayReferenced;
-    sprites: ISpritesSet;
+    tex: IspTextureToRefIdx;
 begin
   Result := 0;
 
   tex := ASkeleton.Texture;
-  sprites := ASkeleton.CachedSprites;
 
   v.vsColor := ASkeleton.Handle^.color * ASlot^.color;
   v.vsCoord.z := AZ;
@@ -389,37 +382,35 @@ begin
     SP_ATTACHMENT_REGION:
     begin
       regionAtt := PspRegionAttachment(AAttachment);
-      mip := ITextureMip(PspAtlasRegion(regionAtt^.userData)^.page^.UserData);
-      sprite := tex.ObtainSprite(mip);
-      sprites.Add(sprite);
-      v.vsAtlasRef := sprite.Index;
+
+      v.vsAtlasRef := tex.GetPageRef(PspAtlasRegion(regionAtt^.userData)^.page^.UserData);
 
       ZeroClear(regionWorldPos, SizeOf(regionWorldPos));
       spRegionAttachment_computeWorldVertices(regionAtt, ASlot^.bone, @regionWorldPos[0], 0, 2);
 
       v.vsCoord.xy := regionWorldPos[0];
       v.vsTexCrd := Vec(regionAtt^.uvs[0], regionAtt^.uvs[1]);
-      AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+      AVertAddCallback.AddVertex(v);
 
       v.vsCoord.xy := regionWorldPos[1];
       v.vsTexCrd := Vec(regionAtt^.uvs[2], regionAtt^.uvs[3]);
-      AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+      AVertAddCallback.AddVertex(v);
 
       v.vsCoord.xy := regionWorldPos[2];
       v.vsTexCrd := Vec(regionAtt^.uvs[4], regionAtt^.uvs[5]);
-      AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+      AVertAddCallback.AddVertex(v);
 
       v.vsCoord.xy := regionWorldPos[0];
       v.vsTexCrd := Vec(regionAtt^.uvs[0], regionAtt^.uvs[1]);
-      AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+      AVertAddCallback.AddVertex(v);
 
       v.vsCoord.xy := regionWorldPos[2];
       v.vsTexCrd := Vec(regionAtt^.uvs[4], regionAtt^.uvs[5]);
-      AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+      AVertAddCallback.AddVertex(v);
 
       v.vsCoord.xy := regionWorldPos[3];
       v.vsTexCrd := Vec(regionAtt^.uvs[6], regionAtt^.uvs[7]);
-      AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+      AVertAddCallback.AddVertex(v);
 
       Inc(Result, 6);
     end;
@@ -429,10 +420,7 @@ begin
       meshAtt := PspMeshAttachment(ASlot^.attachment);
       if meshAtt^.super.worldVerticesLength = 0 then Exit;
 
-      mip := ITextureMip(PspAtlasRegion(meshAtt^.userData)^.page^.UserData);
-      sprite := tex.ObtainSprite(mip);
-      sprites.Add(sprite);
-      v.vsAtlasRef := sprite.Index;
+      v.vsAtlasRef := tex.GetPageRef(PspAtlasRegion(meshAtt^.userData)^.page^.UserData);
 
       if Length(GV_BuildBuffer) < meshAtt^.super.worldVerticesLength then
         SetLength(GV_BuildBuffer, meshAtt^.super.worldVerticesLength*2);
@@ -444,7 +432,7 @@ begin
         n := TWordArr(meshAtt^.triangles)[j];
         v.vsCoord.xy := GV_BuildBuffer[n];
         v.vsTexCrd := TVec2Arr(meshAtt^.uvs)[n];
-        AVertAddCallback.AddVertex(v.vsCoord, v.vsTexCrd, v.vsColor, v.vsAtlasRef);
+        AVertAddCallback.AddVertex(v);
       end;
       Inc(Result, meshAtt^.trianglesCount);
     end;
@@ -462,12 +450,12 @@ begin
   Result := TSkeletonData.Create(ASkelFileName, AAtlas, AScale);
 end;
 
-function Create_IspSkeleton(const AData: IspSkeletonData; const ATexture: TavAtlasArrayReferenced): IspSkeleton;
+function Create_IspSkeleton(const AData: IspSkeletonData; const ATexture: IspTextureToRefIdx): IspSkeleton;
 begin
   Result := TSkeleton.Create(AData, ATexture);
 end;
 
-function Create_IspSkeleton(const AAtlasFileName, ASkelFileName: string; const ATexture: TavAtlasArrayReferenced; const AScale: Single = 1): IspSkeleton; overload;
+function Create_IspSkeleton(const AAtlasFileName, ASkelFileName: string; const ATexture: IspTextureToRefIdx; const AScale: Single = 1): IspSkeleton; overload;
 begin
   Result := Create_IspSkeleton( Create_IspSkeletonData(ASkelFileName, Create_IspAtlas(AAtlasFileName), AScale), ATexture );
 end;
@@ -561,12 +549,11 @@ end;
 
 { TSkeleton }
 
-constructor TSkeleton.Create(const AData: IspSkeletonData; const ATexture: TavAtlasArrayReferenced);
+constructor TSkeleton.Create(const AData: IspSkeletonData; const ATexture: IspTextureToRefIdx);
 begin
   FData := AData;
   FspSkeleton := spSkeleton_create(FData.Handle);
-  FTexture := ATexture.WeakRef;
-  FSprites := TSpritesSet.Create;
+  FTexture := ATexture;
 end;
 
 function TSkeleton.Data: IspSkeletonData;
@@ -644,22 +631,9 @@ begin
   FspSkeleton^.pos := Value;
 end;
 
-function TSkeleton.Texture: TavAtlasArrayReferenced;
+function TSkeleton.Texture: IspTextureToRefIdx;
 begin
-  Result := nil;
-  if FTexture = nil then Exit;
-  if FTexture.Obj = nil then
-  begin
-    FTexture := nil;
-    FSprites.Clear;
-    Exit;
-  end;
-  Result := FTexture.Obj as TavAtlasArrayReferenced;
-end;
-
-function TSkeleton.CachedSprites: ISpritesSet;
-begin
-  Result := FSprites;
+  Result := FTexture;
 end;
 
 function TSkeleton.SubscribeOnSlotRender(const ASlotName: string; const AOnWriteVertices: TOnWriteVertices): IspSkeletonSlotRenderSubscriber;
@@ -706,12 +680,8 @@ var slot: PPspSlot;
     v: TSpineVertex;
 
     regionWorldPos: array [0..3] of TVec2;
-
-    tex: TavAtlasArrayReferenced;
 begin
   Result := 0;
-  tex := Texture;
-  if tex = nil then Exit(0);
 
   if DoUpdateWorldTransform then
     spSkeleton_updateWorldTransform(FspSkeleton);
@@ -748,17 +718,6 @@ end;
 procedure Init;
 begin
   SetTextureAllocator({$IfDef FPC}@{$EndIf}avCreateTexturePage, {$IfDef FPC}@{$EndIf}avDestroyTexturePage);
-end;
-
-{ TSpineVertex }
-
-class function TSpineVertex.Layout: IDataLayout;
-begin
-  Result := LB.Add('vsCoord', ctFloat, 3)
-              .Add('vsTexCrd', ctFloat, 2)
-              .Add('vsColor', ctFloat, 4)
-              .Add('vsAtlasRef', ctFloat, 1)
-              .Finish();
 end;
 
 { TAnimationState }
@@ -943,7 +902,7 @@ begin
 end;
 
 function TspSkeletonCache.ObtainSkeleton(const AAtlasFileName,
-  ASkelFileName: string; const ATexture: TavAtlasArrayReferenced;
+  ASkelFileName: string; const ATexture: IspTextureToRefIdx;
   const AScale: Single): IspSkeleton;
 var key: TSkelDataKey;
     skelData: IspSkeletonData;
