@@ -1552,6 +1552,7 @@ var spriteObj: TSpriteIndex;
     region: TSpriteRegion;
     allocSize: TVec2i;
 begin
+  if ASprite = nil then Exit(nil);
   if not FSprites.TryGetValue(ASprite, spriteObj) then
   begin
     allocSize.x := ASprite.Width+2;
