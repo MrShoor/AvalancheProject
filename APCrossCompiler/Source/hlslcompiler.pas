@@ -429,6 +429,7 @@ var
       Result.ElementsCount := 1;
       Result.Offset := ShaderBindDesc.BindPoint;
       Result.Data := nil;
+      Result.SamplerIndex := -1;
       UniformHash.Add(ShaderBindDesc.Name, Result);
     end;
   end;

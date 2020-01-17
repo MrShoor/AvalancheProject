@@ -25,14 +25,14 @@
     <RunParams>
       <local>
         <CommandLineParams Value="shaders.json"/>
-        <WorkingDirectory Value="C:\MyProj\AvalancheProject\Templates\AvalancheEmptyForm\AppShaders"/>
+        <WorkingDirectory Value="D:\Projects\PixTeamJG\shaders"/>
       </local>
       <FormatVersion Value="2"/>
       <Modes Count="1">
         <Mode0 Name="default">
           <local>
             <CommandLineParams Value="shaders.json"/>
-            <WorkingDirectory Value="C:\MyProj\AvalancheProject\Templates\AvalancheEmptyForm\AppShaders"/>
+            <WorkingDirectory Value="D:\Projects\PixTeamJG\shaders"/>
           </local>
         </Mode0>
       </Modes>
@@ -42,7 +42,7 @@
         <PackageName Value="AvalancheUtils"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="14">
+    <Units Count="15">
       <Unit0>
         <Filename Value="apcc.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -105,6 +105,10 @@
         <Filename Value="..\..\Utils\avConfig.inc"/>
         <IsPartOfProject Value="True"/>
       </Unit13>
+      <Unit14>
+        <Filename Value="..\..\Utils\superobject.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit14>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -115,7 +119,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);..\..\Utils"/>
-      <OtherUnitFiles Value="..\..\Common;..\..;..\..\Common\DX_JSB"/>
+      <OtherUnitFiles Value="..\..\Common;..\..;..\..\Common\DX_JSB;..\..\Utils"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>

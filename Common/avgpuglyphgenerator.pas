@@ -53,6 +53,7 @@ type
     FPrevBlend: Boolean;
     FPrevScissor: Boolean;
     FPrevViewport: TRectI;
+    FPrevMask: TColorMask;
 
     procedure PrepareBuffers(const AGlyph: IGlyphPoly); overload;
     procedure RenderGlyph(const ATexSize: TVec2i);
@@ -164,9 +165,11 @@ begin
   FPrevBlend := Main.States.Blending[0];
   FPrevScissor := Main.States.GetScissorTest;
   FPrevViewport := Main.States.Viewport;
+  FPrevMask := Main.States.ColorMask[0];
 
   Main.States.Blending[0] := False;
   Main.States.SetScissorTest(False);
+  Main.States.ColorMask[0] := [cmRed]
 end;
 
 procedure TavGlyphGenerator.DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: IctxTexture; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer);
@@ -192,6 +195,7 @@ begin
   if (FPrevFBO <> nil) then FPrevFBO.Select(False);
   if (FPrevProg <> nil) then FPrevProg.Select();
   Main.States.Viewport := FPrevViewport;
+  Main.States.ColorMask[0] := FPrevMask;
 end;
 
 end.
