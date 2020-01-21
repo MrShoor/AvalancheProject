@@ -106,6 +106,7 @@ type
     procedure OnUPS; virtual;
   protected
     function  Space_ParentToLocal(const APt: TVec2): TVec2;
+    function  Space_RootControlToLocal(const APt: TVec2): TVec2;
     function  Space_LocalToRootControl(const APt: TVec2): TVec2;
     function  Space_LocalToParent(const APt: TVec2): TVec2;
 
@@ -1610,6 +1611,14 @@ begin
     Result := npt * Inv(GetUIMat3(Main.States.Viewport.Size));
     Result := Result * TransformInv;
   end;
+end;
+
+function TavmBaseControl.Space_RootControlToLocal(const APt: TVec2): TVec2;
+begin
+  if Parent is TavmBaseControl then
+    Result := TavmBaseControl(Parent).Space_RootControlToLocal(APt * TransformInv)
+  else
+    Result := APt;
 end;
 
 function TavmBaseControl.Space_LocalToRootControl(const APt: TVec2): TVec2;
