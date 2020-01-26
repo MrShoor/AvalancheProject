@@ -65,9 +65,149 @@ type
     constructor Create(AParent: TavObject); override;
   end;
 
+  { TavCameraControllerUI }
+
+  TavCameraControllerUI = class (TavObject)
+  private
+    FMain: TavMainRender;
+
+    FCamPos: TVec2;
+    FPixelToUnit: Single;
+
+    FCaptured: Boolean;
+
+    FMoving: Boolean;
+    FMovingPt: TVec2;
+
+    procedure CaptureWindow;
+    procedure ReleaseCaptureWindow;
+  protected
+    procedure EMMouseDown (var msg: TavMouseDownMessage); message EM_MOUSEDOWN;
+    procedure EMMouseUp   (var msg: TavMouseUpMessage);   message EM_MOUSEUP;
+    procedure EMMouseMove (var msg: TavMouseMessage);     message EM_MOUSEMOVE;
+    procedure EMMouseWheel(var msg: TavMouseMessage);     message EM_MOUSEWHEEL;
+    function CanRegister(target: TavObject): boolean; override;
+    procedure AfterRegister; override;
+  public
+    WellSens   : single;
+    MouseBtn_Move  : Integer;
+
+    property PixelToUnit: Single read FPixelToUnit;
+
+    function CanvasMat: TMat3;
+    function Space_WindowToCanvas(const APt: TVec2): TVec2;
+    function Space_CanvasToWindow(const APt: TVec2): TVec2;
+
+    procedure SetState(const ACamOffset: TVec2; const APixToUnit: Single);
+  end;
+
 implementation
 
 uses Math, avPlatform;
+
+{ TavCameraControllerUI }
+
+procedure TavCameraControllerUI.CaptureWindow;
+begin
+  if IsValidWindow(FMain.Window) then
+    avPlatform.CaptureWindow(FMain.Window);
+end;
+
+procedure TavCameraControllerUI.ReleaseCaptureWindow;
+begin
+  avPlatform.ReleaseCaptureWindow;
+end;
+
+procedure TavCameraControllerUI.EMMouseDown(var msg: TavMouseDownMessage);
+begin
+  if msg.button = MouseBtn_Move then
+  begin
+    CaptureWindow;
+    FCaptured := true;
+    FMoving := true;
+    FMovingPt := Space_WindowToCanvas(Vec(msg.xPos, msg.yPos));
+  end;
+end;
+
+procedure TavCameraControllerUI.EMMouseUp(var msg: TavMouseUpMessage);
+begin
+  if msg.button = MouseBtn_Move then
+    FMoving:=false;
+
+  if FCaptured and (not FMoving) then
+  begin
+    FCaptured:=false;
+    ReleaseCaptureWindow;
+  end;
+end;
+
+procedure TavCameraControllerUI.EMMouseMove(var msg: TavMouseMessage);
+var
+  dVec: TVec2;
+begin
+  if FMoving then
+  begin
+    dVec := FMovingPt - Space_WindowToCanvas(Vec(msg.xPos, msg.yPos));
+    FCamPos := FCamPos + dVec*FPixelToUnit;
+    FMain.InvalidateWindow;
+  end;
+end;
+
+procedure TavCameraControllerUI.EMMouseWheel(var msg: TavMouseMessage);
+var
+  dVec: TVec2;
+  zoomPt: TVec2;
+begin
+  zoomPt := Space_WindowToCanvas(Vec(msg.xPos, msg.yPos));
+  if msg.wheelShift > 0 then
+    FPixelToUnit := FPixelToUnit * WellSens
+  else
+    FPixelToUnit := FPixelToUnit / WellSens;
+  dVec := zoomPt - Space_WindowToCanvas(Vec(msg.xPos, msg.yPos));
+  FCamPos := FCamPos + dVec*FPixelToUnit;
+  FMain.InvalidateWindow;
+end;
+
+function TavCameraControllerUI.CanRegister(target: TavObject): boolean;
+begin
+  Result := inherited CanRegister(target);
+  Result := Result and (target is TavMainRender);
+  FMain := TavMainRender(target);
+end;
+
+procedure TavCameraControllerUI.AfterRegister;
+begin
+  inherited AfterRegister;
+  FPixelToUnit := 1;
+  WellSens := 1.1;
+  FCamPos := Vec(0,0);
+end;
+
+function TavCameraControllerUI.CanvasMat: TMat3;
+begin
+  Result := Mat3(Vec(FPixelToUnit, FPixelToUnit), 0, -FCamPos);
+end;
+
+function TavCameraControllerUI.Space_WindowToCanvas(const APt: TVec2): TVec2;
+var v: TVec3;
+begin
+  v := Vec(APt, 1.0) * Inv(CanvasMat);
+  Result := v.xy / v.z;
+end;
+
+function TavCameraControllerUI.Space_CanvasToWindow(const APt: TVec2): TVec2;
+var v: TVec3;
+begin
+  v := Vec(APt, 1.0) * CanvasMat;
+  Result := v.xy / v.z;
+end;
+
+procedure TavCameraControllerUI.SetState(const ACamOffset: TVec2; const APixToUnit: Single);
+begin
+  FCamPos := ACamOffset;
+  FPixelToUnit := APixToUnit;
+  FMain.InvalidateWindow;
+end;
 
 { TavCameraController }
 

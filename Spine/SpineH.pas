@@ -11,9 +11,10 @@ const
 
 type
   PspPChar = PAnsiChar;
+  PspAtlasPage = ^TspAtlasPage;
 
 //***Atlas***
-  TEngineCreateTexturePage = procedure (const APath: PspPChar; var Width, Height: Integer; var UserData: Pointer);
+  TEngineCreateTexturePage = procedure (const APage: PspAtlasPage; const APath: PspPChar; var Width, Height: Integer; var UserData: Pointer);
   TEngineDestroyTexturePage = procedure (var UserData: Pointer);
 
   {$Z4}
@@ -46,7 +47,6 @@ type
   );
 
   PspAtlas = ^TspAtlas;
-  PspAtlasPage = ^TspAtlasPage;
   PspAtlasRegion = ^TspAtlasRegion;
 
   TspAtlasPage = record
@@ -862,7 +862,7 @@ implementation
 uses
   avTexLoader, avTypes;
 
-procedure avCreateTexturePage(const APath: PspPChar; var Width, Height: Integer; var UserData: Pointer);
+procedure avCreateTexturePage(const APage: PspAtlasPage; const APath: PspPChar; var Width, Height: Integer; var UserData: Pointer);
 var texData: ITextureData;
 begin
   texData := LoadTexture(string(APath));

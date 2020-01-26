@@ -42,6 +42,10 @@ type
     function Handle: PspAtlas;
   end;
 
+  IspAtlasPageCustomLoader = interface
+    procedure LoadPage(const APath: PspPChar; var AWidth, AHeight: Integer; var APage: IUnknown);
+  end;
+
   IspSkeletonData = interface
     function Handle: PspSkeletonData;
   end;
@@ -132,7 +136,7 @@ type
     procedure ClearCache(const ASkeletons: Boolean = True; const AAtlases: Boolean = True);
   end;
 
-function Create_IspAtlas(const AFileName: string): IspAtlas;
+function Create_IspAtlas(const AFileName: string; const ACustomLoader: IspAtlasPageCustomLoader = nil): IspAtlas;
 function Create_IspSkeletonData(const ASkelFileName: string; const AAtlas: IspAtlas; const AScale: Single = 1): IspSkeletonData;
 
 function Create_IspSkeleton(const AData: IspSkeletonData; const ATexture: IspTextureToRefIdx): IspSkeleton; overload;
@@ -160,7 +164,7 @@ type
     FspAtlas : PspAtlas;
   public
     function Handle: PspAtlas;
-    constructor Create(const AFileName: string);
+    constructor Create(const AFileName: string; const ACustomLoader: IspAtlasPageCustomLoader);
     destructor Destroy; override;
   end;
 
@@ -440,9 +444,9 @@ begin
   end;
 end;
 
-function Create_IspAtlas(const AFileName: string): IspAtlas;
+function Create_IspAtlas(const AFileName: string; const ACustomLoader: IspAtlasPageCustomLoader): IspAtlas;
 begin
-  Result := TAtlas.Create(AFileName);
+  Result := TAtlas.Create(AFileName, ACustomLoader);
 end;
 
 function Create_IspSkeletonData(const ASkelFileName: string; const AAtlas: IspAtlas; const AScale: Single = 1): IspSkeletonData;
@@ -504,9 +508,9 @@ end;
 
 { TAtlas }
 
-constructor TAtlas.Create(const AFileName: string);
+constructor TAtlas.Create(const AFileName: string; const ACustomLoader: IspAtlasPageCustomLoader);
 begin
-  FspAtlas := spAtlas_createFromFile(PspPChar(AnsiString(AFileName)), nil);
+  FspAtlas := spAtlas_createFromFile(PspPChar(AnsiString(AFileName)), ACustomLoader);
 end;
 
 destructor TAtlas.Destroy;
@@ -701,18 +705,25 @@ begin
   end;
 end;
 
-procedure avCreateTexturePage(const APath: PspPChar; var Width, Height: Integer; var UserData: Pointer);
+procedure avCreateTexturePage(const APage: PspAtlasPage; const APath: PspPChar; var Width, Height: Integer; var UserData: Pointer);
 var texData: ITextureData;
 begin
-  texData := Default_ITextureManager.LoadTexture(string(APath));
-  Width := texData.Width;
-  Height := texData.Height;
-  ITextureMip(UserData) := texData.MipData(0,0);
+  if APage^.atlas^.UserData = nil then
+  begin
+    texData := Default_ITextureManager.LoadTexture(string(APath));
+    Width := texData.Width;
+    Height := texData.Height;
+    ITextureMip(UserData) := texData.MipData(0,0);
+  end
+  else
+  begin
+    IspAtlasPageCustomLoader(APage^.atlas^.UserData).LoadPage(APath, Width, Height, IUnknown(UserData));
+  end;
 end;
 
 procedure avDestroyTexturePage(var UserData: Pointer);
 begin
-  ITextureMip(UserData) := nil;
+  IUnknown(UserData) := nil;
 end;
 
 procedure Init;
