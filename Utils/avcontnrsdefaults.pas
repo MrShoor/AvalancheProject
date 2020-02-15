@@ -65,14 +65,14 @@ type
 
   { TDupIngnore }
 
-  TDupIngnore = class (TNoRefObject, IDuplicateResolver)
+  TDupIngnore = class (TInterfacedObjectEx, IDuplicateResolver)
   public
     function DuplicateResolve(const NewItem, CurrentItem): TDuplicateResolve;
   end;
 
   { TDupRewrite }
 
-  TDupRewrite = class (TNoRefObject, IDuplicateResolver)
+  TDupRewrite = class (TInterfacedObjectEx, IDuplicateResolver)
   public
     function DuplicateResolve(const NewItem, CurrentItem): TDuplicateResolve;
   end;

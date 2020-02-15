@@ -4,7 +4,7 @@ unit avContnrs;
 interface
 
 uses
-  Classes, SysUtils, typinfo, avContnrsDefaults;
+  Classes, SysUtils, typinfo, mutils, avContnrsDefaults;
 
 type
   TInterfacedObjectEx = avContnrsDefaults.TInterfacedObjectEx;
