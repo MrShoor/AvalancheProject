@@ -4,7 +4,7 @@ unit avContnrs;
 interface
 
 uses
-  Classes, SysUtils, mutils, typinfo, avContnrsDefaults;
+  Classes, SysUtils, typinfo, mutils, avContnrsDefaults;
 
 type
   TInterfacedObjectEx = avContnrsDefaults.TInterfacedObjectEx;
@@ -1178,7 +1178,7 @@ begin
     Result := FData.PItem[0];
 end;
 
-function TAutoCollection.DataArr: {$IfDef FPC}specialize{$EndIf} IArray<TData>;
+function TAutoCollection{$IfDef DCC}<TData>{$EndIf}.DataArr: {$IfDef FPC}specialize{$EndIf} IArray<TData>;
 begin
   Result := FData;
 end;
