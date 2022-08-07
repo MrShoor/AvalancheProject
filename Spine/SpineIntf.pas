@@ -18,7 +18,8 @@ uses
   avContnrs,
   avContnrsDefaults,
   avTess,
-  avTypes;
+  avTypes,
+  avTexLoader;
 
 type
   PspAnimation = SpineH.PspAnimation;
@@ -43,6 +44,7 @@ type
   end;
 
   IspAtlasPageCustomLoader = interface
+  ['{D6E84652-1BFD-4F01-A1FC-C2DB3CD38163}']
     procedure LoadPage(const APath: PspPChar; var AWidth, AHeight: Integer; var APage: IUnknown);
   end;
 
@@ -51,6 +53,7 @@ type
   end;
 
   IspTextureToRefIdx = interface
+  ['{C3AE3151-4571-4C6F-A8BF-EF9C51FD769B}']
     function GetPageRef(const UserDataAltasPage: Pointer): IUnknown;
   end;
 
@@ -136,6 +139,8 @@ type
     procedure ClearCache(const ASkeletons: Boolean = True; const AAtlases: Boolean = True);
   end;
 
+function Create_DefaultAtlasAdapter(const AAtlas: TavAtlasArrayReferenced; const ATextureManager: ITextureManager): IspAtlasPageCustomLoader;
+
 function Create_IspAtlas(const AFileName: string; const ACustomLoader: IspAtlasPageCustomLoader = nil): IspAtlas;
 function Create_IspSkeletonData(const ASkelFileName: string; const AAtlas: IspAtlas; const AScale: Single = 1): IspSkeletonData;
 
@@ -154,9 +159,6 @@ function EvalAbsBoneTransform(const ABone: PspBone): TMat3;
 function WriteAttachementVertices(const ASkeleton: IspSkeleton; const ASlot: PspSlot; const AAttachment: PspAttachment; const AVertAddCallback: ISpineAddVertexCallback; const AZ: Single): Integer;
 
 implementation
-
-uses
-  avTexLoader;
 
 type
   TAtlas = class(TInterfacedObject, IspAtlas)
@@ -332,6 +334,19 @@ type
     procedure AfterConstruction; override;
   end;
 
+  { TDefaultAtlasarrayReferencedAdapter }
+
+  TDefaultAtlasarrayReferencedAdapter = class(TInterfacedObject, IspAtlasPageCustomLoader, IspTextureToRefIdx)
+  private
+    FAtlas : IWeakRef; //TavAtlasArrayReferenced
+    FTexMan: ITextureManager;
+    function Atlas: TavAtlasArrayReferenced;
+  public
+    function GetPageRef(const UserDataAltasPage: Pointer): IUnknown;
+    procedure LoadPage(const APath: PspPChar; var AWidth, AHeight: Integer; var APage: IUnknown);
+    constructor Create(const AAtlas: TavAtlasArrayReferenced; const ATexManager: ITextureManager);
+  end;
+
 //threadvar GV_BuildBuffer: TVec2Arr;
 var GV_BuildBuffer: TVec2Arr;
     GV_SkeletonCache: IspSkeletonCache;
@@ -444,6 +459,11 @@ begin
   end;
 end;
 
+function Create_DefaultAtlasAdapter(const AAtlas: TavAtlasArrayReferenced; const ATextureManager: ITextureManager): IspAtlasPageCustomLoader;
+begin
+  Result := TDefaultAtlasarrayReferencedAdapter.Create(AAtlas, ATextureManager);
+end;
+
 function Create_IspAtlas(const AFileName: string; const ACustomLoader: IspAtlasPageCustomLoader): IspAtlas;
 begin
   Result := TAtlas.Create(AFileName, ACustomLoader);
@@ -480,6 +500,37 @@ begin
   asd := Create_IspAnimationStateData(ASkel.Data);
   asd.DefaultMix := ADefaultMix;
   Result := Create_IspAnimationState(asd);
+end;
+
+{ TDefaultAtlasarrayReferencedAdapter }
+
+function TDefaultAtlasarrayReferencedAdapter.Atlas: TavAtlasArrayReferenced;
+begin
+  if FAtlas = nil then Exit(nil);
+  Result := TavAtlasArrayReferenced(FAtlas.Obj);
+end;
+
+function TDefaultAtlasarrayReferencedAdapter.GetPageRef(const UserDataAltasPage: Pointer): IUnknown;
+begin
+  Result := ISpriteIndex(UserDataAltasPage);
+end;
+
+procedure TDefaultAtlasarrayReferencedAdapter.LoadPage(const APath: PspPChar; var AWidth, AHeight: Integer; var APage: IUnknown);
+var mip: ITextureMip;
+    sprite: ISpriteIndex;
+begin
+    mip := FTexMan.LoadTexture(APath).MipData(0, 0);
+    sprite := Atlas.ObtainSprite(mip);
+    APage := sprite;
+    AWidth := sprite.Size.x;
+    AHeight := sprite.Size.y;
+end;
+
+constructor TDefaultAtlasarrayReferencedAdapter.Create(
+  const AAtlas: TavAtlasArrayReferenced; const ATexManager: ITextureManager);
+begin
+  FAtlas := AAtlas.WeakRef;
+  FTexMan := ATexManager;
 end;
 
 { TSkeletonSlotRenderSubscriber }

@@ -1,5 +1,5 @@
 unit untmain;
-{$I avConfig.inc}
+{$I avUtilsConfig.inc}
 
 interface
 
@@ -14,7 +14,7 @@ uses
   {$EndIf}
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
   ExtCtrls, StdCtrls, Menus, avRes, avTypes, avTess, mutils,
-  avMiniControls, avCanvas;
+  avMiniControls, avCanvas, avTextUtils;
 
 type
 

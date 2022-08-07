@@ -243,6 +243,7 @@ type
 const
   EmptyAABB: TAABB = (min: (x: HUGE; y: HUGE; z: HUGE); max: (x: -HUGE; y: -HUGE; z: -HUGE));
   EmptyRectI: TRectI = (min: (x: HUGE; y: HUGE); max: (x: -HUGE; y: -HUGE));
+  EmptyRectF: TRectF = (min: (x: HUGE; y: HUGE); max: (x: -HUGE; y: -HUGE));
 
 type
   { TPlane }

@@ -38,6 +38,7 @@
         #define S_SampleIndex(a) a
         #define S_StencilRef(a) a
         #define S_TessFactor(a) a
+        #define CBuffer(a) namespace
         
         #define in
         #define out
@@ -109,8 +110,10 @@
             float2(float x);
             float2(double x);
             float2(float x, float y);
+            float2(uint2 xy);            
             float2& operator = (float x);
             float2& operator = (const float2& xyzw);
+            float2& operator = (const uint2& xy);
             float2 operator - (const float2& v) const;
             float2 operator - (const int2& v) const;
             float2 operator - (const uint2& v) const;
@@ -212,6 +215,7 @@
             uint3(const float2& xy, float z);
             uint3(float x, const float2& yz);
             uint3(const uint3& xyz);
+            uint3(const uint2& xy, uint z);
             uint3(const int3& xyz);
             uint3& operator = (float x);
             uint3& operator = (const uint3& xyz);
@@ -404,6 +408,7 @@
             float4(double x);
             float4(float x, float y, float z, float w);
             float4(const float2& xy, float z, float w);
+            float4(const float2& xy, const float2& zw);
             float4(float x, const float2& yz, float w);
             float4(float x, float y, const float2& zw);
             float4(const float3& xyz, float w);
@@ -524,6 +529,7 @@
             Mip2D operator[](in uint mip);
         };
         
+        template<typename TAnyStruct=float4>
         struct Texture2D{
             float4 Load(int3 pixelcoord);
             float4 Load(int3 pixelcoord, int2 offset);
@@ -580,7 +586,7 @@
             void GetDimensions(int mipLevel, out uint Width, out uint Height, out uint NumberOfLevels);
             void GetDimensions(out uint Width, out uint Height);
             float CalculateLevelOfDetail(SamplerState sampler, float2 uv);
-            float4 operator[](in uint2 pos);
+            TAnyStruct operator[](in uint2 pos);
             Mips2D& mips();
         };
 
@@ -940,6 +946,8 @@
         #define S_SampleIndex(a) a : SV_SampleIndex
         #define S_StencilRef(a) a : SV_StencilRef
         #define S_TessFactor(a) a : SV_TessFactor
+
+        #define CBuffer(a) cbuffer a
 
         #define register_(a) : register(a)
     #endif

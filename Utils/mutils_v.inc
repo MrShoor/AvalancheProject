@@ -3,9 +3,11 @@ type
   { TV2 }
 
   TV2 = record
-    x, y: TCompType;
   public
     function yx: TV2; {$IFNDEF NoInline} inline; {$ENDIF}
+  case Byte of
+    0: (f: array [0..1] of TCompType);
+    1: (x, y: TCompType);
   end;
   PV2 =^TV2;
 

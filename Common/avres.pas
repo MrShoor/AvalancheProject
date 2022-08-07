@@ -1952,7 +1952,7 @@ end;
 
 function TavUAV.ReadCounter: Cardinal;
 begin
-  if FBufH = nil then
+  if FUAVBufH = nil then
     Result := 0
   else
     Result := FUAVBufH.ReadCounter;

@@ -1,0 +1,7 @@
+0. Do not extract avm_import.zip
+1. Run Blender
+2. Go to "File->User preferences" and switch at "Add-ons" tab.
+3. Use "Install from File..." button
+4. Select avm_import.zip from this directory
+5. Search for installed "Import-Export: AvalancheExport" addon and set checkbox at checked against it.
+6. Press "Save User Setting" button
