@@ -90,8 +90,8 @@ type
     procedure DebugOut(cntrs: TContours);
   public
     function Execute(const ALine: TVec2Arr): TContours;
-    function ExecuteToLoops(const APolyLine: TVec2Arr): TContours;
-    function ExecuteToLoops(const APoly: array of TPolyContour): TPoly;
+    function ExecuteToLoops(const APolyLine: TVec2Arr): TContours; overload;
+    function ExecuteToLoops(const APoly: array of TPolyContour): TPoly; overload;
 
     constructor Create();
     destructor Destroy; override;

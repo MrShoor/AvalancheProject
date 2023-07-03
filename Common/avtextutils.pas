@@ -1076,8 +1076,8 @@ begin
   Result.XXX := Result.XXX * scale;
   Result.YYYY := Result.YYYY * scale;
 
-  Result.ImgSize.x := Ceil(Result.XXX.y) + Result.Border*2;
-  Result.ImgSize.y := Ceil(Result.YYYY.y+Result.YYYY.z) + Result.Border*2;
+  Result.ImgSize.x := Math.Ceil(Result.XXX.y) + Result.Border*2;
+  Result.ImgSize.y := Math.Ceil(Result.YYYY.y+Result.YYYY.z) + Result.Border*2;
 
   Result.XXX.x := Result.XXX.x - Result.Border;
   Result.XXX.y := Result.XXX.y + 2*Result.Border;

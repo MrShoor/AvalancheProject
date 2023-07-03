@@ -16,6 +16,8 @@ object frmHMEditor: TfrmHMEditor
     Width = 746
     Align = alCustom
     Anchors = [akTop, akLeft, akRight, akBottom]
+    DoubleBuffered = False
+    ParentDoubleBuffered = False
     TabOrder = 0
     OnMouseDown = pnlRenderMouseDown
     OnMouseMove = pnlRenderMouseMove
@@ -25,13 +27,13 @@ object frmHMEditor: TfrmHMEditor
   object Timer1: TTimer
     Interval = 1
     OnTimer = Timer1Timer
-    left = 32
-    top = 56
+    Left = 32
+    Top = 56
   end
   object BrushTimer: TTimer
     Interval = 40
     OnTimer = BrushTimerTimer
-    left = 44
-    top = 141
+    Left = 44
+    Top = 141
   end
 end

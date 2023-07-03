@@ -13,7 +13,7 @@ uses
   AppEvnts,
   {$EndIf}
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, avRes, avTypes, avTess, mutils,
+  ExtCtrls, avRes, avTypes, avTess, avTextUtils, mutils,
   avCanvas;
 
 type

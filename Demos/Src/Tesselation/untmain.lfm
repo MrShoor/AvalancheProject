@@ -4,13 +4,15 @@ object frmMain: TfrmMain
   Top = 177
   Width = 586
   Caption = 'frmMain'
+  DoubleBuffered = False
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnPaint = FormPaint
-  LCLVersion = '1.8.0.3'
+  ParentDoubleBuffered = False
+  LCLVersion = '2.2.2.0'
   object ApplicationProperties1: TApplicationProperties
     OnIdle = ApplicationProperties1Idle
-    left = 58
-    top = 36
+    Left = 58
+    Top = 36
   end
 end

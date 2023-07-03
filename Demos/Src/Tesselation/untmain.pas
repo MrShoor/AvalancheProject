@@ -14,7 +14,7 @@ type
   TMeshVertex = packed record
     vsCoord : TVec3;
     vsNormal: TVec3;
-    function Layout: IDataLayout;
+    class function Layout: IDataLayout; static;
   end;
   IMeshVertices = specialize IArray<TMeshVertex>;
   TMeshVeritecs = specialize TVerticesRec<TMeshVertex>;
@@ -52,7 +52,7 @@ implementation
 
 { TMeshVertex }
 
-function TMeshVertex.Layout: IDataLayout;
+class function TMeshVertex.Layout: IDataLayout; static;
 begin
   Result := LB.Add('vsCoord', ctFloat, 3)
               .Add('vsNormal', ctFloat, 3)

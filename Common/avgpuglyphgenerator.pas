@@ -1,9 +1,6 @@
-unit avGPUGlyphGenerator;
+Unit avGPUGlyphGenerator;
 
-{$IfDef FPC}
-  {$mode objfpc}{$H+}
-  {$ModeSwitch advancedrecords}
-{$EndIf}
+{$I avConfig.inc}
 
 interface
 
@@ -22,8 +19,8 @@ type
 
   IGPUGlyphGenerator = interface
     procedure BeginGeneration;
-    procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: IctxTexture; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer);
-    procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: TavTextureBase; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer);
+    procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: IctxTexture; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer); overload;
+    procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: TavTextureBase; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer); overload;
     procedure EndGeneration;
   end;
 
@@ -57,7 +54,7 @@ type
 
     procedure PrepareBuffers(const AGlyph: IGlyphPoly); overload;
     procedure RenderGlyph(const ATexSize: TVec2i);
-  private
+  protected
     function QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj) : HRes;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
     function _AddRef : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
     function _Release : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
@@ -65,8 +62,8 @@ type
     procedure AfterRegister; override;
   public
     procedure BeginGeneration;
-    procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: IctxTexture; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer);
-    procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: TavTextureBase; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer);
+    procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: IctxTexture; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer); overload;
+    procedure DrawToTexture(const AGlyph: IGlyphPoly; const ASize: TVec2i; const ADstTexture: TavTextureBase; const ADstPos: TVec2i; ADstSlice, ADstMip: Integer); overload;
     procedure EndGeneration;
   end;
 
@@ -132,7 +129,7 @@ begin
     result:=longint(E_NOINTERFACE);
 end;
 
-function TavGlyphGenerator._AddRef : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
+function TavGlyphGenerator._AddRef : integer;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
 begin
   Result := -1;
 end;

@@ -6,12 +6,14 @@ object frmMain: TfrmMain
   Caption = 'OpenGL'
   ClientHeight = 510
   ClientWidth = 771
+  DoubleBuffered = False
   KeyPreview = True
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnMouseDown = FormMouseDown
   OnPaint = FormPaint
-  LCLVersion = '1.8.0.3'
+  ParentDoubleBuffered = False
+  LCLVersion = '2.2.2.0'
   object cbSorted: TCheckBox
     Left = 8
     Height = 19

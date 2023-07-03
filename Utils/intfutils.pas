@@ -56,6 +56,7 @@ type
   TWeakedInterfacedObject = class (TObject, IUnknown, IWeakedInterface)
   private
     FWeakRef: TObject;
+  protected
     function QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj) : HRes;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
     function _AddRef : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
     function _Release : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
@@ -317,12 +318,12 @@ begin
     result:=longint(E_NOINTERFACE);
 end;
 
-function TWeakedInterfacedObject._AddRef: longint; stdcall;
+function TWeakedInterfacedObject._AddRef : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
 begin
   Result := InterLockedIncrement(TWeakRefIntf(FWeakRef).FInstanceRefCount);
 end;
 
-function TWeakedInterfacedObject._Release: longint; stdcall;
+function TWeakedInterfacedObject._Release : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
 begin
   Result := InterLockedDecrement(TWeakRefIntf(FWeakRef).FInstanceRefCount);
   if Result = 0 then

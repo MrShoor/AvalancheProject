@@ -1,15 +1,17 @@
 object frmMain: TfrmMain
-  Left = 17
+  Left = 158
   Height = 571
-  Top = 16
+  Top = 73
   Width = 797
   Caption = 'frmMain'
   ClientHeight = 571
   ClientWidth = 797
+  DoubleBuffered = False
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnPaint = FormPaint
-  LCLVersion = '1.8.0.3'
+  ParentDoubleBuffered = False
+  LCLVersion = '2.2.2.0'
   object Panel1: TPanel
     Left = 0
     Height = 24
@@ -33,7 +35,7 @@ object frmMain: TfrmMain
   end
   object ApplicationProperties1: TApplicationProperties
     OnIdle = ApplicationIdle
-    left = 112
-    top = 64
+    Left = 112
+    Top = 64
   end
 end

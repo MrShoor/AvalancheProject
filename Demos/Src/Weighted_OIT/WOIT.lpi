@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
-    <Version Value="10"/>
+    <Version Value="12"/>
     <PathDelim Value="\"/>
     <General>
+      <Flags>
+        <CompatibilityMode Value="True"/>
+      </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <MainUnit Value="0"/>
       <Title Value="WOIT"/>
       <ResourceType Value="res"/>
       <Icon Value="0"/>
@@ -23,7 +25,7 @@
             <Filename Value="..\..\Bin\WOIT"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir);..\..\..\Utils"/>
+            <IncludeFiles Value="$(ProjOutDir);..\..\..\Common"/>
             <OtherUnitFiles Value="..\Common"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -67,7 +69,7 @@
             <Filename Value="..\..\Bin\WOIT"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir);..\..\..\Utils"/>
+            <IncludeFiles Value="$(ProjOutDir);..\..\..\Common"/>
             <OtherUnitFiles Value="..\Common"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -100,9 +102,10 @@
       <Version Value="2"/>
     </PublishOptions>
     <RunParams>
-      <local>
-        <FormatVersion Value="1"/>
-      </local>
+      <FormatVersion Value="2"/>
+      <Modes Count="1">
+        <Mode0 Name="default"/>
+      </Modes>
     </RunParams>
     <RequiredPackages Count="4">
       <Item1>
@@ -141,7 +144,7 @@
         <UnitName Value="ContextSwitcher"/>
       </Unit3>
       <Unit4>
-        <Filename Value="..\..\..\Utils\avConfig.inc"/>
+        <Filename Value="..\..\..\Common\avConfig.inc"/>
         <IsPartOfProject Value="True"/>
       </Unit4>
     </Units>
@@ -153,7 +156,7 @@
       <Filename Value="..\..\Bin\WOIT"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir);..\..\..\Utils"/>
+      <IncludeFiles Value="$(ProjOutDir);..\..\..\Common"/>
       <OtherUnitFiles Value="..\Common"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
